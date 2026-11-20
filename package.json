@@ -21,6 +21,10 @@
   "main": "./src/main/main.ts",
   "version": "3.1.11",
   "scripts": {
+    "profile:check": "node .erb/scripts/isolated-profile.cjs check",
+    "start:isolated": "node .erb/scripts/isolated-profile.cjs start",
+    "test:profile": "node --test -r ts-node/register/transpile-only src/__tests__/developmentProfile.test.cjs",
+    "test:profile:electron": "node --test src/__tests__/developmentProfile.electron.cjs",
     "build": "concurrently \"npm run build:main\" \"npm run build:renderer\"",
     "build:dll": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.renderer.dev.dll.ts",
     "build:main": "cross-env NODE_ENV=production TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.main.prod.ts",
@@ -120,8 +124,8 @@
     "hangul-js": "^0.2.6",
     "i": "^0.3.7",
     "jszip": "^3.10.1",
-    "libsodium-wrappers": "^0.7.13",
-    "libsodium-wrappers-sumo": "^0.7.13",
+    "libsodium-wrappers": "0.7.13",
+    "libsodium-wrappers-sumo": "0.7.13",
     "memoize-one": "^6.0.0",
     "mobile-drag-drop": "^v2.3.0-rc.2",
     "mobx-react-lite": "^4.0.7",
@@ -200,6 +204,7 @@
     "eslint": "^8.49.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-erb": "^4.1.0-0",
+    "eslint-config-prettier": "^9.1.0",
     "eslint-import-resolver-typescript": "^3.6.0",
     "eslint-import-resolver-webpack": "^0.13.7",
     "eslint-plugin-compat": "^4.2.0",
@@ -207,6 +212,7 @@
     "eslint-plugin-jest": "^27.4.0",
     "eslint-plugin-jsx-a11y": "^6.7.1",
     "eslint-plugin-promise": "^6.1.1",
+    "eslint-plugin-prettier": "^5.2.1",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "file-loader": "^6.2.0",
@@ -321,7 +327,7 @@
   "collective": {
     "url": "https://opencollective.com/electron-react-boilerplate-594"
   },
-  "devEngines": {
+  "engines": {
     "node": ">=14.x",
     "npm": ">=7.x"
   },
