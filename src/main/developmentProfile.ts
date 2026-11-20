@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 interface ProfileApp {
+  getName(): string;
   getPath(name: 'userData' | 'appData'): string;
   setPath(
     name: 'userData' | 'sessionData' | 'logs' | 'crashDumps',
@@ -23,6 +24,11 @@ function canonicalPath(value: string): string {
     return fs.realpathSync(absolute);
   } catch (error: any) {
     if (error.code !== 'ENOENT') throw error;
+    if (path.dirname(absolute) === absolute) {
+      throw new Error(
+        'Cannot resolve the filesystem root of the development profile',
+      );
+    }
     return path.join(
       canonicalPath(path.dirname(absolute)),
       path.basename(absolute),
@@ -35,8 +41,8 @@ export function initializeDevelopmentProfile(
   directory: string | undefined,
   platform = process.platform,
 ): DevelopmentProfile {
-  const original = app.getPath('userData');
   if (directory === undefined) {
+    const original = app.getPath('userData');
     return { active: false, appDirectory: path.join(original, 'SDStudio') };
   }
   if (!directory.trim() || !path.isAbsolute(directory)) {
@@ -58,7 +64,7 @@ export function initializeDevelopmentProfile(
   const candidate = compare(selected);
   const appData = app.getPath('appData');
   const originals = [
-    original,
+    path.join(appData, app.getName()),
     path.join(appData, 'sdstudio'),
     path.join(appData, 'SDStudio'),
   ];
@@ -116,6 +122,15 @@ export function storageDirectory(
   savedLocation: string | undefined,
   currentDirectory: string,
 ): string {
+  if (
+    profile.active &&
+    savedLocation &&
+    savedLocation !== profile.appDirectory
+  ) {
+    process.stdout.write(
+      '[SDStudio profile] Ignoring config.saveLocation in isolated mode\n',
+    );
+  }
   return profile.active
     ? profile.appDirectory
     : savedLocation || currentDirectory;

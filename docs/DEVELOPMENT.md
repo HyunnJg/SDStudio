@@ -81,3 +81,5 @@ npm run profile:check -- /tmp/sdstudio-dev-profile --ozone-platform=headless --d
 ```
 
 인자를 생략하면 저장소 아래의 무시되는 개발 프로필 폴더를 사용한다. 환경변수를 직접 사용할 경우 `SDSTUDIO_USER_DATA_DIR`는 비어 있지 않은 절대 경로여야 한다. P0-02 이후 전체 UI 검증에는 `npm run start:isolated -- /절대/개발프로필`을 사용한다.
+
+원본 앱에서 저장 위치를 직접 변경했다면 그 사용자 지정 폴더 안에 개발 프로필을 두지 않는다. 원본 config를 읽지 않는 설계상 그 위치는 자동 탐지하지 않는다. Electron 실기 프로필 테스트는 합성 appData를 확실히 지정할 수 있는 Linux에서만 실행한다. 컨테이너에 필요한 추가 Electron 인자는 `SDSTUDIO_TEST_ELECTRON_ARGS`의 JSON 문자열 배열로 명시할 수 있으며 sandbox 비활성 플래그를 자동 추가하지 않는다. Windows npm ci는 미검증이며 sharp 0.32 계열의 libvips 바이너리는 설치 중 별도 다운로드된다.

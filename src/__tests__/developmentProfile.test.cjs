@@ -21,6 +21,7 @@ function fixture(t) {
   const paths = { appData, userData: original };
   const calls = [];
   const app = {
+    getName: () => 'SDStudio',
     getPath: (name) => paths[name],
     setPath: (name, value) => {
       paths[name] = value;
@@ -138,6 +139,7 @@ test('actual main entry selects the profile and exits before loading native modu
     const paths = ${JSON.stringify(f.paths)};
     Module._load = function(name, ...args) {
       if (name === 'electron') return { app: {
+        getName: () => 'SDStudio',
         getPath: (key) => paths[key],
         setPath: (key, value) => { paths[key] = value; },
         isReady: () => false,
@@ -173,4 +175,57 @@ test('actual main entry selects the profile and exits before loading native modu
     fs.readFileSync(path.join(f.original, 'TOKEN.txt'), 'utf8'),
     'fixture-token',
   );
+});
+
+test('isolated mode does not ask Electron for userData before the override', (t) => {
+  const f = fixture(t);
+  const getPath = f.app.getPath;
+  f.app.getPath = (name) => {
+    assert.notEqual(name, 'userData');
+    return getPath(name);
+  };
+  initializeDevelopmentProfile(f.app, path.join(f.root, 'clean'));
+});
+
+test('a missing filesystem root fails without unbounded recursion', (t) => {
+  const f = fixture(t);
+  t.mock.method(fs, 'realpathSync', () => {
+    throw Object.assign(new Error('missing volume'), { code: 'ENOENT' });
+  });
+  assert.throws(
+    () => initializeDevelopmentProfile(f.app, path.join(f.root, 'missing')),
+    /filesystem root/,
+  );
+  assert.deepEqual(f.calls, []);
+});
+
+test('profile runner keeps flags separate from an omitted directory', () => {
+  const {
+    parseArguments,
+    extraElectronArgs,
+  } = require('../../.erb/scripts/isolated-profile.cjs');
+  assert.deepEqual(parseArguments(['check', '--ozone-platform=headless']), {
+    mode: 'check',
+    directory: undefined,
+    electronArgs: ['--ozone-platform=headless'],
+  });
+  assert.deepEqual(parseArguments(['check', '/tmp/profile', '--disable-gpu']), {
+    mode: 'check',
+    directory: '/tmp/profile',
+    electronArgs: ['--disable-gpu'],
+  });
+  assert.deepEqual(extraElectronArgs('["--no-sandbox"]'), ['--no-sandbox']);
+  assert.throws(() => extraElectronArgs('{"flag":true}'), /JSON array/);
+});
+
+test('start runner without npm fails with a clear message', () => {
+  const env = { ...process.env };
+  delete env.npm_execpath;
+  const result = spawnSync(
+    process.execPath,
+    ['.erb/scripts/isolated-profile.cjs', 'start'],
+    { cwd: path.resolve(__dirname, '../..'), env, encoding: 'utf8' },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /npm_execpath/);
 });
