@@ -38,3 +38,11 @@ package-lock.json
 venv
 
 dist
+
+# Local credentials and development-only settings
+.env
+.env.*
+!.env.example
+TOKEN.txt
+**/TOKEN.txt
+/config.local.json

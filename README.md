@@ -1,4 +1,23 @@
-# 소개
+# SDStudio 협업 작업공간
+
+[sunho/SDStudio](https://github.com/sunho/SDStudio)를 기반으로 NovelAI와 익숙한 이미지 생성 UI 및 반복 작업 개선을 검토하는 포크입니다. **현재는 작업공간을 준비한 단계이며 앱 화면과 생성 로직은 아직 변경하지 않았습니다.**
+
+| 문서 | 용도 |
+| --- | --- |
+| [현재 상태](docs/STATUS.md) | 완료·미완료, 확인한 사실, 바로 다음 작업 |
+| [작업 계획](docs/ROADMAP.md) | 단계별 작업과 완료 기준 |
+| [결정 기록](docs/DECISIONS.md) | 확정한 방향과 제안의 구분 |
+| [소스 구조](docs/ARCHITECTURE.md) | 주요 파일과 변경 지점 |
+| [개발 시작](docs/DEVELOPMENT.md) | 원본 명령, 환경, 검증 상태 |
+| [라이선스 조사](docs/LICENSE_REVIEW.md) | 파일별 증거와 미확인 범위 |
+| [다른 AI와 검토하기](docs/reviews/README.md) | 전달할 요청문과 검토 양식 |
+| [AI 작업 지침](AGENTS.md) | 작은 브랜치·PR·인수인계 규칙 |
+
+원본 기준: `f2088add103ad683a31e0590448e6e5bb4d71556` (`3.1.11` 표기). 원본 코드·이력·크레딧을 보존합니다. `NAI-Auto-Generator`의 코드는 가져오지 않았습니다. 최종 앱 이름과 세부 UI는 미정입니다.
+
+---
+
+# 원본 프로젝트 소개
 Stable Diffusion 계열 API와 모델을 사용하기 편하게 해주는 프론트앤드 프로그램입니다. 모든 씬을 여러번 생성 예약을 해놓고 딴거하다가 와서 이미지를 이미지 월드컵으로 선택하고 리터칭하는 작업 흐름에 맞춰져 있습니다.
 
 ![](images/img1.png)
