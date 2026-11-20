@@ -83,7 +83,7 @@
 
 ## 완료와 다음 작업
 
-P0-03a: 공식 근거·범위 결정, 저장 호환 설계, 합성 요청 snapshot과 ZIP/PNG 바이트 검증 8건을 완료했다. `npm run test:nai-contract`, 독립 모듈 엄격 타입검사·린트 통과. 새 코드는 기존 앱에서 import하지 않으므로 UI·계정·저장 동작을 바꾸지 않는다.
+P0-03a: 공식 근거·범위 결정, 저장 호환 설계, 합성 요청 snapshot과 ZIP/PNG 바이트 검증 8건을 완료했다. `npm run test:nai-contract`, 독립 모듈 엄격 타입검사·린트 통과. P0-03a 당시에는 앱에 미연결이었다. P1-01에서는 mock 화면의 입력 검사·예제 투영에만 연결하고 계정·실제 전송·세션 저장에는 연결하지 않는다.
 
 P0-03b: 정확한 API 모델 ID와 action/params_version, 모델별 sampler/noise schedule/defaults, 실제 좌표 해석, 참조 전처리, 인증 및 저장·복구 구현을 별도 검증한다. 완료 전 P1-02 실제 연결을 켜지 않는다. P1-01은 위 범위의 오프라인 화면부터 진행할 수 있다.
 

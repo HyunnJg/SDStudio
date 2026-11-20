@@ -92,3 +92,8 @@ npm run profile:check -- /tmp/sdstudio-dev-profile --ozone-platform=headless --d
 ## 모델/API 초안 검증
 
 `npm run test:nai-contract`는 독립된 메모리 초안을 합성 요청으로 투영하고 ZIP/PNG를 확인한다. 앱의 실제 계정·V3 전송·세션 저장은 호출하지 않는다. 입력·기대 출력은 `src/__tests__/fixtures/nai/`에 있고 모델 ID도 가짜다. 실제 지원 상태는 [NOVELAI_API.md](NOVELAI_API.md)를 기준으로 한다.
+
+
+## 오프라인 새 화면
+
+`npm run start:mock`은 브라우저 예제, `npm run start:preview -- /절대/개발프로필`은 Electron 개발 모드다. 새 화면은 mock 전용이며 기존 V3 화면에서 편집한 뒤 다시 미리보기로 돌아올 수 있다. 창을 닫으면 새 초안과 예제는 사라진다. [P1-01 검증과 화면](validation/2026-11-20-p1-workspace.md)을 참고한다.
