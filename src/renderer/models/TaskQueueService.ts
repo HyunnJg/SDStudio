@@ -1,4 +1,5 @@
 import { v4 } from 'uuid';
+import { runtimeOptions } from '../runtime';
 import {
   convertResolution,
   ImageAugmentInput,
@@ -309,13 +310,13 @@ class GenerateImageTaskHandler implements TaskHandler {
       arg.imageStrength = i2iJob.strength;
     }
     console.log(arg);
-    const config = await backend.getConfig();
-    if (!config.uuid) {
-      config.uuid = v4();
-      await backend.setConfig(config);
-    }
-    const ip = await fetchIPAddress(config.uuid);
-    if (isMobile) {
+    if (isMobile && !runtimeOptions.offline) {
+      const config = await backend.getConfig();
+      if (!config.uuid) {
+        config.uuid = v4();
+        await backend.setConfig(config);
+      }
+      const ip = await fetchIPAddress(config.uuid);
       if (run.lastIp == undefined) {
         run.lastIp = ip;
       } else {

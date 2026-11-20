@@ -229,3 +229,51 @@ test('start runner without npm fails with a clear message', () => {
   assert.equal(result.status, 1);
   assert.match(result.stderr, /npm_execpath/);
 });
+
+test('isolated runner forwards offline defaults and permits an explicit online opt-in', (t) => {
+  const f = fixture(t);
+  const entry = path.join(f.root, 'npm-fixture.cjs');
+  fs.writeFileSync(entry, 'process.stdout.write(process.env.SDSTUDIO_OFFLINE)');
+  for (const expected of ['1', '0']) {
+    const env = { ...process.env, npm_execpath: entry };
+    delete env.SDSTUDIO_OFFLINE;
+    if (expected === '0') env.SDSTUDIO_OFFLINE = '0';
+    const result = spawnSync(
+      process.execPath,
+      [
+        '.erb/scripts/isolated-profile.cjs',
+        'start',
+        path.join(f.root, 'development'),
+      ],
+      { cwd: path.resolve(__dirname, '../..'), env, encoding: 'utf8' },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, expected);
+  }
+});
+
+test('Electron mock mode without an isolated directory exits before looking up userData', () => {
+  const env = { ...process.env, SDSTUDIO_MOCK_BACKEND: '1' };
+  delete env.SDSTUDIO_USER_DATA_DIR;
+  const script = `
+    const Module = require('node:module');
+    const load = Module._load;
+    Module._load = function(name, ...args) {
+      if (name === 'electron') return { app: {
+        getPath: () => { throw new Error('Unexpected original profile lookup'); },
+        exit: (code) => process.exit(code)
+      }};
+      return load.call(this, name, ...args);
+    };
+    require('ts-node/register/transpile-only');
+    require('./src/main/main.ts');
+  `;
+  const result = spawnSync(process.execPath, ['-e', script], {
+    cwd: path.resolve(__dirname, '../..'),
+    env,
+    encoding: 'utf8',
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /mock preview requires SDSTUDIO_USER_DATA_DIR/);
+  assert.doesNotMatch(result.stderr, /Unexpected original profile lookup/);
+});

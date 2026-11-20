@@ -40,7 +40,10 @@
     "start:main": "cross-env NODE_ENV=development electronmon -r ts-node/register/transpile-only .",
     "start:preload": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.preload.dev.ts",
     "start:renderer": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack serve --config ./.erb/configs/webpack.config.renderer.dev.ts",
-    "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,css,scss,md}\""
+    "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,css,scss,md}\"",
+    "test:offline": "node --test -r ts-node/register/transpile-only src/__tests__/offlineRuntime.test.cjs",
+    "start:mock": "cross-env SDSTUDIO_MOCK_BACKEND=1 npm run start:renderer",
+    "smoke:offline": "node .erb/scripts/smoke-offline.cjs"
   },
   "browserslist": [],
   "prettier": {

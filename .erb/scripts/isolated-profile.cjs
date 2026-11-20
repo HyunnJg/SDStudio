@@ -35,7 +35,11 @@ function main() {
   const profile = path.resolve(
     directory || path.join(root, '.sdstudio-dev-profile'),
   );
-  const env = { ...process.env, SDSTUDIO_USER_DATA_DIR: profile };
+  const env = {
+    ...process.env,
+    SDSTUDIO_USER_DATA_DIR: profile,
+    SDSTUDIO_OFFLINE: process.env.SDSTUDIO_OFFLINE ?? '1',
+  };
   const args =
     mode === 'check'
       ? [

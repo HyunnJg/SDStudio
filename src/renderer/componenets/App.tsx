@@ -1,4 +1,5 @@
 import './App.css';
+import { runtimeOptions } from '../runtime';
 import './contexify.css';
 import {
   Component,
@@ -131,6 +132,15 @@ export const App = observer(() => {
       taskQueueService.stop();
     };
   }, []);
+  const previewStarted = useRef(false);
+  useEffect(() => {
+    if (!runtimeOptions.mockBackend || previewStarted.current) return;
+    previewStarted.current = true;
+    (async () => {
+      await sessionService.add('오프라인 예제');
+      appState.curSession = await sessionService.get('오프라인 예제');
+    })().catch((error) => appState.pushMessage(error.message));
+  }, []);
   const [darkMode, setDarkMode] = useState(false);
   const updatedIgnored = useRef<boolean>(false);
   useEffect(() => {
@@ -152,7 +162,7 @@ export const App = observer(() => {
           text: '새로운 버전이 있습니다. 새로 다운 받으시겠습니까?',
           green: true,
           callback: () => {
-            backend.openWebPage('https://github.com/sunho/SDStudio/releases');
+            backend.openWebPage(appUpdateNoticeService.releasesURL);
           },
         });
         updatedIgnored.current = true;

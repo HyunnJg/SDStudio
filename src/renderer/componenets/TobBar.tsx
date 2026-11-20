@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react';
+import { runtimeOptions } from '../runtime';
 import { FloatView } from './FloatView';
 import ConfigScreen from './ConfigScreen';
 import SessionSelect from './SessionSelect';
@@ -36,7 +37,7 @@ const TobBar = () => {
         SDStudio
       </div>
       <p className="ml-auto mr-2 hidden md:block">
-        {!loggedIn ? (
+        {runtimeOptions.offline ? <span className="round-tag back-yellow">{runtimeOptions.mockBackend ? '오프라인 예제 · 실제 생성/저장 없음' : '오프라인 · 계정/API 연결 없음'}</span> : !loggedIn ? (
           <span className={`round-tag back-red`}>
             환경설정에서 로그인하세요
           </span>

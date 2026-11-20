@@ -13,7 +13,7 @@ export class LocalAIService extends EventTarget {
   downloading: boolean;
   modelLoaded: boolean;
   ready: boolean;
-  constructor() {
+  constructor(private enabled = true) {
     super();
     this.downloading = false;
     this.modelLoaded = false;
@@ -28,7 +28,12 @@ export class LocalAIService extends EventTarget {
     this.modelLoaded = false;
   }
 
+  assertEnabled() {
+    if (!this.enabled) throw new Error('Local AI is disabled in offline preview');
+  }
+
   async download() {
+    this.assertEnabled();
     this.downloading = true;
     try {
       await backend.deleteFile('tmp/localai.zip');
@@ -56,6 +61,7 @@ export class LocalAIService extends EventTarget {
   }
 
   async spawnLocalAI() {
+    this.assertEnabled();
     const running = await backend.isLocalAIRunning();
     if (running) {
       return;
@@ -64,6 +70,7 @@ export class LocalAIService extends EventTarget {
   }
 
   async statsModels() {
+    if (!this.enabled) return;
     const avail: any = {
       fast: false,
       quality: false,
@@ -91,6 +98,7 @@ export class LocalAIService extends EventTarget {
   }
 
   async loadModel() {
+    this.assertEnabled();
     const running = await backend.isLocalAIRunning();
     if (!this.ready || !running) throw new Error('Local AI not ready');
     const modelType = 'quality';
@@ -100,6 +108,7 @@ export class LocalAIService extends EventTarget {
   }
 
   async removeBg(image: string, outputFilePath: string) {
+    this.assertEnabled();
     if (!this.modelLoaded) await this.loadModel();
     await backend.removeBackground(image, outputFilePath);
   }
