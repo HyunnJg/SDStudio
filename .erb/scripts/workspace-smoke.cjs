@@ -31,6 +31,12 @@ module.exports = async function exerciseWorkspace(contents) {
     await new Promise((resolve) => setTimeout(resolve, 40));
   };
   await until(`!!document.querySelector('[data-testid="preview-workspace"]')`);
+  await evaluate("window.taskQueueService.dispatchEvent(new Event('ip-check-fail'))");
+  await until("!!document.querySelector('.confirm-window')");
+  assert.ok(await evaluate("document.querySelector('.confirm-window').getBoundingClientRect().top >= 0"));
+  await click('.confirm-window button');
+  await until("!document.querySelector('.confirm-window')");
+  checks.push('global service dialog remains visible in the new workspace');
   const legacy = await evaluate('JSON.stringify(window.curSession.toJSON())');
   await fill('[aria-label="모델 입력 형식"]', 'v5');
   await until(

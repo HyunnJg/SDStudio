@@ -29,3 +29,5 @@ docs/reviews/2026-11-20-initial-request.md의 질문을 독립적으로 검토�
 ```
 
 의견 파일명 예: `2026-11-20-reviewer-topic.md`. 파일명에 API 키나 개인 계정 정보를 넣지 않는다. 별도 오케스트레이터나 모델 API 연결은 필요하지 않다.
+
+- [PR #5 후속 처리](2026-11-21-pr5-followup.md)

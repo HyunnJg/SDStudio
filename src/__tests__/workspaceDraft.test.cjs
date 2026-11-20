@@ -101,3 +101,28 @@ test('error messages explain length and connection failures without inventing a 
   );
   assert.match(previewErrorMessage({ code: 'CONNECTION' }), /입력은 그대로/);
 });
+
+test('validation localization uses stable codes even when English copy changes', () => {
+  const {
+    PreviewContractError,
+  } = require('../renderer/backends/genVendors/naiPreviewContract');
+  for (const [code, field, pattern] of [
+    ['INLINE_SYNTAX', undefined, /\| 문법/],
+    ['EMPTY_PROMPT', undefined, /기본 프롬프트/],
+    ['CHARACTER_LIMIT', undefined, /캐릭터 수/],
+    ['EMPTY_CHARACTER_PROMPT', undefined, /활성 캐릭터/],
+    ['INVALID_NUMBER', 'seed', /시드는/],
+    ['INVALID_NUMBER', 'steps', /스텝은/],
+    ['INVALID_NUMBER', 'guidance', /가이던스는/],
+  ])
+    assert.match(
+      previewErrorMessage(
+        new PreviewContractError(code, 'Completely changed wording', field),
+      ),
+      pattern,
+    );
+  assert.doesNotMatch(
+    previewErrorMessage(new Error('seed Inline Too many')),
+    /시드는|문법|캐릭터 수/,
+  );
+});

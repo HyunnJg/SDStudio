@@ -1,5 +1,6 @@
 import {
   buildPreviewImageRequest,
+  PreviewContractError,
   ImageRequestDraft,
   PreviewModelFamily,
 } from '../backends/genVendors/naiPreviewContract';
@@ -96,7 +97,10 @@ export function projectWorkspaceDraft(draft: WorkspaceDraft): PreviewRequest {
           (value) => Number.isInteger(value) && value >= 0 && value < 5,
         )
       )
-        throw new Error('Invalid preview grid cell');
+        throw new PreviewContractError(
+          'INVALID_GRID_CELL',
+          'Invalid preview grid cell',
+        );
       return {
         id: character.id,
         enabled: character.enabled,
@@ -132,24 +136,28 @@ export function moveWorkspaceCharacter(
 }
 
 export function previewErrorMessage(error: unknown): string {
-  const code = (error as { code?: string })?.code;
-  if (code === 'PROMPT_TOO_LONG')
-    return '프롬프트가 모델의 입력 한도를 넘었습니다. 기본·캐릭터 프롬프트를 줄인 뒤 다시 시도해주세요.';
-  if (code === 'CONNECTION')
-    return '연결을 완료하지 못했습니다. 입력은 그대로 유지됩니다. 잠시 후 다시 시도해주세요.';
-  const message = error instanceof Error ? error.message : '';
-  if (message.includes('Inline'))
-    return '이 초안에서는 | 문법을 사용할 수 없습니다. 캐릭터별 입력란을 사용해주세요.';
-  if (message.includes('base prompt'))
-    return '기본 프롬프트 또는 활성 캐릭터 프롬프트를 입력해주세요.';
-  if (message.includes('character prompt is empty'))
-    return '활성 캐릭터의 프롬프트를 입력해주세요.';
-  if (message.includes('Too many'))
-    return '선택한 모델 초안의 캐릭터 수를 초과했습니다. 일부 캐릭터를 꺼주세요.';
-  if (message.includes('seed'))
-    return '시드는 0부터 4294967295 사이의 정수로 입력해주세요.';
-  if (message.includes('steps')) return '스텝은 1 이상의 정수로 입력해주세요.';
-  if (message.includes('guidance'))
-    return '가이던스는 0 이상의 유한한 숫자로 입력해주세요.';
-  return '입력값을 확인한 뒤 다시 시도해주세요. 초안은 그대로 유지됩니다.';
+  const { code, field } = (error ?? {}) as { code?: string; field?: string };
+  const messages: Record<string, string> = {
+    PROMPT_TOO_LONG:
+      '프롬프트가 모델의 입력 한도를 넘었습니다. 기본·캐릭터 프롬프트를 줄인 뒤 다시 시도해주세요.',
+    CONNECTION:
+      '연결을 완료하지 못했습니다. 입력은 그대로 유지됩니다. 잠시 후 다시 시도해주세요.',
+    INLINE_SYNTAX:
+      '이 초안에서는 | 문법을 사용할 수 없습니다. 캐릭터별 입력란을 사용해주세요.',
+    EMPTY_PROMPT: '기본 프롬프트 또는 활성 캐릭터 프롬프트를 입력해주세요.',
+    EMPTY_CHARACTER_PROMPT: '활성 캐릭터의 프롬프트를 입력해주세요.',
+    CHARACTER_LIMIT:
+      '선택한 모델 초안의 캐릭터 수를 초과했습니다. 일부 캐릭터를 꺼주세요.',
+  };
+  if (code === 'INVALID_NUMBER') {
+    if (field === 'seed')
+      return '시드는 0부터 4294967295 사이의 정수로 입력해주세요.';
+    if (field === 'steps') return '스텝은 1 이상의 정수로 입력해주세요.';
+    if (field === 'guidance')
+      return '가이던스는 0 이상의 유한한 숫자로 입력해주세요.';
+  }
+  return (
+    messages[code ?? ''] ??
+    '입력값을 확인한 뒤 다시 시도해주세요. 초안은 그대로 유지됩니다.'
+  );
 }

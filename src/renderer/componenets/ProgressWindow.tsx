@@ -13,7 +13,7 @@ interface Props {
 
 const ProgressWindow = ({ dialog }: Props) => {
   return (
-    <div className="fixed flex justify-center w-full confirm-window">
+    <div className="fixed top-0 left-0 flex justify-center w-full confirm-window">
       <div className="flex flex-col justify-between m-4 p-4 rounded-md shadow-xl bg-white dark:bg-slate-800 text-black w-96">
         <div className="break-keep text-center text-default">{dialog.text}</div>
         <div className="relative w-full h-8 bg-gray-500 dark:bg-slate-700 mt-4 flex justify-center text-white font-medium bg-clip-border">

@@ -270,17 +270,16 @@ export const App = observer(() => {
       emoji: <FaPuzzlePiece />,
     },
   ];
-  if (runtimeOptions.mockBackend && previewOpen) {
-    return <PreviewWorkspace state={workspace} setState={setWorkspace}
+  const content = runtimeOptions.mockBackend && previewOpen ? (
+    <PreviewWorkspace state={workspace} setState={setWorkspace}
       legacyName={appState.curSession?.name ?? ''}
       legacySceneCount={appState.curSession?.scenes.size ?? 0}
       onOpenLegacy={() => setPreviewOpen(false)}
       renderPreview={(request, scenario) => {
         if (!(backend instanceof MockBackend)) throw new Error('Preview requires the mock backend');
         return backend.renderDraftPreview(request, scenario);
-      }} />;
-  }
-  return (
+      }} />
+  ) : (
     <DndProvider
       backend={isMobile ? TouchBackend : HTML5Backend}
       options={{
@@ -347,13 +346,14 @@ export const App = observer(() => {
             </div>
           </StackFixed>
         </ErrorBoundary>
-        <AlertWindow />
-        <ConfirmWindow />
-        {appState.progressDialog && (
-          <ProgressWindow dialog={appState.progressDialog} />
-        )}
         <PromptTooltip />
       </div>
     </DndProvider>
   );
+  return <div className={darkMode ? 'dark' : ''}>
+    {content}
+    <AlertWindow />
+    <ConfirmWindow />
+    {appState.progressDialog && <ProgressWindow dialog={appState.progressDialog} />}
+  </div>;
 });
