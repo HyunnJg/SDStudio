@@ -18,11 +18,11 @@
 
 | 대상 | 확인한 위치 | 남은 확인 |
 | --- | --- | --- |
-| 태그 DB | `src/native/db.csv`, `assets/db.txt`, `release/app/data/db.csv` | 원 데이터·변환 과정·고지 조건. 형식만으로 출처나 라이선스 확정 금지 |
+| 태그 DB | `src/native/db.csv`, `assets/db.txt`, `release/app/data/db.csv` | 원 데이터·변환 과정·고지 조건. init()이 db.csv를 필수로 읽으므로 배포에서 제외할 경우 대체 데이터 또는 빈 DB로 기동할 경로도 필요. 형식만으로 허용 판정 금지 |
 | NotoSans 폰트 3종 | `assets/fonts/NotoSans-{Regular,Bold,Italic}.ttf` | 파일 메타데이터, 취득한 원 배포본, 해당 고지. 이름만으로 허용 판정하지 않음 |
 | 기반 보일러플레이트 | `.erb/`, 루트 `package.json`의 electron-react-boilerplate 관련 정보 | 사용 리비전과 보존해야 하는 원 고지 |
 | 이미지·아이콘·예제 | 루트 이미지, `assets/`, `images/`, `examples/` | 파일별 출처·조건·배포 포함 여부 |
-| npm/Python 의존성 | 루트·`release/app`·`src/native` package.json, `src/localai/requirements.txt` | 실제 설치 리비전 확정 후 직접·전이 의존성의 고지 자료 수집 |
+| npm/Python 의존성 | 루트·`release/app`·`src/native` package.json, `src/localai/requirements.txt` | 실제 설치 리비전 확정 후 직접·전이 의존성의 고지 자료 수집. `sharp`, `exiftool-vendored` 등 동봉 바이너리의 LICENSE/COPYING은 패키지 메타데이터와 별도 확인 |
 | 로컬 AI 배포 바이너리·가중치 | `LocalAIService.ts`의 Hugging Face ZIP 및 BiRefNet quality 다운로드 | 각 다운로드 산출물의 출처·조건·포함 의존성. BiRefNet 코드의 MIT 표기와 별도 취급 |
 
 검토자는 태그 DB 출처와 폰트의 통상 라이선스를 추정했지만, 그 추정을 이 파일들의 확인 결과로 옮기지 않았다.
