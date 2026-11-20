@@ -1,0 +1,44 @@
+{
+  "input": "2people, outdoors, daytime",
+  "model": "fixture-model-not-for-api",
+  "parameters": {
+    "width": 1216,
+    "height": 832,
+    "seed": 0,
+    "steps": 28,
+    "scale": 5,
+    "cfg_rescale": 0,
+    "sampler": "fixture-sampler",
+    "noise_schedule": "fixture-noise-schedule",
+    "n_samples": 1,
+    "negative_prompt": "blur",
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "2people, outdoors, daytime",
+        "char_captions": [
+          {
+            "char_caption": "person, red coat",
+            "centers": [{ "x": 0.3, "y": 0.5 }]
+          },
+          {
+            "char_caption": "person, blue coat",
+            "centers": [{ "x": 0.7, "y": 0.5 }]
+          }
+        ]
+      },
+      "use_coords": true,
+      "use_order": true
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "blur",
+        "char_captions": [
+          { "char_caption": "hat", "centers": [{ "x": 0.3, "y": 0.5 }] },
+          { "char_caption": "scarf", "centers": [{ "x": 0.7, "y": 0.5 }] }
+        ]
+      },
+      "use_coords": true,
+      "use_order": true
+    }
+  }
+}

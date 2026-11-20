@@ -5,6 +5,7 @@
 | 문서 | 용도 |
 | --- | --- |
 | [현재 상태](docs/STATUS.md) | 완료·미완료, 확인한 사실, 바로 다음 작업 |
+| [모델/API 설계](docs/NOVELAI_API.md) | 공식 근거, 입력 초안, 실제 연동 전 남은 항목 |
 | [작업 계획](docs/ROADMAP.md) | 단계별 작업과 완료 기준 |
 | [결정 기록](docs/DECISIONS.md) | 확정한 방향과 제안의 구분 |
 | [소스 구조](docs/ARCHITECTURE.md) | 주요 파일과 변경 지점 |

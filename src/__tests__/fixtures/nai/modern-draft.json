@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "family": "v4.5",
+  "prompt": "2people, outdoors, daytime",
+  "negativePrompt": "blur",
+  "characters": [
+    {
+      "id": "char-a",
+      "enabled": true,
+      "prompt": "person, red coat",
+      "negativePrompt": "hat",
+      "position": { "x": 0.3, "y": 0.5 }
+    },
+    {
+      "id": "char-hidden",
+      "enabled": false,
+      "prompt": "disabled fixture",
+      "negativePrompt": "hidden"
+    },
+    {
+      "id": "char-b",
+      "enabled": true,
+      "prompt": "person, blue coat",
+      "negativePrompt": "scarf",
+      "position": { "x": 0.7, "y": 0.5 }
+    }
+  ],
+  "placement": "manual",
+  "width": 1216,
+  "height": 832,
+  "seed": 0,
+  "steps": 28,
+  "guidance": 5,
+  "cfgRescale": 0,
+  "sampler": "fixture-sampler",
+  "noiseSchedule": "fixture-noise-schedule"
+}
