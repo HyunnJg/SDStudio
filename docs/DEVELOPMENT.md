@@ -87,3 +87,8 @@ npm run profile:check -- /tmp/sdstudio-dev-profile --ozone-platform=headless --d
 ## 오프라인 기동과 예제
 
 `npm run start:isolated -- /절대/개발프로필`은 기본 오프라인이다. 온라인 검증이 필요한 작업에서만 `SDSTUDIO_OFFLINE=0`을 명시한다. 가짜 백엔드를 쓰는 `npm run start:mock`은 계정/API를 쓰지 않고 변경을 저장하지 않는다. 독립 브라우저 모드의 실기 검증은 아직 하지 않았다. 전체 창 검사는 X11 DISPLAY가 필요하며 `npm run smoke:offline`과 `npm run smoke:offline -- real`로 구분한다.
+
+
+## 모델/API 초안 검증
+
+`npm run test:nai-contract`는 독립된 메모리 초안을 합성 요청으로 투영하고 ZIP/PNG를 확인한다. 앱의 실제 계정·V3 전송·세션 저장은 호출하지 않는다. 입력·기대 출력은 `src/__tests__/fixtures/nai/`에 있고 모델 ID도 가짜다. 실제 지원 상태는 [NOVELAI_API.md](NOVELAI_API.md)를 기준으로 한다.
