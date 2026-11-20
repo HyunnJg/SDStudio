@@ -4,7 +4,7 @@
 
 ## 현재 단계
 
-**PR #2 보완·병합 / P0-02 구현 및 Linux 전체 화면 검사.** [프로필 검증](validation/2026-11-20-p0-profile.md), [추가 검토 처리](reviews/2026-11-20-pr2-followup.md), [오프라인 기동 검증](validation/2026-11-20-p0-offline.md)을 참고한다.
+**PR #3 추가 검토 반영 / 초기화 실패·DEBUG_PROD 기동 보완.** [처리 결과](reviews/2026-11-20-pr3-followup.md). [프로필 검증](validation/2026-11-20-p0-profile.md), [추가 검토 처리](reviews/2026-11-20-pr2-followup.md), [오프라인 기동 검증](validation/2026-11-20-p0-offline.md)을 참고한다.
 
 | 항목 | 상태 | 근거 |
 | --- | --- | --- |
@@ -16,7 +16,8 @@
 | 의존성 설치 / 앱 빌드 | Linux 통과 | 네이티브·DLL·메인·렌더러 성공. 별도 깨끗한 체크아웃 npm ci도 성공 |
 | P0-01a 프로필 격리 | 구현·드라이런 검증 | 추가 보완 후 단위/진입·명령 테스트 13건, Linux Electron 테스트 2건 통과 |
 | 전체 UI 기동 | Linux 조건부 통과 | 실제 Electron의 가짜/파일 백엔드 2경로. 단일 인스턴스 잠금만 하네스에서 모의 처리 |
-| P0-02 서비스·백엔드 | 구현·검증 | 9건 통과. 두 전체 기동의 원격 요청·렌더러 오류 0건, 예제 대기열 1건 완료 |
+| P0-02 서비스·백엔드 | 구현·검증 | 11건 통과. 두 전체 기동의 원격 요청·렌더러 오류 0건, 예제 대기열 1건 완료 |
+| 시작 제어·실패 종료 | 단위 4건 + Electron 1건 통과 | 오류 보고·종료 코드 1·격리 로그 및 원본 폴더 불변 |
 | 타입검사 | 새 모듈 통과 / 전체 저장소 실패 | 전체 tsc는 기존 libsodium 타입 선언 TS2688. 빌드는 transpileOnly임 |
 | 실제 NovelAI API 생성 | 미실행 | 자격증명 사용 및 과금 없음 |
 | 다른 AI의 독립 검토 | 수령·계획 반영 | [Gemini](reviews/2026-11-20-gemini-initial-review.md), [Claude](reviews/2026-11-20-claude-initial-review.md), [처리 결과](reviews/2026-11-20-review-resolution.md) |

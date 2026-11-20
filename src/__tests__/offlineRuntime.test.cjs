@@ -211,3 +211,88 @@ test('offline Electron account and generation calls fail before reading a token 
     global.window = previousWindow;
   }
 });
+
+test('preview system export operations cannot silently report success', async () => {
+  const backend = new MockBackend();
+  for (const operation of [
+    'showFile',
+    'copyToDownloads',
+    'copyImageToClipboard',
+    'openImageEditor',
+    'getRemainCredits',
+  ]) {
+    await assert.rejects(
+      backend[operation]('fixture.png'),
+      /unavailable in offline preview/,
+    );
+  }
+});
+
+test('main network and session inventory changes require an explicit offline review', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const ts = require('typescript');
+  const root = path.resolve(__dirname, '../main');
+  const findings = [];
+  function scan(directory) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const filename = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        scan(filename);
+        continue;
+      }
+      if (!filename.endsWith('.ts')) continue;
+      const source = ts.createSourceFile(
+        filename,
+        fs.readFileSync(filename, 'utf8'),
+        ts.ScriptTarget.Latest,
+        true,
+      );
+      const relative = path.relative(root, filename).split(path.sep).join('/');
+      function visit(node) {
+        if (
+          ts.isImportDeclaration(node) &&
+          /^(node:)?(http|https|net)$|^(undici|axios)$/.test(
+            node.moduleSpecifier.text,
+          )
+        )
+          findings.push(relative + ':import:' + node.moduleSpecifier.text);
+        if (ts.isCallExpression(node)) {
+          const expression = node.expression.getText(source);
+          if (
+            expression === 'fetch' ||
+            expression === 'globalThis.fetch' ||
+            /\bnet\.\w+$/.test(expression)
+          )
+            findings.push(relative + ':' + expression);
+          if (
+            expression === 'require' &&
+            node.arguments[0] &&
+            /^(node:)?(http|https|net)$|^(undici|axios)$/.test(
+              node.arguments[0].text || '',
+            )
+          )
+            findings.push(relative + ':require:' + node.arguments[0].text);
+        }
+        if (
+          ts.isPropertyAssignment(node) &&
+          ['partition', 'session', 'webviewTag'].includes(
+            node.name.getText(source).replace(/['"]/g, ''),
+          )
+        )
+          findings.push(relative + ':session:' + node.name.getText(source));
+        ts.forEachChild(node, visit);
+      }
+      visit(source);
+    }
+  }
+  scan(root);
+  // Node fetch belongs to localAI; net is its port-probe server. Entry IPCs are guarded.
+  // This inventory is a review tripwire, not a network sandbox or data-flow proof.
+  assert.deepEqual(findings.sort(), [
+    'localai.ts:fetch',
+    'localai.ts:fetch',
+    'main.ts:net.createServer',
+    'main.ts:require:net',
+  ]);
+});

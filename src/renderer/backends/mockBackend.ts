@@ -39,8 +39,8 @@ export class MockBackend extends Backend {
     throw new Error('Account login is disabled in offline preview');
   }
 
-  async getRemainCredits() {
-    return 0;
+  async getRemainCredits(): Promise<never> {
+    throw new Error('Account credits are unavailable in offline preview');
   }
 
   async openWebPage(): Promise<never> {
@@ -162,13 +162,21 @@ export class MockBackend extends Backend {
 
   async close() {}
 
-  async showFile() {}
+  async showFile(): Promise<never> {
+    throw new Error('System file browsing is unavailable in offline preview');
+  }
 
-  async copyToDownloads() {}
+  async copyToDownloads(): Promise<never> {
+    throw new Error('Export is unavailable in offline preview');
+  }
 
-  async copyImageToClipboard() {}
+  async copyImageToClipboard(): Promise<never> {
+    throw new Error('Clipboard export is unavailable in offline preview');
+  }
 
-  async openImageEditor() {}
+  async openImageEditor(): Promise<never> {
+    throw new Error('External editing is unavailable in offline preview');
+  }
 
   async watchImage() {}
 

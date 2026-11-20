@@ -3,12 +3,13 @@
 const UPDATE_SERVICE_INTERVAL = 240 * 1000;
 const FORK_RELEASES = 'https://github.com/HyunnJg/SDStudio/releases';
 
-interface UpdateOptions {
-  enabled?: boolean;
-  getVersion?: () => Promise<string>;
+type UpdateOptions = {
   fetcher?: typeof fetch;
   intervalMs?: number;
-}
+} & (
+  | { enabled: true; getVersion: () => Promise<string> }
+  | { enabled?: false; getVersion?: () => Promise<string> }
+);
 
 export class AppUpdateNoticeService extends EventTarget {
   current = '';
@@ -42,13 +43,14 @@ export class AppUpdateNoticeService extends EventTarget {
 
   async run() {
     if (!this.options.enabled || this.running) return;
+    const { getVersion } = this.options;
     this.running = true;
     this.generation += 1;
     const { generation } = this;
     const active = () => this.running && generation === this.generation;
     while (active()) {
       try {
-        if (!this.current) this.current = await this.options.getVersion!();
+        if (!this.current) this.current = await getVersion();
         if (!active()) return;
         const latest = await this.getLatestRelease();
         if (latest && active() && this.isOutdated(this.current, latest)) {
