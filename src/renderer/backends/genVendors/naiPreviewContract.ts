@@ -71,10 +71,20 @@ export function buildPreviewImageRequest(
   if (ids.some((id) => !id.trim()) || new Set(ids).size !== ids.length)
     throw new Error('Character IDs must be unique and nonempty');
   const characters = draft.characters.filter((character) => character.enabled);
-  if (draft.prompt.includes('|'))
+  const promptFields = [
+    draft.prompt,
+    draft.negativePrompt,
+    ...draft.characters.flatMap((character) => [
+      character.prompt,
+      character.negativePrompt,
+    ]),
+  ];
+  if (promptFields.some((prompt) => prompt.includes('|')))
     throw new Error(
       'Inline character syntax is not supported by the preview draft',
     );
+  if (!draft.prompt.trim() && characters.length === 0)
+    throw new Error('A base prompt or active character prompt is required');
   if (characters.length > previewCharacterLimits[draft.family])
     throw new Error('Too many active preview characters');
   const positions = characters.map((character) => {

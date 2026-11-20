@@ -8,8 +8,8 @@
     "steps": 28,
     "scale": 5,
     "cfg_rescale": 0,
-    "sampler": "k_euler_ancestral",
-    "noise_schedule": "native",
+    "sampler": "fixture-sampler",
+    "noise_schedule": "fixture-noise-schedule",
     "n_samples": 1,
     "negative_prompt": "blur",
     "v4_prompt": {

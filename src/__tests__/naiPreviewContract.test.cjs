@@ -188,3 +188,29 @@ test('malformed, empty, invalid PNG and ambiguous multi-image ZIP responses fail
     );
   }
 });
+
+test('inline syntax is rejected in every prompt field, including disabled character notes', () => {
+  for (const field of ['prompt', 'negativePrompt']) {
+    const input = draft();
+    input[field] = 'left | right';
+    assert.throws(() => project(input), /Inline/);
+  }
+  for (const index of [0, 1])
+    for (const field of ['prompt', 'negativePrompt']) {
+      const input = draft();
+      input.characters[index][field] = 'left | right';
+      assert.throws(() => project(input), /Inline/);
+    }
+});
+
+test('a base-free character draft is allowed but an empty positive request is rejected', () => {
+  const input = draft();
+  input.prompt = '';
+  assert.equal(project(input).input, '');
+  input.characters.forEach((character) => {
+    character.enabled = false;
+  });
+  assert.throws(() => project(input), /base prompt or active character/);
+  input.prompt = 'landscape';
+  assert.equal(project(input).input, 'landscape');
+});

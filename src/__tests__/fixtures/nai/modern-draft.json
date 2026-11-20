@@ -32,6 +32,6 @@
   "steps": 28,
   "guidance": 5,
   "cfgRescale": 0,
-  "sampler": "k_euler_ancestral",
-  "noiseSchedule": "native"
+  "sampler": "fixture-sampler",
+  "noiseSchedule": "fixture-noise-schedule"
 }

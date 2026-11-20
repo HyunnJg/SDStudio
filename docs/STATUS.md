@@ -19,7 +19,7 @@
 | P0-02 서비스·백엔드 | 구현·검증 | 11건 통과. 두 전체 기동의 원격 요청·렌더러 오류 0건, 예제 대기열 1건 완료 |
 | 시작 제어·실패 종료 | 단위 4건 + Electron 1건 통과 | 오류 보고·종료 코드 1·격리 로그 및 원본 폴더 불변 |
 | 타입검사 | 새 모듈 통과 / 전체 저장소 실패 | 전체 tsc는 기존 libsodium 타입 선언 TS2688. 빌드는 transpileOnly임 |
-| P0-03a 모델/API 설계 | 공식 자료·합성 검증 완료 | [설계·근거·남은 항목](NOVELAI_API.md), 요청/ZIP 테스트 8건 통과. 실제 경로 미연결 |
+| P0-03a 모델/API 설계 | 공식 자료·합성 검증 완료 | [설계·근거·남은 항목](NOVELAI_API.md), 요청/ZIP 테스트 10건 통과. 실제 경로 미연결 |
 | 실제 NovelAI API 생성 | 미실행 | 자격증명 사용 및 과금 없음 |
 | 다른 AI의 독립 검토 | 수령·계획 반영 | [Gemini](reviews/2026-11-20-gemini-initial-review.md), [Claude](reviews/2026-11-20-claude-initial-review.md), [처리 결과](reviews/2026-11-20-review-resolution.md) |
 
