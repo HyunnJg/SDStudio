@@ -7,6 +7,7 @@
 | [Gemini 초기 검토 원문](2026-11-20-gemini-initial-review.md) | 사용자 제공 문서 원문 보존 |
 | [Claude 초기 검토 원문](2026-11-20-claude-initial-review.md) | 사용자 제공 문서 원문 보존 |
 | [채택·보류 및 다음 작업](2026-11-20-review-resolution.md) | 구현 담당자의 처리 결과. 코드 수정 완료와 구분 |
+| [PR #3 추가 검토 처리](2026-11-20-pr3-followup.md) | 코드 대조·보완 및 실제 실패 경로 검증 |
 
 ## 가장 빠른 시작
 

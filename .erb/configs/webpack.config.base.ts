@@ -60,6 +60,8 @@ const configuration: webpack.Configuration = {
   plugins: [
     new webpack.EnvironmentPlugin({
       NODE_ENV: 'production',
+      SDSTUDIO_MOCK_BACKEND: '0',
+      SDSTUDIO_OFFLINE: '0',
     }),
   ],
 };

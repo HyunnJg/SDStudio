@@ -10,9 +10,12 @@
  */
 import developmentProfile from './profileBootstrap';
 import { storageDirectory } from './developmentProfile';
+import { usesDevelopmentAssets, resolvePreloadPath, startDesktop } from './desktopStartup';
+import { createRuntimeOptions, allowsOfflineURL } from '../runtimeOptions';
 import path from 'path';
 import {
   app,
+  session,
   BrowserWindow,
   shell,
   ipcMain,
@@ -53,6 +56,18 @@ let databases: DataBaseConns = {
 };
 
 let mainWindow: BrowserWindow | null = null;
+if (developmentProfile.active) {
+  // electron-log v4 may cache its fallback directory independently of app.setPath.
+  log.transports.file.resolvePath = () => path.join(app.getPath('logs'), 'main.log');
+}
+const runtimeOptions = createRuntimeOptions(
+  process.env, developmentProfile.active,
+);
+const requireOnline = () => {
+  if (runtimeOptions.offline) {
+    throw new Error('This operation is disabled in offline preview');
+  }
+};
 let tagMap: Map<string, any> = new Map();
 
 async function listFilesInDirectory(dir: any) {
@@ -128,6 +143,7 @@ ipcMain.handle('get-version', async (event) => {
 });
 
 ipcMain.handle('open-web-page', async (event, url) => {
+  requireOnline();
   await shell.openExternal(url);
 });
 
@@ -284,6 +300,7 @@ ipcMain.handle('exist-file', async (event, filename) => {
 });
 
 ipcMain.handle('download', async (event, url, dest, filename) => {
+  requireOnline();
   dest = path.join(APP_DIR, dest);
   await fs.mkdir(dest, { recursive: true });
   const options = {
@@ -565,6 +582,7 @@ ipcMain.handle('unwatch-image', async (event, inputPath) => {
 });
 
 ipcMain.handle('load-model', async (event, modelPath) => {
+  requireOnline();
   modelPath = path.resolve(path.join(APP_DIR, modelPath));
   await localAI.loadModel(modelPath, config.useCUDA ?? false);
 });
@@ -656,6 +674,7 @@ async function spawnLocalAI() {
 }
 
 ipcMain.handle('spawn-local-ai', async (event) => {
+  requireOnline();
   if (!localAIRunning) {
     await spawnLocalAI();
   }
@@ -674,6 +693,7 @@ const qualityMap: any = {
 };
 
 ipcMain.handle('remove-bg', async (event, inputImageBase64, outputPath) => {
+  requireOnline();
   outputPath = path.join(APP_DIR, outputPath);
   await localAI.runModel(
     inputImageBase64,
@@ -689,8 +709,9 @@ if (process.env.NODE_ENV === 'production') {
 
 const isDebug =
   process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true';
+const isDevelopment = usesDevelopmentAssets(app.isPackaged, process.env.NODE_ENV);
 
-if (isDebug) {
+if (isDebug && !runtimeOptions.offline) {
   require('electron-debug')({ showDevTools: true });
 }
 
@@ -718,7 +739,7 @@ const getAssetPath = (...paths: string[]): string => {
 };
 
 const createWindow = async () => {
-  if (isDebug) {
+  if (isDebug && !runtimeOptions.offline) {
     await installExtensions();
   }
 
@@ -733,14 +754,18 @@ const createWindow = async () => {
     minHeight: 728,
     icon: getAssetPath('icon.png'),
     webPreferences: {
-      preload: app.isPackaged
-        ? path.join(__dirname, 'preload.js')
-        : path.join(__dirname, '../../.erb/dll/preload.js'),
+      preload: resolvePreloadPath(__dirname, isDevelopment),
+      additionalArguments: [
+        ...(runtimeOptions.offline ? ['--sdstudio-offline'] : []),
+        ...(runtimeOptions.mockBackend ? ['--sdstudio-mock-backend'] : []),
+      ],
     },
   });
 
   contextMenu({
     window: mainWindow,
+    showSearchWithGoogle: !runtimeOptions.offline,
+    showLookUpSelection: !runtimeOptions.offline,
     prepend: (defaultActions, params, browserWindow) => {
       console.log(params.mediaType);
       console.log(params.altText);
@@ -835,7 +860,7 @@ const createWindow = async () => {
 
   // Open urls in the user's browser
   mainWindow.webContents.setWindowOpenHandler((edata) => {
-    shell.openExternal(edata.url);
+    if (!runtimeOptions.offline) shell.openExternal(edata.url);
     return { action: 'deny' };
   });
 
@@ -844,7 +869,7 @@ const createWindow = async () => {
   // new AppUpdater();
 };
 
-const dataDir = isDebug
+const dataDir = isDevelopment
   ? path.join(webpackPaths.appPath, 'data')
   : path.join(__dirname, '../../data');
 
@@ -899,8 +924,6 @@ async function initFolder() {
   }
 }
 
-init();
-
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
@@ -925,16 +948,30 @@ if (!gotTheLock) {
     }
   });
 
-  app
-    .whenReady()
-    .then(() => {
-      createWindow();
+  void startDesktop({
+    ready: () => app.whenReady(),
+    initialize: init,
+    open: async () => {
+      if (runtimeOptions.offline) {
+        session.defaultSession.webRequest.onBeforeRequest(
+          { urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] },
+          (details, callback) => callback({ cancel: !allowsOfflineURL(details.url) }),
+        );
+      }
+      await createWindow();
       app.on('activate', () => {
         // On macOS it's common to re-create a window in the app when the
         // dock icon is clicked and there are no other windows open.
-        if (mainWindow === null) createWindow();
+        if (mainWindow === null) void createWindow().catch((error) => {
+          log.error('Window activation failed', error);
+          dialog.showErrorBox('SDStudio 시작 실패', String(error));
+          app.exit(1);
+        });
         // APP_DIR = app.getPath('userData');
       });
-    })
-    .catch(console.log);
+    },
+    logError: (error) => log.error('Desktop initialization failed', error),
+    showError: (title, message) => dialog.showErrorBox(title, message),
+    quit: () => app.exit(1),
+  });
 }

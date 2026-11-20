@@ -47,6 +47,10 @@ export type Channels =
   | 'lookup-tag';
 
 const electronHandler = {
+  runtime: {
+    offline: process.argv.includes('--sdstudio-offline'),
+    mockBackend: process.argv.includes('--sdstudio-mock-backend'),
+  },
   ipcRenderer: {
     on(channel: string, func: (...args: any[]) => void | Promise<void>) {
       const subscription = (_event: IpcRendererEvent, ...args: unknown[]) =>

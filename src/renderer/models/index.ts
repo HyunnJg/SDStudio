@@ -26,11 +26,21 @@ import { LocalAIService } from './LocalAIService';
 import { AppUpdateNoticeService } from './AppUpdateNoticeService';
 import { WorkFlowService } from './workflows/WorkFlowService';
 import { registerWorkFlows } from './workflows';
+import { MockBackend } from '../backends/mockBackend';
+import { runtimeOptions, selectBackend } from '../runtime';
+import type { Backend } from '../backend';
 
-export const backend =
-  window.electron != null ? new ElectornBackend() : new AndroidBackend();
+export const backend = selectBackend<Backend>(
+  runtimeOptions.mockBackend,
+  window.electron != null,
+  {
+    mock: () => new MockBackend(),
+    electron: () => new ElectornBackend(),
+    android: () => new AndroidBackend(),
+  },
+);
 
-export const isMobile = window.electron == null;
+export const isMobile = !runtimeOptions.mockBackend && window.electron == null;
 
 export class ZipService extends EventTarget {
   isZipping: boolean;
@@ -80,5 +90,5 @@ backend.onClose(() => {
 export const appUpdateNoticeService = new AppUpdateNoticeService();
 appUpdateNoticeService.run();
 
-export const localAIService = new LocalAIService();
+export const localAIService = new LocalAIService(!runtimeOptions.offline);
 localAIService.statsModels();

@@ -3,6 +3,11 @@ import { ImageAugmentInput, ImageGenInput, ImageGenService } from './imageGen';
 import { Backend, FileEntry, ResizeImageInput } from '../backend';
 import { NovelAiFetcher, NovelAiImageGenService } from './genVendors/nai';
 import { ImageContextAlt, SceneContextAlt } from '../models/types';
+import { runtimeOptions } from '../runtime';
+
+const requireOnline = () => {
+  if (runtimeOptions.offline) throw new Error('Account and image API calls are disabled in offline preview');
+};
 
 const invoke = window.electron?.ipcRenderer?.invoke;
 
@@ -54,23 +59,27 @@ export class ElectornBackend extends Backend {
   }
 
   async generateImage(arg: ImageGenInput): Promise<void> {
+    requireOnline();
     const token = await this.readFile('TOKEN.txt');
     const res = await this.imageGenService.generateImage(token, arg);
     await this.writeDataFile(arg.outputFilePath, res);
   }
 
   async augmentImage(arg: ImageAugmentInput): Promise<void> {
+    requireOnline();
     const token = await this.readFile('TOKEN.txt');
     const res = await this.imageGenService.augmentImage(token, arg);
     await this.writeDataFile(arg.outputFilePath, res);
   }
 
   async getRemainCredits(): Promise<number> {
+    requireOnline();
     const token = await this.readFile('TOKEN.txt');
     return await this.imageGenService.getRemainCredits(token);
   }
 
   async login(email: string, password: string): Promise<void> {
+    requireOnline();
     const token = await this.imageGenService.login(email, password);
     await this.writeFile('TOKEN.txt', token.accessToken);
   }

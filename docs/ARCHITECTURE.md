@@ -57,3 +57,18 @@
 | `backends/genVendors/nai.ts` | `api.novelai.net`, `image.novelai.net` | 기존 로그인·계정/생성 요청. 현행 공식 규격과 일치하는지는 P0-03 조사 대상 |
 
 가짜 백엔드 모드에서는 위 외부 요청 및 로컬 프로세스 시작을 통제한다. 실제 생성 모드에서 필요한 NovelAI 통신까지 없앤다는 의미는 아니다.
+
+## 현재 포크의 P0-02 변경
+
+원본 조사와 구분한다. `src/runtimeOptions.ts`가 실행 정책을 정하고 preload는 필요한 두 플래그만 렌더러에 전달한다. `src/renderer/runtime.ts`가 가짜/Electron/Android 백엔드를 고른다. `backends/mockBackend.ts`는 파일·생성 픽스처를 메모리에 보관한다.
+
+데스크톱 IP 확인을 제거했고 업데이트는 기본 비활성·중복 시작 방지이며 포크를 가리킨다. LocalAIService는 오프라인 초기화를 건너뛴다. 메인은 Chromium 원격 요청과 다운로드·프로세스 관련 IPC를, Electron 백엔드는 계정/이미지 API의 선행 호출을 막는다. Google Fonts 원격 import도 제거했다.
+
+비패키징 프로덕션 번들의 preload 위치와 초기화 대기 순서를 실제 기동에 맞게 보완했다. [기동 보고서와 한계](validation/2026-11-20-p0-offline.md)를 참고한다.
+
+
+### 오프라인 통제의 경계
+
+통제 대상은 기본 세션의 Chromium HTTP/WebSocket 요청, 명시한 IPC 5종과 렌더러 계정/API 호출이다. 시스템 전체 방화벽이 아니다. loopback은 포트 제한 없이 개발 서버에 허용하므로 로컬 프록시의 외부 중계까지 막는다는 보장은 없다. Node의 fetch/http(s), 다른 session/partition 및 webview를 도입하면 이 정책을 별도로 적용해야 한다.
+
+`src/main/localai.ts`에는 기존 Node fetch 2개가 있고 메인의 모델 로드·배경 제거 IPC에서 선행 차단한다. `main.ts`의 net 서버는 로컬 AI 시작 전 포트 탐사용이며 spawn IPC에서 차단한다. 검토 원문의 “메인에 Node 클라이언트 없음”을 그대로 채택하지 않았다. `test:offline`의 AST 목록 검사는 새 네트워크·세션 진입점에 검토를 요구하는 보조 검사이며 모든 우회를 증명하는 분석기는 아니다. 컨텍스트 메뉴의 Google 검색/시스템 조회도 오프라인에서는 끈다.

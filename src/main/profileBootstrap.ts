@@ -4,6 +4,12 @@ import { initializeDevelopmentProfile } from './developmentProfile';
 // Imported before logging, native modules and DEFAULT_APP_DIR in main.ts.
 const developmentProfile = (() => {
   try {
+    if (
+      process.env.SDSTUDIO_MOCK_BACKEND === '1' &&
+      process.env.SDSTUDIO_USER_DATA_DIR === undefined
+    ) {
+      throw new Error('Electron mock preview requires SDSTUDIO_USER_DATA_DIR');
+    }
     return initializeDevelopmentProfile(
       app,
       process.env.SDSTUDIO_USER_DATA_DIR,
