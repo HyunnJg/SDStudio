@@ -48,6 +48,9 @@ import {
 } from '../models';
 import { appState } from '../models/AppService';
 import { AppContextMenu } from './AppContextMenu';
+import PreviewWorkspace from './PreviewWorkspace';
+import { createWorkspaceState } from '../preview/workspaceDraft';
+import { MockBackend } from '../backends/mockBackend';
 
 import { configure } from 'mobx';
 import { ExternalImageView } from './ExternalImageView';
@@ -127,6 +130,8 @@ const DnDPreview = () => {
 };
 
 export const App = observer(() => {
+  const [previewOpen, setPreviewOpen] = useState(runtimeOptions.mockBackend);
+  const [workspace, setWorkspace] = useState(createWorkspaceState);
   useEffect(() => {
     return () => {
       taskQueueService.stop();
@@ -220,6 +225,7 @@ export const App = observer(() => {
     const handleDrop = (event: any) => {
       event.preventDefault();
       event.stopPropagation();
+      if (previewOpen) return;
       const file = event.dataTransfer.files[0];
       if (file) {
         appState.handleFile(file);
@@ -234,7 +240,7 @@ export const App = observer(() => {
       window.removeEventListener('dragleave', handleDragLeave);
       window.removeEventListener('drop', handleDrop);
     };
-  }, [appState.curSession, appState.dialogs, appState.messages]);
+  }, [appState.curSession, appState.dialogs, appState.messages, previewOpen]);
 
   useEffect(() => {
     window.curSession = appState.curSession;
@@ -264,7 +270,16 @@ export const App = observer(() => {
       emoji: <FaPuzzlePiece />,
     },
   ];
-  return (
+  const content = runtimeOptions.mockBackend && previewOpen ? (
+    <PreviewWorkspace state={workspace} setState={setWorkspace}
+      legacyName={appState.curSession?.name ?? ''}
+      legacySceneCount={appState.curSession?.scenes.size ?? 0}
+      onOpenLegacy={() => setPreviewOpen(false)}
+      renderPreview={(request, scenario) => {
+        if (!(backend instanceof MockBackend)) throw new Error('Preview requires the mock backend');
+        return backend.renderDraftPreview(request, scenario);
+      }} />
+  ) : (
     <DndProvider
       backend={isMobile ? TouchBackend : HTML5Backend}
       options={{
@@ -295,7 +310,7 @@ export const App = observer(() => {
             }
             <VerticalStack>
               <StackFixed>
-                <TobBar />
+                <TobBar onOpenPreview={runtimeOptions.mockBackend ? () => setPreviewOpen(true) : undefined} />
               </StackFixed>
               <StackGrow className="flex">
                 {appState.curSession && (
@@ -331,13 +346,14 @@ export const App = observer(() => {
             </div>
           </StackFixed>
         </ErrorBoundary>
-        <AlertWindow />
-        <ConfirmWindow />
-        {appState.progressDialog && (
-          <ProgressWindow dialog={appState.progressDialog} />
-        )}
         <PromptTooltip />
       </div>
     </DndProvider>
   );
+  return <div className={darkMode ? 'dark' : ''}>
+    {content}
+    <AlertWindow />
+    <ConfirmWindow />
+    {appState.progressDialog && <ProgressWindow dialog={appState.progressDialog} />}
+  </div>;
 });

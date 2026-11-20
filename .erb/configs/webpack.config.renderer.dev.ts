@@ -181,7 +181,7 @@ const configuration: webpack.Configuration = {
       verbose: true,
     },
     setupMiddlewares(middlewares) {
-      if (process.env.SDSTUDIO_MOCK_BACKEND === '1') return middlewares;
+      if (process.env.SDSTUDIO_MOCK_BACKEND === '1' && !process.env.SDSTUDIO_USER_DATA_DIR) return middlewares;
       console.log('Starting preload.js builder...');
       const preloadProcess = spawn('npm', ['run', 'start:preload'], {
         shell: true,

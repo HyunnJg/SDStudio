@@ -3,6 +3,11 @@
 import { Backend, ResizeImageInput } from '../backend';
 import type { Config } from '../../main/config';
 import type { ImageGenInput } from './imageGen';
+import type {
+  PreviewRequest,
+  PreviewScenario,
+} from '../preview/workspaceDraft';
+import previewArtwork from '../preview/previewArtwork';
 
 const FIXTURE_PNG =
   'iVBORw0KGgoAAAANSUhEUgAAACAAAAAwCAIAAAD/zu84AAAAL0lEQVR4nO3NQQkAAAgEsEtnK9NZzBQ+hMH+S/WcikAgEAgEAoFAIBAIBAKB4FOwYx8kiE+dRPgAAAAASUVORK5CYII=';
@@ -11,6 +16,18 @@ export class MockBackend extends Backend {
   readonly files = new Map<string, string>();
 
   readonly generations: ImageGenInput[] = [];
+
+  readonly previewRequests: PreviewRequest[] = [];
+
+  async renderDraftPreview(request: PreviewRequest, scenario: PreviewScenario) {
+    if (scenario !== 'success') {
+      throw Object.assign(new Error('Synthetic preview error'), {
+        code: scenario === 'prompt-length' ? 'PROMPT_TOO_LONG' : 'CONNECTION',
+      });
+    }
+    this.previewRequests.push(structuredClone(request));
+    return previewArtwork(request.parameters.width, request.parameters.height);
+  }
 
   private config: Config = {};
 

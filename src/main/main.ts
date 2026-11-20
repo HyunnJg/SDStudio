@@ -750,8 +750,8 @@ const createWindow = async () => {
     show: false,
     width: width,
     height: height,
-    minWidth: 1024,
-    minHeight: 728,
+    minWidth: runtimeOptions.mockBackend ? 360 : 1024,
+    minHeight: runtimeOptions.mockBackend ? 600 : 728,
     icon: getAssetPath('icon.png'),
     webPreferences: {
       preload: resolvePreloadPath(__dirname, isDevelopment),

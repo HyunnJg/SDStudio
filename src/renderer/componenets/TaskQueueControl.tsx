@@ -12,13 +12,11 @@ interface ProgressBarProps {
   duration: number;
   isError: boolean;
   text: string;
-  key: number;
 }
 
-const ProgressBar = ({ duration, isError, text, key }: ProgressBarProps) => {
+const ProgressBar = ({ duration, isError, text }: ProgressBarProps) => {
   return (
     <div
-      key={key}
       className="relative w-40 md:w-52 bg-gray-200 dark:bg-slate-700 rounded-full h-8"
     >
       <div className="top-0 left-0 w-40 md:w-52 h-8 absolute flex items-center justify-center text-gray-600 dark:text-white gap-2">

@@ -960,8 +960,8 @@ const WFRGroup = observer(({ element }: WFElementProps) => {
       {grp.label === showGroup && (
         <WFGroupContext.Provider value={{ curGroup: grp.label }}>
           <VerticalStack>
-            {grp.inputs.map((x) => (
-              <WFRenderElement element={x} />
+            {grp.inputs.map((x, index) => (
+              <WFRenderElement key={index} element={x} />
             ))}
             <button
               className={`round-button back-gray h-8 w-full mt-2`}
@@ -982,8 +982,8 @@ const WFRStack = observer(({ element }: WFElementProps) => {
   const stk = element as WFIStack;
   return (
     <VerticalStack>
-      {stk.inputs.map((x) => (
-        <WFRenderElement element={x} />
+      {stk.inputs.map((x, index) => (
+        <WFRenderElement key={index} element={x} />
       ))}
     </VerticalStack>
   );

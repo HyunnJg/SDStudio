@@ -6,7 +6,7 @@ import SessionSelect from './SessionSelect';
 import { Session } from '../models/types';
 import { loginService, backend, taskQueueService } from '../models';
 
-const TobBar = () => {
+const TobBar = ({ onOpenPreview }: { onOpenPreview?: () => void }) => {
   const [loggedIn, setLoggedIn] = useState(false);
   const [credits, setCredits] = useState(0);
 
@@ -36,6 +36,7 @@ const TobBar = () => {
       <div className="gap-3 hidden md:flex text-sky-500 font-bold dark:text-white">
         SDStudio
       </div>
+      {onOpenPreview && <button type="button" className="round-button back-sky ml-3" data-testid="open-preview" onClick={onOpenPreview}>새 화면 미리보기</button>}
       <p className="ml-auto mr-2 hidden md:block">
         {runtimeOptions.offline ? <span className="round-tag back-yellow">{runtimeOptions.mockBackend ? '오프라인 예제 · 실제 생성/저장 없음' : '오프라인 · 계정/API 연결 없음'}</span> : !loggedIn ? (
           <span className={`round-tag back-red`}>

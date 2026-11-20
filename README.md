@@ -1,6 +1,6 @@
 # SDStudio 협업 작업공간
 
-[sunho/SDStudio](https://github.com/sunho/SDStudio)를 기반으로 NovelAI와 익숙한 이미지 생성 UI 및 반복 작업 개선을 검토하는 포크입니다. **현재는 개발 프로필 격리와 오프라인 기동을 검증한 단계입니다. 새 UI 개편과 최신 모델/API 지원은 다음 단계입니다.**
+[sunho/SDStudio](https://github.com/sunho/SDStudio)를 기반으로 NovelAI와 익숙한 이미지 생성 UI 및 반복 작업 개선을 검토하는 포크입니다. **현재는 개발 프로필 격리와 오프라인 새 화면을 검증한 단계입니다. 최신 모델의 실제 API·저장 연결은 다음 단계입니다.**
 
 | 문서 | 용도 |
 | --- | --- |

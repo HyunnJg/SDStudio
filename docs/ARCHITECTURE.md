@@ -72,3 +72,10 @@
 통제 대상은 기본 세션의 Chromium HTTP/WebSocket 요청, 명시한 IPC 5종과 렌더러 계정/API 호출이다. 시스템 전체 방화벽이 아니다. loopback은 포트 제한 없이 개발 서버에 허용하므로 로컬 프록시의 외부 중계까지 막는다는 보장은 없다. Node의 fetch/http(s), 다른 session/partition 및 webview를 도입하면 이 정책을 별도로 적용해야 한다.
 
 `src/main/localai.ts`에는 기존 Node fetch 2개가 있고 메인의 모델 로드·배경 제거 IPC에서 선행 차단한다. `main.ts`의 net 서버는 로컬 AI 시작 전 포트 탐사용이며 spawn IPC에서 차단한다. 검토 원문의 “메인에 Node 클라이언트 없음”을 그대로 채택하지 않았다. `test:offline`의 AST 목록 검사는 새 네트워크·세션 진입점에 검토를 요구하는 보조 검사이며 모든 우회를 증명하는 분석기는 아니다. 컨텍스트 메뉴의 Google 검색/시스템 조회도 오프라인에서는 끈다.
+
+
+## P1-01 오프라인 작업실
+
+`App.tsx`는 기존 서비스 수명을 유지하며 mock일 때 `PreviewWorkspace.tsx`를 표시한다. 메모리 초안/최근 예제 상태는 App에 두어 기존 V3 화면을 다녀와도 유지한다. 새 화면은 V3 Session을 수정하지 않고 이름·개수만 받는다.
+
+`preview/workspaceDraft.ts`가 격자·숫자 입력을 P0-03a 계약으로 투영한다. `MockBackend.renderDraftPreview`는 직접 작성한 SVG 또는 합성 오류만 반환하며 파일/API를 호출하지 않는다. 새 UI의 실행·기록은 V3 대기열과 별개이며 실연결은 P1-02다. 스타일은 PreviewWorkspace 아래에 한정한다.

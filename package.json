@@ -46,7 +46,10 @@
     "smoke:offline": "node .erb/scripts/smoke-offline.cjs",
     "test:startup": "node --test -r ts-node/register/transpile-only src/__tests__/desktopStartup.test.cjs",
     "test:startup:electron": "node --test src/__tests__/desktopStartup.electron.cjs",
-    "test:nai-contract": "node --test -r ts-node/register/transpile-only src/__tests__/naiPreviewContract.test.cjs"
+    "test:nai-contract": "node --test -r ts-node/register/transpile-only src/__tests__/naiPreviewContract.test.cjs",
+    "test:workspace": "node --test -r ts-node/register/transpile-only src/__tests__/workspaceDraft.test.cjs",
+    "smoke:workspace": "cross-env SDSTUDIO_SMOKE_WORKSPACE=1 npm run smoke:offline",
+    "start:preview": "cross-env SDSTUDIO_MOCK_BACKEND=1 npm run start:isolated"
   },
   "browserslist": [],
   "prettier": {

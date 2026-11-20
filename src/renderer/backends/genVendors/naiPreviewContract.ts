@@ -31,6 +31,31 @@ export interface ImageRequestDraft {
 // These are UI design limits from the official multi-character guide, not API enums.
 export const previewCharacterLimits = { 'v4.5': 6, v5: 22 } as const;
 
+export type PreviewErrorCode =
+  | 'UNSUPPORTED_DRAFT'
+  | 'MISSING_MODEL_OPTIONS'
+  | 'INVALID_PLACEMENT'
+  | 'INVALID_NUMBER'
+  | 'DUPLICATE_CHARACTER_ID'
+  | 'INLINE_SYNTAX'
+  | 'EMPTY_PROMPT'
+  | 'CHARACTER_LIMIT'
+  | 'EMPTY_CHARACTER_PROMPT'
+  | 'MISSING_POSITION'
+  | 'INVALID_GRID_CELL'
+  | 'INVALID_IMAGE_RESPONSE';
+
+export class PreviewContractError extends Error {
+  constructor(
+    readonly code: PreviewErrorCode,
+    message: string,
+    readonly field?: string,
+  ) {
+    super(message);
+    this.name = 'PreviewContractError';
+  }
+}
+
 function finiteNumber(
   name: string,
   value: number,
@@ -38,12 +63,20 @@ function finiteNumber(
   maximum: number,
 ) {
   if (!Number.isFinite(value) || value < minimum || value > maximum)
-    throw new Error(`Invalid preview ${name}`);
+    throw new PreviewContractError(
+      'INVALID_NUMBER',
+      `Invalid preview ${name}`,
+      name,
+    );
 }
 
 function positiveInteger(name: string, value: number) {
   if (!Number.isSafeInteger(value) || value <= 0)
-    throw new Error(`Invalid preview ${name}`);
+    throw new PreviewContractError(
+      'INVALID_NUMBER',
+      `Invalid preview ${name}`,
+      name,
+    );
 }
 
 export function buildPreviewImageRequest(
@@ -54,22 +87,39 @@ export function buildPreviewImageRequest(
     draft.version !== 1 ||
     !Object.hasOwn(previewCharacterLimits, draft.family)
   )
-    throw new Error('Unsupported preview draft version or model family');
+    throw new PreviewContractError(
+      'UNSUPPORTED_DRAFT',
+      'Unsupported preview draft version or model family',
+    );
   if (!apiModel.trim() || !draft.sampler.trim() || !draft.noiseSchedule.trim())
-    throw new Error('Explicit model, sampler and noise schedule are required');
+    throw new PreviewContractError(
+      'MISSING_MODEL_OPTIONS',
+      'Explicit model, sampler and noise schedule are required',
+    );
   if (!['auto', 'manual'].includes(draft.placement))
-    throw new Error('Invalid preview placement');
+    throw new PreviewContractError(
+      'INVALID_PLACEMENT',
+      'Invalid preview placement',
+    );
   (['width', 'height', 'steps'] as const).forEach((name) =>
     positiveInteger(name, draft[name]),
   );
   // Local draft policy; this does not assert undocumented server parameter limits.
   finiteNumber('seed', draft.seed, 0, 0xffffffff);
-  if (!Number.isInteger(draft.seed)) throw new Error('Invalid preview seed');
+  if (!Number.isInteger(draft.seed))
+    throw new PreviewContractError(
+      'INVALID_NUMBER',
+      'Invalid preview seed',
+      'seed',
+    );
   finiteNumber('guidance', draft.guidance, 0, Number.MAX_SAFE_INTEGER);
   finiteNumber('cfg rescale', draft.cfgRescale, 0, 1);
   const ids = draft.characters.map((character) => character.id);
   if (ids.some((id) => !id.trim()) || new Set(ids).size !== ids.length)
-    throw new Error('Character IDs must be unique and nonempty');
+    throw new PreviewContractError(
+      'DUPLICATE_CHARACTER_ID',
+      'Character IDs must be unique and nonempty',
+    );
   const characters = draft.characters.filter((character) => character.enabled);
   const promptFields = [
     draft.prompt,
@@ -80,19 +130,32 @@ export function buildPreviewImageRequest(
     ]),
   ];
   if (promptFields.some((prompt) => prompt.includes('|')))
-    throw new Error(
+    throw new PreviewContractError(
+      'INLINE_SYNTAX',
       'Inline character syntax is not supported by the preview draft',
     );
   if (!draft.prompt.trim() && characters.length === 0)
-    throw new Error('A base prompt or active character prompt is required');
+    throw new PreviewContractError(
+      'EMPTY_PROMPT',
+      'A base prompt or active character prompt is required',
+    );
   if (characters.length > previewCharacterLimits[draft.family])
-    throw new Error('Too many active preview characters');
+    throw new PreviewContractError(
+      'CHARACTER_LIMIT',
+      'Too many active preview characters',
+    );
   const positions = characters.map((character) => {
     if (!character.prompt.trim())
-      throw new Error('Active character prompt is empty');
+      throw new PreviewContractError(
+        'EMPTY_CHARACTER_PROMPT',
+        'Active character prompt is empty',
+      );
     if (draft.placement === 'auto') return [];
     if (!character.position)
-      throw new Error('Manual placement needs each character position');
+      throw new PreviewContractError(
+        'MISSING_POSITION',
+        'Manual placement needs each character position',
+      );
     const { x, y } = character.position;
     finiteNumber('position x', x, 0, 1);
     finiteNumber('position y', y, 0, 1);
@@ -136,11 +199,17 @@ export async function readPreviewPNGZip(data: Uint8Array): Promise<Uint8Array> {
   );
   // One requested sample: never silently discard an unexpected second image.
   if (images.length !== 1)
-    throw new Error('Expected exactly one PNG in the image response');
+    throw new PreviewContractError(
+      'INVALID_IMAGE_RESPONSE',
+      'Expected exactly one PNG in the image response',
+    );
   const bytes = await images[0].async('uint8array');
   const signature = [137, 80, 78, 71, 13, 10, 26, 10];
   if (!signature.every((value, index) => bytes[index] === value))
-    throw new Error('Invalid PNG response signature');
+    throw new PreviewContractError(
+      'INVALID_IMAGE_RESPONSE',
+      'Invalid PNG response signature',
+    );
   // Return the original bytes; do not re-encode or strip metadata/alpha channels.
   return bytes;
 }
