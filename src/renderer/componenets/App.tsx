@@ -49,7 +49,12 @@ import {
 import { appState } from '../models/AppService';
 import { AppContextMenu } from './AppContextMenu';
 import PreviewWorkspace from './PreviewWorkspace';
-import { createWorkspaceState } from '../preview/workspaceDraft';
+import {
+  createWorkspaceState,
+  PreviewRequest,
+  previewErrorMessage,
+} from '../preview/workspaceDraft';
+import { WorkspaceQueue } from '../preview/workspaceQueue';
 import { MockBackend } from '../backends/mockBackend';
 
 import { configure } from 'mobx';
@@ -132,6 +137,31 @@ const DnDPreview = () => {
 export const App = observer(() => {
   const [previewOpen, setPreviewOpen] = useState(runtimeOptions.mockBackend);
   const [workspace, setWorkspace] = useState(createWorkspaceState);
+  const nextPreviewResult = useRef(1);
+  const recordPreviewResult = (
+    image: string,
+    request: PreviewRequest,
+    sceneName: string,
+  ) => {
+    const id = nextPreviewResult.current;
+    nextPreviewResult.current += 1;
+    setWorkspace((previous) => ({
+      ...previous,
+      selectedResult: id,
+      results: [{ id, image, request, sceneName }, ...previous.results].slice(0, 120),
+    }));
+    return id;
+  };
+  const [workspaceQueue] = useState(() => new WorkspaceQueue({
+    render: (request, scenario) => {
+      if (!(backend instanceof MockBackend))
+        throw new Error('Preview requires the mock backend');
+      return backend.renderDraftPreview(request, scenario);
+    },
+    onResult: recordPreviewResult,
+    onError: (error) => appState.pushMessage(previewErrorMessage(error)),
+  }));
+  useEffect(() => () => workspaceQueue.dispose(), [workspaceQueue]);
   useEffect(() => {
     return () => {
       taskQueueService.stop();
@@ -272,6 +302,14 @@ export const App = observer(() => {
   ];
   const content = runtimeOptions.mockBackend && previewOpen ? (
     <PreviewWorkspace state={workspace} setState={setWorkspace}
+      queue={workspaceQueue}
+      onResult={recordPreviewResult}
+      darkMode={darkMode}
+      onToggleTheme={async () => {
+        const config = await backend.getConfig();
+        await backend.setConfig({ ...config, whiteMode: darkMode });
+        setDarkMode(!darkMode);
+      }}
       legacyName={appState.curSession?.name ?? ''}
       legacySceneCount={appState.curSession?.scenes.size ?? 0}
       onOpenLegacy={() => setPreviewOpen(false)}
