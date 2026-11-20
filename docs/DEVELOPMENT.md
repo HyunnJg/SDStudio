@@ -12,9 +12,9 @@ git submodule update --init --recursive
 
 기존 체크아웃은 remote를 먼저 확인한다. 원본에는 두 서브모듈이 있다. 초기 작업공간 조사에서는 서브모듈을 로컬에 초기화하지 않고, 고정 리비전의 자료를 GitHub에서 읽었다.
 
-## 첫 실행 전 프로필 격리 — 구현 완료, 전체 기동은 P0-02 뒤
+## 첫 실행 전 프로필 격리 — 구현·Linux 기동 검증 완료
 
-검토 결과, 기본 경로와 앱 이름이 원본과 같고 config의 `saveLocation`이 저장 경로를 다시 지정할 수 있음을 확인했다. **아래 명령 중 `npm start`는 P0-01a의 빈 개발 프로필 격리와 P0-02의 외부 요청 통제를 구현한 뒤에 실행한다.** P0-01a는 구현·드라이런을 검증했고 P0-02는 아직 구현하지 않았다. [실제 검증 기록](validation/2026-11-20-p0-profile.md)을 참고한다. 기존 원본 config·토큰·세션을 개발 프로필에 복사하지 않는다.
+검토 결과, 기본 경로와 앱 이름이 원본과 같고 config의 `saveLocation`이 저장 경로를 다시 지정할 수 있음을 확인했다. **아래 명령 중 `npm start`는 P0-01a의 빈 개발 프로필 격리와 P0-02의 외부 요청 통제를 구현한 뒤에 실행한다.** P0-01a/P0-02는 구현했고 Linux에서 조건부 전체 기동도 검증했다. [실제 검증 기록](validation/2026-11-20-p0-profile.md)을 참고한다. 기존 원본 config·토큰·세션을 개발 프로필에 복사하지 않는다.
 
 첫 검증 범위는 Electron 데스크톱이다. Android/iOS 패키징과 Python/BiRefNet 자체 빌드는 제외한다. 다만 루트가 참조하는 background-mode 서브모듈 등 실제 설치 의존성은 필요할 수 있다.
 
@@ -26,7 +26,7 @@ git submodule update --init --recursive
 
 원본 CI는 Node `22.4.1`을 사용한다. 먼저 해당 조합을 재현 기준으로 조사하고, 이후 현재 지원 버전으로 옮길 필요성을 판단한다. 오래된 CI 설정을 현재 지원 정책으로 간주하지 않는다. 네이티브 모듈 때문에 Python, C++ 컴파일러와 플랫폼별 빌드 도구가 필요할 수 있다.
 
-아래는 원본 명령이다. 초기 구성 당시에는 미실행이었고, 현재 Linux의 설치·빌드 성공 및 남은 검증 범위는 위 검증 기록에 구분했다. 전체 앱은 아직 실행하지 않았다.
+아래는 원본 명령이다. 초기 구성 당시에는 미실행이었고, 현재 Linux의 설치·빌드 성공 및 남은 검증 범위는 위 검증 기록에 구분했다. 전체 기동의 환경별 한계는 [별도 기록](validation/2026-11-20-p0-offline.md)을 참고한다.
 
 ```sh
 npm install
@@ -80,6 +80,10 @@ Linux의 디스플레이 없는 환경에서 검증한 명령은 아래와 같�
 npm run profile:check -- /tmp/sdstudio-dev-profile --ozone-platform=headless --disable-gpu
 ```
 
-인자를 생략하면 저장소 아래의 무시되는 개발 프로필 폴더를 사용한다. 환경변수를 직접 사용할 경우 `SDSTUDIO_USER_DATA_DIR`는 비어 있지 않은 절대 경로여야 한다. P0-02 이후 전체 UI 검증에는 `npm run start:isolated -- /절대/개발프로필`을 사용한다.
+인자를 생략하면 저장소 아래의 무시되는 개발 프로필 폴더를 사용한다. 환경변수를 직접 사용할 경우 `SDSTUDIO_USER_DATA_DIR`는 비어 있지 않은 절대 경로여야 한다. 전체 UI 검증에는 `npm run start:isolated -- /절대/개발프로필`을 사용한다.
 
 원본 앱에서 저장 위치를 직접 변경했다면 그 사용자 지정 폴더 안에 개발 프로필을 두지 않는다. 원본 config를 읽지 않는 설계상 그 위치는 자동 탐지하지 않는다. Electron 실기 프로필 테스트는 합성 appData를 확실히 지정할 수 있는 Linux에서만 실행한다. 컨테이너에 필요한 추가 Electron 인자는 `SDSTUDIO_TEST_ELECTRON_ARGS`의 JSON 문자열 배열로 명시할 수 있으며 sandbox 비활성 플래그를 자동 추가하지 않는다. Windows npm ci는 미검증이며 sharp 0.32 계열의 libvips 바이너리는 설치 중 별도 다운로드된다.
+
+## 오프라인 기동과 예제
+
+`npm run start:isolated -- /절대/개발프로필`은 기본 오프라인이다. 온라인 검증이 필요한 작업에서만 `SDSTUDIO_OFFLINE=0`을 명시한다. 가짜 백엔드를 쓰는 `npm run start:mock`은 계정/API를 쓰지 않고 변경을 저장하지 않는다. 독립 브라우저 모드의 실기 검증은 아직 하지 않았다. 전체 창 검사는 X11 DISPLAY가 필요하며 `npm run smoke:offline`과 `npm run smoke:offline -- real`로 구분한다.

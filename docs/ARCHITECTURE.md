@@ -57,3 +57,11 @@
 | `backends/genVendors/nai.ts` | `api.novelai.net`, `image.novelai.net` | 기존 로그인·계정/생성 요청. 현행 공식 규격과 일치하는지는 P0-03 조사 대상 |
 
 가짜 백엔드 모드에서는 위 외부 요청 및 로컬 프로세스 시작을 통제한다. 실제 생성 모드에서 필요한 NovelAI 통신까지 없앤다는 의미는 아니다.
+
+## 현재 포크의 P0-02 변경
+
+원본 조사와 구분한다. `src/runtimeOptions.ts`가 실행 정책을 정하고 preload는 필요한 두 플래그만 렌더러에 전달한다. `src/renderer/runtime.ts`가 가짜/Electron/Android 백엔드를 고른다. `backends/mockBackend.ts`는 파일·생성 픽스처를 메모리에 보관한다.
+
+데스크톱 IP 확인을 제거했고 업데이트는 기본 비활성·중복 시작 방지이며 포크를 가리킨다. LocalAIService는 오프라인 초기화를 건너뛴다. 메인은 Chromium 원격 요청과 다운로드·프로세스 관련 IPC를, Electron 백엔드는 계정/이미지 API의 선행 호출을 막는다. Google Fonts 원격 import도 제거했다.
+
+비패키징 프로덕션 번들의 preload 위치와 초기화 대기 순서를 실제 기동에 맞게 보완했다. [기동 보고서와 한계](validation/2026-11-20-p0-offline.md)를 참고한다.
