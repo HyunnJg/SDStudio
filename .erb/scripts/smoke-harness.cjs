@@ -84,7 +84,10 @@ app.on('web-contents-created', (_event, contents) => {
               return blocked;
             })()`);
           }
-          if (result.mock) {
+          if (result.mock && process.env.SDSTUDIO_SMOKE_WORKSPACE === '1') {
+            result.workspace = await require('./workspace-smoke.cjs')(contents);
+          }
+          if (result.mock && process.env.SDSTUDIO_SMOKE_WORKSPACE !== '1') {
             result.generation = await contents.executeJavaScript(`(async () => {
               const queue = window.taskQueueService;
               const session = window.curSession;
@@ -107,7 +110,7 @@ app.on('web-contents-created', (_event, contents) => {
             })()`);
           }
           await new Promise((resolve) => setTimeout(resolve, 300));
-          if (process.env.SDSTUDIO_SMOKE_SCREENSHOT)
+          if (process.env.SDSTUDIO_SMOKE_SCREENSHOT && !result.workspace)
             fs.writeFileSync(
               process.env.SDSTUDIO_SMOKE_SCREENSHOT,
               (await contents.capturePage()).toPNG(),
