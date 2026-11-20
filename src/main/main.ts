@@ -10,6 +10,7 @@
  */
 import developmentProfile from './profileBootstrap';
 import { storageDirectory } from './developmentProfile';
+import { usesDevelopmentAssets, resolvePreloadPath, startDesktop } from './desktopStartup';
 import { createRuntimeOptions, allowsOfflineURL } from '../runtimeOptions';
 import path from 'path';
 import {
@@ -55,6 +56,10 @@ let databases: DataBaseConns = {
 };
 
 let mainWindow: BrowserWindow | null = null;
+if (developmentProfile.active) {
+  // electron-log v4 may cache its fallback directory independently of app.setPath.
+  log.transports.file.resolvePath = () => path.join(app.getPath('logs'), 'main.log');
+}
 const runtimeOptions = createRuntimeOptions(
   process.env, developmentProfile.active,
 );
@@ -704,6 +709,7 @@ if (process.env.NODE_ENV === 'production') {
 
 const isDebug =
   process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true';
+const isDevelopment = usesDevelopmentAssets(app.isPackaged, process.env.NODE_ENV);
 
 if (isDebug && !runtimeOptions.offline) {
   require('electron-debug')({ showDevTools: true });
@@ -748,9 +754,7 @@ const createWindow = async () => {
     minHeight: 728,
     icon: getAssetPath('icon.png'),
     webPreferences: {
-      preload: isDebug
-        ? path.join(__dirname, '../../.erb/dll/preload.js')
-        : path.join(__dirname, 'preload.js'),
+      preload: resolvePreloadPath(__dirname, isDevelopment),
       additionalArguments: [
         ...(runtimeOptions.offline ? ['--sdstudio-offline'] : []),
         ...(runtimeOptions.mockBackend ? ['--sdstudio-mock-backend'] : []),
@@ -760,6 +764,8 @@ const createWindow = async () => {
 
   contextMenu({
     window: mainWindow,
+    showSearchWithGoogle: !runtimeOptions.offline,
+    showLookUpSelection: !runtimeOptions.offline,
     prepend: (defaultActions, params, browserWindow) => {
       console.log(params.mediaType);
       console.log(params.altText);
@@ -863,7 +869,7 @@ const createWindow = async () => {
   // new AppUpdater();
 };
 
-const dataDir = isDebug
+const dataDir = isDevelopment
   ? path.join(webpackPaths.appPath, 'data')
   : path.join(__dirname, '../../data');
 
@@ -918,8 +924,6 @@ async function initFolder() {
   }
 }
 
-const initialization = init();
-
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
@@ -944,10 +948,10 @@ if (!gotTheLock) {
     }
   });
 
-  app
-    .whenReady()
-    .then(async () => {
-      await initialization;
+  void startDesktop({
+    ready: () => app.whenReady(),
+    initialize: init,
+    open: async () => {
       if (runtimeOptions.offline) {
         session.defaultSession.webRequest.onBeforeRequest(
           { urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] },
@@ -958,9 +962,16 @@ if (!gotTheLock) {
       app.on('activate', () => {
         // On macOS it's common to re-create a window in the app when the
         // dock icon is clicked and there are no other windows open.
-        if (mainWindow === null) createWindow();
+        if (mainWindow === null) void createWindow().catch((error) => {
+          log.error('Window activation failed', error);
+          dialog.showErrorBox('SDStudio 시작 실패', String(error));
+          app.exit(1);
+        });
         // APP_DIR = app.getPath('userData');
       });
-    })
-    .catch(console.log);
+    },
+    logError: (error) => log.error('Desktop initialization failed', error),
+    showError: (title, message) => dialog.showErrorBox(title, message),
+    quit: () => app.exit(1),
+  });
 }
