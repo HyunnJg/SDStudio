@@ -12,6 +12,21 @@
 
 트리 검사는 파일명 탐색이다. README나 소스 주석 등에 있는 모든 권리 표기를 조사했다는 뜻은 아니다. 라이선스 전문이 없다고 확인된 패키지 표기까지 없다고 단정하지 않는다.
 
+## 독립 검토로 보강한 미확인 항목
+
+다음 파일·다운로드 경로의 존재는 소스로 대조했다. 출처와 실제 재배포 조건은 이번 문서 변경에서 조사 완료하지 않았다.
+
+| 대상 | 확인한 위치 | 남은 확인 |
+| --- | --- | --- |
+| 태그 DB | `src/native/db.csv`, `assets/db.txt`, `release/app/data/db.csv` | 원 데이터·변환 과정·고지 조건. 형식만으로 출처나 라이선스 확정 금지 |
+| NotoSans 폰트 3종 | `assets/fonts/NotoSans-{Regular,Bold,Italic}.ttf` | 파일 메타데이터, 취득한 원 배포본, 해당 고지. 이름만으로 허용 판정하지 않음 |
+| 기반 보일러플레이트 | `.erb/`, 루트 `package.json`의 electron-react-boilerplate 관련 정보 | 사용 리비전과 보존해야 하는 원 고지 |
+| 이미지·아이콘·예제 | 루트 이미지, `assets/`, `images/`, `examples/` | 파일별 출처·조건·배포 포함 여부 |
+| npm/Python 의존성 | 루트·`release/app`·`src/native` package.json, `src/localai/requirements.txt` | 실제 설치 리비전 확정 후 직접·전이 의존성의 고지 자료 수집 |
+| 로컬 AI 배포 바이너리·가중치 | `LocalAIService.ts`의 Hugging Face ZIP 및 BiRefNet quality 다운로드 | 각 다운로드 산출물의 출처·조건·포함 의존성. BiRefNet 코드의 MIT 표기와 별도 취급 |
+
+검토자는 태그 DB 출처와 폰트의 통상 라이선스를 추정했지만, 그 추정을 이 파일들의 확인 결과로 옮기지 않았다.
+
 ## 증거 링크
 
 - [SDStudio package.json](https://github.com/sunho/SDStudio/blob/f2088add103ad683a31e0590448e6e5bb4d71556/package.json)
