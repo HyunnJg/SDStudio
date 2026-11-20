@@ -8,6 +8,8 @@
  * When running `npm run build` or `npm run build:main`, this file is compiled to
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
+import developmentProfile from './profileBootstrap';
+import { storageDirectory } from './developmentProfile';
 import path from 'path';
 import {
   app,
@@ -102,7 +104,7 @@ async function readFileAsDataURL(filePath: any) {
   }
 }
 
-const DEFAULT_APP_DIR = app.getPath('userData') + '/' + 'SDStudio';
+const DEFAULT_APP_DIR = developmentProfile.appDirectory;
 let APP_DIR = DEFAULT_APP_DIR;
 
 let saveCompleted = false;
@@ -875,9 +877,7 @@ async function init() {
 }
 
 async function initFolder() {
-  if (config.saveLocation) {
-    APP_DIR = config.saveLocation;
-  }
+  APP_DIR = storageDirectory(developmentProfile, config.saveLocation, APP_DIR);
   await fs.mkdir(APP_DIR, { recursive: true });
   if (config.refreshImage) {
     const handle = chokidar.watch(APP_DIR, {
