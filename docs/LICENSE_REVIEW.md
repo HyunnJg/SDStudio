@@ -1,6 +1,6 @@
 # 라이선스 조사 기록
 
-확인일: 2026-11-20. 아래는 확인한 파일의 표기와 남은 조사 범위다. 전체 의존성·자산·모델에 대한 검토 완료를 뜻하지 않는다.
+확인일: 2026-11-21. [P0-04a 증거·원문·재현](licenses/README.md)을 추가했다. 아래는 확인한 파일의 표기와 남은 조사 범위다. 전체 의존성·자산·모델에 대한 검토 완료를 뜻하지 않는다.
 
 | 대상 | 고정 리비전 | 확인한 증거 | 현재 처리 |
 | --- | --- | --- | --- |
@@ -18,11 +18,11 @@
 
 | 대상 | 확인한 위치 | 남은 확인 |
 | --- | --- | --- |
-| 태그 DB | `src/native/db.csv`, `assets/db.txt`, `release/app/data/db.csv` | 원 데이터·변환 과정·고지 조건. init()이 db.csv를 필수로 읽으므로 배포에서 제외할 경우 대체 데이터 또는 빈 DB로 기동할 경로도 필요. 형식만으로 허용 판정 금지 |
-| NotoSans 폰트 3종 | `assets/fonts/NotoSans-{Regular,Bold,Italic}.ttf` | 파일 메타데이터, 취득한 원 배포본, 해당 고지. 이름만으로 허용 판정하지 않음 |
+| 태그 DB | `src/native/db.csv`, `assets/db.txt`, `release/app/data/db.csv` | 원 데이터·변환 과정·고지 조건. init()이 db.csv를 필수로 읽으므로 배포에서 제외할 경우 대체 데이터 또는 빈 DB로 기동할 경로도 필요. 배포 DB와 assets/db.txt 해시는 같고 native DB는 다름. 형식만으로 허용 판정 금지 |
+| NotoSans 폰트 3종 | `assets/fonts/NotoSans-{Regular,Bold,Italic}.ttf` | 메타데이터에서 2022 Noto Project Authors / 2.013 / OFL 1.1 확인. 저작권과 일치하는 공식 고정 커밋 OFL.txt를 assets/fonts에 원문 추가. 원 배포본 취득 이력·바이너리 대조는 남음 |
 | 기반 보일러플레이트 | `.erb/`, 루트 `package.json`의 electron-react-boilerplate 관련 정보 | 사용 리비전과 보존해야 하는 원 고지 |
 | 이미지·아이콘·예제 | 루트 이미지, `assets/`, `images/`, `examples/` | 파일별 출처·조건·배포 포함 여부 |
-| npm/Python 의존성 | 루트·`release/app`·`src/native` package.json, `src/localai/requirements.txt` | 실제 설치 리비전 확정 후 직접·전이 의존성의 고지 자료 수집. `sharp`, `exiftool-vendored` 등 동봉 바이너리의 LICENSE/COPYING은 패키지 메타데이터와 별도 확인 |
+| npm/Python 의존성 | 루트·`release/app`·`src/native` package.json, `src/localai/requirements.txt` | 실제 설치 리비전 확정 후 직접·전이 의존성의 고지 자료 수집. `sharp`, `exiftool-vendored` 등 동봉 바이너리의 LICENSE/COPYING은 패키지 메타데이터와 별도 확인. Linux sharp/libvips 고지·버전과 ExifTool wrapper/본체 고지를 원문 수집했으나 조건 이행·다른 플랫폼·전수 검토는 남음 |
 | 로컬 AI 배포 바이너리·가중치 | `LocalAIService.ts`의 Hugging Face ZIP 및 BiRefNet quality 다운로드 | 각 다운로드 산출물의 출처·조건·포함 의존성. BiRefNet 코드의 MIT 표기와 별도 취급 |
 
 검토자는 태그 DB 출처와 폰트의 통상 라이선스를 추정했지만, 그 추정을 이 파일들의 확인 결과로 옮기지 않았다.
@@ -42,3 +42,10 @@
 프로젝트 URL, 커밋/태그, 가져올 파일, 라이선스 전문 위치, 보존할 저작권·NOTICE, 변경 내용, 새 의존성과 자산을 기록한다. 기능 아이디어를 자체 구현하는 경우에도 참고한 프로젝트와 독립 구현 범위를 구분한다.
 
 다른 오픈소스 후보는 아직 선정하지 않았다. MIT·BSD·Apache 등 이름만 보고 도입 완료로 표시하지 않고 실제 가져올 리비전과 파일을 확인한다. NovelAI의 UI 사용 흐름 참고와 공식 서비스의 코드·자산 재사용도 구분한다.
+
+
+## P0-04a 수집과 남은 P0-04b
+
+추적 자산 101개와 lock 3개의 선언·직접 의존성을 목록화했다. Linux 설치 고지·버전 자료 7개와 패키지 버전을 해시로 보존했고 폰트는 파일 내 name 레코드를 별도 파서와 대조했다. 수집 결과는 전체 배포 허용 목록이 아니다.
+
+P0-04b는 원본/네이티브/배경 모듈/보일러플레이트의 정확한 고지, 태그 데이터·그림체/아이콘/예제 출처, 전이 의존성 전수 고지, LGPL 구성의 소스/재링크 조건, ExifTool 본체 및 Windows exe, 로컬 AI 바이너리·가중치와 실제 패키징 manifest를 다룬다. 출처가 끝내 확인되지 않는 자산의 제외·대체는 기능/기동 영향까지 별도 결정한다.
