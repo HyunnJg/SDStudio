@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-21",
+  "timezone": "Asia/Seoul",
+  "baseCommit": "a226b63d531a47144f3350b453af9c33bbf3fdb2",
+  "sourceCommit": "2a1c78f070736bf92726f659368e78d9d113c74b",
+  "sourceTree": "f360ad90e80bf04f253b0554702b5645ff0bb4ff",
+  "buildInputBasis": "Matching production source bytes built before publication. Existing dependency/native installs reused; no fresh npm ci/clean checkout.",
+  "environment": {
+    "hostNode": "22.4.1",
+    "electron": "26.6.10",
+    "electronNode": "18.16.1",
+    "platform": "linux-x64"
+  },
+  "tests": {
+    "responseCore": 16,
+    "localInspection": 3,
+    "combinedResponse": 19,
+    "mainAuthTransport": 19,
+    "authUi": 3,
+    "offline": 11,
+    "electronIntegration": {
+      "tests": 1,
+      "checks": 10,
+      "loopbackRequests": 4
+    }
+  },
+  "scopedTypes": true,
+  "scopedLint": true,
+  "productionBuild": true,
+  "newPackagingThisTurn": false,
+  "newPackagedUiSmokeThisTurn": false,
+  "realCredentialsUsed": false,
+  "externalAuthenticatedCalls": 0,
+  "actualGenerationCalls": 0,
+  "anlasSpent": 0,
+  "remoteRequestsAllowed": 0,
+  "experimentDelegated": true,
+  "initialExperimentPlan": {
+    "family": "v4.5 Full",
+    "requests": 1,
+    "maxAnlas": 10,
+    "readyToSend": false
+  },
+  "accountIdentifierRecorded": false,
+  "automaticResponseCaptureImplemented": false,
+  "modelBindingImplemented": false,
+  "newProjectStorageImplemented": false,
+  "unresolvedNoticeFiles": 8,
+  "windowsMacOsTested": false,
+  "crcBenchmarkPerformed": false
+}

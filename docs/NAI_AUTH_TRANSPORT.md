@@ -68,3 +68,10 @@ D-028은 일반 포크의 다음 시작 모드를 로컬 파일로 저장한다.
 응답 이후의 실패는 mayHaveReachedServer=true를 유지한다. 2xx MIME 거부는 RESPONSE_FORMAT, 압축/PNG 오류는 INVALID_IMAGE_RESPONSE, 자원 한도는 RESPONSE_TOO_LARGE다. 자동 재시도와 원문 오류 보관은 없다. 이 메인 경로는 생성 IPC/UI에 아직 연결하지 않았다. [테스트·한계](validation/2026-11-21-image-response.md), [최소 실호출 계획](NAI_LIVE_VALIDATION.md).
 
 기존 V3 이메일/비밀번호 로그인은 TOKEN.txt 평문 저장을 유지하는 별도 경로다. 환경설정에 이를 명시하고 상단의 V3 상태가 새 API 토큰 보관/서버 인증을 나타내지 않도록 바꿨다. 새 토큰 보안 저장을 앱 전체 인증 방식에 적용했다고 해석하지 않는다.
+
+
+## 내부 사유와 로컬 재검사 (D-031)
+
+imageResponseReason은 main 전용 고정 코드이며 공개 오류 message/code·auth IPC는 그대로다. 사유는 비열거 읽기 전용 속성이므로 JSON에 자동 추가되지 않고 검증 도구가 명시적으로 꺼낸다. 사용자/서버 내용이 들어가는 자유 텍스트 사유는 허용하지 않는다. sendImage의 오류 재전파는 사유와 mayHaveReachedServer=true를 함께 보존한다.
+
+nai:inspect-response는 명시적으로 고른 일반 파일 하나만 제한해 읽고, 네트워크·토큰 조회·추출·쓰기 없이 같은 응답 검사를 실행한다. 원본 보관은 기본 꺼짐인 후속 계획이며 현재 자동 저장하지 않는다. STORE PNG는 전체 ZIP과 분리한 버퍼로 반환한다. [검증](validation/2026-11-21-response-diagnostics.md).
