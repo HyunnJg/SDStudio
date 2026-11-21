@@ -1,0 +1,68 @@
+{
+  "date": "2026-11-21",
+  "baseCommit": "745248896d2bda5ebe3c413520063db3496968af",
+  "runtimeSourceCommit": "ed384bd522c6519f3cfb5b9e612901028f1ea85a",
+  "platform": "linux-x64",
+  "nodeTestsAndBuild": "22.4.1",
+  "electron": "26.6.10",
+  "python": "3.12.14",
+  "typeAndLintHostNode": "24.22.3",
+  "tests": {
+    "naiMain": 18,
+    "offline": 11,
+    "profile": 13,
+    "startup": 4,
+    "naiContract": 10,
+    "workspace": 14,
+    "bundleNotices": 3,
+    "licenseEvidence": 5,
+    "profileElectron": 2,
+    "startupElectron": 1,
+    "naiMainElectron": {
+      "tests": 1,
+      "checks": 8
+    },
+    "workspaceSmokeScenarios": 17,
+    "fileBackendSmoke": "pass"
+  },
+  "build": {
+    "main": "pass",
+    "preload": "pass",
+    "renderer": "pass",
+    "noticeCollectionPackages": 244,
+    "unresolvedNoticeFiles": 8
+  },
+  "checks": {
+    "scopedStrictTypecheck": "pass",
+    "scopedLint": "pass",
+    "realCredentialsUsed": false,
+    "anlasSpent": 0,
+    "authInputUIConnected": false,
+    "generationTransportConnectedToProduct": false,
+    "publicReleasePublished": false,
+    "authenticatedOrGenerationRequestsSent": 0
+  },
+  "artifacts": {
+    "2026-11-21-main-auth-electron.json": {
+      "sha256": "8efdbda843755c701fedf9a493eacf5751b68fb1e907448d8c2d13b5077d0aa0",
+      "bytes": 933
+    },
+    "2026-11-21-main-auth-workspace-smoke.json": {
+      "sha256": "8f1e5f0ec383b84e809167de5bb21b94d3a3ecdbcd633dc4dfadf8af50c52401",
+      "bytes": 2596
+    },
+    "2026-11-21-main-auth-file-smoke.json": {
+      "sha256": "663398b1f7ba766e935109f55f8e696660569b51114946c50418a3f040f2406d",
+      "bytes": 438
+    }
+  },
+  "harnessSha256": "4910f662fb7f012068ff9667ee7402a07a51b06192aab9069b20fb2c3f227f7f",
+  "limitations": [
+    "Real Linux keyring encryption not exercised; provider basic_text explicitly rejected. Ciphertext persistence/recovery tests use a synthetic crypto provider.",
+    "Windows/macOS not exercised.",
+    "Full UI and init-failure smoke simulate only single-instance lock because Unix-domain sockets are unavailable. New auth harness does not start the full product main.",
+    "No token validity check, model binding, modern project persistence, generation IPC or API request. ZIP expansion bound remains pending.",
+    "Whole-repository tsc has historical TS2688 and was not repeated; scoped strict check passed.",
+    "No directory package rebuild on this feature branch; PR9 follow-up package paths were checked separately."
+  ]
+}

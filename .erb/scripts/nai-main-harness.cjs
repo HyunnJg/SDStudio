@@ -227,6 +227,11 @@ app
     });
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
     loopbackURL = `http://127.0.0.1:${server.address().port}/success`;
+    await session.defaultSession.cookies.set({
+      url: loopbackURL,
+      name: 'synthetic-session-cookie',
+      value: 'must-not-send',
+    });
     const response = await createNaiTransport(fakeStore, () => false).send(
       Buffer.from('{}'),
       undefined,

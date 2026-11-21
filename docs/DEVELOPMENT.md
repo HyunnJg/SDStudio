@@ -109,3 +109,10 @@ P1-01b 작업실에서는 씬별 입력을 편집한 뒤 `전체 씬 예약` →
 ## 고지 묶음
 
 `npm run build`는 production main/preload·renderer 컴파일의 패키지 목록을 남기고 고지를 수집한다. `licenses:bundle`로 재수집할 수 있으며 beforePack에서도 자동 생성한다. `.erb/generated/notices`는 Git에서 제외한다. 패키지는 `package:check-notices`로 경로·사본 해시·번들/metadata 대응을 검사한다. `--require-notice-files`는 현재 원문 미확인 8건을 이유로 실패한다. 이 검사와 전체 재배포 조건 완료를 구분한다. [정확한 범위·명령](licenses/BUNDLE_NOTICES.md).
+
+
+## 신규 인증·전송 검사 (P0-03b1)
+
+- `npm run test:nai-main`: 합성 토큰·암호화 공급자/요청기로 보관·복구·취소·오류를 검사한다. 실제 자격증명은 불필요하다.
+- `npm run build:main` 후 `npm run test:nai-main:electron`: Linux X11 DISPLAY가 필요하다. 임시 appData/userData, compiled preload, 불안전 키링 거부와 세션의 네트워크 차단/루프백 응답을 확인한다. `SDSTUDIO_TEST_ELECTRON_ARGS`는 기존 테스트와 같은 JSON 배열이다. 자동으로 sandbox를 해제하지 않는다.
+- UI에서 실제 토큰을 입력/검증하거나 생성하는 기능은 아직 켜지 않았다. [범위·기한·복구](NAI_AUTH_TRANSPORT.md).
