@@ -54,6 +54,16 @@ test('fork runtime and builder identity agree; default profile leaves upstream f
   assert.equal(build.productName, FORK_APP_NAME);
   assert.equal(build.appId, FORK_APP_ID);
   assert.equal(build.executableName, FORK_EXECUTABLE);
+  assert.equal(require('../../package.json').name, FORK_EXECUTABLE);
+  assert.equal(require('../../release/app/package.json').name, FORK_EXECUTABLE);
+  assert.equal(require('../../package-lock.json').name, FORK_EXECUTABLE);
+  assert.equal(
+    require('../../release/app/package-lock.json').name,
+    FORK_EXECUTABLE,
+  );
+  assert.equal(build.publish.owner, 'HyunnJg');
+  assert.equal(build.publish.repo, 'SDStudio');
+  assert.equal(build.publish.releaseType, 'draft');
   assert.equal(fs.existsSync(path.join(f.paths.userData, 'auth')), false);
 });
 test('explicit development directory cannot overlap either production fork or original profile', (t) => {

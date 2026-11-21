@@ -120,6 +120,10 @@ export default function NaiAuthSettings({ onClose, offline, client }: Props) {
       {!client && <p>토큰 보관은 데스크톱 앱에서 사용할 수 있습니다.</p>}
       <fieldset disabled={!enabled || busy}>
         <legend>새 토큰 보관</legend>
+        <p>
+          계정 비밀번호가 아닙니다. NovelAI 사용자 설정의 Account에서 Get
+          Persistent API Token으로 발급한 값을 입력해 주세요.
+        </p>
         <label htmlFor="nai-token-input">
           Persistent API token
           <input

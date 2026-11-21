@@ -106,6 +106,7 @@ const ConfigScreen = observer(({ onSave }: ConfigScreenProps) => {
     });
   };
   const selectFolder = async () => {
+    if (!isMobile) return;
     const folder = await backend.selectDir();
     if (!folder) return;
     const config = await backend.getConfig();
@@ -254,9 +255,12 @@ const ConfigScreen = observer(({ onSave }: ConfigScreenProps) => {
             <button
               className="mt-4 w-full back-green py-2 rounded hover:brightness-95 active:brightness-90"
               onClick={selectFolder}
+              disabled={!isMobile}
+              aria-describedby="storage-location-help"
             >
               이미지 및 데이터 저장 위치 지정
             </button>
+            {!isMobile && <p id="storage-location-help">현재 포크는 프로필 폴더를 사용합니다. 저장 위치 변경은 준비 중입니다.</p>}
           </>
         )}
         <button

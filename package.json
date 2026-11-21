@@ -1,5 +1,5 @@
 {
-  "name": "sdstudio",
+  "name": "sdstudio-hyunnjg",
   "description": "A foundation for scalable desktop apps",
   "keywords": [
     "electron",
@@ -369,8 +369,9 @@
     ],
     "publish": {
       "provider": "github",
-      "owner": "sunho",
-      "repo": "SDStudio"
+      "owner": "HyunnJg",
+      "repo": "SDStudio",
+      "releaseType": "draft"
     }
   },
   "collective": {
