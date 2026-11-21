@@ -13,7 +13,9 @@ export type NaiErrorCode =
   | 'NETWORK'
   | 'REDIRECT'
   | 'HTTP_ERROR'
-  | 'RESPONSE_TOO_LARGE';
+  | 'RESPONSE_TOO_LARGE'
+  | 'INVALID_IMAGE_RESPONSE'
+  | 'RESPONSE_FORMAT';
 
 export interface NaiTokenStatus {
   configured: boolean;

@@ -4,6 +4,7 @@ import type {
   Session,
 } from 'electron';
 import { NaiError, validateToken } from './errors';
+import { readNaiImageResponse } from './imageResponse';
 
 export const IMAGE_ENDPOINT = 'https://image.novelai.net/ai/generate-image';
 
@@ -20,6 +21,25 @@ export class NaiTransport {
 
   constructor(options: TransportOptions) {
     this.options = options;
+  }
+
+  async sendImage(
+    body: Uint8Array,
+    signal?: AbortSignal,
+    timeoutMs = 90000,
+  ): Promise<Uint8Array> {
+    const deadline = performance.now() + timeoutMs;
+    const response = await this.send(body, signal, timeoutMs);
+    try {
+      const remaining = deadline - performance.now();
+      if (remaining <= 0) throw new NaiError('TIMEOUT');
+      return await readNaiImageResponse(response, signal, remaining);
+    } catch (error) {
+      throw new NaiError(
+        error instanceof NaiError ? error.code : 'INVALID_IMAGE_RESPONSE',
+        true, // A response arrived; decoding failure must never imply no server processing.
+      );
+    }
   }
 
   send(
@@ -112,7 +132,9 @@ export class NaiTransport {
                 String(response.headers['content-type'] || '').trim(),
               )
             ) {
-              finish(new NaiError('HTTP_ERROR', sent, response.statusCode));
+              finish(
+                new NaiError('RESPONSE_FORMAT', sent, response.statusCode),
+              );
               return;
             }
             const chunks: Uint8Array[] = [];
