@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { RestartFailure } from '../network/restartPreparation';
 import type {
   NaiAuthClient,
   NaiAuthResult,
@@ -18,7 +19,7 @@ interface Props {
   offline: boolean;
   client: NaiAuthClient | undefined;
   networkClient: NetworkModeClient | undefined;
-  beforeRestart: () => Promise<'JOBS_PENDING' | 'SAVE_FAILED' | undefined>;
+  beforeRestart: () => Promise<RestartFailure | undefined>;
 }
 
 export default function NaiAuthSettings({

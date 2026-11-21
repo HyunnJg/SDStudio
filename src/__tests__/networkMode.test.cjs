@@ -7,7 +7,7 @@ const {
   NetworkModeSettings,
   registerNetworkMode,
 } = require('../main/networkMode');
-const { prepareRestart } = require('../renderer/network/restartPreparation');
+const { prepareRestart, restartFailureMessage } = require('../renderer/network/restartPreparation');
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sdstudio-network-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -173,17 +173,17 @@ test('startup IPC rejects foreign senders but supports offline local configurati
   assert.equal(handlers.has('network-mode-get-token'), false);
 });
 test('restart preparation waits for save and rechecks pending work', async () => {
-  let busy = true,
+  let busy = 'LEGACY_RUNNING',
     saves = 0;
   assert.equal(
     await prepareRestart(
       () => busy,
       async () => saves++,
     ),
-    'JOBS_PENDING',
+    'LEGACY_RUNNING',
   );
   assert.equal(saves, 0);
-  busy = false;
+  busy = undefined;
   assert.equal(
     await prepareRestart(
       () => busy,
@@ -198,12 +198,12 @@ test('restart preparation waits for save and rechecks pending work', async () =>
       () => busy,
       async () => {
         saves++;
-        busy = true;
+        busy = 'WORKSPACE_PENDING';
       },
     ),
-    'JOBS_PENDING',
+    'WORKSPACE_PENDING',
   );
-  busy = false;
+  busy = undefined;
   assert.equal(
     await prepareRestart(
       () => busy,
@@ -212,4 +212,10 @@ test('restart preparation waits for save and rechecks pending work', async () =>
     undefined,
   );
   assert.equal(saves, 2);
+});
+
+test('restart guidance distinguishes legacy run completion from both pending queues', () => {
+  assert.match(restartFailureMessage('LEGACY_RUNNING'), /0이어도/);
+  assert.match(restartFailureMessage('LEGACY_PENDING'), /기존 V3/);
+  assert.match(restartFailureMessage('WORKSPACE_PENDING'), /새 작업실/);
 });

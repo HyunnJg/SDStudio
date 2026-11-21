@@ -397,13 +397,15 @@ export const App = observer(() => {
     {authOpen && <NaiAuthSettings onClose={() => setAuthOpen(false)} offline={runtimeOptions.offline} client={window.electron?.naiAuth}
       networkClient={window.electron?.networkMode}
       beforeRestart={() => prepareRestart(
-        () => !taskQueueService.isEmpty() ||
-          taskQueueService.hasActiveRun() ||
-          workspaceQueue.getSnapshot().active ||
-          workspaceQueue.getSnapshot().running ||
-          workspaceQueue.getSnapshot().jobs.some(
+        () => {
+          if (taskQueueService.hasActiveRun()) return 'LEGACY_RUNNING';
+          if (!taskQueueService.isEmpty()) return 'LEGACY_PENDING';
+          const snapshot = workspaceQueue.getSnapshot();
+          if (snapshot.active || snapshot.running || snapshot.jobs.some(
             job => job.status === 'pending' || job.status === 'running',
-          ),
+          )) return 'WORKSPACE_PENDING';
+          return undefined;
+        },
         () => sessionService.saveAll(),
       )} />}
     <AlertWindow />

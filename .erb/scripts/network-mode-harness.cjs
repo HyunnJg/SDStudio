@@ -202,7 +202,7 @@ app.on('web-contents-created', (_event, contents) => {
         await click('[data-testid=network-mode-restart]');
         await click('[data-testid=network-mode-confirm]');
         await until(
-          `document.querySelector('[data-testid=network-mode-error]')?.textContent.includes('작업')`,
+          `document.querySelector('[data-testid=network-mode-error]')?.textContent.includes('0이어도')`,
         );
         assert.equal(state.relaunchCalls, 0);
         await evaluate(

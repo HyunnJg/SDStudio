@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { restartFailureMessage } from '../network/restartPreparation';
+import type { RestartFailure } from '../network/restartPreparation';
 import type {
   NetworkMode,
   NetworkModeClient,
@@ -8,7 +10,7 @@ import type {
 
 interface Props {
   client: NetworkModeClient | undefined;
-  beforeRestart: () => Promise<'JOBS_PENDING' | 'SAVE_FAILED' | undefined>;
+  beforeRestart: () => Promise<RestartFailure | undefined>;
   onBusy: (busy: boolean) => void;
 }
 const errors: Record<string, string> = {
@@ -87,11 +89,7 @@ export default function NetworkModeSettings({
     try {
       const failure = await beforeRestart();
       if (failure) {
-        setError(
-          failure === 'JOBS_PENDING'
-            ? '재시작 전에 예약·실행 중인 작업을 마치거나 비워 주세요.'
-            : '기존 프로젝트를 저장하지 못해 재시작을 중단했습니다.',
-        );
+        setError(restartFailureMessage(failure));
         return;
       }
       const result = await client.restart();

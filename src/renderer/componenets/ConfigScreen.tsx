@@ -128,8 +128,12 @@ const ConfigScreen = observer(({ onSave }: ConfigScreenProps) => {
         <h1 className="text-2xl font-bold mb-4 text-default">환경설정</h1>
         <div className="mb-4">
           <label htmlFor="imageEditor" className="block text-sm gray-label">
-            NAI 로그인
+            기존 V3 로그인
           </label>
+          {!isMobile && <p className="text-sm mb-2" data-testid="legacy-login-notice">
+            기존 방식은 이메일·비밀번호를 사용하며 받은 토큰을 TOKEN.txt에 평문으로 저장합니다.
+            새 API 토큰 창의 보관 상태와는 별도입니다.
+          </p>}
           <div className="p-1 flex flex-col">
             <div className="flex gap-2 mb-2 w-full overflow-hidden">
               <input
