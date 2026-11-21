@@ -148,3 +148,8 @@ npm run smoke:network-mode -- /absolute/linux-unpacked
 `npm run test:nai-response`는 합성 PNG/ZIP로 크기 위조·CRC·손상·취소·기한과 sendImage의 서버 처리 불확실성을 검사한다. `npm run test:nai-main:electron`은 X11에서 실제 Electron net.request의 루프백 응답도 검사한다. 두 경로 모두 실제 자격증명을 쓰지 않는다. sendImage는 향후 신규 모델 연결용 내부 함수이며 기존 V3 생성 저장/PNG 경로를 대체하지 않는다.
 
 기존 V3 로그인은 이메일·비밀번호로 받은 토큰을 평문 TOKEN.txt에 보관한다. 새 API 토큰 창과 별도임을 환경설정/상단에 표시한다. 온라인 선택 자체가 신규 모델 생성 연결 완료나 서버 인증 성공을 뜻하지 않는다.
+
+
+## 응답 진단을 다시 확인할 때
+
+`npm run nai:inspect-response -- /absolute/response.zip`은 개발 체크아웃에서 로컬 응답 하나를 읽기 전용으로 검사한다. API/토큰·원본 프로필을 조회하지 않으며 PNG/ZIP 내용을 출력하거나 저장하지 않는다. 성공은 종료 0, 형식/검증 실패는 1, 사용법/파일 읽기·사전 크기 제한 실패는 2다. 표준 출력 JSON에는 코드·고정 사유·바이트 개수만 있다. 원문 파일의 자동 수집·업로드는 없다. `npm run test:nai-response`가 같은 검사와 도구를 합성 파일로 검증한다.

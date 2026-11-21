@@ -1,0 +1,47 @@
+{
+  "electron": {
+    "electron": "26.6.10",
+    "node": "18.16.1",
+    "platform": "linux",
+    "syntheticCredentialsOnly": true,
+    "checks": [
+      "insecure OS backend refuses persistent storage",
+      "compiled preload IPC stores session token without returning it or writing a file",
+      "offline IPC rejects before accessing token storage",
+      "clear drops session credential",
+      "transport offline gate refuses before reading a token",
+      "Electron net.request is blocked by the production defaultSession webRequest guard",
+      "real loopback response preserves bytes and sends explicit Authorization without cookies",
+      "real Electron ZIP decoding preserves original RGBA and opaque metadata bytes",
+      "invalid image response retains zip-eocd internally and mayHaveReachedServer without retry",
+      "real HTTP redirect is rejected without following"
+    ],
+    "remoteRequestsAllowed": 0,
+    "storageBackend": "basic_text",
+    "boundToDefaultSession": true,
+    "events": [
+      "finish",
+      "close",
+      "abort"
+    ],
+    "networkDiagnostic": "net::ERR_BLOCKED_BY_CLIENT",
+    "blockedByDefaultSession": 1,
+    "loopbackRequests": 4,
+    "responseStatus": 200
+  },
+  "localInspectionExamples": {
+    "valid": {
+      "exitCode": 0,
+      "ok": true,
+      "zipBytes": 272,
+      "pngBytes": 156
+    },
+    "trailingPNG": {
+      "exitCode": 1,
+      "ok": false,
+      "zipBytes": 295,
+      "code": "INVALID_IMAGE_RESPONSE",
+      "reason": "png-trailing"
+    }
+  }
+}
