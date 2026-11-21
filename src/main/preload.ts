@@ -1,6 +1,7 @@
 // Disable no-unused-vars, broken for spread args
 /* eslint no-unused-vars: off */
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
+import type { NaiAuthResult } from '../naiAuth';
 
 export type Channels =
   | 'write-file'
@@ -47,6 +48,12 @@ export type Channels =
   | 'lookup-tag';
 
 const electronHandler = {
+  naiAuth: {
+    status: (): Promise<NaiAuthResult> => ipcRenderer.invoke('nai-auth-status'),
+    setToken: (token: string, remember: boolean): Promise<NaiAuthResult> =>
+      ipcRenderer.invoke('nai-auth-set', token, remember),
+    clear: (): Promise<NaiAuthResult> => ipcRenderer.invoke('nai-auth-clear'),
+  },
   runtime: {
     offline: process.argv.includes('--sdstudio-offline'),
     mockBackend: process.argv.includes('--sdstudio-mock-backend'),

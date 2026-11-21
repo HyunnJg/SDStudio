@@ -11,7 +11,10 @@
 import developmentProfile from './profileBootstrap';
 import { storageDirectory } from './developmentProfile';
 import { usesDevelopmentAssets, resolvePreloadPath, startDesktop } from './desktopStartup';
-import { createRuntimeOptions, allowsOfflineURL } from '../runtimeOptions';
+import { createRuntimeOptions } from '../runtimeOptions';
+import { installOfflineRequestGuard } from './offlineNetwork';
+import { NaiTokenStore } from './nai/tokenStore';
+import { registerNaiAuth, isTrustedAuthFrame } from './nai/authIpc';
 import path from 'path';
 import {
   app,
@@ -22,6 +25,7 @@ import {
   screen,
   webContents,
   dialog,
+  safeStorage,
   nativeImage,
   clipboard,
 } from 'electron';
@@ -953,11 +957,21 @@ if (!gotTheLock) {
     initialize: init,
     open: async () => {
       if (runtimeOptions.offline) {
-        session.defaultSession.webRequest.onBeforeRequest(
-          { urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] },
-          (details, callback) => callback({ cancel: !allowsOfflineURL(details.url) }),
-        );
+        installOfflineRequestGuard(session.defaultSession);
       }
+      const tokenStore = new NaiTokenStore(
+        path.join(app.getPath('userData'), 'auth', 'novelai-token.v1.json'),
+        safeStorage,
+      );
+      registerNaiAuth(
+        ipcMain,
+        tokenStore,
+        () => runtimeOptions.offline,
+        (event) => isTrustedAuthFrame(
+          event, mainWindow?.webContents, resolveHtmlPath('index.html'),
+        ),
+      );
+      app.on('before-quit', () => tokenStore.lock());
       await createWindow();
       app.on('activate', () => {
         // On macOS it's common to re-create a window in the app when the

@@ -23,6 +23,8 @@
   "scripts": {
     "smoke:package": "node .erb/scripts/smoke-package.cjs",
     "package:manifest": "node .erb/scripts/inspect-package.cjs",
+    "test:nai-main": "node --test -r ts-node/register/transpile-only src/__tests__/naiAuth.test.cjs src/__tests__/naiTransport.test.cjs",
+    "test:nai-main:electron": "node --test src/__tests__/naiMain.electron.cjs",
     "test:bundle-notices": "node --test src/__tests__/bundleNotices.test.cjs",
     "package:check-notices": "node .erb/scripts/check-package-notices.cjs",
     "licenses:bundle": "node .erb/scripts/collect-bundle-notices.cjs",

@@ -294,5 +294,8 @@ test('main network and session inventory changes require an explicit offline rev
     'localai.ts:fetch',
     'main.ts:net.createServer',
     'main.ts:require:net',
+    'nai/electronTransport.ts:net.request',
+    'nai/electronTransport.ts:session:session',
+    'nai/transport.ts:session:session',
   ]);
 });
