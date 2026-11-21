@@ -4,7 +4,7 @@
 
 ## 현재 단계
 
-**PR #6 검토 보완 완료 / P0-04 라이선스 증거 조사로 전환.** [PR #6 처리](reviews/2026-11-21-pr6-followup.md). [검증·화면](validation/2026-11-21-p1-scene-queue.md). [PR #5 처리](reviews/2026-11-21-pr5-followup.md). [화면·검증](validation/2026-11-20-p1-workspace.md), [PR #4 의견 처리](reviews/2026-11-20-pr4-followup.md). [처리 결과](reviews/2026-11-20-pr3-followup.md). [프로필 검증](validation/2026-11-20-p0-profile.md), [추가 검토 처리](reviews/2026-11-20-pr2-followup.md), [오프라인 기동 검증](validation/2026-11-20-p0-offline.md)을 참고한다.
+**PR #7 검토 보완 완료 / P0-04b 실제 패키지 범위 조사 착수.** [PR #7 처리](reviews/2026-11-21-pr7-followup.md). [증거·재현](licenses/README.md). [PR #6 처리](reviews/2026-11-21-pr6-followup.md). [검증·화면](validation/2026-11-21-p1-scene-queue.md). [PR #5 처리](reviews/2026-11-21-pr5-followup.md). [화면·검증](validation/2026-11-20-p1-workspace.md), [PR #4 의견 처리](reviews/2026-11-20-pr4-followup.md). [처리 결과](reviews/2026-11-20-pr3-followup.md). [프로필 검증](validation/2026-11-20-p0-profile.md), [추가 검토 처리](reviews/2026-11-20-pr2-followup.md), [오프라인 기동 검증](validation/2026-11-20-p0-offline.md)을 참고한다.
 
 | 항목 | 상태 | 근거 |
 | --- | --- | --- |
@@ -21,7 +21,8 @@
 | 타입검사 | 새 모듈 통과 / 전체 저장소 실패 | 전체 tsc는 기존 libsodium 타입 선언 TS2688. 빌드는 transpileOnly임 |
 | P0-03a 모델/API 설계 | 공식 자료·합성 검증 완료 | [설계·근거·남은 항목](NOVELAI_API.md), 요청/ZIP 테스트 10건 통과. 실제 경로 미연결 |
 | P1-01 새 작업 화면 | 검토 반영·Linux 9시나리오 통과 | 프롬프트·캐릭터·격자·예제 기록, V3 화면 왕복, 오류 표시. mock 전용 |
-| P1-01b 씬·대기열 | 구현·Linux 검증 / 리뷰 대기 | 3씬 × 2회, 중지·계속·결과 열기, 시드·공통 알림·테마·삭제 취소 |
+| P1-01b 씬·대기열 | PR #6 보완·병합 / Linux 17시나리오 통과 | 3씬 × 2회, 중지·계속·결과 열기, 시드·공통 알림·테마·삭제 취소 |
+| P0-04a 라이선스 증거 | 검토 반영·상태/경로 5건 통과 | 자산 101파일·3 lock, 폰트 메타데이터 및 OFL 원문, 선택 설치 고지·버전 자료 7개. 배포 허용 판정과 구분 |
 | 실제 NovelAI API 생성 | 미실행 | 자격증명 사용 및 과금 없음 |
 | 다른 AI의 독립 검토 | 수령·계획 반영 | [Gemini](reviews/2026-11-20-gemini-initial-review.md), [Claude](reviews/2026-11-20-claude-initial-review.md), [처리 결과](reviews/2026-11-20-review-resolution.md) |
 
@@ -38,8 +39,8 @@
 
 ## 바로 다음 작업
 
-1. **P0-04a:** 추적 자산·설치된 Linux 바이너리·폰트 메타데이터의 출처와 고지 증거를 수집한다. 전체 배포 허용 판정과 구분한다.
-2. **P0-04:** 태그 DB·자산·동봉 바이너리 고지 조사를 이어간다.
+1. **P0-04b 첫 단위:** 실제 Linux 패키지 manifest를 기준으로 미사용 폰트·중복 DB 제외와 기동을 비교한다. 전체 배포 허용 및 지원 OS 확정과 구분한다.
+2. **P0-04b:** 원본/네이티브/보일러플레이트 고지, DB·그림체/아이콘 출처, LGPL·ExifTool·다른 OS·로컬 AI 및 실제 배포 manifest를 확인한다.
 3. **P0-03b:** 모델 ID·필수 파라미터·좌표·인증 및 저장/복구 구현을 확인한 뒤 P1-02 실제 연결로 간다. 종료 저장·기존 데이터·PNG 메타데이터 회귀도 포함한다.
 4. **실기 한계 보완:** Windows/macOS, 실제 단일 인스턴스 잠금, 독립 브라우저 미리보기는 아직 미검증이다.
 

@@ -1,0 +1,92 @@
+{
+  "formatVersion": 2,
+  "gitHead": "fd3307b9525121cf5480bbb711f540d766fea93b",
+  "dirty": false,
+  "inputBasis": "tracked set and submodule revisions from index; file bytes from working tree",
+  "platform": "linux-x64",
+  "purpose": "selected installed files only; not all dependency notices or a built artifact manifest",
+  "observations": [
+    {
+      "lockedVersion": "0.32.6",
+      "matchesLock": true,
+      "path": "release/app/node_modules/sharp",
+      "available": true,
+      "name": "sharp",
+      "version": "0.32.6",
+      "declaredLicense": "Apache-2.0",
+      "packageSha256": "610d9cf008aa9d52925965ec2bf3fcf6870953062becea022212dbf3824eb59b",
+      "evidence": [
+        {
+          "path": "release/app/node_modules/sharp/LICENSE",
+          "available": true,
+          "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68",
+          "copy": "notices/sharp-LICENSE"
+        },
+        {
+          "path": "release/app/node_modules/sharp/vendor/8.14.5/linux-x64/THIRD-PARTY-NOTICES.md",
+          "available": true,
+          "sha256": "84cf5c4d9765d7dc7c748064f34af6c30ac16048b3a74dbc51902f8fecdd905b",
+          "copy": "notices/sharp-vendor_8.14.5_linux-x64_THIRD-PARTY-NOTICES.md"
+        },
+        {
+          "path": "release/app/node_modules/sharp/vendor/8.14.5/linux-x64/versions.json",
+          "available": true,
+          "sha256": "92f91dfd29af500d327fbd9b5f5d88d7d1b7933f9ea5752c16af157a79403401",
+          "copy": "notices/sharp-vendor_8.14.5_linux-x64_versions.json"
+        }
+      ]
+    },
+    {
+      "lockedVersion": "27.0.0",
+      "matchesLock": true,
+      "path": "release/app/node_modules/exiftool-vendored",
+      "available": true,
+      "name": "exiftool-vendored",
+      "version": "27.0.0",
+      "declaredLicense": "MIT",
+      "packageSha256": "015baa45ade83bd6f29fe55dda7151e2d1a3346f809f979d746a3abc34b3c371",
+      "evidence": [
+        {
+          "path": "release/app/node_modules/exiftool-vendored/LICENSE",
+          "available": true,
+          "sha256": "aac4e5f919196964f6c2058577f6fd9f6d90b97db3ea45ce151d7524cfea1883",
+          "copy": "notices/exiftool-vendored-LICENSE"
+        }
+      ]
+    },
+    {
+      "lockedVersion": "12.85.0",
+      "matchesLock": true,
+      "path": "release/app/node_modules/exiftool-vendored.pl",
+      "available": true,
+      "name": "exiftool-vendored.pl",
+      "version": "12.85.0",
+      "declaredLicense": "MIT",
+      "packageSha256": "e906cca4de7f9707fb8c1e0eb5ec939ebb6701f69003738c821604bb0a4cc06b",
+      "evidence": [
+        {
+          "path": "release/app/node_modules/exiftool-vendored.pl/LICENSE",
+          "available": true,
+          "sha256": "3b93d5ef9cf55166e4ab37ea72f7fd470cab93995177fcb37587f73aa5528b71",
+          "copy": "notices/exiftool-vendored.pl-LICENSE"
+        },
+        {
+          "path": "release/app/node_modules/exiftool-vendored.pl/bin/LICENSE",
+          "available": true,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "copy": "notices/exiftool-vendored.pl-bin_LICENSE"
+        },
+        {
+          "path": "release/app/node_modules/exiftool-vendored.pl/bin/README",
+          "available": true,
+          "sha256": "f0372190d882ba004841763a16448d5766b10d2f78a6b294d996f13b0e6f885b",
+          "copy": "notices/exiftool-vendored.pl-bin_README"
+        }
+      ]
+    }
+  ],
+  "notInstalledHere": [
+    "exiftool-vendored.exe (Windows)"
+  ],
+  "fullBinaryLicenseReviewComplete": false
+}

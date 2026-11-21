@@ -1,0 +1,2430 @@
+{
+  "formatVersion": 2,
+  "gitHead": "fd3307b9525121cf5480bbb711f540d766fea93b",
+  "dirty": false,
+  "inputBasis": "tracked set and submodule revisions from index; file bytes from working tree",
+  "purpose": "evidence inventory, not a redistribution approval",
+  "sourceFiles": [
+    {
+      "path": ".erb/scripts/collect-license-evidence.py",
+      "sha256": "1f97fc002643e6f5d2b7727e60647bf36087b74f566f27cbdd4d9aaec01e0da6"
+    },
+    {
+      "path": "package.json",
+      "sha256": "3bd69d951afb4f9cc94c15d8191a38f664d9618ffe55796344b7c5e0799405a1"
+    },
+    {
+      "path": "release/app/package.json",
+      "sha256": "893afe228db30cb41b66c0cc32279317c41e955373280c755968524c504c1919"
+    },
+    {
+      "path": "src/native/package.json",
+      "sha256": "bf581033d0531f5aad7a6d5384b3b133d994a3112de8e6c9717fa4d19a90d9ec"
+    },
+    {
+      "path": ".gitmodules",
+      "sha256": "5d92195019f2c324edca0c9d8653807de88271858d07739ed6cc9c350c93a8f9"
+    },
+    {
+      "path": "src/localai/requirements.txt",
+      "sha256": "20cd43202fae4932034994790e39398d71a206a42ded1958a926c4da78363fec"
+    }
+  ],
+  "submodules": [
+    "160000 dc536b991ef441425ffa2f5e71c2aa90b1daf231 0\texternals/capacitor-background-mode",
+    "160000 15a114c46349f26866eeddc76387053394be2a0a 0\tsrc/localai/BiRefNet"
+  ],
+  "buildConfiguration": {
+    "files": [
+      "dist",
+      "node_modules",
+      "package.json",
+      "data",
+      "localai"
+    ],
+    "extraResources": [
+      "./assets/**"
+    ],
+    "asarUnpack": [
+      "**\\*.{node,dll}",
+      "**/node_modules/sharp/**/*",
+      "**/node_modules/sdsnative/**/*",
+      "**/node_modules/@img/**/*",
+      "**/node_modules/chokidar/**/*",
+      "**/node_modules/exiftool-vendored/**/*",
+      "**/node_modules/exiftool-vendored.*/**/*",
+      "**/node_modules/fsevents/**/*",
+      "**/localai/**/*"
+    ],
+    "directories": {
+      "app": "release/app",
+      "buildResources": "assets",
+      "output": "release/build"
+    }
+  },
+  "locks": [
+    {
+      "scope": ".",
+      "lockSha256": "764ae575e16f3634f9adcfcaa35facfac134e1a88920470f2ad5993adc429db0",
+      "packageCount": 2212,
+      "licenseDeclarationCounts": {
+        "(Apache-2.0 OR MPL-1.1)": 1,
+        "(BSD-2-Clause OR MIT OR Apache-2.0)": 1,
+        "(BSD-3-Clause OR GPL-2.0)": 1,
+        "(MIT AND BSD-3-Clause)": 1,
+        "(MIT AND Zlib)": 1,
+        "(MIT OR CC0-1.0)": 4,
+        "(MIT OR GPL-3.0-or-later)": 1,
+        "(MIT OR WTFPL)": 1,
+        "(WTFPL OR MIT)": 2,
+        "0BSD": 2,
+        "Apache-2.0": 80,
+        "Artistic-2.0": 1,
+        "BSD-2-Clause": 48,
+        "BSD-3-Clause": 52,
+        "BlueOak-1.0.0": 17,
+        "CC-BY-3.0": 1,
+        "CC-BY-4.0": 1,
+        "CC0-1.0": 5,
+        "ISC": 240,
+        "MIT": 1727,
+        "MPL-2.0": 2,
+        "Python-2.0": 8,
+        "SEE LICENSE": 2,
+        "SEE LICENSE IN LICENSE.txt": 1,
+        "Unlicense": 4,
+        "WTFPL": 1,
+        "WTFPL OR ISC": 1,
+        "null": 6
+      },
+      "entriesWithoutLicenseField": [
+        {
+          "path": "node_modules/@anuradev/capacitor-background-mode",
+          "version": null,
+          "link": true,
+          "resolved": "externals/capacitor-background-mode"
+        },
+        {
+          "path": "node_modules/enhanced-resolve",
+          "version": "0.9.1",
+          "link": false,
+          "resolved": "https://registry.npmjs.org/enhanced-resolve/-/enhanced-resolve-0.9.1.tgz"
+        },
+        {
+          "path": "node_modules/exit",
+          "version": "0.1.2",
+          "link": false,
+          "resolved": "https://registry.npmjs.org/exit/-/exit-0.1.2.tgz"
+        },
+        {
+          "path": "node_modules/i",
+          "version": "0.3.7",
+          "link": false,
+          "resolved": "https://registry.npmjs.org/i/-/i-0.3.7.tgz"
+        },
+        {
+          "path": "node_modules/npm/node_modules/qrcode-terminal",
+          "version": "0.12.0",
+          "link": false,
+          "resolved": null
+        },
+        {
+          "path": "node_modules/spawn-command",
+          "version": "0.0.2",
+          "link": false,
+          "resolved": "https://registry.npmjs.org/spawn-command/-/spawn-command-0.0.2.tgz"
+        }
+      ],
+      "directDependencies": [
+        {
+          "group": "dependencies",
+          "name": "@anuradev/capacitor-background-mode",
+          "requirement": "file:externals/capacitor-background-mode",
+          "version": "2.0.8",
+          "declaredLicense": "MIT",
+          "link": true
+        },
+        {
+          "group": "dependencies",
+          "name": "@capacitor-community/file-opener",
+          "requirement": "^6.0.0",
+          "version": "6.0.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "@capacitor-community/http",
+          "requirement": "^1.4.1",
+          "version": "1.4.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "@capacitor/android",
+          "requirement": "^6.1.0",
+          "version": "6.2.3",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "@capacitor/app",
+          "requirement": "^6.0.0",
+          "version": "6.0.3",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "@capacitor/clipboard",
+          "requirement": "^6.0.0",
+          "version": "6.0.3",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "@capacitor/core",
+          "requirement": "^6.1.0",
+          "version": "6.2.3",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "@capacitor/filesystem",
+          "requirement": "^6.0.0",
+          "version": "6.0.4",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "@capacitor/ios",
+          "requirement": "^6.1.0",
+          "version": "6.2.3",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "@capacitor/share",
+          "requirement": "^6.0.1",
+          "version": "6.0.4",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "@capawesome/capacitor-file-picker",
+          "requirement": "^6.0.1",
+          "version": "6.2.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "@dqbd/tiktoken",
+          "requirement": "^1.0.15",
+          "version": "1.0.22",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "@vitejs/plugin-react",
+          "requirement": "^4.3.1",
+          "version": "4.7.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "@xenova/transformers",
+          "requirement": "^2.17.2",
+          "version": "2.17.2",
+          "declaredLicense": "Apache-2.0",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "adm-zip",
+          "requirement": "^0.5.12",
+          "version": "0.5.18",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "axios",
+          "requirement": "^1.7.2",
+          "version": "1.21.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "buffer",
+          "requirement": "^6.0.3",
+          "version": "6.0.3",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "chokidar",
+          "requirement": "^3.6.0",
+          "version": "3.6.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "crypto-browserify",
+          "requirement": "^3.12.0",
+          "version": "3.12.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "crypto-js",
+          "requirement": "^4.2.0",
+          "version": "4.2.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "denque",
+          "requirement": "^2.1.0",
+          "version": "2.1.0",
+          "declaredLicense": "Apache-2.0",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "drag-drop-touch",
+          "requirement": "^1.3.1",
+          "version": "1.3.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "electron-context-menu",
+          "requirement": "^3.6.1",
+          "version": "3.6.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "electron-debug",
+          "requirement": "^3.2.0",
+          "version": "3.2.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "electron-dl",
+          "requirement": "^3.5.2",
+          "version": "3.5.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "electron-log",
+          "requirement": "^4.4.8",
+          "version": "4.4.8",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "electron-prompt",
+          "requirement": "^1.7.0",
+          "version": "1.7.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "electron-updater",
+          "requirement": "^6.1.4",
+          "version": "6.8.11",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "exif-js",
+          "requirement": "^2.3.0",
+          "version": "2.3.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "exifreader",
+          "requirement": "^4.23.2",
+          "version": "4.54.0",
+          "declaredLicense": "MPL-2.0",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "hangul",
+          "requirement": "^1.0.0",
+          "version": "1.0.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "hangul-js",
+          "requirement": "^0.2.6",
+          "version": "0.2.6",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "i",
+          "requirement": "^0.3.7",
+          "version": "0.3.7",
+          "declaredLicense": null,
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "jszip",
+          "requirement": "^3.10.1",
+          "version": "3.10.2",
+          "declaredLicense": "(MIT OR GPL-3.0-or-later)",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "libsodium-wrappers",
+          "requirement": "0.7.13",
+          "version": "0.7.13",
+          "declaredLicense": "ISC",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "libsodium-wrappers-sumo",
+          "requirement": "0.7.13",
+          "version": "0.7.13",
+          "declaredLicense": "ISC",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "memoize-one",
+          "requirement": "^6.0.0",
+          "version": "6.0.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "mobile-drag-drop",
+          "requirement": "^v2.3.0-rc.2",
+          "version": "2.3.0-rc.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "mobx-react-lite",
+          "requirement": "^4.0.7",
+          "version": "4.1.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "mobx-state-tree",
+          "requirement": "^6.0.1",
+          "version": "6.0.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "nan",
+          "requirement": "^2.20.0",
+          "version": "2.30.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "nightwind",
+          "requirement": "^1.1.13",
+          "version": "1.1.13",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "node-fetch",
+          "requirement": "^3.3.2",
+          "version": "3.3.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "node-stream-zip",
+          "requirement": "^1.15.0",
+          "version": "1.16.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "npm",
+          "requirement": "^10.8.2",
+          "version": "10.9.11",
+          "declaredLicense": "Artistic-2.0",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "pica",
+          "requirement": "^9.0.1",
+          "version": "9.0.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "png-chunk-text",
+          "requirement": "^1.0.0",
+          "version": "1.0.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "png-chunks-encode",
+          "requirement": "^1.0.0",
+          "version": "1.0.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "png-chunks-extract",
+          "requirement": "^1.0.0",
+          "version": "1.0.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "raw-loader",
+          "requirement": "^4.0.2",
+          "version": "4.0.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "react",
+          "requirement": "^18.2.0",
+          "version": "18.3.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "react-contexify",
+          "requirement": "^6.0.0",
+          "version": "6.0.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "react-custom-scrollbars-2",
+          "requirement": "^4.5.0",
+          "version": "4.5.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "react-dnd",
+          "requirement": "^16.0.1",
+          "version": "16.0.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "react-dnd-html5-backend",
+          "requirement": "^16.0.1",
+          "version": "16.0.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "react-dnd-mouse-backend",
+          "requirement": "^1.0.0-rc.2",
+          "version": "1.0.0-rc.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "react-dnd-preview",
+          "requirement": "^8.0.3",
+          "version": "8.1.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "react-dnd-scrolling",
+          "requirement": "^1.3.8",
+          "version": "1.3.10",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "react-dnd-touch-backend",
+          "requirement": "^16.0.1",
+          "version": "16.0.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "react-dom",
+          "requirement": "^18.2.0",
+          "version": "18.3.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "react-icons",
+          "requirement": "^5.2.1",
+          "version": "5.7.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "react-router-dom",
+          "requirement": "^6.16.0",
+          "version": "6.30.6",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "react-select",
+          "requirement": "^5.8.0",
+          "version": "5.10.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "react-window",
+          "requirement": "^1.8.10",
+          "version": "1.8.11",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "react-zoom-pan-pinch",
+          "requirement": "3.6.0",
+          "version": "3.6.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "resize-observer-polyfill",
+          "requirement": "^1.5.1",
+          "version": "1.5.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "textarea-caret",
+          "requirement": "^3.1.0",
+          "version": "3.1.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "uuid",
+          "requirement": "^9.0.1",
+          "version": "9.0.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@capacitor/assets",
+          "requirement": "^3.0.5",
+          "version": "3.0.5",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@capacitor/cli",
+          "requirement": "^6.1.0",
+          "version": "6.2.3",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@electron/notarize",
+          "requirement": "^2.1.0",
+          "version": "2.5.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@electron/rebuild",
+          "requirement": "^3.3.0",
+          "version": "3.7.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@pmmmwh/react-refresh-webpack-plugin",
+          "requirement": "^0.5.11",
+          "version": "0.5.17",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@svgr/webpack",
+          "requirement": "^8.1.0",
+          "version": "8.1.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@teamsupercell/typings-for-css-modules-loader",
+          "requirement": "^2.5.2",
+          "version": "2.5.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@testing-library/jest-dom",
+          "requirement": "^6.1.3",
+          "version": "6.9.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@testing-library/react",
+          "requirement": "^14.0.0",
+          "version": "14.3.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@types/adm-zip",
+          "requirement": "^0.5.5",
+          "version": "0.5.8",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@types/jest",
+          "requirement": "^29.5.5",
+          "version": "29.5.14",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@types/libsodium-wrappers-sumo",
+          "requirement": "^0.7.8",
+          "version": "0.7.8",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@types/node",
+          "requirement": "20.6.2",
+          "version": "20.6.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@types/pica",
+          "requirement": "^9.0.4",
+          "version": "9.0.5",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@types/png-chunk-text",
+          "requirement": "^1.0.3",
+          "version": "1.0.3",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@types/png-chunks-encode",
+          "requirement": "^1.0.2",
+          "version": "1.0.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@types/png-chunks-extract",
+          "requirement": "^1.0.2",
+          "version": "1.0.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@types/react",
+          "requirement": "^18.2.21",
+          "version": "18.3.31",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@types/react-dom",
+          "requirement": "^18.2.7",
+          "version": "18.3.7",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@types/react-test-renderer",
+          "requirement": "^18.0.1",
+          "version": "18.3.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@types/react-window",
+          "requirement": "^1.8.8",
+          "version": "1.8.8",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@types/terser-webpack-plugin",
+          "requirement": "^5.0.4",
+          "version": "5.2.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@types/textarea-caret",
+          "requirement": "^3.0.3",
+          "version": "3.0.4",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@types/uuid",
+          "requirement": "^10.0.0",
+          "version": "10.0.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@types/webpack-bundle-analyzer",
+          "requirement": "^4.6.0",
+          "version": "4.7.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@typescript-eslint/eslint-plugin",
+          "requirement": "^6.7.0",
+          "version": "6.21.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "@typescript-eslint/parser",
+          "requirement": "^6.7.0",
+          "version": "6.21.0",
+          "declaredLicense": "BSD-2-Clause",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "autoprefixer",
+          "requirement": "^10.4.19",
+          "version": "10.7.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "browserslist-config-erb",
+          "requirement": "^0.0.3",
+          "version": "0.0.3",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "chalk",
+          "requirement": "^4.1.2",
+          "version": "4.1.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "concurrently",
+          "requirement": "^8.2.1",
+          "version": "8.2.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "core-js",
+          "requirement": "^3.32.2",
+          "version": "3.51.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "cross-env",
+          "requirement": "^7.0.3",
+          "version": "7.0.3",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "css-loader",
+          "requirement": "^6.8.1",
+          "version": "6.11.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "css-minimizer-webpack-plugin",
+          "requirement": "^5.0.1",
+          "version": "5.0.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "detect-port",
+          "requirement": "^1.5.1",
+          "version": "1.6.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "electron",
+          "requirement": "^26.2.1",
+          "version": "26.6.10",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "electron-builder",
+          "requirement": "^24.6.4",
+          "version": "24.13.3",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "electron-devtools-installer",
+          "requirement": "^3.2.0",
+          "version": "3.2.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "electron-rebuild",
+          "requirement": "^3.2.9",
+          "version": "3.2.9",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "electronmon",
+          "requirement": "^2.0.2",
+          "version": "2.0.4",
+          "declaredLicense": "ISC",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "eslint",
+          "requirement": "^8.49.0",
+          "version": "8.57.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "eslint-config-airbnb-base",
+          "requirement": "^15.0.0",
+          "version": "15.0.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "eslint-config-erb",
+          "requirement": "^4.1.0-0",
+          "version": "4.1.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "eslint-config-prettier",
+          "requirement": "^9.1.0",
+          "version": "9.1.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "eslint-import-resolver-typescript",
+          "requirement": "^3.6.0",
+          "version": "3.10.1",
+          "declaredLicense": "ISC",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "eslint-import-resolver-webpack",
+          "requirement": "^0.13.7",
+          "version": "0.13.11",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "eslint-plugin-compat",
+          "requirement": "^4.2.0",
+          "version": "4.2.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "eslint-plugin-import",
+          "requirement": "^2.28.1",
+          "version": "2.32.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "eslint-plugin-jest",
+          "requirement": "^27.4.0",
+          "version": "27.9.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "eslint-plugin-jsx-a11y",
+          "requirement": "^6.7.1",
+          "version": "6.10.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "eslint-plugin-prettier",
+          "requirement": "^5.2.1",
+          "version": "5.5.7",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "eslint-plugin-promise",
+          "requirement": "^6.1.1",
+          "version": "6.6.0",
+          "declaredLicense": "ISC",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "eslint-plugin-react",
+          "requirement": "^7.33.2",
+          "version": "7.37.5",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "eslint-plugin-react-hooks",
+          "requirement": "^4.6.0",
+          "version": "4.6.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "file-loader",
+          "requirement": "^6.2.0",
+          "version": "6.2.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "html-webpack-plugin",
+          "requirement": "^5.5.3",
+          "version": "5.6.8",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "identity-obj-proxy",
+          "requirement": "^3.0.0",
+          "version": "3.0.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "jest",
+          "requirement": "^29.7.0",
+          "version": "29.7.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "jest-environment-jsdom",
+          "requirement": "^29.7.0",
+          "version": "29.7.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "mini-css-extract-plugin",
+          "requirement": "^2.7.6",
+          "version": "2.10.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "postcss-loader",
+          "requirement": "^8.1.1",
+          "version": "8.2.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "prettier",
+          "requirement": "^3.3.0",
+          "version": "3.10.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "react-refresh",
+          "requirement": "^0.14.0",
+          "version": "0.14.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "react-test-renderer",
+          "requirement": "^18.2.0",
+          "version": "18.3.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "rimraf",
+          "requirement": "^5.0.1",
+          "version": "5.0.10",
+          "declaredLicense": "ISC",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "sass",
+          "requirement": "^1.67.0",
+          "version": "1.108.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "sass-loader",
+          "requirement": "^13.3.2",
+          "version": "13.3.3",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "style-loader",
+          "requirement": "^3.3.3",
+          "version": "3.3.4",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "tailwindcss",
+          "requirement": "^3.4.3",
+          "version": "3.4.19",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "terser-webpack-plugin",
+          "requirement": "^5.3.9",
+          "version": "5.6.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "ts-jest",
+          "requirement": "^29.1.1",
+          "version": "29.4.15",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "ts-loader",
+          "requirement": "^9.4.4",
+          "version": "9.6.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "ts-node",
+          "requirement": "^10.9.1",
+          "version": "10.9.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "tsconfig-paths-webpack-plugin",
+          "requirement": "^4.1.0",
+          "version": "4.2.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "typescript",
+          "requirement": "^5.2.2",
+          "version": "5.9.3",
+          "declaredLicense": "Apache-2.0",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "url-loader",
+          "requirement": "^4.1.1",
+          "version": "4.1.1",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "webpack",
+          "requirement": "^5.88.2",
+          "version": "5.113.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "webpack-bundle-analyzer",
+          "requirement": "^4.9.1",
+          "version": "4.10.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "webpack-cli",
+          "requirement": "^5.1.4",
+          "version": "5.1.4",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "webpack-dev-server",
+          "requirement": "^4.15.1",
+          "version": "4.15.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "devDependencies",
+          "name": "webpack-merge",
+          "requirement": "^5.9.0",
+          "version": "5.10.0",
+          "declaredLicense": "MIT",
+          "link": false
+        }
+      ]
+    },
+    {
+      "scope": "release/app",
+      "lockSha256": "b7b61a7c554e058e75928384548b191d48d0c76036cd8f914dbb51d52375124e",
+      "packageCount": 101,
+      "licenseDeclarationCounts": {
+        "(BSD-2-Clause OR MIT OR Apache-2.0)": 1,
+        "(MIT OR WTFPL)": 1,
+        "Apache-2.0": 12,
+        "BSD-3-Clause": 1,
+        "CC0-1.0": 1,
+        "ISC": 9,
+        "MIT": 75,
+        "null": 1
+      },
+      "entriesWithoutLicenseField": [
+        {
+          "path": "node_modules/sdsnative",
+          "version": null,
+          "link": true,
+          "resolved": "../../src/native"
+        }
+      ],
+      "directDependencies": [
+        {
+          "group": "dependencies",
+          "name": "chokidar",
+          "requirement": "^3.6.0",
+          "version": "3.6.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "exiftool-vendored",
+          "requirement": "^27.0.0",
+          "version": "27.0.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "gunzip-maybe",
+          "requirement": "^1.4.2",
+          "version": "1.4.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "sdsnative",
+          "requirement": "file:../../src/native",
+          "version": "1.0.0",
+          "declaredLicense": "ISC",
+          "link": true
+        },
+        {
+          "group": "dependencies",
+          "name": "sharp",
+          "requirement": "^0.32.6",
+          "version": "0.32.6",
+          "declaredLicense": "Apache-2.0",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "tar-fs",
+          "requirement": "^3.0.6",
+          "version": "3.1.3",
+          "declaredLicense": "MIT",
+          "link": false
+        }
+      ]
+    },
+    {
+      "scope": "src/native",
+      "lockSha256": "a090de2c8c91bf67d6f8ee0694b01917241a310ec388d3c405e75cde15892c52",
+      "packageCount": 6,
+      "licenseDeclarationCounts": {
+        "MIT": 6
+      },
+      "entriesWithoutLicenseField": [],
+      "directDependencies": [
+        {
+          "group": "dependencies",
+          "name": "bindings",
+          "requirement": "^1.5.0",
+          "version": "1.5.0",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "node-addon-api",
+          "requirement": "^8.0.0",
+          "version": "8.9.2",
+          "declaredLicense": "MIT",
+          "link": false
+        },
+        {
+          "group": "dependencies",
+          "name": "prompt-sync",
+          "requirement": "^4.2.0",
+          "version": "4.2.0",
+          "declaredLicense": "MIT",
+          "link": false
+        }
+      ]
+    }
+  ],
+  "pythonRequirements": {
+    "encoding": "utf-16",
+    "lines": [
+      "altgraph==0.17.4",
+      "blinker==1.8.2",
+      "certifi==2024.6.2",
+      "charset-normalizer==3.3.2",
+      "click==8.1.7",
+      "colorama==0.4.6",
+      "filelock==3.15.4",
+      "Flask==3.0.3",
+      "fsspec==2024.6.0",
+      "huggingface-hub==0.23.4",
+      "idna==3.7",
+      "imageio==2.34.2",
+      "itsdangerous==2.2.0",
+      "Jinja2==3.1.4",
+      "kornia==0.7.2",
+      "kornia_rs==0.1.3",
+      "lazy_loader==0.4",
+      "MarkupSafe==2.1.5",
+      "mpmath==1.3.0",
+      "networkx==3.3",
+      "numpy==1.26.4",
+      "opencv-python==4.10.0.84",
+      "packaging==24.1",
+      "pefile==2023.2.7",
+      "pillow==10.3.0",
+      "prettytable==3.10.0",
+      "pyinstaller==6.8.0",
+      "pyinstaller-hooks-contrib==2024.7",
+      "pywin32-ctypes==0.2.2",
+      "PyYAML==6.0.1",
+      "requests==2.32.3",
+      "safetensors==0.4.3",
+      "scikit-image==0.24.0",
+      "scipy==1.14.0",
+      "sympy==1.12.1",
+      "tifffile==2024.6.18",
+      "timm==1.0.7",
+      "--extra-index-url https://download.pytorch.org/whl/cu118",
+      "torch==2.0.1",
+      "--extra-index-url https://download.pytorch.org/whl/cu118",
+      "torchvision==0.15.2",
+      "tqdm==4.66.4",
+      "typing_extensions==4.12.2",
+      "urllib3==2.2.2",
+      "wcwidth==0.2.13",
+      "Werkzeug==3.0.3"
+    ],
+    "licensesVerified": false
+  },
+  "assets": [
+    {
+      "path": ".erb/img/erb-banner.svg",
+      "bytes": 24636,
+      "sha256": "a7fdf44ebc520433b62c9877c1b8b101c9f639f25f4f45e2da3ba46e941f3b2e",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": ".erb/img/erb-logo.png",
+      "bytes": 28783,
+      "sha256": "21f61ed963dcc951199667c91522589f8369d293a641e452655918ad548be00b",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": ".erb/img/palette-sponsor-banner.svg",
+      "bytes": 33593,
+      "sha256": "0c8313323cde8b363b3d1c338cd9793eceb5654403c076ae50fd9cfcf55c818f",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "1024x1024.png",
+      "bytes": 1317150,
+      "sha256": "c6793401060d843dcc13458b9d131a91739e7cbba3638585d4cf6eddc2aa5f89",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/1024x1024.png",
+      "bytes": 1300262,
+      "sha256": "334105d25d42d77b49adf5936f4b67bacd0974ba838e95e79913c7e727ba2f3f",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/ic_launcher-playstore.png",
+      "bytes": 434014,
+      "sha256": "1a630eebf9a2ab134ef76efacc72cf02315452ed41b09ffbc6ed01ef1276b767",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/icon.png",
+      "bytes": 40395,
+      "sha256": "b75f80ba3eedc9a8ffb855b90e2102a72bc31939e132da2ba4f1eb12580d0e3c",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-land-hdpi/splash.png",
+      "bytes": 7705,
+      "sha256": "08cc34ad7713fe7ed58bceaa37b2387b670c53cd60264b4bd6442db3098e75dc",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-land-mdpi/splash.png",
+      "bytes": 4040,
+      "sha256": "5cf98b4451bd99b20df26f9e608a46946118be6b0ae90762f9ca1786a30c76ff",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-land-xhdpi/splash.png",
+      "bytes": 9251,
+      "sha256": "22f87e1e3bc89aa01a7dbc39c9a4db058cd0bf4ad3fe9f55712bf69eb997f4bf",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-land-xxhdpi/splash.png",
+      "bytes": 13984,
+      "sha256": "42aa26392546fcdee1b8d3ac6d4b41bfcceb41dc6a4f3a3c30c24a8a8f4db862",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-land-xxxhdpi/splash.png",
+      "bytes": 17683,
+      "sha256": "60393ce8636fd263e4e1fea3fd4ab2de948c6295e898fda9b50ac4e5283be809",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-port-hdpi/splash.png",
+      "bytes": 7934,
+      "sha256": "c5015f4ba3628392b538386c5e210f0b94f352a3160adab934fd0311972137ca",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-port-mdpi/splash.png",
+      "bytes": 4096,
+      "sha256": "07fa579e1c83e04ba7f9cbcbfcf41b68e15fe3638f2c44a04e58b809103e6b69",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-port-xhdpi/splash.png",
+      "bytes": 9875,
+      "sha256": "b73049cb37fe76d6c11b87a796766bf6af0c85483b31eb6a921657b0d764a4b9",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-port-xxhdpi/splash.png",
+      "bytes": 13346,
+      "sha256": "0c7f1212f25b7b90e9a6e1d320013e4ff3d3e03e634cbb07b7b7981cac51627f",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-port-xxxhdpi/splash.png",
+      "bytes": 17489,
+      "sha256": "3db071a03b2f8ffe0dfd4170fc59842d53cd15bba5e88af59401d58efabf7827",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/drawable/splash.png",
+      "bytes": 4040,
+      "sha256": "5cf98b4451bd99b20df26f9e608a46946118be6b0ae90762f9ca1786a30c76ff",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/icon.png",
+      "bytes": 1317150,
+      "sha256": "c6793401060d843dcc13458b9d131a91739e7cbba3638585d4cf6eddc2aa5f89",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-hdpi/ic_launcher.png",
+      "bytes": 8313,
+      "sha256": "35f75d6869592bdc80e18f68e5b130f74bf72e82fec8d9300886b5941d39a29c",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-hdpi/icon.png",
+      "bytes": 1317150,
+      "sha256": "c6793401060d843dcc13458b9d131a91739e7cbba3638585d4cf6eddc2aa5f89",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-mdpi/ic_launcher.png",
+      "bytes": 4226,
+      "sha256": "3e11083041abc8611ed7f94eceb465ab84ac6f12e3d2447c4eb7a9c16a172edf",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+      "bytes": 13843,
+      "sha256": "2d7b3a34115d7b1ad24dd42e5c9b62dffd5eebdabf1bf4b1fea0e57fefd94c7b",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+      "bytes": 28109,
+      "sha256": "e3b419d58bcc3d590f354762020adf3af32e8bd8611c8c5431a1fb5e203aa6b5",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+      "bytes": 46807,
+      "sha256": "294136de0afd2a492e66c4633599c0d9a32359cb45bfedaad8f76b269690a0d8",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "assets/assets.d.ts",
+      "bytes": 701,
+      "sha256": "73d1919b8e6eb317eee5da261767e71f9d9c9242f97fdaec1d07bf6efdc62b3b",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "assets/db.txt",
+      "bytes": 3495044,
+      "sha256": "77309b33a5dfd19fcd942f3b1ea7e091416dec4d584ed384edfa44fe0af72860",
+      "kind": "tag-database",
+      "provenanceStatus": "not-cleared",
+      "lineCount": 124732
+    },
+    {
+      "path": "assets/entitlements.mac.plist",
+      "bytes": 333,
+      "sha256": "f4b2891dc2b1239191cecf7cd5b9a36ea4edaec33c1cc091e09380d669e8fb63",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "assets/fonts/NotoSans-Bold.ttf",
+      "bytes": 582604,
+      "sha256": "cf382cad35e731fc4f13b1bf068c5085cd17bee2141014cc94919c140529488d",
+      "kind": "font",
+      "provenanceStatus": "not-cleared",
+      "fontNames": [
+        {
+          "nameId": 0,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic)"
+        },
+        {
+          "nameId": 1,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Noto Sans"
+        },
+        {
+          "nameId": 2,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Bold"
+        },
+        {
+          "nameId": 4,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Noto Sans Bold"
+        },
+        {
+          "nameId": 5,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Version 2.013"
+        },
+        {
+          "nameId": 7,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Noto is a trademark of Google LLC."
+        },
+        {
+          "nameId": 8,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Monotype Imaging Inc."
+        },
+        {
+          "nameId": 9,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Monotype Design Team"
+        },
+        {
+          "nameId": 13,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://scripts.sil.org/OFL"
+        },
+        {
+          "nameId": 14,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "https://scripts.sil.org/OFL"
+        }
+      ]
+    },
+    {
+      "path": "assets/fonts/NotoSans-Italic.ttf",
+      "bytes": 597000,
+      "sha256": "380a500e3dda76d955dadc77053227cc61149814737dc9f7d973d09415ad851f",
+      "kind": "font",
+      "provenanceStatus": "not-cleared",
+      "fontNames": [
+        {
+          "nameId": 0,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic)"
+        },
+        {
+          "nameId": 1,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Noto Sans"
+        },
+        {
+          "nameId": 2,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Italic"
+        },
+        {
+          "nameId": 4,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Noto Sans Italic"
+        },
+        {
+          "nameId": 5,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Version 2.013"
+        },
+        {
+          "nameId": 7,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Noto is a trademark of Google LLC."
+        },
+        {
+          "nameId": 8,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Monotype Imaging Inc."
+        },
+        {
+          "nameId": 9,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Monotype Design Team"
+        },
+        {
+          "nameId": 13,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://scripts.sil.org/OFL"
+        },
+        {
+          "nameId": 14,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "https://scripts.sil.org/OFL"
+        }
+      ]
+    },
+    {
+      "path": "assets/fonts/NotoSans-Regular.ttf",
+      "bytes": 582748,
+      "sha256": "3be6b371cef19ed6add589bd106444ab74c9793bc812d3159298b73d00ee011c",
+      "kind": "font",
+      "provenanceStatus": "not-cleared",
+      "fontNames": [
+        {
+          "nameId": 0,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic)"
+        },
+        {
+          "nameId": 1,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Noto Sans"
+        },
+        {
+          "nameId": 2,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Regular"
+        },
+        {
+          "nameId": 4,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Noto Sans Regular"
+        },
+        {
+          "nameId": 5,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Version 2.013"
+        },
+        {
+          "nameId": 7,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Noto is a trademark of Google LLC."
+        },
+        {
+          "nameId": 8,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Monotype Imaging Inc."
+        },
+        {
+          "nameId": 9,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "Monotype Design Team"
+        },
+        {
+          "nameId": 13,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://scripts.sil.org/OFL"
+        },
+        {
+          "nameId": 14,
+          "platform": 3,
+          "encoding": 1,
+          "language": 1033,
+          "text": "https://scripts.sil.org/OFL"
+        }
+      ]
+    },
+    {
+      "path": "assets/fonts/OFL.txt",
+      "bytes": 4396,
+      "sha256": "cee9892f9f0cc8fe882c9e9537ee6a89621d86ee7ceaf70b02e2b2b1c25c061a",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "assets/icon.icns",
+      "bytes": 2603105,
+      "sha256": "cd221691404c238d91cded0a8617a36ba6cdbf16a816fd7b612c2620133f59da",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "assets/icon.ico",
+      "bytes": 393679,
+      "sha256": "963bbec24ca7f47dc1edf7c69d8cd81410b23e97b73f2e21ba816e84ac4281e1",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "assets/icon.png",
+      "bytes": 95725,
+      "sha256": "c4c1b8d0416c5aa1a903a6d889c8c51a0f5424952f30890f887097b8586b9bcd",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "assets/icons/1024x1024.png",
+      "bytes": 1300262,
+      "sha256": "334105d25d42d77b49adf5936f4b67bacd0974ba838e95e79913c7e727ba2f3f",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "assets/icons/128x128.png",
+      "bytes": 28968,
+      "sha256": "fed9683c2dc6ff6dea58fb0a74c31f91286e15c395ac41557a2c78de18937c25",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "assets/icons/16x16.png",
+      "bytes": 2146,
+      "sha256": "7b99c654eab83c2e5b00be7a63cfc3212d7fa39891efe854d7514eddc2102437",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "assets/icons/24x24.png",
+      "bytes": 2698,
+      "sha256": "804be12ae451c04174aa80c8d2d8ad1e2782f9c29ea923beb7a3ee0811c8c1e8",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "assets/icons/256x256.png",
+      "bytes": 95725,
+      "sha256": "c4c1b8d0416c5aa1a903a6d889c8c51a0f5424952f30890f887097b8586b9bcd",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "assets/icons/32x32.png",
+      "bytes": 3691,
+      "sha256": "083bd464e0f838a7d3d854a86b740084ca25a948458206d3314a85b80dc65289",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "assets/icons/48x48.png",
+      "bytes": 6193,
+      "sha256": "634e8597bf7efab398e87730e9b57f2ee9f0e08254b78d71c1bb5985f7b0a5ed",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "assets/icons/512x512.png",
+      "bytes": 339288,
+      "sha256": "7aad601c5b7853bb238db0475ed54cf4a6fe78d44a02cc950911af7e8a42946e",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "assets/icons/64x64.png",
+      "bytes": 9461,
+      "sha256": "0d553f6323b8cf0213e0833041e2a0716b1370382abbc4422ea7cf0b48fda61b",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "assets/icons/96x96.png",
+      "bytes": 18075,
+      "sha256": "d44b6ec960c67326f7336d7481e59b74609bdac34ccdd1de180e38ed3efded58",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "examples/48종감정.json",
+      "bytes": 5312069,
+      "sha256": "517a42f55970bb0b0ed19fa18e5d5f0fcd1af7259bea5565537889425df48f22",
+      "kind": "example",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "examples/48종감정_모든그림체.json",
+      "bytes": 34640415,
+      "sha256": "876d46d6d51b57d43d8548f2a62c8e4d8115aa269ca5477757bad5d519e9b109",
+      "kind": "example",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "examples/basic_example.json",
+      "bytes": 2156,
+      "sha256": "de40cab608c7f46de06e39f4b6109b25eb63ae141a1fd459ce6bb859b60e55e5",
+      "kind": "example",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "examples/chan_example.json",
+      "bytes": 12105,
+      "sha256": "1e5a5bedcde0259a52a0502d087e3fb9a79cb691ec2275c0a68b15d94f1b9d8d",
+      "kind": "example",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "examples/기본예제.json",
+      "bytes": 4335,
+      "sha256": "ae73c4421240425626800722c16ee3e1d8c6c840b7c03293ad7596068f103c31",
+      "kind": "example",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "examples/신기본예제.json",
+      "bytes": 5297300,
+      "sha256": "abe78765f191f04e1b2546c75399fb179e761598457e17d331d99dcffcdb78d0",
+      "kind": "example",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "examples/신기본예제_모든그림체.json",
+      "bytes": 34625645,
+      "sha256": "d06578a2c28e604ad32fc1eae08250732268e3cbe2af6f7e3af60561fe472e8e",
+      "kind": "example",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "icon copy.png",
+      "bytes": 1317150,
+      "sha256": "c6793401060d843dcc13458b9d131a91739e7cbba3638585d4cf6eddc2aa5f89",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "icon.icns",
+      "bytes": 2603105,
+      "sha256": "cd221691404c238d91cded0a8617a36ba6cdbf16a816fd7b612c2620133f59da",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "icon.ico",
+      "bytes": 393679,
+      "sha256": "963bbec24ca7f47dc1edf7c69d8cd81410b23e97b73f2e21ba816e84ac4281e1",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "icon.png",
+      "bytes": 95725,
+      "sha256": "c4c1b8d0416c5aa1a903a6d889c8c51a0f5424952f30890f887097b8586b9bcd",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "icon2.png",
+      "bytes": 896286,
+      "sha256": "f239f947e53661ab6c82e827478b1db2ffc3eac9c49708d51106a90cbd41cc91",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "images/img1.png",
+      "bytes": 3021569,
+      "sha256": "9dd3c903b5ec41bf836451ac666d8b02b79802698bcffbb97bc4c7c789c97502",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "images/img10.png",
+      "bytes": 137371,
+      "sha256": "ed1808b73ed68d14aa39761dfad37294ef2149ca99d59dd42157f836c03016f8",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "images/img11.png",
+      "bytes": 25702,
+      "sha256": "0202f2c20721e267753b0e7b06817044ed1310bc537d6b127dd937b6ef8c1fc1",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "images/img111.png",
+      "bytes": 25125,
+      "sha256": "356d7fecef713501228baadad357934b84a723e9fe6025a954dcda599152eef6",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "images/img2.png",
+      "bytes": 4700253,
+      "sha256": "32ed300a837393caffbb5cab27c28a41304d15dac711b8c8083e3cef7fd2067f",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "images/img3.png",
+      "bytes": 2089851,
+      "sha256": "b395c0d2a0467e350da8c18f9d66b15535374d4f699f04bf6132c91c1a317781",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "images/img4.png",
+      "bytes": 2444221,
+      "sha256": "9bba9d3f1487919eabd37ab54a019d488611bbe4df79d23757926dc57a9a040a",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "images/img5.png",
+      "bytes": 2496670,
+      "sha256": "813586e8c5bec8b030b01994d2d5f7529f919d847ff14d3249c03d5260768fd6",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "images/img6.png",
+      "bytes": 982149,
+      "sha256": "dce80949bec96dd66d25dbbc62b10ac4df22537a8f91d32b74d0309b55d27f4a",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "images/img7.png",
+      "bytes": 771907,
+      "sha256": "2ec682206611bdfb8221c044da6359cb898e0a0344198b4f7c58f4f8ce5ceb51",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "images/img8.png",
+      "bytes": 4536872,
+      "sha256": "3c89c9fbf69817d1fbf8e071a2a5735a038048bad9a9bd312b7fb009c2f2fb5c",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "images/img9.png",
+      "bytes": 1921219,
+      "sha256": "44b3971a397002c5a7e48a0adec69a5deec9348db136d2a657b1581a7e6c3792",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
+      "bytes": 110522,
+      "sha256": "29e4777e319de3ee5a52c3a8004ec19d0568414004257e36d7c94a077d71c93b",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png",
+      "bytes": 41273,
+      "sha256": "1b5002b74a5500e697298ced06ca2811ac33f2771f236f3c720ff23243890530",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png",
+      "bytes": 41273,
+      "sha256": "1b5002b74a5500e697298ced06ca2811ac33f2771f236f3c720ff23243890530",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png",
+      "bytes": 41273,
+      "sha256": "1b5002b74a5500e697298ced06ca2811ac33f2771f236f3c720ff23243890530",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "release/app/data/db.csv",
+      "bytes": 3495044,
+      "sha256": "77309b33a5dfd19fcd942f3b1ea7e091416dec4d584ed384edfa44fe0af72860",
+      "kind": "tag-database",
+      "provenanceStatus": "not-cleared",
+      "lineCount": 124732
+    },
+    {
+      "path": "src/localai/input.jpg",
+      "bytes": 54438,
+      "sha256": "d103d6f5bfcfada922f6493ed68952c95ad37d30a2167d066f2c6afd32251d1b",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "src/localai/input.png",
+      "bytes": 1325124,
+      "sha256": "254f07afa38110e70a539475b32821183d71df78e584adfa5b4f666aa15ba92d",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "src/localai/ouput2.png",
+      "bytes": 2048815,
+      "sha256": "f52330c43399d46cc1617a6f783bfb0bfa2d2a34e2745a204c754a2a2502a6cd",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "src/localai/output.png",
+      "bytes": 191113,
+      "sha256": "c7e5c6381f14806533564bf60f53df99d9e9c3e9cf9a068518f6761a840f3153",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "src/localai/output3.png",
+      "bytes": 153381,
+      "sha256": "52fee951a1cf0784c78ad6fd6ad2823cbd717fbdce8dd9477ce673f118deaba4",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "src/localai/output_mask.png",
+      "bytes": 12550,
+      "sha256": "6867ed8118986006214c4431405d578f7f2751743d885de422fa71ce7a58af43",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "src/native/db.csv",
+      "bytes": 3487040,
+      "sha256": "b7a9627f1b7334363d050547ead759161e248f4c247c432bbb3198902a3a45e9",
+      "kind": "tag-database",
+      "provenanceStatus": "not-cleared",
+      "lineCount": 124762
+    },
+    {
+      "path": "src/renderer/defaultassets/anime.png",
+      "bytes": 1172170,
+      "sha256": "6455e8b8f981af592e1c41af3d767c20ebfb5dbd6df87040d20e32942c2bde0c",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "src/renderer/defaultassets/index.ts",
+      "bytes": 153,
+      "sha256": "fd0b07091029059b9fcccb88e7d6c88d170508f6590136e9790653b18e21caf0",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "src/renderer/defaultassets/round.png",
+      "bytes": 1421908,
+      "sha256": "b12e9418ea33cae919c62949d71256179824b50b968cea9fc7b712bb29e955a1",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "src/renderer/defaultassets/sharpRound.png",
+      "bytes": 1374084,
+      "sha256": "2082aa701c539cd73945c9d344a7702a58a1eb8c79c20617d1d1337428e0c242",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "styles/ixy.png",
+      "bytes": 868396,
+      "sha256": "ccc44c0fd8b39dc949724a61e2bf7a74ddcd5fc38ed06796e794174383b67979",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "styles/고양이눈.png",
+      "bytes": 865081,
+      "sha256": "b10c2476b70dd0627e6a088d371f6962f4e986ab951d5b0652cc90c0f27ba3fa",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "styles/깔끔.png",
+      "bytes": 1329456,
+      "sha256": "08f2e004883b7ec4d21544c1cf14215f5699d88989e7deaedc96ade592036ec3",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "styles/동글.png",
+      "bytes": 1421908,
+      "sha256": "b12e9418ea33cae919c62949d71256179824b50b968cea9fc7b712bb29e955a1",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "styles/무광스타일.png",
+      "bytes": 1647427,
+      "sha256": "e3d0802d2996901731567cd33a9c784808e9943bf3a3d80d52359e132a6a9bbf",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "styles/무명.png",
+      "bytes": 1361867,
+      "sha256": "0e5c754a79b08604c7aa38f24c3816ffa5c8eea30f61c8a7979c59469efa71b5",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "styles/무명2.png",
+      "bytes": 1257878,
+      "sha256": "81ab5e43d455a1d8bbff3c1b305295522f74dec086077d1815af6058f79a38f5",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "styles/선명동글.png",
+      "bytes": 1374084,
+      "sha256": "2082aa701c539cd73945c9d344a7702a58a1eb8c79c20617d1d1337428e0c242",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "styles/애니스타일.png",
+      "bytes": 1172170,
+      "sha256": "6455e8b8f981af592e1c41af3d767c20ebfb5dbd6df87040d20e32942c2bde0c",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "styles/연한고퀄.png",
+      "bytes": 2070509,
+      "sha256": "279e9ebac07c45481253f61cdaaf1fc2f3a7c02729e2d9b3b5413b71992c7335",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "styles/연한애니.png",
+      "bytes": 1347339,
+      "sha256": "c4853ad90577718ddd9b7a66945d68e491a3bb388c13f5febbee0b288b9d5d15",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "styles/조합단색.png",
+      "bytes": 1156675,
+      "sha256": "7bf99af13a92d53c6c7ed3bdd38a01697e1ec8769069d3745fc3c052b9ba7144",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "styles/조합단색성숙.png",
+      "bytes": 1039804,
+      "sha256": "407523620dc4dfb02a19ce97952c6f7d699f57e44456145e72264f55999d6f1a",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "styles/조합손그림.png",
+      "bytes": 620970,
+      "sha256": "bdad3b927682772a3cf68c478be535790c3967d3dcce5ad0a89cb0c5cf08ab7f",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "styles/조합애니.png",
+      "bytes": 1295565,
+      "sha256": "94bac0bf3c5b4d1ac3f995e9648691c42e9f4cca95ba711d074a316fcaf2f6f0",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    },
+    {
+      "path": "styles/중국스타일.png",
+      "bytes": 1794237,
+      "sha256": "50f1b9733fe0d1568563a7cf50d1d519916ddd6780e4a8f8c770256cb0e3c42f",
+      "kind": "asset",
+      "provenanceStatus": "not-cleared"
+    }
+  ]
+}
