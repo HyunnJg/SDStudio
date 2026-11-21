@@ -1,6 +1,6 @@
 {
   "formatVersion": 2,
-  "gitHead": "fd3307b9525121cf5480bbb711f540d766fea93b",
+  "gitHead": "6e2b76b60bcfb50b8660d7b2a9ea9d0e1f8e411e",
   "dirty": false,
   "inputBasis": "tracked set and submodule revisions from index; file bytes from working tree",
   "purpose": "evidence inventory, not a redistribution approval",
@@ -11,7 +11,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "3bd69d951afb4f9cc94c15d8191a38f664d9618ffe55796344b7c5e0799405a1"
+      "sha256": "c4bc60dd05e5963808a9c354b7a53c5bf57bafb20cb01f2a61ead9e2d82a976e"
     },
     {
       "path": "release/app/package.json",
@@ -40,10 +40,21 @@
       "node_modules",
       "package.json",
       "data",
-      "localai"
+      "localai",
+      "!node_modules/sdsnative/db.csv",
+      "!node_modules/sdsnative/test.js"
     ],
     "extraResources": [
-      "./assets/**"
+      {
+        "from": "assets",
+        "to": "assets",
+        "filter": [
+          "**/*",
+          "!fonts/**",
+          "!db.txt",
+          "!assets.d.ts"
+        ]
+      }
     ],
     "asarUnpack": [
       "**\\*.{node,dll}",

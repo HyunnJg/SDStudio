@@ -1,0 +1,116 @@
+{
+  "task": "P0-04b1",
+  "date": "2026-11-21",
+  "sourceCommit": "6e2b76b60bcfb50b8660d7b2a9ea9d0e1f8e411e",
+  "platform": "linux-x64",
+  "electron": "26.6.10",
+  "electronBuilder": "24.13.3",
+  "mode": "directory package; local Electron; npmRebuild=false; publish=never; no signing",
+  "before": {
+    "physicalFiles": 1241,
+    "asarFiles": 1930,
+    "regularFileBytes": 359234204,
+    "manifestSha256": "7925c9bdc6764729a892dada12fc68d7c6337d4f662af88a328f14fc504d8649"
+  },
+  "after": {
+    "physicalFiles": 1233,
+    "asarFiles": 1928,
+    "regularFileBytes": 350483697,
+    "manifestSha256": "06c1172ab7f0b613596a514e8e8eafcd0e0b4b977282dee94cba993c7dc8eebd"
+  },
+  "regularFileBytesSaved": 8750507,
+  "removed": [
+    {
+      "kind": "asar-member",
+      "path": "node_modules/sdsnative/db.csv",
+      "bytes": 3487040,
+      "sha256": "b7a9627f1b7334363d050547ead759161e248f4c247c432bbb3198902a3a45e9",
+      "unpacked": true
+    },
+    {
+      "kind": "asar-member",
+      "path": "node_modules/sdsnative/test.js",
+      "bytes": 478,
+      "sha256": "699a0c3d2ca4f2dfb027c9aac0868f686645807f7bb701720415a08bf5e91d91",
+      "unpacked": true
+    },
+    {
+      "kind": "file",
+      "path": "resources/app.asar.unpacked/node_modules/sdsnative/db.csv",
+      "bytes": 3487040,
+      "sha256": "b7a9627f1b7334363d050547ead759161e248f4c247c432bbb3198902a3a45e9"
+    },
+    {
+      "kind": "file",
+      "path": "resources/app.asar.unpacked/node_modules/sdsnative/test.js",
+      "bytes": 478,
+      "sha256": "699a0c3d2ca4f2dfb027c9aac0868f686645807f7bb701720415a08bf5e91d91"
+    },
+    {
+      "kind": "file",
+      "path": "resources/assets/assets.d.ts",
+      "bytes": 701,
+      "sha256": "73d1919b8e6eb317eee5da261767e71f9d9c9242f97fdaec1d07bf6efdc62b3b"
+    },
+    {
+      "kind": "file",
+      "path": "resources/assets/db.txt",
+      "bytes": 3495044,
+      "sha256": "77309b33a5dfd19fcd942f3b1ea7e091416dec4d584ed384edfa44fe0af72860"
+    },
+    {
+      "kind": "file",
+      "path": "resources/assets/fonts/NotoSans-Bold.ttf",
+      "bytes": 582604,
+      "sha256": "cf382cad35e731fc4f13b1bf068c5085cd17bee2141014cc94919c140529488d"
+    },
+    {
+      "kind": "file",
+      "path": "resources/assets/fonts/NotoSans-Italic.ttf",
+      "bytes": 597000,
+      "sha256": "380a500e3dda76d955dadc77053227cc61149814737dc9f7d973d09415ad851f"
+    },
+    {
+      "kind": "file",
+      "path": "resources/assets/fonts/NotoSans-Regular.ttf",
+      "bytes": 582748,
+      "sha256": "3be6b371cef19ed6add589bd106444ab74c9793bc812d3159298b73d00ee011c"
+    },
+    {
+      "kind": "file",
+      "path": "resources/assets/fonts/OFL.txt",
+      "bytes": 4396,
+      "sha256": "cee9892f9f0cc8fe882c9e9537ee6a89621d86ee7ceaf70b02e2b2b1c25c061a"
+    }
+  ],
+  "added": [],
+  "changed": [
+    {
+      "before": {
+        "kind": "file",
+        "path": "resources/app.asar",
+        "bytes": 49533408,
+        "sha256": "17e9633fc5c311c0c101a9fb360b0ac3afe8a0d591aa914548df796d1ace53d0"
+      },
+      "after": {
+        "kind": "file",
+        "path": "resources/app.asar",
+        "bytes": 49532912,
+        "sha256": "50eb2683af9047692ecbfec80586c77854d8f024f298ae0e0cde9cf0da2e79e6"
+      }
+    }
+  ],
+  "allSurvivingLogicalAsarMembersIdentical": true,
+  "requiredDatabaseUnchanged": true,
+  "nativeAddonsUnpacked": true,
+  "beforeAndAfterMockScenarios": [
+    17,
+    17
+  ],
+  "fileBackendBlockedOperations": 5,
+  "remoteRequests": 0,
+  "rendererErrors": 0,
+  "archiveUnchangedAfterEachSmoke": true,
+  "testHarness": "loopback inspector injects existing smoke harness before original entry; only singleton lock simulated; OS sandbox retained",
+  "supportPolicy": "No supported OS or release policy established. Windows/macOS and installer artifacts untested."
+}
