@@ -11,7 +11,8 @@ const {
   safeStorage,
   Menu,
 } = require('electron');
-require('ts-node/register/transpile-only');
+// The standalone runner registers its own pinned compiler before loading this file.
+if (!require.extensions['.ts']) require('ts-node/register/transpile-only');
 const { initializeForkProfile } = require('../../src/main/forkProfile');
 const { NaiTokenStore } = require('../../src/main/nai/tokenStore');
 const {
