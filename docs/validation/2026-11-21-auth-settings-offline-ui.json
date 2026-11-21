@@ -1,0 +1,21 @@
+{
+  "ready": true,
+  "text": "SDStudio\nAPI 토큰\n\n오프라인 · 계정/API 연결 없음\n\n환경설정\n프로젝트:\nSelect...\n개수:\n0개 남음 (예상 0초)\n0개 남음 (예상 0초)",
+  "offline": true,
+  "mock": false,
+  "authUI": {
+    "checks": [
+      "offline dialog disables token entry without accessing credentials",
+      "390px modal has no horizontal overflow",
+      "close clears unsaved input; modal traps focus and Escape restores the opener"
+    ],
+    "offline": true,
+    "profile": "/tmp/sdstudio-auth-ui-ueJW2Y/app-data/SDStudio-HyunnJg",
+    "width": 390,
+    "realCredentialsUsed": false
+  },
+  "singleInstanceLockSimulated": true,
+  "externalRequests": [],
+  "rendererErrors": [],
+  "originalFixtureUnchanged": true
+}
