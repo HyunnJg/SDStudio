@@ -75,3 +75,10 @@ D-028은 일반 포크의 다음 시작 모드를 로컬 파일로 저장한다.
 imageResponseReason은 main 전용 고정 코드이며 공개 오류 message/code·auth IPC는 그대로다. 사유는 비열거 읽기 전용 속성이므로 JSON에 자동 추가되지 않고 검증 도구가 명시적으로 꺼낸다. 사용자/서버 내용이 들어가는 자유 텍스트 사유는 허용하지 않는다. sendImage의 오류 재전파는 사유와 mayHaveReachedServer=true를 함께 보존한다.
 
 nai:inspect-response는 명시적으로 고른 일반 파일 하나만 제한해 읽고, 네트워크·토큰 조회·추출·쓰기 없이 같은 응답 검사를 실행한다. 원본 보관은 기본 꺼짐인 후속 계획이며 현재 자동 저장하지 않는다. STORE PNG는 전체 ZIP과 분리한 버퍼로 반환한다. [검증](validation/2026-11-21-response-diagnostics.md).
+
+
+## D-032 후속 — 별도 연구 창의 선택적 원문 보관
+
+일반 제품 생성 연결은 계속 대기다. 별도 개발 연구 창만 NaiTransport.diagnosticCapture를 켠다. 정상 이미지 응답은 64 MiB, HTTP/MIME 오류는 64 KiB prefix를 저장하고 잘림을 기록한다. 원문을 오류 객체/auth IPC에 붙이지 않는다. callback 실패는 RESPONSE_CAPTURE_FAILED이며 재시도하지 않는다. observer에는 반환 바이트와 분리한 사본을 준다. 기본 운영 호출은 여전히 capture 미지정으로 원문 오류를 폐기한다.
+
+연구 창은 토큰을 세션 메모리에만 두고 시도 후/종료 시 lock한다. 전송과 해제는 전체 90초 기한·같은 AbortSignal을 사용한다. 보관 후 해석 실패에도 서버 처리 가능성을 유지한다. ZIP 보관 파일이 있어야 기존 CLI로 재검사할 수 있다는 PR #14 의견을 이 경로에서 해소했다. 전송 전 실패/단절은 완전한 원문이 없을 수 있다. [계획·수동 비용 확인](NAI_LIVE_VALIDATION.md), [합성 실기 근거](validation/2026-11-21-live-validation.md).

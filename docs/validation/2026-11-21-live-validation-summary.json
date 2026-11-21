@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-21",
+  "timezone": "Asia/Seoul",
+  "baseCommit": "742048f505f03b4cbfe95f96efe981f7d5946f5d",
+  "implementationCommit": "bd0a4c4f146450b33342dc5874e9c9eb32c3d8c2",
+  "implementationTree": "8042ccbff4b53955467cce806de385023bb671e0",
+  "environment": {
+    "hostNode": "22.4.1",
+    "npm": "10.8.1",
+    "electron": "26.6.10",
+    "embeddedNode": "18.16.1",
+    "platform": "linux-x64"
+  },
+  "tests": {
+    "liveValidation": 8,
+    "mainAuthTransport": 23,
+    "imageResponse": 19,
+    "offline": 11,
+    "authUi": 3,
+    "researchElectron": {
+      "tests": 5,
+      "checks": 33,
+      "loopbackRequests": 4
+    },
+    "existingMainElectron": {
+      "tests": 1,
+      "checks": 10,
+      "loopbackRequests": 4
+    }
+  },
+  "scopedTypes": true,
+  "scopedLint": true,
+  "productionBuild": true,
+  "existingInstallReused": true,
+  "freshNpmCi": false,
+  "newPackageBuilt": false,
+  "windowsMacOsTested": false,
+  "actualCredentialsUsed": false,
+  "actualGenerationCalls": 0,
+  "anlasSpent": 0,
+  "accountIdentifierRecorded": false,
+  "experimentalCandidateOnly": true,
+  "productionModelRegistration": false,
+  "newProjectStorageImplemented": false,
+  "costVerification": "manual same-settings web displayed cost and before/after balance; not a server-enforced billing cap",
+  "candidateLimits": {
+    "requests": 1,
+    "maximumWebDisplayedAnlas": 10
+  },
+  "privateRawCapture": "opt-in research path only; image <=64 MiB; error prefix <=64 KiB",
+  "liveRunPending": "User enters Persistent API Token directly on their own PC and verifies web cost."
+}
