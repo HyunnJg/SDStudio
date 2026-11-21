@@ -64,7 +64,8 @@
     "test:workspace": "node --test -r ts-node/register/transpile-only src/__tests__/workspaceDraft.test.cjs src/__tests__/workspaceQueue.test.cjs",
     "smoke:workspace": "cross-env SDSTUDIO_SMOKE_WORKSPACE=1 npm run smoke:offline",
     "start:preview": "cross-env SDSTUDIO_MOCK_BACKEND=1 npm run start:isolated",
-    "test:nai-response": "node --test -r ts-node/register/transpile-only src/__tests__/naiImageResponse.test.cjs"
+    "nai:inspect-response": "node .erb/scripts/inspect-nai-response.cjs",
+    "test:nai-response": "node --test -r ts-node/register/transpile-only src/__tests__/naiImageResponse.test.cjs src/__tests__/naiResponseInspection.test.cjs"
   },
   "browserslist": [],
   "prettier": {

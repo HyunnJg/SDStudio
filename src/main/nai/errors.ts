@@ -1,14 +1,24 @@
 import type { NaiErrorCode } from '../../naiAuth';
+import { isImageResponseReason } from './responseReasons';
+import type { ImageResponseReason } from './responseReasons';
 
 // Never retain raw OS/network/server errors: they can contain secrets or prompts.
 export class NaiError extends Error {
+  declare readonly imageResponseReason?: ImageResponseReason;
+
   constructor(
     readonly code: NaiErrorCode,
     readonly mayHaveReachedServer = false,
     readonly httpStatus?: number,
+    reason?: ImageResponseReason,
   ) {
     super(code);
     this.name = 'NaiError';
+    if (isImageResponseReason(reason))
+      Object.defineProperty(this, 'imageResponseReason', {
+        value: reason,
+        enumerable: false,
+      });
   }
 }
 

@@ -32,12 +32,15 @@ export class NaiTransport {
     const response = await this.send(body, signal, timeoutMs);
     try {
       const remaining = deadline - performance.now();
-      if (remaining <= 0) throw new NaiError('TIMEOUT');
+      if (remaining <= 0)
+        throw new NaiError('TIMEOUT', false, undefined, 'response-deadline');
       return await readNaiImageResponse(response, signal, remaining);
     } catch (error) {
       throw new NaiError(
         error instanceof NaiError ? error.code : 'INVALID_IMAGE_RESPONSE',
         true, // A response arrived; decoding failure must never imply no server processing.
+        undefined,
+        error instanceof NaiError ? error.imageResponseReason : undefined,
       );
     }
   }

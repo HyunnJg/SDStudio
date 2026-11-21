@@ -287,10 +287,14 @@ app
         undefined,
         5000,
       ),
-      { code: 'INVALID_IMAGE_RESPONSE', mayHaveReachedServer: true },
+      {
+        code: 'INVALID_IMAGE_RESPONSE',
+        mayHaveReachedServer: true,
+        imageResponseReason: 'zip-eocd',
+      },
     );
     report.checks.push(
-      'invalid image response is rejected as possibly processed, with no retry',
+      'invalid image response retains zip-eocd internally and mayHaveReachedServer without retry',
     );
     loopbackURL = `http://127.0.0.1:${server.address().port}/redirect`;
     await assert.rejects(

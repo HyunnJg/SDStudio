@@ -8,6 +8,10 @@ const {
 } = require('../main/nai/imageResponse');
 const { NaiTransport } = require('../main/nai/transport');
 const { png } = require('./fixtures/nai/png.cjs');
+const {
+  isImageResponseReason,
+  IMAGE_RESPONSE_REASONS,
+} = require('../main/nai/responseReasons');
 async function zip(data = png(), options = {}) {
   const archive = new JSZip();
   archive.file('image.png', data);
@@ -18,10 +22,16 @@ async function zip(data = png(), options = {}) {
   });
 }
 const central = (b) => b.readUInt32LE(b.length - 6);
-const rejection = (code) => (error) => {
+const rejection = (code, reason) => (error) => {
   assert.equal(error.code, code);
   assert.equal(error.message, code);
   assert.equal(Object.hasOwn(error, 'cause'), false);
+  assert.ok(isImageResponseReason(error.imageResponseReason));
+  assert.equal(
+    JSON.stringify(error).includes(error.imageResponseReason),
+    false,
+  );
+  if (reason) assert.equal(error.imageResponseReason, reason);
   return true;
 };
 test('STORE/DEFLATE and streaming descriptors return the original RGBA/metadata PNG bytes', async () => {
@@ -190,6 +200,7 @@ test('sendImage preserves request errors and marks decode failures as possibly p
     assert.equal(error.code, 'INVALID_IMAGE_RESPONSE');
     assert.equal(error.mayHaveReachedServer, true);
     assert.equal(error.message.includes('sensitive'), false);
+    assert.equal(error.imageResponseReason, 'zip-eocd');
     return true;
   });
   const controller = new AbortController();
@@ -259,4 +270,129 @@ test('sendImage shares the original deadline across transport and decoding and p
     (error) => error === original,
   );
   assert.equal(send.mock.callCount(), 2);
+});
+
+test('rejection reasons identify format stages without reflecting input contents', async () => {
+  const crcZip = await zip();
+  crcZip.writeUInt32LE(0, 14);
+  crcZip.writeUInt32LE(0, central(crcZip) + 16);
+  const flagsZip = await zip();
+  flagsZip.writeUInt16LE(1, central(flagsZip) + 8);
+  const methodZip = await zip();
+  methodZip.writeUInt16LE(99, central(methodZip) + 10);
+  const headerZip = await zip();
+  headerZip.writeUInt32LE(0, 14);
+  const countZip = new JSZip();
+  countZip.file('a.png', png());
+  countZip.file('b.png', png());
+  const nameZip = new JSZip();
+  nameZip.file('../synthetic-sensitive-prompt.png', png(), {
+    createFolders: false,
+  });
+  const crcPng = png();
+  crcPng[30] ^= 1;
+  const pixelPng = png(100000, 100000);
+  const idatMissing = Buffer.concat([
+    png().subarray(0, 33),
+    png().subarray(-12),
+  ]);
+  for (const [input, reason] of [
+    [Buffer.from('synthetic-sensitive-server-body'), 'zip-eocd'],
+    [await countZip.generateAsync({ type: 'nodebuffer' }), 'zip-entry-count'],
+    [await nameZip.generateAsync({ type: 'nodebuffer' }), 'zip-name'],
+    [flagsZip, 'zip-flags'],
+    [methodZip, 'zip-method'],
+    [headerZip, 'zip-local'],
+    [crcZip, 'zip-crc'],
+    [await zip(Buffer.from('bad image')), 'png-signature'],
+    [await zip(crcPng), 'png-crc'],
+    [await zip(png().subarray(0, -12)), 'png-iend'],
+    [await zip(idatMissing), 'png-idat'],
+    [
+      await zip(
+        Buffer.concat([png(), Buffer.from('synthetic-sensitive-trailer')]),
+      ),
+      'png-trailing',
+    ],
+    [await zip(pixelPng), 'png-pixel-limit'],
+  ]) {
+    await assert.rejects(readNaiImageResponse(input), (error) => {
+      assert.equal(error.imageResponseReason, reason);
+      assert.equal(error.message, error.code);
+      assert.equal(JSON.stringify(error).includes('sensitive'), false);
+      assert.equal(error.stack.includes('synthetic-sensitive'), false);
+      return true;
+    });
+  }
+});
+test('STORE output owns an exact PNG buffer and exposes no surrounding ZIP bytes', async () => {
+  const input = await zip(png(), { compression: 'STORE' }),
+    output = await readNaiImageResponse(input);
+  assert.deepEqual(Buffer.from(output.buffer), png());
+  assert.equal(output.byteOffset, 0);
+  assert.equal(output.buffer.byteLength, output.byteLength);
+  output[0] = 0;
+  assert.equal(input[0], 0x50);
+});
+test('main-only reason labels are immutable, non-enumerable and runtime allowlisted', () => {
+  const { NaiError } = require('../main/nai/errors');
+  assert.equal(Object.isFrozen(IMAGE_RESPONSE_REASONS), true);
+  const error = new NaiError(
+    'INVALID_IMAGE_RESPONSE',
+    true,
+    undefined,
+    'png-crc',
+  );
+  assert.equal(error.imageResponseReason, 'png-crc');
+  assert.equal(
+    Object.getOwnPropertyDescriptor(error, 'imageResponseReason').enumerable,
+    false,
+  );
+  assert.equal(
+    Object.getOwnPropertyDescriptor(error, 'imageResponseReason').writable,
+    false,
+  );
+  assert.equal(
+    JSON.parse(JSON.stringify(error)).imageResponseReason,
+    undefined,
+  );
+  for (const reason of ['synthetic sensitive filename', null, {}, 42])
+    assert.equal(
+      new NaiError('INVALID_IMAGE_RESPONSE', false, undefined, reason)
+        .imageResponseReason,
+      undefined,
+    );
+});
+
+test('volume/prefix/symlink/descriptor and unexpected internal failures carry stable labels', async (t) => {
+  const good = await zip();
+  for (const [mutate, reason] of [
+    [(b) => b.writeUInt16LE(1, b.length - 18), 'zip-volume'],
+    [(b) => b.writeUInt32LE(1, central(b) + 42), 'zip-prefix'],
+    [(b) => b.writeUInt32LE(0xa0000000, central(b) + 38), 'zip-symlink'],
+  ]) {
+    const bytes = Buffer.from(good);
+    mutate(bytes);
+    await assert.rejects(
+      readNaiImageResponse(bytes),
+      rejection('INVALID_IMAGE_RESPONSE', reason),
+    );
+  }
+  const streamed = await zip(png(), { streamFiles: true });
+  streamed[central(streamed) - 12] ^= 1;
+  await assert.rejects(
+    readNaiImageResponse(streamed),
+    rejection('INVALID_IMAGE_RESPONSE', 'zip-descriptor'),
+  );
+  await assert.rejects(
+    readNaiImageResponse(null),
+    rejection('INVALID_IMAGE_RESPONSE', 'response-input'),
+  );
+  t.mock.method(zlib, 'createInflateRaw', () => {
+    throw Error('synthetic-sensitive-os-error');
+  });
+  await assert.rejects(
+    readNaiImageResponse(good),
+    rejection('INVALID_IMAGE_RESPONSE', 'response-internal'),
+  );
 });
