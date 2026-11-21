@@ -16,6 +16,16 @@ module.exports = async function exerciseWorkspace(contents) {
     throw new Error(`Workspace assertion timed out: ${code}`);
   };
   const click = async (selector) => {
+    if (
+      await evaluate(
+        `!!document.querySelector(${JSON.stringify(selector)})?.closest('[hidden]')`,
+      )
+    ) {
+      await evaluate(
+        "document.querySelector('[data-testid=toggle-queue]').click()",
+      );
+      await new Promise((resolve) => setTimeout(resolve, 40));
+    }
     await evaluate(
       `document.querySelector(${JSON.stringify(selector)}).click()`,
     );
@@ -43,6 +53,12 @@ module.exports = async function exerciseWorkspace(contents) {
   await click('.confirm-window button');
   await until("!document.querySelector('.confirm-window')");
   checks.push('global service dialog remains visible in the new workspace');
+  assert.equal(
+    await evaluate(
+      "document.querySelector('[data-testid=toggle-queue]').getAttribute('aria-expanded')",
+    ),
+    'false',
+  );
   const legacy = await evaluate('JSON.stringify(window.curSession.toJSON())');
   await fill('[aria-label="모델 입력 형식"]', 'v5');
   await until(
@@ -286,6 +302,29 @@ module.exports = async function exerciseWorkspace(contents) {
   );
   checks.push('queue failure stops and displays a shared global alert');
   await evaluate(`document.querySelector('.pw-review-options').open=false`);
+  // Compare actual canvas space at identical notebook viewport dimensions.
+  await until(
+    "document.querySelector('[data-testid=toggle-queue]').getAttribute('aria-expanded')==='false'",
+  );
+  const collapsedCanvas = await evaluate(
+    "document.querySelector('.pw-canvas').getBoundingClientRect().height",
+  );
+  if (process.env.SDSTUDIO_SMOKE_COLLAPSED_SCREENSHOT)
+    fs.writeFileSync(
+      process.env.SDSTUDIO_SMOKE_COLLAPSED_SCREENSHOT,
+      (await contents.capturePage()).toPNG(),
+    );
+  await click('[data-testid="toggle-queue"]');
+  const expandedCanvas = await evaluate(
+    "document.querySelector('.pw-canvas').getBoundingClientRect().height",
+  );
+  assert.ok(
+    collapsedCanvas > expandedCanvas + 80,
+    `${collapsedCanvas} vs ${expandedCanvas}`,
+  );
+  checks.push(
+    'idle queue collapses automatically and manual collapse restores canvas height',
+  );
   if (process.env.SDSTUDIO_SMOKE_SCREENSHOT)
     fs.writeFileSync(
       process.env.SDSTUDIO_SMOKE_SCREENSHOT,
@@ -377,5 +416,6 @@ module.exports = async function exerciseWorkspace(contents) {
     desktop: desktopSize.join('x'),
     narrow: (await evaluate('[innerWidth,innerHeight]')).join('x'),
     simulatedErrors: true,
+    canvasHeight: { collapsed: collapsedCanvas, expanded: expandedCanvas },
   };
 };

@@ -824,3 +824,29 @@
   color: #ffffff;
   background: #09695d;
 }
+
+.pw-queue-collapsed {
+  max-height: none;
+}
+.pw-queue-collapsed .pw-scenes {
+  margin-bottom: 0;
+}
+.pw-queue-collapsed .pw-scene-note {
+  display: none;
+}
+.pw-scenes [data-testid='queue-progress'] {
+  margin-left: auto;
+}
+.pw-scenes [data-testid='toggle-queue'] {
+  flex-shrink: 0;
+}
+/* Keep native hidden semantics even when child layouts use display:flex. */
+#pw-queue-details[hidden] {
+  display: none;
+}
+@media (max-width: 800px) {
+  .pw-scenes [data-testid='queue-progress'] {
+    margin-left: 0;
+    width: auto;
+  }
+}
