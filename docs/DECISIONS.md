@@ -255,3 +255,11 @@
 - 원본/포크 기본 경로 및 checkout과 겹치지 않는 명시적 테스트 프로필을 Electron ready 전에 고정한다. 받은 응답을 private live-validation/ 아래 wx/0600 파일에 먼저 쓴 뒤 기존 해석기로 검증한다. ZIP 64 MiB, HTTP/MIME 오류 본문은 64 KiB prefix로 제한하고 잘림을 기록한다. 일반 운영 경로는 capture 미지정으로 본문 폐기를 유지한다. 저장 실패도 서버 처리 가능성을 잃지 않는다.
 - 새 창의 기본 세션은 정확한 생성 HTTPS POST만 허용한다. 강제 offline/mock은 토큰·전송 전에 거부하며 GUI에서 풀 수 없다. 연구 명령 실행 자체가 이 제한된 전송 경로의 명시적 선택이다. 네트워크 모드 파일을 읽거나 일반 앱 설정을 바꾸지 않는다. 테스트만 내부 옵션으로 loopback을 사용하며 CLI/환경에 목적지 변경이나 토큰 인자를 추가하지 않는다.
 - 성공 PNG 원본과 내용 없는 JSON을 구분하고 HTTP 오류 원문도 공유하지 않는다. 취소/단절 시 responseCaptured=false와 빈 예약 파일이 가능하다. 잔액 차이는 관찰 기록일 뿐 개별 요청 청구 증명이 아니다. Windows/macOS/실제 키링·API 수락·실제 과금·새 프로젝트 저장은 미검증이다. 상세 실행은 NAI_LIVE_VALIDATION.md를 따른다.
+
+
+## D-033 — 실험 창의 설치를 전체 앱의 네이티브 빌드에서 분리한다 (2026-11-22)
+
+- 사용자 로그의 실패 단계는 src/native preinstall, 실행기는 @electron/node-gyp10.2.0-electron.1, VS2026/18 탐지 실패다. C++ workload를 다시 설치하거나 사용자 개인 경로를 기록하는 방식으로 대응하지 않는다. 전체 앱의 Windows/Node26 호환은 별도 검증 대상이다.
+- 연구 창이 실제 사용하는 Electron26.6.10·ts-node10.9.2·TypeScript5.9.3·Node 타입20.6.2만 private tools/nai-validation 패키지에 고정하고 독립 lock/npm ci를 제공한다. 모든 lock 항목의 버전·resolved는 기존 루트 lock에 이미 존재한다. 제3자 소스를 새로 복사하거나 운영 의존성을 갱신하지 않는다.
+- 별도 bootstrap이 자체 compiler를 먼저 등록한다. 공유 entry는 등록된 TS hook이 없을 때만 기존 루트 등록을 사용한다. 코드/인증/응답 검사·한 번 전송/프로필 보호·토큰 로컬 입력 경계는 공유하고, 설치 분리를 위해 이를 복제하지 않는다.
+- root node_modules가 없는 임시 체크아웃, 독립 의존성 외 node_modules 접근 금지 hook, 실제 Electron 창/강제 오프라인 검사로 전체 앱 설치에 의존하지 않음을 확인한다. Windows/macOS의 실제 설치 성공이나 전체 앱 네이티브 빌드 복구로 과장하지 않는다. Node26 실기는 아직 미실행이다.

@@ -1,6 +1,6 @@
 # 현재 상태
 
-갱신일: 2026-11-21 (Asia/Seoul)
+갱신일: 2026-11-22 (Asia/Seoul)
 
 ## 현재 단계
 
@@ -42,6 +42,10 @@
 - 격리 프로필에서는 원본 userData 조회 부작용도 피하며 saveLocation을 무시한다. 원본 커스텀 저장 폴더는 자동 탐지하지 않으므로 그 안에 개발 프로필을 만들지 않는다.
 - `<모음.조각>`과 `multi` 랜덤 선택은 이미 구현돼 있다. 선택은 `Math.random()`을 사용한다. P2-01을 새 기능이 아닌 재현성·기록 개선으로 수정했다.
 - 원본 CI에는 다중 OS 패키징, 서명, 릴리스 및 Pages 배포 구성이 있다. 이 포크에서 활성화하거나 실행하지 않았다.
+
+## Windows 설치 문의 후속 — 2026-11-22
+
+사용자 로그에서 로컬 @electron/node-gyp10.2.0-electron.1의 VS2026 인식 실패를 확인했다. 실험 도구는 **tools/nai-validation 독립 설치**로 앱 C++ 빌드를 거치지 않게 분리했다. Linux의 루트 node_modules 없는 임시 체크아웃에서 실제 창/오프라인 차단을 검증했고 기존 연구 창5경로도 통과했다. Windows 전체 앱 npm install·Node26/VS2026 호환 완료는 아니다. [새 명령](DEVELOPMENT.md#1회-실호출-검증-도구-d-032), [검증](validation/2026-11-22-standalone-validation.md).
 
 ## 바로 다음 작업
 

@@ -157,19 +157,32 @@ npm run smoke:network-mode -- /absolute/linux-unpacked
 
 ## 1회 실호출 검증 도구 (D-032)
 
-실제 요청을 보낼 수 있는 별도 개발 도구다. 일반 앱의 새 작업실 생성 연결은 아직 없다. [전체 실험 계획](NAI_LIVE_VALIDATION.md)을 먼저 읽는다. 이미 설치된 Node 22.4.1 체크아웃에서 실행하며 다른 PC는 앞의 의존성 설치 절차가 필요하다. 새 의존성/lock 변경은 없다. 이 도구는 ts-node로 소스를 읽으므로 별도 production 빌드는 필요 없다.
+실제 요청을 보낼 수 있는 별도 개발 도구다. 일반 앱의 새 작업실 생성 연결은 아직 없다. [전체 실험 계획](NAI_LIVE_VALIDATION.md)을 먼저 읽는다. **실험 창만 실행할 때는 루트 npm install/npm ci가 필요 없다.** tools/nai-validation의 고정된 작은 의존성 묶음만 설치한다. 앱의 C++ 모듈·sharp·electron-builder·서브모듈 빌드를 실행하지 않는다.
 
-```sh
-git switch work/p0-live-validation
-# Linux 예: 저장소와 원본/포크 기본 프로필 밖의 전용 폴더
-npm run nai:validate-live -- /home/your-name/SDStudio-Live-Test
-```
-
-Windows PowerShell의 경로 예(Windows 실기는 아직 미검증):
+저장소 루트에서 Windows PowerShell:
 
 ```powershell
-npm run nai:validate-live -- "$env:LOCALAPPDATA\SDStudio-Live-Test"
+git fetch origin
+git switch work/p0-live-validation
+git pull --ff-only
+npm --prefix tools/nai-validation ci
+npm --prefix tools/nai-validation start -- "$env:LOCALAPPDATA\SDStudio-Live-Test"
 ```
+
+Linux 예:
+
+```sh
+npm --prefix tools/nai-validation ci
+npm --prefix tools/nai-validation start -- /home/your-name/SDStudio-Live-Test
+```
+
+이미 전체 앱 의존성을 설치한 개발자는 기존 npm run nai:validate-live 명령도 사용할 수 있다. 새 경로는 자체 ts-node/TypeScript를 먼저 등록해 루트에 남은 부분 설치를 사용하지 않는다. Electron prebuilt 다운로드는 필요하지만 C++ 소스 컴파일은 없다. Node 호스트는 실행 파일을 시작하고 TypeScript는 Electron 안에서 처리한다. 이 경로의 깨끗한 설치/화면 기동은 Linux Node24.22.3/npm11.19.1에서 검증했다. 사용자 Node26.13.1/npm11.21.3 및 Windows/macOS 실제 실행은 아직 미검증이다.
+
+### Windows 전체 앱 설치 오류와 구분
+
+2026-11-22 사용자 로그는 src/native의 node-gyp10.2.0-electron.1이 VS18/2026을 unknown version으로 거부한 것이다. 설치된 C++ workload가 없다고 확인된 오류가 아니다. 전역 node-gyp/npm을 갱신해도 로컬 @electron/node-gyp 호출이 자동으로 교체되지는 않는다. [공식 node-gyp 변경 이력](https://github.com/nodejs/node-gyp/blob/main/CHANGELOG.md#1210-2025-11-12)의 VS2026 지원 추가는12.1.0이다.
+
+전체 앱 설치의 Node26/VS2026 호환성을 해결했다고 표시하지 않는다. 그 변경은 Electron rebuild·중복 node-gyp·sharp와 실제 Windows 산출물 검증까지 별도로 다룬다. **실험 창을 열기 위해 VS/Python 재설치나 루트 의존성 삭제를 요구하지 않는다.** 위의 독립 설치는 기존 파일/lock을 지우거나 강제 변경하지 않는다.
 
 경로에는 기존 개인 데이터가 없는 전용 폴더를 지정한다. checkout 내부/상위·원본/포크 기본 프로필과의 중첩은 거부한다. macOS도 별도 절대경로가 필요하지만 미검증이다. Linux에서는 그래픽 세션이 필요하다.
 
