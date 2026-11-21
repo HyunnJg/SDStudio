@@ -1,12 +1,18 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const {
-  createWorkspaceState,
+  createWorkspaceState: createRandomWorkspaceState,
   projectWorkspaceDraft,
   moveWorkspaceCharacter,
   previewErrorMessage,
 } = require('../renderer/preview/workspaceDraft');
 const { MockBackend } = require('../renderer/backends/mockBackend');
+
+const createWorkspaceState = () => {
+  const state = createRandomWorkspaceState();
+  state.draft.seedMode = 'fixed';
+  return state;
+};
 
 test('workspace starts with independent memory drafts and explicit placeholder IDs', () => {
   const first = createWorkspaceState();

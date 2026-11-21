@@ -659,3 +659,194 @@
     font-size: 12px;
   }
 }
+
+/* Scene/queue controls stay visible below the editor on a desktop. */
+.pw-scene-queue {
+  flex-shrink: 0;
+  border-top: 1px solid var(--pw-line);
+  background: var(--pw-panel);
+  padding: 10px 18px;
+  max-height: 215px;
+  overflow: auto;
+}
+.pw-scenes,
+.pw-queue-controls {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.pw-scenes > span {
+  color: var(--pw-muted);
+  margin-left: auto;
+}
+.pw-scene-queue button,
+.pw-character-tools button,
+.pw-limit-warning + button {
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--pw-line);
+  border-radius: 6px;
+  color: var(--pw-text);
+}
+.pw-scenes button[aria-pressed='true'] {
+  border-color: var(--pw-accent);
+  color: var(--pw-accent);
+  background: var(--pw-input);
+}
+.pw-queue-controls input {
+  width: 48px;
+  padding: 5px;
+  background: var(--pw-input);
+  border: 1px solid var(--pw-line);
+}
+.pw-queue-controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pw-queue-controls > span {
+  color: var(--pw-muted);
+}
+.pw-queue-jobs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 0 0 4px;
+  margin: 0;
+  list-style: none;
+}
+.pw-queue-jobs li {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--pw-line);
+  border-radius: 6px;
+  padding: 8px;
+}
+.pw-queue-jobs [data-status='running'] {
+  border-color: var(--pw-accent);
+}
+.pw-queue-jobs small {
+  color: var(--pw-muted);
+}
+.pw-limit-warning {
+  color: #fb9d8e;
+  padding: 8px 0;
+}
+.preview-workspace.pw-light {
+  --pw-bg: #f4f7f8;
+  --pw-panel: #ffffff;
+  --pw-input: #eff3f5;
+  --pw-line: #c9d5dc;
+  --pw-text: #182c3b;
+  --pw-muted: #526779;
+  --pw-accent: #087b6c;
+  color-scheme: light;
+}
+.pw-light .pw-header,
+.pw-light .pw-footer {
+  background: var(--pw-panel);
+}
+.pw-light .pw-offline {
+  color: #176c5e;
+  background: #e3f4ef;
+}
+.pw-light .pw-canvas {
+  background: #dce8e4;
+}
+.pw-light .pw-character-tools button {
+  color: var(--pw-text);
+}
+.pw-light .pw-limit-warning {
+  color: #a02f24;
+}
+@media (max-width: 800px) {
+  .pw-scene-queue {
+    max-height: none;
+    overflow: visible;
+    padding: 18px;
+  }
+  .pw-queue-jobs {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+  .pw-queue-jobs li {
+    flex: 1 1 140px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .pw-scenes > span {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+.pw-light .pw-field,
+.pw-light .pw-unconfirmed strong {
+  color: var(--pw-text);
+}
+.pw-light .pw-negative textarea {
+  background: #f2eff4;
+  border-color: var(--pw-line);
+}
+.pw-light .pw-character-tabs button[aria-pressed='true'],
+.pw-light .pw-toggle button[aria-pressed='true'] {
+  background: #dbefea;
+}
+.pw-light .pw-position-grid button {
+  background: #e3eeec;
+  border-color: var(--pw-line);
+}
+.pw-light .pw-position-grid button[aria-pressed='true'] {
+  background: #bcded5;
+}
+.pw-light .pw-generate {
+  color: #ffffff;
+}
+.pw-light .pw-canvas-welcome {
+  color: #e6edf1;
+}
+.pw-queue-jobs li {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.pw-light .pw-result-caption {
+  color: var(--pw-muted);
+}
+.pw-light .pw-brand-mark {
+  color: #ffffff;
+}
+.preview-workspace.pw-light .pw-generate:hover:not(:disabled) {
+  color: #ffffff;
+  background: #09695d;
+}
+
+.pw-queue-collapsed {
+  max-height: none;
+}
+.pw-queue-collapsed .pw-scenes {
+  margin-bottom: 0;
+}
+.pw-queue-collapsed .pw-scene-note {
+  display: none;
+}
+.pw-scenes [data-testid='queue-progress'] {
+  margin-left: auto;
+}
+.pw-scenes [data-testid='toggle-queue'] {
+  flex-shrink: 0;
+}
+/* Keep native hidden semantics even when child layouts use display:flex. */
+#pw-queue-details[hidden] {
+  display: none;
+}
+@media (max-width: 800px) {
+  .pw-scenes [data-testid='queue-progress'] {
+    margin-left: 0;
+    width: auto;
+  }
+}

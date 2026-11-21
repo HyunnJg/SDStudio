@@ -20,6 +20,7 @@ export interface WorkspaceDraft {
   characters: WorkspaceCharacter[];
   placement: 'auto' | 'manual';
   resolution: 'portrait' | 'landscape' | 'square';
+  seedMode: 'random' | 'fixed';
   seed: string;
   steps: string;
   guidance: string;
@@ -32,9 +33,18 @@ export interface WorkspaceResult {
   id: number;
   image: string;
   request: PreviewRequest;
+  sceneName?: string;
+}
+
+export interface WorkspaceScene {
+  id: string;
+  name: string;
+  draft: WorkspaceDraft;
 }
 
 export interface WorkspaceState {
+  scenes: WorkspaceScene[];
+  selectedSceneId: string;
   draft: WorkspaceDraft;
   selectedCharacter: string;
   results: WorkspaceResult[];
@@ -43,33 +53,50 @@ export interface WorkspaceState {
 }
 
 export function createWorkspaceState(): WorkspaceState {
-  return {
+  const draft: WorkspaceDraft = {
+    family: 'v4.5',
+    prompt: 'two travelers, quiet garden, afternoon light',
+    negativePrompt: 'blur, text',
+    characters: [
+      {
+        id: 'character-1',
+        enabled: true,
+        prompt: 'person, red coat',
+        negativePrompt: 'hat',
+        cell: { row: 2, column: 1 },
+      },
+      {
+        id: 'character-2',
+        enabled: true,
+        prompt: 'person, blue coat',
+        negativePrompt: 'scarf',
+        cell: { row: 2, column: 3 },
+      },
+    ],
+    placement: 'auto',
+    resolution: 'portrait',
+    seedMode: 'random',
+    seed: '0',
+    steps: '28',
+    guidance: '5',
+  };
+  const names = ['정원의 여행자', '저녁의 정원', '비 오는 정원'];
+  const scenes = names.map((name, index) => ({
+    id: `scene-${index + 1}`,
+    name,
     draft: {
-      family: 'v4.5',
-      prompt: 'two travelers, quiet garden, afternoon light',
-      negativePrompt: 'blur, text',
-      characters: [
-        {
-          id: 'character-1',
-          enabled: true,
-          prompt: 'person, red coat',
-          negativePrompt: 'hat',
-          cell: { row: 2, column: 1 },
-        },
-        {
-          id: 'character-2',
-          enabled: true,
-          prompt: 'person, blue coat',
-          negativePrompt: 'scarf',
-          cell: { row: 2, column: 3 },
-        },
-      ],
-      placement: 'auto',
-      resolution: 'portrait',
-      seed: '0',
-      steps: '28',
-      guidance: '5',
+      ...structuredClone(draft),
+      prompt: [
+        draft.prompt,
+        'two travelers, garden at dusk',
+        'two travelers, garden, rain',
+      ][index],
     },
+  }));
+  return {
+    draft: structuredClone(scenes[0].draft),
+    scenes,
+    selectedSceneId: scenes[0].id,
     selectedCharacter: 'character-1',
     results: [],
     selectedResult: 0,
@@ -83,7 +110,10 @@ const sizes = {
   square: { width: 1024, height: 1024 },
 };
 
-export function projectWorkspaceDraft(draft: WorkspaceDraft): PreviewRequest {
+export function projectWorkspaceDraft(
+  draft: WorkspaceDraft,
+  randomSeed?: number,
+): PreviewRequest {
   const number = (value: string) => (value.trim() === '' ? NaN : Number(value));
   const input: ImageRequestDraft = {
     version: 1,
@@ -112,7 +142,8 @@ export function projectWorkspaceDraft(draft: WorkspaceDraft): PreviewRequest {
     }),
     placement: draft.placement,
     ...sizes[draft.resolution],
-    seed: number(draft.seed),
+    seed:
+      draft.seedMode === 'random' ? (randomSeed ?? NaN) : number(draft.seed),
     steps: number(draft.steps),
     guidance: number(draft.guidance),
     cfgRescale: 0,
@@ -140,6 +171,8 @@ export function previewErrorMessage(error: unknown): string {
   const messages: Record<string, string> = {
     PROMPT_TOO_LONG:
       '프롬프트가 모델의 입력 한도를 넘었습니다. 기본·캐릭터 프롬프트를 줄인 뒤 다시 시도해주세요.',
+    QUEUE_BUSY: '현재 예제를 마친 뒤 예약해주세요.',
+    QUEUE_LIMIT: '반복은 1~10회, 예약은 최대 60개입니다.',
     CONNECTION:
       '연결을 완료하지 못했습니다. 입력은 그대로 유지됩니다. 잠시 후 다시 시도해주세요.',
     INLINE_SYNTAX:
@@ -160,4 +193,37 @@ export function previewErrorMessage(error: unknown): string {
     messages[code ?? ''] ??
     '입력값을 확인한 뒤 다시 시도해주세요. 초안은 그대로 유지됩니다.'
   );
+}
+
+/** The selected editor draft is authoritative until selection or reservation. */
+export function snapshotWorkspaceScenes(
+  state: WorkspaceState,
+): WorkspaceScene[] {
+  return structuredClone(
+    state.scenes.map((scene) =>
+      scene.id === state.selectedSceneId
+        ? { ...scene, draft: state.draft }
+        : scene,
+    ),
+  );
+}
+
+export function selectWorkspaceScene(
+  state: WorkspaceState,
+  id: string,
+): WorkspaceState {
+  const scenes = snapshotWorkspaceScenes(state);
+  const scene = scenes.find((item) => item.id === id);
+  if (!scene) return state;
+  return {
+    ...state,
+    scenes,
+    selectedSceneId: id,
+    draft: structuredClone(scene.draft),
+    selectedCharacter: scene.draft.characters[0]?.id ?? '',
+  };
+}
+
+export function randomWorkspaceSeed(): number {
+  return crypto.getRandomValues(new Uint32Array(1))[0];
 }

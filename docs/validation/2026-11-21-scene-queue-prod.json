@@ -1,0 +1,33 @@
+{
+  "ready": true,
+  "text": "S\nSDStudio\n작업실\n새 입력 초안\n밝게\n기존 V3 화면 ↗\n● 오프라인 예제\n장면을 그려보세요\n입력 초안\n기본 프롬프트\n제외할 내용\n캐릭터\n2 / 6명 활성 · 보관 2/32\n캐릭터 1\n캐릭터 2\n＋\n사용\n↑ 앞으로↓ 뒤로삭제\n캐릭터 프롬프트\n캐릭터에서 제외할 내용\n캐릭터 위치\n자동\n직접 선택\n\n입력 순서에 따라 자동으로 배치합니다.\n\n미리보기\n아직 실행하지 않은 초안\n✦\n어떤 장면을 만들까요?\n\n입력을 바꾼 뒤 예제 만들기를 눌러\n새 작업 흐름을 확인해보세요.\n\n직접 그린 예제 일러스트\n예제 기록\n0개 · 메모리 보관\n\n실행한 예제가 여기에 모입니다.\n\n생성 설정\n예제 값\n모델 입력 형식\nV4.5 입력 초안\nV5 입력 초안\n화면 비율\n세로 · 832 × 1216\n가로 · 1216 × 832\n정사각형 · 1024 × 1024\n스텝\n가이던스\n시드 방식\n매번 무작위\n고정\n시드\n샘플러 / 노이즈 스케줄\n실제 연동 전에 결정\n기존 V3 프로젝트 · 읽기 전용\n오프라인 예제\n씬 1개\n",
+  "project": "오프라인 예제",
+  "offline": true,
+  "mock": true,
+  "workspace": {
+    "checks": [
+      "global service dialog remains visible in the new workspace",
+      "model family switches without clearing the draft",
+      "character add/reorder/delete and manual grid",
+      "visible SVG example and seed zero",
+      "length error preserves input",
+      "connection error display",
+      "legacy session unchanged by modern draft",
+      "V3 view round trip preserves draft and results",
+      "theme toggle follows the shared application setting",
+      "character deletion can be undone",
+      "three scenes twice reserve six jobs and stop after the active example",
+      "resume across V3 view, six distinct recorded seeds, and open an earlier result",
+      "model limit warns immediately and add follows active rather than stored count",
+      "queue failure stops and displays a shared global alert",
+      "390px layout has no horizontal overflow and reachable controls",
+      "390px scene queue can reserve, start and stop without horizontal overflow"
+    ],
+    "desktop": "1279x799",
+    "narrow": "390x844",
+    "simulatedErrors": true
+  },
+  "singleInstanceLockSimulated": true,
+  "externalRequests": [],
+  "rendererErrors": []
+}
