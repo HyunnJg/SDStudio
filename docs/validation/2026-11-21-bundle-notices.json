@@ -1,0 +1,96 @@
+{
+  "task": "P0-04b2-notice-collection",
+  "date": "2026-11-21",
+  "sourceCommit": "b260ffefbc715f0f81ce5f0848a4f8786ebc37c0",
+  "packagePlatform": "linux-x64",
+  "buildSucceeded": true,
+  "packageSucceeded": true,
+  "restoredLicense": {
+    "sourceCommit": "7091c9135bf0ddd29710e78f907906db96ea4975",
+    "deletedCommit": "fb2582c02ef184eac8a7b441075660d20151ab93",
+    "sha256": "5e98c15fe806a18f79422d2cd0c4587129f4e03081b5ab4c030627d6f6840d68",
+    "copyrightScope": "Electron React Boilerplate historical MIT; application-specific notice unresolved"
+  },
+  "packageRecords": 244,
+  "compilerPackageOccurrences": {
+    "main-preload": 66,
+    "renderer": 77
+  },
+  "copiedRuntimeMetadataIndexed": 112,
+  "noticeFilesVerified": 250,
+  "unresolved": [
+    {
+      "root": "node_modules/@react-dnd/invariant",
+      "name": "@react-dnd/invariant",
+      "version": "4.0.2",
+      "declaredLicense": "MIT"
+    },
+    {
+      "root": "node_modules/@react-dnd/shallowequal",
+      "name": "@react-dnd/shallowequal",
+      "version": "4.0.2",
+      "declaredLicense": "MIT"
+    },
+    {
+      "root": "release/app/node_modules/batch-cluster/types/chai-withintoleranceof",
+      "name": "@types/chai-withintoleranceof",
+      "version": "0.0.1",
+      "declaredLicense": null
+    },
+    {
+      "root": "release/app/node_modules/github-from-package/example",
+      "name": "beep-boop",
+      "version": "1.2.3",
+      "declaredLicense": null
+    },
+    {
+      "root": "release/app/node_modules/browserify-zlib",
+      "name": "browserify-zlib",
+      "version": "0.1.4",
+      "declaredLicense": "MIT"
+    },
+    {
+      "root": "release/app/node_modules/is-gzip",
+      "name": "is-gzip",
+      "version": "1.0.0",
+      "declaredLicense": "MIT"
+    },
+    {
+      "root": "src/native",
+      "name": "native",
+      "version": "1.0.0",
+      "declaredLicense": "ISC"
+    },
+    {
+      "root": "node_modules/react-dnd-preview",
+      "name": "react-dnd-preview",
+      "version": "8.1.2",
+      "declaredLicense": "MIT"
+    }
+  ],
+  "completeRedistributionReview": false,
+  "physicalFilesBefore": 1233,
+  "physicalFilesAfter": 1487,
+  "asarFilesBefore": 1928,
+  "asarFilesAfter": 1932,
+  "newAsarFiles": [
+    "dist/main/bundle-licenses.json",
+    "dist/main/main.js.map",
+    "dist/main/preload.js.map",
+    "dist/renderer/bundle-licenses.json"
+  ],
+  "addedPhysicalFiles": 254,
+  "removedFiles": 0,
+  "existingPayloadFilesUnchangedExceptAsarContainer": true,
+  "mainPreloadRendererCssAndDbUnchanged": true,
+  "noticeIndexSha256": "b279f250e48829650786fa71c60586db896a990723bc9fd1bbb2e89440d578f5",
+  "noticeTextSha256": "b96a74e347e6abbf5308cc0815a69159afef1b3774eecf8235e74a1110e444bc",
+  "negativeChecks": {
+    "copiedNoticeTamperingRejected": true,
+    "originalBytesRestored": true,
+    "strictMissingNoticeCheckRejected": true,
+    "unresolvedCount": 8
+  },
+  "bundleTestsPassed": 3,
+  "evidenceTestsPassed": 5
+}

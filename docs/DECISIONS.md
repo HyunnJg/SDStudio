@@ -158,3 +158,12 @@
 - 전체 manifest 기준선은 PR #8 이력에 보관한다. 다음 검증부터 전체 목록은 재생성하고 비교 요약/해시·개수·누락 검사를 저장한다.
 - P3에서 RunAsNode/EnableNodeCliInspectArguments 등 릴리스 fuse 제한과 현재 inspector 스모크의 대체를 함께 검증한다. 검사용 빌드와 강화된 릴리스 검사를 구분하고 포트가 열리지 않는지 확인한다.
 - 소스맵·sharp 빌드 헤더 제외는 오류 진단/런타임/고지·소스 제공 조건을 먼저 확인한 뒤 별도 변경으로 검증한다.
+
+
+## D-023 — 번들 고지의 추적과 누락을 함께 보존한다 (P0-04b2)
+
+- 초기 조상 7091c91의 ERB MIT LICENSE를 원문 그대로 복원하고 패키지 resources/LICENSE로 제공한다. 이를 미확인 앱 고유 저작권 표기로 바꾸지 않고 APP_LICENSE_STATUS로 범위를 설명한다.
+- production 컴파일 모듈/결합 자식과 설치된 복사 런타임·내장 metadata에서 고지를 생성한다. 보수적 컴파일 목록은 tree-shaken 항목을 포함할 수 있다. README에 실제 MIT 허가/보증 배제/저작권 문구가 있을 때 해당 파일 전체를 원문으로 보관하고 발견 기준을 기록한다.
+- 빌드 자산·lock·패키지 metadata가 바뀌면 수집을 거부하고 재빌드를 요구한다. beforePack에서도 재생성해 오래된 고지 묶음의 조용한 사용을 피한다.
+- 패키징 후 JSON은 builder가 정리하므로 source JSON 해시와 name/version/license/author/repository identity 해시를 구분한다. 실제 notice 경로·사본 해시·번들·복사 metadata 대응을 검사한다.
+- 원문 누락은 index에 남기고 --require-notice-files 검사로 검출한다. 현 8건과 앱 고유 표기/native ISC·compiler-generated 추가 귀속·vendor/자산 조건을 전체 재배포 검토 완료로 표시하지 않는다.
