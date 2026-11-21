@@ -104,3 +104,8 @@ P1-01b 작업실에서는 씬별 입력을 편집한 뒤 `전체 씬 예약` →
 ## 로컬 패키지 범위 검사
 
 `package:manifest`는 실제 디렉터리 패키지의 물리 파일과 ASAR 논리 항목을 SHA-256으로 기록한다. `smoke:package`는 Linux X11에서 실제 패키지 바이너리를 격리 오프라인 mock으로 실행한다. 검사 하네스를 loopback inspector로 진입 전에 주입하고 패키지 파일은 수정하지 않는다. 제품 실행·OS 지원/릴리스와 구분한다. [정확한 명령·한계](validation/2026-11-21-package-manifest.md)를 따른다.
+
+
+## 고지 묶음
+
+`npm run build`는 production main/preload·renderer 컴파일의 패키지 목록을 남기고 고지를 수집한다. `licenses:bundle`로 재수집할 수 있으며 beforePack에서도 자동 생성한다. `.erb/generated/notices`는 Git에서 제외한다. 패키지는 `package:check-notices`로 경로·사본 해시·번들/metadata 대응을 검사한다. `--require-notice-files`는 현재 원문 미확인 8건을 이유로 실패한다. 이 검사와 전체 재배포 조건 완료를 구분한다. [정확한 범위·명령](licenses/BUNDLE_NOTICES.md).

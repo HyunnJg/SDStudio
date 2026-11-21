@@ -44,3 +44,6 @@ TOKEN.txt
 **/TOKEN.txt
 /config.local.json
 /.sdstudio-dev-profile/
+
+# Rebuilt from production compilation and installed packages
+/.erb/generated/

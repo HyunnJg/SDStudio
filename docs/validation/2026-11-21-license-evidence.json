@@ -16,7 +16,8 @@
     "No app/API execution for this change"
   ],
   "oflSourceByteMatch": true,
-  "collectionGitHead": "6e2b76b60bcfb50b8660d7b2a9ea9d0e1f8e411e",
+  "collectionGitHead": "b260ffefbc715f0f81ce5f0848a4f8786ebc37c0",
   "collectionDirty": false,
-  "provenanceRefreshedForPackagingFilters": true
+  "provenanceRefreshedForPackagingFilters": true,
+  "historicalRootLicenseRestored": true
 }

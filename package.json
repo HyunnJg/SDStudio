@@ -23,13 +23,16 @@
   "scripts": {
     "smoke:package": "node .erb/scripts/smoke-package.cjs",
     "package:manifest": "node .erb/scripts/inspect-package.cjs",
+    "test:bundle-notices": "node --test src/__tests__/bundleNotices.test.cjs",
+    "package:check-notices": "node .erb/scripts/check-package-notices.cjs",
+    "licenses:bundle": "node .erb/scripts/collect-bundle-notices.cjs",
     "test:licenses": "python3 src/__tests__/licenseEvidence.test.py",
     "licenses:evidence": "python3 .erb/scripts/collect-license-evidence.py --installed",
     "profile:check": "node .erb/scripts/isolated-profile.cjs check",
     "start:isolated": "node .erb/scripts/isolated-profile.cjs start",
     "test:profile": "node --test -r ts-node/register/transpile-only src/__tests__/developmentProfile.test.cjs",
     "test:profile:electron": "node --test src/__tests__/developmentProfile.electron.cjs",
-    "build": "concurrently \"npm run build:main\" \"npm run build:renderer\"",
+    "build": "concurrently \"npm run build:main\" \"npm run build:renderer\" && npm run licenses:bundle",
     "build:dll": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.renderer.dev.dll.ts",
     "build:main": "cross-env NODE_ENV=production TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.main.prod.ts",
     "build:renderer": "cross-env NODE_ENV=production TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.renderer.prod.ts",
@@ -280,6 +283,7 @@
       "!node_modules/sdsnative/db.csv",
       "!node_modules/sdsnative/test.js"
     ],
+    "beforePack": ".erb/scripts/collect-bundle-notices.cjs",
     "afterSign": ".erb/scripts/notarize.js",
     "mac": {
       "type": "distribution",
@@ -332,9 +336,29 @@
     },
     "extraResources": [
       {
+        "from": "LICENSES/electron-react-boilerplate.txt",
+        "to": "LICENSES/electron-react-boilerplate.txt"
+      },
+      {
+        "from": "CREDITS.md",
+        "to": "CREDITS.md"
+      },
+      {
+        "from": ".erb/generated/notices",
+        "to": "THIRD_PARTY_NOTICES",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
         "from": "assets",
         "to": "assets",
-        "filter": ["**/*", "!fonts/**", "!db.txt", "!assets.d.ts"]
+        "filter": [
+          "**/*",
+          "!fonts/**",
+          "!db.txt",
+          "!assets.d.ts"
+        ]
       }
     ],
     "publish": {

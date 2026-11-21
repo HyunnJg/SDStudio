@@ -1,0 +1,76 @@
+{
+  "requiredResourcesPresent": [
+    "LICENSES/electron-react-boilerplate.txt",
+    "CREDITS.md",
+    "THIRD_PARTY_NOTICES/THIRD_PARTY_NOTICES.txt",
+    "THIRD_PARTY_NOTICES/index.json",
+    "THIRD_PARTY_NOTICES/APP_LICENSE_STATUS.md"
+  ],
+  "noticeCopiesVerified": 250,
+  "bundlePackageOccurrencesIndexed": 143,
+  "copiedRuntimePackagesIndexed": 112,
+  "runtimeIdentityBasis": "name/version/license/author/repository (builder strips scripts and other build metadata)",
+  "unresolvedNoticeFiles": [
+    {
+      "root": "node_modules/@react-dnd/invariant",
+      "name": "@react-dnd/invariant",
+      "version": "4.0.2",
+      "declaredLicense": "MIT"
+    },
+    {
+      "root": "node_modules/@react-dnd/shallowequal",
+      "name": "@react-dnd/shallowequal",
+      "version": "4.0.2",
+      "declaredLicense": "MIT"
+    },
+    {
+      "root": "release/app/node_modules/batch-cluster/types/chai-withintoleranceof",
+      "name": "@types/chai-withintoleranceof",
+      "version": "0.0.1",
+      "declaredLicense": null
+    },
+    {
+      "root": "release/app/node_modules/github-from-package/example",
+      "name": "beep-boop",
+      "version": "1.2.3",
+      "declaredLicense": null
+    },
+    {
+      "root": "release/app/node_modules/browserify-zlib",
+      "name": "browserify-zlib",
+      "version": "0.1.4",
+      "declaredLicense": "MIT"
+    },
+    {
+      "root": "release/app/node_modules/is-gzip",
+      "name": "is-gzip",
+      "version": "1.0.0",
+      "declaredLicense": "MIT"
+    },
+    {
+      "root": "src/native",
+      "name": "native",
+      "version": "1.0.0",
+      "declaredLicense": "ISC"
+    },
+    {
+      "root": "node_modules/react-dnd-preview",
+      "name": "react-dnd-preview",
+      "version": "8.1.2",
+      "declaredLicense": "MIT"
+    }
+  ],
+  "allIdentifiedPackagesHaveNoticeFiles": false,
+  "completeRedistributionReview": false,
+  "validationContext": {
+    "date": "2026-11-21",
+    "base": "96fd2a6213f62a3d720bce75a63fa822e00b9058",
+    "nodeBuild": "24.22.3",
+    "nodePackagingAndUnitTests": "22.4.1",
+    "electron": "26.6.10",
+    "platform": "linux-x64",
+    "published": false,
+    "uiSmokeRepeated": false,
+    "note": "Only attribution/resource paths changed; no application runtime source changed. Previous snapshots remain historical."
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "ready": true,
+  "text": "SDStudio\n\n오프라인 · 계정/API 연결 없음\n\n환경설정\n프로젝트:\nSelect...\n개수:\n0개 남음 (예상 0초)\n0개 남음 (예상 0초)",
+  "offline": true,
+  "mock": false,
+  "blockedOperations": [
+    "download",
+    "spawn-local-ai",
+    "load-model",
+    "remove-bg",
+    "open-web-page"
+  ],
+  "singleInstanceLockSimulated": true,
+  "externalRequests": [],
+  "rendererErrors": [],
+  "packageContext": {
+    "isPackaged": true,
+    "archiveUnchanged": true,
+    "profileIsolated": true,
+    "inspectorInjectedHarness": true
+  }
+}

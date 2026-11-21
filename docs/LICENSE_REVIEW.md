@@ -4,7 +4,7 @@
 
 | 대상 | 고정 리비전 | 확인한 증거 | 현재 처리 |
 | --- | --- | --- | --- |
-| SDStudio | `f2088add103ad683a31e0590448e6e5bb4d71556` | 루트 및 `release/app/package.json`의 `license: MIT`. 재귀 트리에서 독립 LICENSE/NOTICE/COPYING 파일은 찾지 못함 | 원본 이력·저자·크레딧 유지. 전문과 고지 자료는 추가 조사 |
+| SDStudio | `f2088add103ad683a31e0590448e6e5bb4d71556` | 루트 및 `release/app/package.json`의 `license: MIT`. 재귀 트리에서 독립 LICENSE/NOTICE/COPYING 파일은 찾지 못함 | 조상 7091c91에서 ERB MIT 원문을 찾아 동일 바이트로 복원. 앱 고유 저작권 문구는 여전히 미확인. 원본 저자·크레딧 유지 |
 | `src/native` | 위와 같음 | `src/native/package.json`의 `license: ISC` | 상위 패키지 MIT와 구분. 이 모듈을 MIT로 바꾸지 않음 |
 | BiRefNet 서브모듈 | `15a114c46349f26866eeddc76387053394be2a0a` | `LICENSE`: MIT, 저작권 표기 ZhengPeng (2024) | 코드 고지 확인. 모델 가중치·데이터·배포 자산은 별도 조사 |
 | capacitor-background-mode 서브모듈 | `dc536b991ef441425ffa2f5e71c2aa90b1daf231` | `package.json`의 `license: MIT`. 재귀 트리에서 독립 라이선스 파일은 찾지 못함 | 정확한 고지 자료 추가 조사 |
@@ -20,7 +20,7 @@
 | --- | --- | --- |
 | 태그 DB | `src/native/db.csv`, `assets/db.txt`, `release/app/data/db.csv` | 원 데이터·변환 과정·고지 조건. init()이 db.csv를 필수로 읽으므로 배포에서 제외할 경우 대체 데이터 또는 빈 DB로 기동할 경로도 필요. 배포 DB와 assets/db.txt 해시는 같고 native DB는 다름. 형식만으로 허용 판정 금지 |
 | NotoSans 폰트 3종 | `assets/fonts/NotoSans-{Regular,Bold,Italic}.ttf` | 메타데이터에서 2022 Noto Project Authors / 2.013 / OFL 1.1 확인. 저작권과 일치하는 공식 고정 커밋 OFL.txt를 assets/fonts에 원문 추가. 원 배포본 취득 이력·바이너리 대조는 남음 |
-| 기반 보일러플레이트 | `.erb/`, 루트 `package.json`의 electron-react-boilerplate 관련 정보 | 사용 리비전과 보존해야 하는 원 고지 |
+| 기반 보일러플레이트 | `.erb/`, 루트 `package.json`의 electron-react-boilerplate 관련 정보 | 초기 조상 7091c91의 ERB MIT 고지 복원·배포 포함. 세부 차용 범위는 추가 확인 |
 | 이미지·아이콘·예제 | 루트 이미지, `assets/`, `images/`, `examples/` | 파일별 출처·조건·배포 포함 여부 |
 | npm/Python 의존성 | 루트·`release/app`·`src/native` package.json, `src/localai/requirements.txt` | 실제 설치 리비전 확정 후 직접·전이 의존성의 고지 자료 수집. `sharp`, `exiftool-vendored` 등 동봉 바이너리의 LICENSE/COPYING은 패키지 메타데이터와 별도 확인. Linux sharp/libvips 고지·버전과 ExifTool wrapper/본체 고지를 원문 수집했으나 조건 이행·다른 플랫폼·전수 검토는 남음 |
 | 로컬 AI 배포 바이너리·가중치 | `LocalAIService.ts`의 Hugging Face ZIP 및 BiRefNet quality 다운로드 | 각 다운로드 산출물의 출처·조건·포함 의존성. BiRefNet 코드의 MIT 표기와 별도 취급 |
@@ -56,3 +56,10 @@ P0-04b는 원본/네이티브/배경 모듈/보일러플레이트의 정확한 �
 [전후 manifest·기동](validation/2026-11-21-package-manifest.md)을 확보했다. 데스크톱은 data/db.csv를 사용하고 Android는 assets/db.txt를 import한다. native/test.js가 읽는 src/native/db.csv도 file: sdsnative 패키지 안에 실제 포함되어 있었으므로 배포 대상이 아니라고 단정하지 않는다.
 
 데스크톱 필터로 미사용 fonts 폴더(TTF/OFL), assets/db.txt와 선언 파일, sdsnative/db.csv/test.js를 제외했다. 원본은 저장소에 남고 필수 data/db.csv는 그대로다. 전체 P0-04b의 나머지는 P0-04b2다. 빈 DB 기동·자동완성 비활성 경로, 남은 데이터/이미지·바이너리 출처와 조건, 다른 OS·실제 배포 조건 확인은 여전히 필요하다.
+
+
+## P0-04b2 고지 자동수집·배포 포함
+
+[생성·범위·검사](licenses/BUNDLE_NOTICES.md)를 추가했다. 컴파일 모듈(결합 자식 포함)과 설치된 복사 런타임/내장 metadata에서 244레코드를 수집하고 원문 사본 250개를 보존했다. resources/LICENSE와 THIRD_PARTY_NOTICES 묶음의 실제 포함 및 해시·번들 대응을 확인했다. webpack 주석 파일만으로 전수 고지를 대신하지 않는다.
+
+LICENSE는 초기 ERB MIT 원문 복원이며 Sunho Kim의 새 저작권 문구를 작성한 것이 아니다. APP_LICENSE_STATUS와 index에 그 한계 및 원문 누락 8건을 남겼다. 원문 필수 검사는 현재 실패하며 이 결과를 완료로 표시하지 않는다. compiler-generated 코드의 추가 귀속, native ISC 전문·앱 고유 표기, 자산/DB·vendor 조건과 다른 플랫폼은 여전히 남는다.
