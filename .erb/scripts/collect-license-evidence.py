@@ -127,6 +127,7 @@ def main():
     root_package = load(ROOT / 'package.json')
     source_paths = ['.erb/scripts/collect-license-evidence.py', 'package.json', 'release/app/package.json', 'src/native/package.json',
                     '.gitmodules', 'src/localai/requirements.txt']
+    source_paths += [name for name in ['LICENSE', 'docs/licenses/APP_LICENSE_STATUS.md'] if (ROOT / name).is_file()]
     requirements = (ROOT / 'src/localai/requirements.txt').read_bytes()
     encoding = 'utf-16' if requirements.startswith((b'\xff\xfe', b'\xfe\xff')) else 'utf-8'
     lines = requirements.decode(encoding).splitlines()
