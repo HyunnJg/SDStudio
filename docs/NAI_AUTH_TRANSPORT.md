@@ -59,3 +59,12 @@ JS 문자열의 확실한 메모리 영점화는 보장하지 않는다. OS 보�
 ## 연결 모드 설정과 재시작
 
 D-028은 일반 포크의 다음 시작 모드를 로컬 파일로 저장한다. network-mode-* IPC만 오프라인에서도 사용할 수 있으며 auth IPC의 거부 정책은 바꾸지 않는다. 저장 뒤에도 현재 runtime은 고정되고 실제 재시작 뒤에만 적용된다. 개발/목업/환경 지정 강제값은 UI보다 우선한다. 재시작 전에 V3 저장과 작업 유무를 확인하며, 세션 한정 토큰은 새 프로세스에 이관하지 않는다. [실기 검증](validation/2026-11-21-network-mode.md). 모델 ID·전송 바인딩·새 프로젝트 저장은 여전히 미완료다.
+
+
+## 메인 이미지 응답 경계 (D-030)
+
+내부 sendImage는 기존 send 뒤에 제한된 ZIP→PNG 검증을 연결한다. 전송과 해제는 하나의 전체 기한/AbortSignal을 공유한다. ZIP 64 MiB·해제 PNG 32 MiB·16,777,216 픽셀은 로컬 한도다. 단일 PNG의 STORE/DEFLATE·일반/스트리밍 descriptor를 다루고, ZIP/PNG CRC와 구조를 확인해 원본 PNG 바이트를 반환한다. ZIP64·암호화·다중 엔트리/부가 파일·unsafe 경로 등은 거부한다. 좁은 응답 형식의 실제 서버 호환은 아직 미확인이다.
+
+응답 이후의 실패는 mayHaveReachedServer=true를 유지한다. 2xx MIME 거부는 RESPONSE_FORMAT, 압축/PNG 오류는 INVALID_IMAGE_RESPONSE, 자원 한도는 RESPONSE_TOO_LARGE다. 자동 재시도와 원문 오류 보관은 없다. 이 메인 경로는 생성 IPC/UI에 아직 연결하지 않았다. [테스트·한계](validation/2026-11-21-image-response.md), [최소 실호출 계획](NAI_LIVE_VALIDATION.md).
+
+기존 V3 이메일/비밀번호 로그인은 TOKEN.txt 평문 저장을 유지하는 별도 경로다. 환경설정에 이를 명시하고 상단의 V3 상태가 새 API 토큰 보관/서버 인증을 나타내지 않도록 바꿨다. 새 토큰 보안 저장을 앱 전체 인증 방식에 적용했다고 해석하지 않는다.

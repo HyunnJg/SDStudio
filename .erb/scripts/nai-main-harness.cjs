@@ -29,6 +29,7 @@ const { createNaiTransport } = require('../../src/main/nai/electronTransport');
 const { installOfflineRequestGuard } = require('../../src/main/offlineNetwork');
 const report = {
   electron: process.versions.electron,
+  node: process.versions.node,
   platform: process.platform,
   syntheticCredentialsOnly: true,
   checks: [],
@@ -241,6 +242,56 @@ app
     report.checks.push(
       'real loopback response preserves bytes and sends explicit Authorization without cookies',
     );
+    const { png } = require('../../src/__tests__/fixtures/nai/png.cjs');
+    const JSZip = require('jszip');
+    const archive = new JSZip();
+    archive.file('image.png', png());
+    const validImage = await archive.generateAsync({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+    });
+    // The same real Electron transport now validates the bounded ZIP-to-PNG path.
+    let imagePayload = validImage;
+    server.removeAllListeners('request');
+    server.on('request', (request, response) => {
+      requests++;
+      assert.equal(
+        request.headers.authorization,
+        'Bearer synthetic-never-a-real-token',
+      );
+      assert.equal(request.headers.cookie, undefined);
+      if (request.url === '/redirect') {
+        response.writeHead(307, {
+          Location: `http://127.0.0.1:${server.address().port}/should-not-follow`,
+        });
+      } else response.writeHead(200, { 'Content-Type': 'application/zip' });
+      response.end(imagePayload);
+    });
+    assert.deepEqual(
+      Buffer.from(
+        await createNaiTransport(fakeStore, () => false).sendImage(
+          Buffer.from('{}'),
+          undefined,
+          5000,
+        ),
+      ),
+      png(),
+    );
+    report.checks.push(
+      'real Electron ZIP decoding preserves original RGBA and opaque metadata bytes',
+    );
+    imagePayload = Buffer.from('synthetic invalid image response');
+    await assert.rejects(
+      createNaiTransport(fakeStore, () => false).sendImage(
+        Buffer.from('{}'),
+        undefined,
+        5000,
+      ),
+      { code: 'INVALID_IMAGE_RESPONSE', mayHaveReachedServer: true },
+    );
+    report.checks.push(
+      'invalid image response is rejected as possibly processed, with no retry',
+    );
     loopbackURL = `http://127.0.0.1:${server.address().port}/redirect`;
     await assert.rejects(
       createNaiTransport(fakeStore, () => false).send(
@@ -250,7 +301,8 @@ app
       ),
       { code: 'REDIRECT' },
     );
-    assert.equal(requests, 2);
+    assert.equal(requests, 4);
+    report.loopbackRequests = requests;
     report.checks.push('real HTTP redirect is rejected without following');
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));

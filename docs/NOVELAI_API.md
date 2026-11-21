@@ -111,3 +111,10 @@ P0-03b: 정확한 API 모델 ID와 action/params_version, 모델별 sampler/nois
 ### P0-03b2 인증 화면 부분 구현
 
 포크 식별과 토큰 입력·로컬 읽기·삭제/복구 화면을 연결했다(D-026/027). 계정 인증·이미지 요청은 하지 않는다. 2026-11-21 공식 Image API doc.json과 공식 모델 문서를 다시 확인했지만 모델 ID enum, 모델별 필수값/기본값은 여전히 공개 근거로 확정하지 못했다. 자리표시 요청을 실제 모델 바인딩으로 바꾸지 않았다. 모델·ZIP 해제 제한·프로젝트 저장은 남은 범위다. 실호출 검증 시 실제 MIME/상태별 안내와 별도로 선택한 제한적 로컬 진단을 확인한다.
+
+
+## P0-03b2 메인 응답 추가 — 2026-11-21
+
+main/nai/transport.sendImage와 imageResponse.ts로 제한 ZIP 해제·CRC/PNG 구조·원본 바이트 보존·공유 기한/취소 경계를 구현했다. 실제 NovelAI 호출/모델 바인딩은 없다. 단일 엔트리 응답 형식과 한도는 우리 정책이며 서버 호환을 확정한 값이 아니다. fixture용 readPreviewPNGZip과 구분한다. [검증](validation/2026-11-21-image-response.md).
+
+같은 날 공식 doc.json을 다시 열었지만 image.ImageGenerationRequest.model은 여전히 string이며 모델별 ID enum·action/params_version 조합을 확정하지 못했다. 타사 구현의 ID/기본값을 공식 계약으로 옮기지 않는다. [최소 실호출 검증 계획](NAI_LIVE_VALIDATION.md)의 계정·비용 범위가 정해지기 전 실제 인증/생성 호출은 하지 않는다.

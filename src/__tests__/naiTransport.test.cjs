@@ -234,7 +234,7 @@ test('network/early-close, wrong MIME and bounded response fail without successf
         !e.message.includes('synthetic-token') &&
         e.code ===
           ({
-            mime: 'HTTP_ERROR',
+            mime: 'RESPONSE_FORMAT',
             limit: 'RESPONSE_TOO_LARGE',
             close: 'TIMEOUT',
           }[mode] || 'NETWORK'),

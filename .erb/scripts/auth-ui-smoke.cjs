@@ -80,6 +80,13 @@ module.exports = async function (contents, offline) {
     );
     assert.equal(fs.existsSync(realFile), false);
     assert.match(
+      await evaluate(`document.body.textContent`),
+      /V3 로그인 안 됨/,
+    );
+    checks.push(
+      'new API token does not claim V3 login or prompt a password login',
+    );
+    assert.match(
       await evaluate(
         `document.querySelector('[data-testid=nai-auth-status]').textContent`,
       ),
@@ -192,6 +199,30 @@ module.exports = async function (contents, offline) {
   checks.push(
     'close clears unsaved input; modal traps focus and Escape restores the opener',
   );
+  if (!offline) {
+    await click('[data-testid=open-config]');
+    await until(
+      `!!document.querySelector('[data-testid=legacy-login-notice]')`,
+    );
+    assert.match(
+      await evaluate(
+        `document.querySelector('[data-testid=legacy-login-notice]').textContent`,
+      ),
+      /평문/,
+    );
+    assert.match(
+      await evaluate(
+        `document.querySelector('[data-testid=legacy-login-notice]').textContent`,
+      ),
+      /이메일·비밀번호/,
+    );
+    contents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+    contents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+    await until(`!document.querySelector('[data-testid=legacy-login-notice]')`);
+    checks.push(
+      'legacy V3 login clearly discloses password use and plaintext token storage',
+    );
+  }
   return {
     checks,
     offline,
