@@ -111,3 +111,10 @@ NetworkModeSettings 화면은 저장과 재시작을 분리한다. restartPrepar
 ## 제한된 메인 이미지 응답
 
 main/nai/imageResponse.ts는 단일 엔트리 ZIP의 헤더/디렉터리/descriptor를 먼저 검증한 뒤 Node zlib 스트림의 실제 출력을 제한한다. CRC·PNG 구조 검사 후 바이트를 반환하며 파일 추출/저장이나 픽셀 재인코딩은 없다. transport.sendImage는 같은 전송 기한과 취소 신호를 전달한다. 이 경로는 하네스의 합성/루프백 응답으로 검증했으며 실제 앱의 모델/생성 IPC에는 아직 연결하지 않았다. 렌더러 readPreviewPNGZip은 기존 오프라인 fixture용으로 남는다.
+
+
+## 연구 전용 1회 생성 도구 (D-032)
+
+일반 main.ts/App/작업실과 별도로 nai-live-entry.cjs가 Electron ready 전에 명시적 외부 테스트 프로필을 선택한다. 저장된 연결 모드·원본 TOKEN.txt·세션은 읽지 않는다. production 프리로드 대신 좁은 validation facade와 기존 신뢰 프레임 검사를 사용한다. 기본 세션은 정확한 생성 HTTPS POST만 허용하고 offline/mock은 IPC와 전송 전에 거부한다. 목적지 치환은 합성 하네스 내부에만 있다.
+
+LiveValidation은 고정 후보의 해시와 수동 웹 비용 근거를 묶고 wx 기록으로 1회를 선점한다. NaiTransport의 선택 diagnosticCapture가 수신 바이트를 먼저 비공개 파일에 남기고 기존 해석기가 검증한다. capture 미지정인 일반 경로는 오류 본문을 폐기한다. 연구 창은 내용 없는 내부 사유를 명시적으로 읽는 진단 도구이며 운영 renderer/preload의 내부 사유 접근은 정적 검사로 금지한다. 결과 PNG/원문 파일은 일반 프로젝트·씬·대기열 저장 형식이 아니다. [실행·한계](NAI_LIVE_VALIDATION.md).

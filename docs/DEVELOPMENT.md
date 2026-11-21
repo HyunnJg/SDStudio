@@ -153,3 +153,47 @@ npm run smoke:network-mode -- /absolute/linux-unpacked
 ## 응답 진단을 다시 확인할 때
 
 `npm run nai:inspect-response -- /absolute/response.zip`은 개발 체크아웃에서 로컬 응답 하나를 읽기 전용으로 검사한다. API/토큰·원본 프로필을 조회하지 않으며 PNG/ZIP 내용을 출력하거나 저장하지 않는다. 성공은 종료 0, 형식/검증 실패는 1, 사용법/파일 읽기·사전 크기 제한 실패는 2다. 표준 출력 JSON에는 코드·고정 사유·바이트 개수만 있다. 원문 파일의 자동 수집·업로드는 없다. `npm run test:nai-response`가 같은 검사와 도구를 합성 파일로 검증한다.
+
+
+## 1회 실호출 검증 도구 (D-032)
+
+실제 요청을 보낼 수 있는 별도 개발 도구다. 일반 앱의 새 작업실 생성 연결은 아직 없다. [전체 실험 계획](NAI_LIVE_VALIDATION.md)을 먼저 읽는다. **실험 창만 실행할 때는 루트 npm install/npm ci가 필요 없다.** tools/nai-validation의 고정된 작은 의존성 묶음만 설치한다. 앱의 C++ 모듈·sharp·electron-builder·서브모듈 빌드를 실행하지 않는다.
+
+저장소 루트에서 Windows PowerShell:
+
+```powershell
+git fetch origin
+git switch work/p0-live-validation
+git pull --ff-only
+npm --prefix tools/nai-validation ci
+npm --prefix tools/nai-validation start -- "$env:LOCALAPPDATA\SDStudio-Live-Test"
+```
+
+Linux 예:
+
+```sh
+npm --prefix tools/nai-validation ci
+npm --prefix tools/nai-validation start -- /home/your-name/SDStudio-Live-Test
+```
+
+이미 전체 앱 의존성을 설치한 개발자는 기존 npm run nai:validate-live 명령도 사용할 수 있다. 새 경로는 자체 ts-node/TypeScript를 먼저 등록해 루트에 남은 부분 설치를 사용하지 않는다. Electron prebuilt 다운로드는 필요하지만 C++ 소스 컴파일은 없다. Node 호스트는 실행 파일을 시작하고 TypeScript는 Electron 안에서 처리한다. 이 경로의 깨끗한 설치/화면 기동은 Linux Node24.22.3/npm11.19.1에서 검증했다. 사용자 Node26.13.1/npm11.21.3 및 Windows/macOS 실제 실행은 아직 미검증이다.
+
+### Windows 전체 앱 설치 오류와 구분
+
+2026-11-22 사용자 로그는 src/native의 node-gyp10.2.0-electron.1이 VS18/2026을 unknown version으로 거부한 것이다. 설치된 C++ workload가 없다고 확인된 오류가 아니다. 전역 node-gyp/npm을 갱신해도 로컬 @electron/node-gyp 호출이 자동으로 교체되지는 않는다. [공식 node-gyp 변경 이력](https://github.com/nodejs/node-gyp/blob/main/CHANGELOG.md#1210-2025-11-12)의 VS2026 지원 추가는12.1.0이다.
+
+전체 앱 설치의 Node26/VS2026 호환성을 해결했다고 표시하지 않는다. 그 변경은 Electron rebuild·중복 node-gyp·sharp와 실제 Windows 산출물 검증까지 별도로 다룬다. **실험 창을 열기 위해 VS/Python 재설치나 루트 의존성 삭제를 요구하지 않는다.** 위의 독립 설치는 기존 파일/lock을 지우거나 강제 변경하지 않는다.
+
+경로에는 기존 개인 데이터가 없는 전용 폴더를 지정한다. checkout 내부/상위·원본/포크 기본 프로필과의 중첩은 거부한다. macOS도 별도 절대경로가 필요하지만 미검증이다. Linux에서는 그래픽 세션이 필요하다.
+
+창에서 Persistent API Token을 **직접** 입력해 이번 실행에만 보관한다. 채팅/터미널 인자/환경변수에 키를 넣지 않는다. 일반 앱에 저장한 토큰을 이 창이 자동으로 가져오지 않는다. 전체 요청 JSON을 확인하고 NovelAI 웹에서 동일 설정의 표시 비용·현재 잔액을 확인해 입력한 뒤 세 항목을 선택한다. 표시 비용 10 초과/확인 누락/잔액 부족이면 전송하지 않는다. `SDSTUDIO_OFFLINE`이 0 외 값으로 지정됐거나 mock이 켜져 있으면 이 도구도 전송·토큰 IPC를 거부한다. 해당 잠금을 창에서 풀지 않는다.
+
+전송 뒤에는 결과 JSON을 확인하고 웹 잔액을 다시 기록한다. 성공 이미지는 선택한 프로필/live-validation/result.png에 원본으로 남는다. 받은 원문 response.zip은 metadata/오류 내용이 포함될 수 있는 비공개 파일이다. 공유할 때는 먼저 result.json의 정제된 필드만 확인하고 원문·이미지·토큰·계정값은 보내지 않는다. 같은 프로필 재실행도 2회 전송을 막는다. 중지·닫기는 AbortSignal로 요청을 중단하지만 서버 처리/과금 취소를 보장하지 않는다.
+
+```sh
+# 아래 검사는 합성 데이터/루프백만 사용한다.
+npm run test:nai-live
+npm run test:nai-live:electron
+```
+
+Electron 검사는 Linux X11에서 5경로를 실행한다. Windows/macOS, 실제 키링/실제 계정·비용 확인을 대신하는 검사가 아니다. 도구 실행은 사용자 PC에서 이루어지며 이 개발 환경이 사용자의 입력 토큰을 원격 수신하는 방식이 아니다.

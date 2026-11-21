@@ -1,0 +1,37 @@
+{
+  "date": "2026-11-22",
+  "timezone": "Asia/Seoul",
+  "baseCommit": "bcc8dc81a8f9a23313411d8b6be1c2df4ebcf9f3",
+  "implementationCommit": "0fd3cdb2f4c6fb9beb980958490bbd343b566ee2",
+  "implementationTree": "5dd4c8e01f25aa3b3c532f073d43fc79b3fc654e",
+  "observedFailure": {
+    "source": "user-provided sanitized observations",
+    "platform": "Windows10",
+    "node": "26.13.1",
+    "npm": "11.21.3",
+    "python": "3.12.8",
+    "visualStudio": "2026/18",
+    "localNodeGyp": "10.2.0-electron.1",
+    "phase": "src/native preinstall",
+    "cause": "VS18 unsupported by local Electron node-gyp finder"
+  },
+  "verification": {
+    "standaloneInstallHostNode": "24.22.3",
+    "standaloneInstallNpm": "11.19.1",
+    "electron": "26.6.10",
+    "electronNode": "18.16.1",
+    "platform": "linux-x64",
+    "standaloneNpmCi": true,
+    "lockedPackagesExcludingRoot": 89,
+    "rootNodeModulesAbsent": true,
+    "otherNodeModulesAccessForbidden": true,
+    "testsPassed": 3,
+    "existingResearchElectronTestsPassed": 5,
+    "windowsExecution": false,
+    "node26Execution": false,
+    "fullAppVs2026BuildFixed": false,
+    "actualGenerationCalls": 0,
+    "actualCredentialsUsed": false,
+    "anlasSpent": 0
+  }
+}
