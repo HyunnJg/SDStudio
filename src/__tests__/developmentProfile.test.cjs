@@ -22,6 +22,7 @@ function fixture(t) {
   const calls = [];
   const app = {
     getName: () => 'SDStudio',
+    setName: () => {},
     getPath: (name) => paths[name],
     setPath: (name, value) => {
       paths[name] = value;
@@ -140,6 +141,7 @@ test('actual main entry selects the profile and exits before loading native modu
     Module._load = function(name, ...args) {
       if (name === 'electron') return { app: {
         getName: () => 'SDStudio',
+    setName: () => {},
         getPath: (key) => paths[key],
         setPath: (key, value) => { paths[key] = value; },
         isReady: () => false,

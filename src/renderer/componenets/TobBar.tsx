@@ -6,7 +6,7 @@ import SessionSelect from './SessionSelect';
 import { Session } from '../models/types';
 import { loginService, backend, taskQueueService } from '../models';
 
-const TobBar = ({ onOpenPreview }: { onOpenPreview?: () => void }) => {
+const TobBar = ({ onOpenPreview, onOpenAuth }: { onOpenPreview?: () => void; onOpenAuth?: () => void }) => {
   const [loggedIn, setLoggedIn] = useState(false);
   const [credits, setCredits] = useState(0);
 
@@ -37,6 +37,7 @@ const TobBar = ({ onOpenPreview }: { onOpenPreview?: () => void }) => {
         SDStudio
       </div>
       {onOpenPreview && <button type="button" className="round-button back-sky ml-3" data-testid="open-preview" onClick={onOpenPreview}>새 화면 미리보기</button>}
+      {onOpenAuth && <button type="button" className="round-button back-sky ml-2" data-testid="open-nai-auth" onClick={onOpenAuth}>API 토큰</button>}
       <p className="ml-auto mr-2 hidden md:block">
         {runtimeOptions.offline ? <span className="round-tag back-yellow">{runtimeOptions.mockBackend ? '오프라인 예제 · 실제 생성/저장 없음' : '오프라인 · 계정/API 연결 없음'}</span> : !loggedIn ? (
           <span className={`round-tag back-red`}>

@@ -53,6 +53,7 @@ const electronHandler = {
     setToken: (token: string, remember: boolean): Promise<NaiAuthResult> =>
       ipcRenderer.invoke('nai-auth-set', token, remember),
     clear: (): Promise<NaiAuthResult> => ipcRenderer.invoke('nai-auth-clear'),
+    check: (): Promise<NaiAuthResult> => ipcRenderer.invoke('nai-auth-check'),
   },
   runtime: {
     offline: process.argv.includes('--sdstudio-offline'),

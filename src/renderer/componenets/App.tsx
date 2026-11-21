@@ -49,6 +49,7 @@ import {
 import { appState } from '../models/AppService';
 import { AppContextMenu } from './AppContextMenu';
 import PreviewWorkspace from './PreviewWorkspace';
+import NaiAuthSettings from './NaiAuthSettings';
 import {
   createWorkspaceState,
   PreviewRequest,
@@ -135,6 +136,7 @@ const DnDPreview = () => {
 };
 
 export const App = observer(() => {
+  const [authOpen, setAuthOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(runtimeOptions.mockBackend);
   const [workspace, setWorkspace] = useState(createWorkspaceState);
   const nextPreviewResult = useRef(1);
@@ -313,6 +315,7 @@ export const App = observer(() => {
       legacyName={appState.curSession?.name ?? ''}
       legacySceneCount={appState.curSession?.scenes.size ?? 0}
       onOpenLegacy={() => setPreviewOpen(false)}
+      onOpenAuth={() => setAuthOpen(true)}
       renderPreview={(request, scenario) => {
         if (!(backend instanceof MockBackend)) throw new Error('Preview requires the mock backend');
         return backend.renderDraftPreview(request, scenario);
@@ -348,7 +351,7 @@ export const App = observer(() => {
             }
             <VerticalStack>
               <StackFixed>
-                <TobBar onOpenPreview={runtimeOptions.mockBackend ? () => setPreviewOpen(true) : undefined} />
+                <TobBar onOpenAuth={window.electron ? () => setAuthOpen(true) : undefined} onOpenPreview={runtimeOptions.mockBackend ? () => setPreviewOpen(true) : undefined} />
               </StackFixed>
               <StackGrow className="flex">
                 {appState.curSession && (
@@ -390,6 +393,7 @@ export const App = observer(() => {
   );
   return <div className={darkMode ? 'dark' : ''}>
     {content}
+    {authOpen && <NaiAuthSettings onClose={() => setAuthOpen(false)} offline={runtimeOptions.offline} client={window.electron?.naiAuth} />}
     <AlertWindow />
     <ConfirmWindow />
     {appState.progressDialog && <ProgressWindow dialog={appState.progressDialog} />}
