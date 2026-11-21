@@ -37,6 +37,7 @@ interface Props {
   legacyName: string;
   legacySceneCount: number;
   onOpenLegacy: () => void;
+  onOpenAuth: () => void;
   renderPreview: (
     request: PreviewRequest,
     scenario: PreviewScenario,
@@ -53,6 +54,7 @@ export default function PreviewWorkspace({
   legacyName,
   legacySceneCount,
   onOpenLegacy,
+  onOpenAuth,
   renderPreview,
 }: Props) {
   const [busy, setBusy] = useState(false);
@@ -165,6 +167,7 @@ export default function PreviewWorkspace({
       data-testid="preview-workspace"
     >
       <header className="pw-header">
+        <button type="button" data-testid="open-nai-auth" onClick={onOpenAuth}>API 토큰</button>
         <div className="pw-brand">
           <span className="pw-brand-mark" aria-hidden="true">
             S

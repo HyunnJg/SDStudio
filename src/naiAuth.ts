@@ -19,7 +19,15 @@ export interface NaiTokenStatus {
   configured: boolean;
   storage: 'none' | 'session' | 'encrypted';
   secureStorageAvailable: boolean;
+  locallyReadable?: true;
 }
 
 export type NaiAuthResult =
   { ok: true; status: NaiTokenStatus } | { ok: false; code: NaiErrorCode };
+
+export interface NaiAuthClient {
+  status: () => Promise<NaiAuthResult>;
+  setToken: (token: string, remember: boolean) => Promise<NaiAuthResult>;
+  check: () => Promise<NaiAuthResult>;
+  clear: () => Promise<NaiAuthResult>;
+}

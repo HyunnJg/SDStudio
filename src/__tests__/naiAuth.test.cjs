@@ -250,3 +250,28 @@ test('auth trust is tied to current main frame and exact approved document path,
     false,
   );
 });
+
+test('explicit local check returns readability without returning the token, and reports missing/corrupt data', (t) => {
+  const f = fixture(t),
+    store = f.create(),
+    handlers = new Map();
+  registerNaiAuth(
+    { handle: (name, fn) => handlers.set(name, fn) },
+    store,
+    () => false,
+    () => true,
+  );
+  const check = () => handlers.get('nai-auth-check')({});
+  assert.deepEqual(check(), { ok: false, code: 'TOKEN_MISSING' });
+  store.set('synthetic-readability-secret', false);
+  const result = check();
+  assert.equal(result.status.locallyReadable, true);
+  assert.equal(
+    JSON.stringify(result).includes('synthetic-readability-secret'),
+    false,
+  );
+  store.clear();
+  fs.mkdirSync(path.dirname(f.file), { recursive: true });
+  fs.writeFileSync(f.file, '{"version":999}');
+  assert.deepEqual(check(), { ok: false, code: 'STORE_VERSION' });
+});

@@ -55,4 +55,8 @@ export function registerNaiAuth(
   handle('nai-auth-status', () => store.status());
   handle('nai-auth-set', (token, remember) => store.set(token, remember));
   handle('nai-auth-clear', () => store.clear());
+  handle('nai-auth-check', () => {
+    store.read();
+    return { ...store.status(), locallyReadable: true };
+  });
 }

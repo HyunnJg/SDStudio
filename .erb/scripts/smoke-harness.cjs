@@ -2,6 +2,15 @@ const fs = require('node:fs');
 const { app } = require('electron');
 const singletonSimulated = process.env.SDSTUDIO_SMOKE_SKIP_SINGLETON === '1';
 if (singletonSimulated) app.requestSingleInstanceLock = () => true;
+const authUI = process.env.SDSTUDIO_SMOKE_AUTH_UI === '1';
+if (authUI) {
+  require('ts-node/register/transpile-only');
+  app.once('ready', () =>
+    require('../../src/main/offlineNetwork').installOfflineRequestGuard(
+      require('electron').session.defaultSession,
+    ),
+  );
+}
 const external = [];
 const errors = [];
 let finished = false;
@@ -61,10 +70,15 @@ app.on('web-contents-created', (_event, contents) => {
         })`);
         if (
           result.ready &&
-          result.offline &&
+          (result.offline || authUI) &&
           (process.env.SDSTUDIO_MOCK_BACKEND !== '1' || result.project)
         ) {
-          if (!result.mock) {
+          if (authUI)
+            result.authUI = await require('./auth-ui-smoke.cjs')(
+              contents,
+              result.offline,
+            );
+          if (!result.mock && !authUI) {
             result.blockedOperations =
               await contents.executeJavaScript(`(async () => {
               const calls = [
@@ -86,6 +100,11 @@ app.on('web-contents-created', (_event, contents) => {
           }
           if (result.mock && process.env.SDSTUDIO_SMOKE_WORKSPACE === '1') {
             result.workspace = await require('./workspace-smoke.cjs')(contents);
+            if (process.env.SDSTUDIO_SMOKE_AUTH_PREVIEW === '1')
+              result.previewAuth = await require('./auth-ui-smoke.cjs')(
+                contents,
+                result.offline,
+              );
           }
           if (result.mock && process.env.SDSTUDIO_SMOKE_WORKSPACE !== '1') {
             result.generation = await contents.executeJavaScript(`(async () => {

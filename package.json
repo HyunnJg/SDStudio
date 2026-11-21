@@ -1,5 +1,5 @@
 {
-  "name": "sdstudio",
+  "name": "sdstudio-hyunnjg",
   "description": "A foundation for scalable desktop apps",
   "keywords": [
     "electron",
@@ -21,8 +21,11 @@
   "main": "./src/main/main.ts",
   "version": "3.1.11",
   "scripts": {
+    "smoke:auth-ui": "node .erb/scripts/smoke-auth-ui.cjs",
     "smoke:package": "node .erb/scripts/smoke-package.cjs",
     "package:manifest": "node .erb/scripts/inspect-package.cjs",
+    "test:identity": "node --test -r ts-node/register/transpile-only src/__tests__/forkIdentity.test.cjs",
+    "test:auth-ui": "node --test -r ts-node/register/transpile-only src/__tests__/naiAuthUi.test.cjs",
     "test:nai-main": "node --test -r ts-node/register/transpile-only src/__tests__/naiAuth.test.cjs src/__tests__/naiTransport.test.cjs",
     "test:nai-main:electron": "node --test src/__tests__/naiMain.electron.cjs",
     "test:bundle-notices": "node --test src/__tests__/bundleNotices.test.cjs",
@@ -262,8 +265,9 @@
     "webpack-merge": "^5.9.0"
   },
   "build": {
-    "productName": "SDStudio",
-    "appId": "io.sunho.SDStudio",
+    "productName": "SDStudio-HyunnJg",
+    "executableName": "sdstudio-hyunnjg",
+    "appId": "io.github.hyunnjg.sdstudio",
     "asar": true,
     "asarUnpack": [
       "**\\*.{node,dll}",
@@ -365,8 +369,9 @@
     ],
     "publish": {
       "provider": "github",
-      "owner": "sunho",
-      "repo": "SDStudio"
+      "owner": "HyunnJg",
+      "repo": "SDStudio",
+      "releaseType": "draft"
     }
   },
   "collective": {

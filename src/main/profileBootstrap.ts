@@ -1,5 +1,5 @@
 import { app } from 'electron';
-import { initializeDevelopmentProfile } from './developmentProfile';
+import { initializeForkProfile } from './forkProfile';
 
 // Imported before logging, native modules and DEFAULT_APP_DIR in main.ts.
 const developmentProfile = (() => {
@@ -10,7 +10,7 @@ const developmentProfile = (() => {
     ) {
       throw new Error('Electron mock preview requires SDSTUDIO_USER_DATA_DIR');
     }
-    return initializeDevelopmentProfile(
+    return initializeForkProfile(
       app,
       process.env.SDSTUDIO_USER_DATA_DIR,
     );

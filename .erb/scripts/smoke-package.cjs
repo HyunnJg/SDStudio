@@ -5,10 +5,11 @@ const { spawn } = require('node:child_process');
 const WebSocket = require('ws');
 if (!process.argv[2])
   throw Error(
-    'Usage: npm run smoke:package -- /absolute/linux-unpacked [real]',
+    'Usage: npm run smoke:package -- /absolute/linux-unpacked [real|auth]',
   );
 const directory = fs.realpathSync(process.argv[2]);
-const mock = process.argv[3] === 'real' ? '0' : '1';
+const authMode = process.argv[3] === 'auth';
+const mock = ['real', 'auth'].includes(process.argv[3]) ? '0' : '1';
 if (process.platform !== 'linux' || !process.env.DISPLAY)
   throw Error('Packaged smoke requires a Linux X11 DISPLAY');
 const archive = path.join(directory, 'resources/app.asar');
@@ -21,22 +22,27 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sdstudio-packaged-smoke-'));
 const original = path.join(root, 'original');
 fs.mkdirSync(original);
 const report = path.join(root, 'report.json');
+const childEnv = {
+  ...process.env,
+  XDG_CONFIG_HOME: original,
+  SDSTUDIO_USER_DATA_DIR: path.join(root, 'isolated'),
+  SDSTUDIO_MOCK_BACKEND: mock,
+  SDSTUDIO_OFFLINE: authMode ? '0' : '1',
+  SDSTUDIO_SMOKE_REPORT: report,
+  SDSTUDIO_SMOKE_WORKSPACE: mock,
+  SDSTUDIO_SMOKE_SKIP_SINGLETON: '1',
+  SDSTUDIO_SMOKE_AUTH_UI: authMode ? '1' : '0',
+};
+if (authMode) delete childEnv.SDSTUDIO_USER_DATA_DIR;
 const child = spawn(
-  path.join(directory, 'sdstudio'),
-  ['--inspect-brk=127.0.0.1:0', '--ozone-platform=x11', '--disable-gpu'],
-  {
-    env: {
-      ...process.env,
-      XDG_CONFIG_HOME: original,
-      SDSTUDIO_USER_DATA_DIR: path.join(root, 'isolated'),
-      SDSTUDIO_MOCK_BACKEND: mock,
-      SDSTUDIO_OFFLINE: '1',
-      SDSTUDIO_SMOKE_REPORT: report,
-      SDSTUDIO_SMOKE_WORKSPACE: mock,
-      SDSTUDIO_SMOKE_SKIP_SINGLETON: '1',
-    },
-    stdio: ['ignore', 'inherit', 'pipe'],
-  },
+  path.join(directory, require('../../package.json').build.executableName),
+  [
+    '--inspect-brk=127.0.0.1:0',
+    '--ozone-platform=x11',
+    '--disable-gpu',
+    ...(authMode ? ['--password-store=basic'] : []),
+  ],
+  { env: childEnv, stdio: ['ignore', 'inherit', 'pipe'] },
 );
 // The inspector is bound to loopback on an ephemeral port; only the test harness
 // is injected before entry. Package files and app.isPackaged stay unchanged.
@@ -127,10 +133,16 @@ child.on('exit', (code) => {
     return;
   }
   const data = JSON.parse(fs.readFileSync(report));
+  const forkDirectory = path.join(original, 'SDStudio-HyunnJg');
+  const profileIsolated = authMode
+    ? JSON.stringify(fs.readdirSync(original)) ===
+        JSON.stringify(['SDStudio-HyunnJg']) &&
+      data.authUI?.profile === forkDirectory
+    : fs.readdirSync(original).length === 0;
   data.packageContext = {
     isPackaged: setupInfo?.isPackaged,
     archiveUnchanged: archiveHash() === beforeHash,
-    profileIsolated: fs.readdirSync(original).length === 0,
+    profileIsolated,
     inspectorInjectedHarness: true,
   };
   fs.writeFileSync(report, JSON.stringify(data, null, 2));
@@ -138,12 +150,13 @@ child.on('exit', (code) => {
     data.error ||
     !data.ready ||
     (mock === '1' && !data.workspace) ||
-    (mock === '0' && data.blockedOperations?.length !== 5) ||
+    (mock === '0' && !authMode && data.blockedOperations?.length !== 5) ||
+    (authMode && !data.authUI) ||
     !setupInfo?.isPackaged ||
     !data.packageContext.archiveUnchanged ||
     data.externalRequests.length ||
     data.rendererErrors.length ||
-    fs.readdirSync(original).length
+    !profileIsolated
   )
     process.exitCode = 1;
   process.stdout.write('Packaged smoke report: ' + report + '\n');

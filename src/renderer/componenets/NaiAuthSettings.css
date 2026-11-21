@@ -1,0 +1,88 @@
+.nai-auth {
+  box-sizing: border-box;
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  border: 1px solid #8d99a8;
+  border-radius: 12px;
+  padding: 20px;
+  color: #192535;
+  background: #f7f9fc;
+  line-height: 1.6;
+}
+.dark .nai-auth {
+  color: #eef3fa;
+  background: #192535;
+}
+.nai-auth::backdrop {
+  background: #0009;
+}
+.nai-auth header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.nai-auth h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+.nai-auth p {
+  margin: 10px 0;
+  overflow-wrap: anywhere;
+}
+.nai-auth fieldset {
+  border: 1px solid #8291a5;
+  border-radius: 8px;
+  padding: 12px;
+}
+.nai-auth input[type='password'] {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid #8291a5;
+  border-radius: 6px;
+}
+.nai-auth .nai-choice {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0;
+}
+.nai-auth button {
+  padding: 8px 12px;
+  border: 1px solid #72839a;
+  border-radius: 6px;
+  min-height: 40px;
+}
+.nai-auth button:focus-visible,
+.nai-auth input:focus-visible {
+  outline: 3px solid #2894f3;
+  outline-offset: 2px;
+}
+.nai-auth button:disabled,
+.nai-auth fieldset:disabled {
+  opacity: 0.55;
+}
+.nai-auth .nai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.nai-auth [role='alert'] {
+  color: #bf2547;
+}
+.dark .nai-auth [role='alert'] {
+  color: #ff9eb6;
+}
+.nai-auth .nai-confirm {
+  border: 1px solid #bf2547;
+  padding: 10px;
+  margin-top: 12px;
+}
+.nai-auth .nai-confirm button + button {
+  margin-left: 8px;
+}

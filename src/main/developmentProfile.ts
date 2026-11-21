@@ -40,6 +40,7 @@ export function initializeDevelopmentProfile(
   app: ProfileApp,
   directory: string | undefined,
   platform = process.platform,
+  protectedNames = [app.getName(), 'sdstudio', 'SDStudio'],
 ): DevelopmentProfile {
   if (directory === undefined) {
     const original = app.getPath('userData');
@@ -63,11 +64,7 @@ export function initializeDevelopmentProfile(
   };
   const candidate = compare(selected);
   const appData = app.getPath('appData');
-  const originals = [
-    path.join(appData, app.getName()),
-    path.join(appData, 'sdstudio'),
-    path.join(appData, 'SDStudio'),
-  ];
+  const originals = protectedNames.map((name) => path.join(appData, name));
   originals.forEach((existing) => {
     const originalPath = compare(existing);
     const overlaps = (parent: string, child: string) => {

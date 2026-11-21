@@ -1,0 +1,85 @@
+{
+  "date": "2026-11-21",
+  "baseCommit": "0282db137656476d41feb74815a0bbbb4616e1d7",
+  "runtimeSourceCommit": "e64d205ad06c5e82218f7957a62894c782effe44",
+  "platform": "linux-x64",
+  "node": "22.4.1",
+  "electron": "26.6.10",
+  "python": "3.12.14",
+  "tests": {
+    "forkIdentity": 3,
+    "authUiInputAndMessages": 3,
+    "naiMain": 19,
+    "offline": 11,
+    "profile": 13,
+    "startup": 4,
+    "naiContract": 10,
+    "workspace": 14,
+    "bundleNotices": 3,
+    "licenseEvidence": 5,
+    "profileElectron": 2,
+    "startupElectron": 1,
+    "naiMainElectron": {
+      "tests": 1,
+      "checks": 8
+    },
+    "defaultProfileAuthUi": 8,
+    "offlineAuthUi": 3,
+    "actualPackageAuthUi": 8,
+    "actualPackageWorkspace": 17,
+    "actualPackagePreviewAuth": 3
+  },
+  "build": {
+    "main": "pass",
+    "preload": "pass",
+    "renderer": "pass",
+    "linuxDirectoryPackage": "pass",
+    "nativeRebuildSkipped": "existing Electron 26.6.10 modules reused",
+    "strictScopedTypes": "pass",
+    "scopedLint": "pass"
+  },
+  "identity": {
+    "name": "SDStudio-HyunnJg",
+    "appId": "io.github.hyunnjg.sdstudio",
+    "executable": "sdstudio-hyunnjg",
+    "userData": "appData/SDStudio-HyunnJg",
+    "automaticTokenMigration": false
+  },
+  "realCredentialsUsed": false,
+  "authenticatedOrGenerationApiCalls": 0,
+  "publicReleasePublished": false,
+  "artifacts": {
+    "2026-11-21-auth-settings-offline-ui.json": {
+      "sha256": "6c9df6a2902bb0d341bd2ce7c52bfe8f7c7fb3204afd944d576a61b390e76137",
+      "bytes": 759
+    },
+    "2026-11-21-auth-settings-package-workspace.json": {
+      "sha256": "8de8058f1c6378aac3f6f6c3c3c6dc4f6a84e6097c9ecc96ea2446b5a90702d7",
+      "bytes": 3131
+    },
+    "2026-11-21-auth-settings-package-ui.json": {
+      "sha256": "f9453f0ed6c1999595dd92b40b9cd611b1c541d36b83d696447f3a7a9121adbc",
+      "bytes": 1258
+    },
+    "2026-11-21-auth-settings-notices.json": {
+      "sha256": "6947b6bd06853ac87de782e88b10fe0c591f20e8d45d8a2aa2a68c2664ed337c",
+      "bytes": 1867
+    },
+    "2026-11-21-auth-settings-default-ui.json": {
+      "sha256": "637316d7062e59db834d4baf04c708b5f93d34fb8bb5db897b93d3723df70a7d",
+      "bytes": 1140
+    },
+    "auth-settings-desktop.png": {
+      "sha256": "7ba98b29b5731f55bea0e40b9562de11eacd4dc6586b2e066ee27f635aba3d58",
+      "bytes": 107579
+    }
+  },
+  "limitations": [
+    "Actual Linux secure-keyring persistence not exercised: basic_text rejected and persistent option disabled. Crypto fixtures remain synthetic.",
+    "Windows/macOS, file URL drive-letter casing and signed app keychain continuity not exercised.",
+    "Inspector harness injects only test code and simulates single-instance lock; not a hardened release-fuse validation.",
+    "Model ID/required parameters and modern project persistence/generation remain unbound.",
+    "Existing whole-repository TS2688 record retained; scoped types passed.",
+    "Current default fork profile uses isolation rules including saveLocation bypass."
+  ]
+}

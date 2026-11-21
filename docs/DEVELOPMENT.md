@@ -116,3 +116,12 @@ P1-01b 작업실에서는 씬별 입력을 편집한 뒤 `전체 씬 예약` →
 - `npm run test:nai-main`: 합성 토큰·암호화 공급자/요청기로 보관·복구·취소·오류를 검사한다. 실제 자격증명은 불필요하다.
 - `npm run build:main` 후 `npm run test:nai-main:electron`: Linux X11 DISPLAY가 필요하다. 임시 appData/userData, compiled preload, 불안전 키링 거부와 세션의 네트워크 차단/루프백 응답을 확인한다. `SDSTUDIO_TEST_ELECTRON_ARGS`는 기존 테스트와 같은 JSON 배열이다. 자동으로 sandbox를 해제하지 않는다.
 - UI에서 실제 토큰을 입력/검증하거나 생성하는 기능은 아직 켜지 않았다. [범위·기한·복구](NAI_AUTH_TRANSPORT.md).
+
+
+## 포크 기본 프로필과 토큰 설정 (P0-03b2 일부)
+
+- 내부 이름/productName: SDStudio-HyunnJg. appId: io.github.hyunnjg.sdstudio. Linux 실행 파일: sdstudio-hyunnjg. 기본 userData: appData/SDStudio-HyunnJg. 이름·경로·ID는 토큰 보관 이후 유지한다.
+- 첫 import에서 이름과 네 경로를 고정한다. 기본 프로필도 개발 격리 규칙을 사용하므로 기본 오프라인이며 config.saveLocation은 무시한다. 원본이나 초기 개발 프로필을 자동 이관하지 않는다. 기존 명시적 SDSTUDIO_USER_DATA_DIR 사용은 유지한다.
+- API 토큰 창은 새/기존 데스크톱 화면에서 열린다. 오프라인/mock에서는 입력·조회가 비활성이다. 명시적으로 온라인을 선택하려면 SDSTUDIO_OFFLINE=0을 사용한다. 예: Linux의 `SDSTUDIO_OFFLINE=0 npm run start:isolated`. 새 토큰은 기존 V3 로그인과 별도이고 새 모델 생성은 준비 중이다.
+- `npm run test:identity`, `npm run test:auth-ui`, `npm run test:nai-main`은 합성 단위 검사다. `npm run smoke:auth-ui` / `npm run smoke:auth-ui -- offline`은 Linux X11·빌드된 main/preload/renderer가 필요하다. synthetic appData를 만들고 네트워크 차단 하네스에서 합성 토큰 UI를 조작한다.
+- `npm run smoke:package -- /absolute/linux-unpacked auth`는 실제 패키지의 기본 포크 경로·인증 화면을 같은 폐쇄된 환경에서 검사한다. 기본 mock/real 검사도 유지한다. inspector 주입·잠금 모의 한계는 이전과 같고 앱 아카이브 바이트는 바꾸지 않는다.

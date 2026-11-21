@@ -94,3 +94,8 @@
 ## P0-03b1 신규 인증·전송
 
 `src/main/nai/`는 토큰 보관·새 인증 IPC·오류 코드와 전송기를 분리한다. main.ts는 ready/초기화 후 인증 IPC를 등록하고 preload는 토큰을 반환하지 않는 별도 facade를 제공한다. 생성 경로에는 전송기를 아직 연결하지 않는다. `offlineNetwork.ts`는 기존 defaultSession 차단을 재사용하며, 전송기는 같은 세션을 명시한다. 새 Node HTTP 클라이언트/partition을 추가하지 않았다. 전송 경로 추가를 정적 tripwire 목록에 기록했고 실제 Electron 차단도 검사한다. [상세 경계](NAI_AUTH_TRANSPORT.md).
+
+
+## 포크 식별·인증 화면
+
+`appIdentity.ts`와 `main/forkProfile.ts`가 bootstrap에서 기본 포크 경로를 선택한다. 기존 중첩/링크 검증을 재사용하고 원본 이름을 보호한다. `NaiAuthSettings.tsx`는 App의 공통 바깥 영역에 있으며 두 화면이 같은 버튼으로 연다. 입력 값은 uncontrolled password DOM 안에만 두고, renderer/auth/tokenInput.ts는 정리·검증/문구만 처리한다. check IPC는 메인 read 이후 상태만 반환한다. 새 모델 전송/저장 타입은 연결하지 않았다.
