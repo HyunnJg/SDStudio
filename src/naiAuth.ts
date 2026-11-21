@@ -15,7 +15,8 @@ export type NaiErrorCode =
   | 'HTTP_ERROR'
   | 'RESPONSE_TOO_LARGE'
   | 'INVALID_IMAGE_RESPONSE'
-  | 'RESPONSE_FORMAT';
+  | 'RESPONSE_FORMAT'
+  | 'RESPONSE_CAPTURE_FAILED';
 
 export interface NaiTokenStatus {
   configured: boolean;
