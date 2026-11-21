@@ -155,7 +155,7 @@ test('session binding, fixed endpoint, no cookies, caller byte snapshot and unch
   assert.equal(f.request.headers.Authorization, 'Bearer synthetic-token');
   assert.deepEqual(f.request.writes, [body]);
   const zip = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0, 255, 33]),
-    r = f.response();
+    r = f.response(200, '  application/zip; charset=binary  ');
   r.emit('data', zip.subarray(0, 3));
   r.emit('data', zip.subarray(3));
   r.emit('end');

@@ -109,7 +109,7 @@ export class NaiTransport {
             }
             if (
               !/^application\/(zip|x-zip-compressed|octet-stream)(;|$)/i.test(
-                String(response.headers['content-type'] || ''),
+                String(response.headers['content-type'] || '').trim(),
               )
             ) {
               finish(new NaiError('HTTP_ERROR', sent, response.statusCode));

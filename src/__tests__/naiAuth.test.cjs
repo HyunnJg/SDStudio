@@ -133,6 +133,7 @@ test('corrupt, future-version and undecryptable files are preserved until explic
     fs.writeFileSync(f.file, text);
     assert.throws(() => a.read(), { code });
     assert.throws(() => a.set('synthetic-new', true), { code });
+    assert.throws(() => a.set('synthetic-new', false), { code });
     assert.equal(fs.readFileSync(f.file, 'utf8'), text);
   }
   fs.rmSync(f.file);

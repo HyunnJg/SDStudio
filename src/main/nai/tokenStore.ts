@@ -100,6 +100,7 @@ export class NaiTokenStore {
     const token = validateToken(value);
     if (typeof remember !== 'boolean') throw new NaiError('INVALID_INPUT');
     if (!remember) {
+      if (fs.existsSync(this.file)) this.envelope();
       this.removeFile(); // Do not resurrect an old persistent token next launch.
       this.memory = token;
       return this.status();
