@@ -99,3 +99,10 @@
 ## 포크 식별·인증 화면
 
 `appIdentity.ts`와 `main/forkProfile.ts`가 bootstrap에서 기본 포크 경로를 선택한다. 기존 중첩/링크 검증을 재사용하고 원본 이름을 보호한다. `NaiAuthSettings.tsx`는 App의 공통 바깥 영역에 있으며 두 화면이 같은 버튼으로 연다. 입력 값은 uncontrolled password DOM 안에만 두고, renderer/auth/tokenInput.ts는 정리·검증/문구만 처리한다. check IPC는 메인 read 이후 상태만 반환한다. 새 모델 전송/저장 타입은 연결하지 않았다.
+
+
+## 다음 시작 연결 모드 (D-028)
+
+main/networkMode.ts가 부트스트랩 뒤 프로필의 비밀 없는 설정을 읽어 current를 고정한다. main.ts의 runtimeOptions와 preload의 runtime은 이 고정값을 사용한다. network-mode-* IPC는 승인된 메인 문서만 허용하며 오프라인에서도 다음 시작 설정을 저장할 수 있다. 토큰 IPC와 실제 네트워크 차단은 재시작 전까지 그대로다.
+
+NetworkModeSettings 화면은 저장과 재시작을 분리한다. restartPreparation은 V3 saveAll을 기다리고 전후에 작업 유무를 확인한다. TaskQueueService의 activeRuns는 stop/clear 이후에도 아직 끝나지 않은 promise를 추적하는 용도이며 큐 순서/생성 정책을 변경하지 않는다. 실제 native relaunch는 중복 요청을 막고 제어된 close 경로를 사용한다. 임시 작업실 상태를 디스크에 저장하는 기능은 아직 없다.
