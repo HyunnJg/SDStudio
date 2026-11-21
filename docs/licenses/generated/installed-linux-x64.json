@@ -1,5 +1,8 @@
 {
-  "formatVersion": 1,
+  "formatVersion": 2,
+  "gitHead": "fd3307b9525121cf5480bbb711f540d766fea93b",
+  "dirty": false,
+  "inputBasis": "tracked set and submodule revisions from index; file bytes from working tree",
   "platform": "linux-x64",
   "purpose": "selected installed files only; not all dependency notices or a built artifact manifest",
   "observations": [

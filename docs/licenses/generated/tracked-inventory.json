@@ -1,14 +1,17 @@
 {
-  "formatVersion": 1,
+  "formatVersion": 2,
+  "gitHead": "fd3307b9525121cf5480bbb711f540d766fea93b",
+  "dirty": false,
+  "inputBasis": "tracked set and submodule revisions from index; file bytes from working tree",
   "purpose": "evidence inventory, not a redistribution approval",
   "sourceFiles": [
     {
       "path": ".erb/scripts/collect-license-evidence.py",
-      "sha256": "fe39dd0272e9f0191b00a0670bfaf3dbbe2f09629c1190b70da56921417e8d3e"
+      "sha256": "1f97fc002643e6f5d2b7727e60647bf36087b74f566f27cbdd4d9aaec01e0da6"
     },
     {
       "path": "package.json",
-      "sha256": "a0594f32248dbf15e8ade17c4bb222835b4be53685e5dd93b62906eed3b16b9e"
+      "sha256": "3bd69d951afb4f9cc94c15d8191a38f664d9618ffe55796344b7c5e0799405a1"
     },
     {
       "path": "release/app/package.json",
@@ -28,8 +31,8 @@
     }
   ],
   "submodules": [
-    "160000 commit dc536b991ef441425ffa2f5e71c2aa90b1daf231\texternals/capacitor-background-mode",
-    "160000 commit 15a114c46349f26866eeddc76387053394be2a0a\tsrc/localai/BiRefNet"
+    "160000 dc536b991ef441425ffa2f5e71c2aa90b1daf231 0\texternals/capacitor-background-mode",
+    "160000 15a114c46349f26866eeddc76387053394be2a0a 0\tsrc/localai/BiRefNet"
   ],
   "buildConfiguration": {
     "files": [
