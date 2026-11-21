@@ -106,3 +106,8 @@
 main/networkMode.ts가 부트스트랩 뒤 프로필의 비밀 없는 설정을 읽어 current를 고정한다. main.ts의 runtimeOptions와 preload의 runtime은 이 고정값을 사용한다. network-mode-* IPC는 승인된 메인 문서만 허용하며 오프라인에서도 다음 시작 설정을 저장할 수 있다. 토큰 IPC와 실제 네트워크 차단은 재시작 전까지 그대로다.
 
 NetworkModeSettings 화면은 저장과 재시작을 분리한다. restartPreparation은 V3 saveAll을 기다리고 전후에 작업 유무를 확인한다. TaskQueueService의 activeRuns는 stop/clear 이후에도 아직 끝나지 않은 promise를 추적하는 용도이며 큐 순서/생성 정책을 변경하지 않는다. 실제 native relaunch는 중복 요청을 막고 제어된 close 경로를 사용한다. 임시 작업실 상태를 디스크에 저장하는 기능은 아직 없다.
+
+
+## 제한된 메인 이미지 응답
+
+main/nai/imageResponse.ts는 단일 엔트리 ZIP의 헤더/디렉터리/descriptor를 먼저 검증한 뒤 Node zlib 스트림의 실제 출력을 제한한다. CRC·PNG 구조 검사 후 바이트를 반환하며 파일 추출/저장이나 픽셀 재인코딩은 없다. transport.sendImage는 같은 전송 기한과 취소 신호를 전달한다. 이 경로는 하네스의 합성/루프백 응답으로 검증했으며 실제 앱의 모델/생성 IPC에는 아직 연결하지 않았다. 렌더러 readPreviewPNGZip은 기존 오프라인 fixture용으로 남는다.

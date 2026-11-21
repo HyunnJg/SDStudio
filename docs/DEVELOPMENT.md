@@ -141,3 +141,10 @@ npm run smoke:network-mode -- /absolute/linux-unpacked
 ```
 
 두 번째 명령은 Linux X11과 실제 directory package가 필요하다. inspector는 루프백에만 열고 앱 번들 밖 하네스를 주입한다. 두 번의 실제 native relaunch를 관찰하며 앱 파일은 변경하지 않는다. Unix 소켓 제한 환경에서는 하네스의 단일 인스턴스 잠금 모의 처리를 사용한다. [검증 범위](validation/2026-11-21-network-mode.md).
+
+
+## 메인 ZIP·PNG 응답 검증
+
+`npm run test:nai-response`는 합성 PNG/ZIP로 크기 위조·CRC·손상·취소·기한과 sendImage의 서버 처리 불확실성을 검사한다. `npm run test:nai-main:electron`은 X11에서 실제 Electron net.request의 루프백 응답도 검사한다. 두 경로 모두 실제 자격증명을 쓰지 않는다. sendImage는 향후 신규 모델 연결용 내부 함수이며 기존 V3 생성 저장/PNG 경로를 대체하지 않는다.
+
+기존 V3 로그인은 이메일·비밀번호로 받은 토큰을 평문 TOKEN.txt에 보관한다. 새 API 토큰 창과 별도임을 환경설정/상단에 표시한다. 온라인 선택 자체가 신규 모델 생성 연결 완료나 서버 인증 성공을 뜻하지 않는다.

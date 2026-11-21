@@ -29,6 +29,7 @@ const { createNaiTransport } = require('../../src/main/nai/electronTransport');
 const { installOfflineRequestGuard } = require('../../src/main/offlineNetwork');
 const report = {
   electron: process.versions.electron,
+  node: process.versions.node,
   platform: process.platform,
   syntheticCredentialsOnly: true,
   checks: [],
@@ -301,6 +302,7 @@ app
       { code: 'REDIRECT' },
     );
     assert.equal(requests, 4);
+    report.loopbackRequests = requests;
     report.checks.push('real HTTP redirect is rejected without following');
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
