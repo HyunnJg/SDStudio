@@ -7,10 +7,11 @@ import { initializeDevelopmentProfile } from './developmentProfile';
 export function initializeForkProfile(app: App, directory?: string) {
   app.setName(FORK_APP_NAME);
   const explicit = directory !== undefined;
-  return initializeDevelopmentProfile(
+  const profile = initializeDevelopmentProfile(
     app,
     directory ?? path.join(app.getPath('appData'), FORK_APP_NAME),
     process.platform,
     explicit ? undefined : ['sdstudio', 'SDStudio'],
   );
+  return { ...profile, explicit };
 }

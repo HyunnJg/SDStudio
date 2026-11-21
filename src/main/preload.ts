@@ -2,6 +2,7 @@
 /* eslint no-unused-vars: off */
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import type { NaiAuthResult } from '../naiAuth';
+import type { NetworkMode, NetworkModeResult } from '../networkMode';
 
 export type Channels =
   | 'write-file'
@@ -48,6 +49,16 @@ export type Channels =
   | 'lookup-tag';
 
 const electronHandler = {
+  networkMode: {
+    status: (): Promise<NetworkModeResult> =>
+      ipcRenderer.invoke('network-mode-status'),
+    set: (mode: NetworkMode): Promise<NetworkModeResult> =>
+      ipcRenderer.invoke('network-mode-set', mode),
+    reset: (): Promise<NetworkModeResult> =>
+      ipcRenderer.invoke('network-mode-reset'),
+    restart: (): Promise<NetworkModeResult> =>
+      ipcRenderer.invoke('network-mode-restart'),
+  },
   naiAuth: {
     status: (): Promise<NaiAuthResult> => ipcRenderer.invoke('nai-auth-status'),
     setToken: (token: string, remember: boolean): Promise<NaiAuthResult> =>

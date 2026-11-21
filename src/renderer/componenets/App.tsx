@@ -50,6 +50,7 @@ import { appState } from '../models/AppService';
 import { AppContextMenu } from './AppContextMenu';
 import PreviewWorkspace from './PreviewWorkspace';
 import NaiAuthSettings from './NaiAuthSettings';
+import { prepareRestart } from '../network/restartPreparation';
 import {
   createWorkspaceState,
   PreviewRequest,
@@ -393,7 +394,18 @@ export const App = observer(() => {
   );
   return <div className={darkMode ? 'dark' : ''}>
     {content}
-    {authOpen && <NaiAuthSettings onClose={() => setAuthOpen(false)} offline={runtimeOptions.offline} client={window.electron?.naiAuth} />}
+    {authOpen && <NaiAuthSettings onClose={() => setAuthOpen(false)} offline={runtimeOptions.offline} client={window.electron?.naiAuth}
+      networkClient={window.electron?.networkMode}
+      beforeRestart={() => prepareRestart(
+        () => !taskQueueService.isEmpty() ||
+          taskQueueService.hasActiveRun() ||
+          workspaceQueue.getSnapshot().active ||
+          workspaceQueue.getSnapshot().running ||
+          workspaceQueue.getSnapshot().jobs.some(
+            job => job.status === 'pending' || job.status === 'running',
+          ),
+        () => sessionService.saveAll(),
+      )} />}
     <AlertWindow />
     <ConfirmWindow />
     {appState.progressDialog && <ProgressWindow dialog={appState.progressDialog} />}

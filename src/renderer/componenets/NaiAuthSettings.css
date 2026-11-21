@@ -27,6 +27,14 @@
   font-size: 1.2rem;
   font-weight: 700;
 }
+.nai-auth .nai-network {
+  border-bottom: 1px solid #8291a5;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+.nai-auth .nai-network h3 {
+  font-weight: 700;
+}
 .nai-auth p {
   margin: 10px 0;
   overflow-wrap: anywhere;
