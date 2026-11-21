@@ -21,6 +21,7 @@
   "main": "./src/main/main.ts",
   "version": "3.1.11",
   "scripts": {
+    "licenses:evidence": "python3 .erb/scripts/collect-license-evidence.py --installed",
     "profile:check": "node .erb/scripts/isolated-profile.cjs check",
     "start:isolated": "node .erb/scripts/isolated-profile.cjs start",
     "test:profile": "node --test -r ts-node/register/transpile-only src/__tests__/developmentProfile.test.cjs",
