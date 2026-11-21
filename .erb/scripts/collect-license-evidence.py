@@ -92,9 +92,19 @@ def main():
     parser.add_argument('--installed', action='store_true', help='Collect selected installed Linux package evidence too')
     args = parser.parse_args()
     output = Path(args.output).resolve()
-    # The command owns its output directory, but never overwrites repository inputs.
-    if output == ROOT or output in ROOT.parents or output in (ROOT / 'assets', ROOT / 'src', ROOT / 'release'):
-        raise ValueError('Choose a dedicated evidence output directory')
+    # Resolve symlinks before enforcing the repository boundary.
+    allowed = ROOT / 'docs/licenses'
+    if output in ROOT.parents or (output.is_relative_to(ROOT) and
+            (output == allowed or not output.is_relative_to(allowed))):
+        raise ValueError('Inside the repository, output must be below docs/licenses/')
+    if args.installed and (sys.platform != 'linux' or platform.machine() != 'x86_64'):
+        raise ValueError('--installed currently records Linux x64 evidence only')
+    git_head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    dirty = bool(subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=normal'], cwd=ROOT))
+    context = {'gitHead': git_head, 'dirty': dirty,
+               'inputBasis': 'tracked set and submodule revisions from index; file bytes from working tree'}
+    if dirty:
+        print('WARNING: working tree has uncommitted changes; evidence records working-tree bytes.', file=sys.stderr)
     output.mkdir(parents=True, exist_ok=True)
     tracked = subprocess.check_output(['git', 'ls-files', '-z'], cwd=ROOT).decode().split('\0')
     selected = []
@@ -120,8 +130,8 @@ def main():
     requirements = (ROOT / 'src/localai/requirements.txt').read_bytes()
     encoding = 'utf-16' if requirements.startswith((b'\xff\xfe', b'\xfe\xff')) else 'utf-8'
     lines = requirements.decode(encoding).splitlines()
-    links = subprocess.check_output(['git', 'ls-tree', 'HEAD', 'externals/capacitor-background-mode', 'src/localai/BiRefNet'], cwd=ROOT, text=True).splitlines()
-    tracked_report = {'formatVersion': 1, 'purpose': 'evidence inventory, not a redistribution approval',
+    links = subprocess.check_output(['git', 'ls-files', '--stage', '--', 'externals/capacitor-background-mode', 'src/localai/BiRefNet'], cwd=ROOT, text=True).splitlines()
+    tracked_report = {'formatVersion': 2, **context, 'purpose': 'evidence inventory, not a redistribution approval',
                       'sourceFiles': [{'path': name, 'sha256': digest(ROOT / name)} for name in source_paths],
                       'submodules': links, 'buildConfiguration': {key: root_package['build'].get(key) for key in ('files', 'extraResources', 'asarUnpack', 'directories')},
                       'locks': [lock_summary(scope) for scope in ('.', 'release/app', 'src/native')],
@@ -129,8 +139,6 @@ def main():
                       'assets': selected}
     write(output / 'tracked-inventory.json', tracked_report)
     if args.installed:
-        if sys.platform != 'linux' or platform.machine() != 'x86_64':
-            raise ValueError('--installed currently records Linux x64 evidence only')
         notices = output / 'notices'
         notices.mkdir(exist_ok=True)
         targets = [
@@ -160,7 +168,7 @@ def main():
                 observed['evidence'].append({'path': f'{relative}/{filename}', 'available': True,
                                              'sha256': digest(source), 'copy': f'notices/{name}'})
             observations.append(observed)
-        write(output / 'installed-linux-x64.json', {'formatVersion': 1, 'platform': 'linux-x64',
+        write(output / 'installed-linux-x64.json', {'formatVersion': 2, **context, 'platform': 'linux-x64',
               'purpose': 'selected installed files only; not all dependency notices or a built artifact manifest',
               'observations': observations, 'notInstalledHere': ['exiftool-vendored.exe (Windows)'],
               'fullBinaryLicenseReviewComplete': False})
