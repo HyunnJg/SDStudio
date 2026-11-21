@@ -1,0 +1,36 @@
+{
+  "phase": 2,
+  "pids": [
+    325,
+    410,
+    498
+  ],
+  "checks": [
+    "environment-free first package launch is offline and settings are editable",
+    "future network settings require confirmed settings-only reset",
+    "saving online does not unlock current offline IPC or requests",
+    "cancelled restart leaves the process and running mode unchanged",
+    "V3 save failure blocks relaunch without discarding the selected next mode",
+    "stopped and cleared asynchronous V3 run blocks restart until its promise completes",
+    "native relaunch requested only after V3 fixture save",
+    "actual native child reads saved online mode without a mode environment variable",
+    "token input and local check work after restart, with no authentication/generation request",
+    "native relaunch requested only after V3 fixture save",
+    "second native restart restores offline auth and all five dangerous IPC guards",
+    "V3 fixture survives both native restarts"
+  ],
+  "relaunchCalls": 2,
+  "externalRequests": [],
+  "rendererErrors": [],
+  "packaged": true,
+  "profile": "/tmp/sdstudio-mode-journey-CJ0rNz/app-data/SDStudio-HyunnJg",
+  "done": true,
+  "packageContext": {
+    "isPackaged": true,
+    "archiveUnchanged": true,
+    "nativeRestarts": 2,
+    "inspectorInjectedHarness": true,
+    "singleInstanceLockSimulated": true,
+    "originalFixtureUnchanged": true
+  }
+}

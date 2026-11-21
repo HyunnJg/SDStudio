@@ -1,0 +1,86 @@
+{
+  "auth": {
+    "ready": true,
+    "offline": false,
+    "mock": false,
+    "authUI": {
+      "checks": [
+        "paste trimming is disclosed; token is cleared from input and never written in session mode",
+        "local readability check succeeds without claiming server authentication",
+        "cancelling deletion preserves session token",
+        "future-version file is preserved by read and session-mode replacement; recovery guidance is visible",
+        "only confirmed deletion removes unsupported ciphertext",
+        "invalid input is rejected before storage",
+        "390px modal has no horizontal overflow",
+        "close clears unsaved input; modal traps focus and Escape restores the opener"
+      ],
+      "offline": false,
+      "profile": "/tmp/sdstudio-packaged-smoke-Xiy7E4/original/SDStudio-HyunnJg",
+      "width": 390,
+      "realCredentialsUsed": false
+    },
+    "singleInstanceLockSimulated": true,
+    "externalRequests": [],
+    "rendererErrors": [],
+    "packageContext": {
+      "isPackaged": true,
+      "archiveUnchanged": true,
+      "profileIsolated": true,
+      "inspectorInjectedHarness": true
+    }
+  },
+  "mock": {
+    "ready": true,
+    "project": "오프라인 예제",
+    "offline": true,
+    "mock": true,
+    "workspace": {
+      "checks": [
+        "global service dialog remains visible in the new workspace",
+        "model family switches without clearing the draft",
+        "character add/reorder/delete and manual grid",
+        "visible SVG example and seed zero",
+        "length error preserves input",
+        "connection error display",
+        "legacy session unchanged by modern draft",
+        "V3 view round trip preserves draft and results",
+        "theme toggle follows the shared application setting",
+        "character deletion can be undone",
+        "three scenes twice reserve six jobs and stop after the active example",
+        "resume across V3 view, six distinct recorded seeds, and open an earlier result",
+        "model limit warns immediately and add follows active rather than stored count",
+        "queue failure stops and displays a shared global alert",
+        "idle queue collapses automatically and manual collapse restores canvas height",
+        "390px layout has no horizontal overflow and reachable controls",
+        "390px scene queue can reserve, start and stop without horizontal overflow"
+      ],
+      "desktop": "1363x1023",
+      "narrow": "390x844",
+      "simulatedErrors": true,
+      "canvasHeight": {
+        "collapsed": 614,
+        "expanded": 452
+      }
+    },
+    "previewAuth": {
+      "checks": [
+        "offline dialog disables token entry without accessing credentials",
+        "390px modal has no horizontal overflow",
+        "close clears unsaved input; modal traps focus and Escape restores the opener"
+      ],
+      "offline": true,
+      "profile": "/tmp/sdstudio-packaged-smoke-k6AKsI/isolated",
+      "width": 390,
+      "realCredentialsUsed": false
+    },
+    "singleInstanceLockSimulated": true,
+    "externalRequests": [],
+    "rendererErrors": [],
+    "packageContext": {
+      "isPackaged": true,
+      "archiveUnchanged": true,
+      "profileIsolated": true,
+      "inspectorInjectedHarness": true
+    }
+  }
+}

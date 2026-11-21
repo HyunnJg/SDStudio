@@ -144,7 +144,7 @@ app.on('web-contents-created', (_event, contents) => {
       }
       finish(1, { error: 'Renderer loaded but application did not mount' });
     } catch (error) {
-      finish(1, { error: error.message });
+      finish(1, { error: error.message, stack: error.stack });
     }
   });
 });

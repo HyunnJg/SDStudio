@@ -1,0 +1,53 @@
+{
+  "date": "2026-11-21",
+  "timezone": "Asia/Seoul",
+  "base": "0f261e8a05b0c56cb02011a0ce0f4fa52f26fe8f",
+  "sourceCommit": "c116fe3fffe50dae8e70433e031fd0cabd81625f",
+  "sourceTree": "368641eced79680180ff049f3a7df6a9c41f7b63",
+  "buildContext": "Identical source tree built before commit publication; documentation edits present; not a clean checkout/npm ci reproduction.",
+  "environment": {
+    "platform": "linux-x64",
+    "node": "22.4.1",
+    "electron": "26.6.10",
+    "python": "3.12.14",
+    "builder": "24.13.3"
+  },
+  "tests": {
+    "networkMode": 9,
+    "identity": 3,
+    "authUi": 3,
+    "naiMain": 19,
+    "offline": 11,
+    "profile": 13,
+    "startup": 4,
+    "workspace": 14,
+    "contract": 10,
+    "bundleNotices": 3,
+    "licenseEvidence": 5,
+    "profileElectron": 2,
+    "startupElectron": 1,
+    "naiMainElectron": {
+      "tests": 1,
+      "checks": 8
+    },
+    "workspacePackaged": 17,
+    "offlineAuthPackaged": 3,
+    "onlineAuthPackaged": 8,
+    "nativeRestarts": 2
+  },
+  "scopedStrictTypes": true,
+  "scopedLint": true,
+  "productionBuild": true,
+  "linuxDirectoryPackage": true,
+  "archiveSha256": "7dfb0a315593bfc245d1367881e642c4413b2d23f197423dd1a877572ddfe254",
+  "singleInstanceLockSimulated": true,
+  "externalRequests": [],
+  "rendererErrors": [],
+  "realCredentialsUsed": false,
+  "authenticatedRequests": 0,
+  "generationRequests": 0,
+  "publishedRelease": false,
+  "unresolvedNoticeFiles": 8,
+  "windowsMacOsTested": false,
+  "realKeyringSuccessTested": false
+}

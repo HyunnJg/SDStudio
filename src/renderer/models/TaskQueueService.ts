@@ -541,6 +541,7 @@ export class TaskQueueService extends EventTarget {
   groupStats: TaskStats[];
   sceneStats: { [sceneKey: string]: TaskStats };
   currentRun: TaskQueueRun | undefined;
+  private activeRuns = 0;
   taskSet: { [key: string]: boolean };
   constructor(handlers: TaskHandler[]) {
     super();
@@ -620,6 +621,10 @@ export class TaskQueueService extends EventTarget {
     return this.queue.isEmpty();
   }
 
+  hasActiveRun() {
+    return this.activeRuns > 0;
+  }
+
   isRunning() {
     return this.currentRun != undefined;
   }
@@ -644,7 +649,10 @@ export class TaskQueueService extends EventTarget {
         stopped: false,
         delayCnt: this.getDelayCnt(),
       };
-      this.runInternal(this.currentRun);
+      this.activeRuns++;
+      this.runInternal(this.currentRun).finally(() => {
+        this.activeRuns--;
+      });
       this.dispatchEvent(new CustomEvent('start', {}));
     }
   }

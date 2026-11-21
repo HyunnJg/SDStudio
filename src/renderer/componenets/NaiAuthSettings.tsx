@@ -10,14 +10,24 @@ import {
   tokenStatusLabel,
 } from '../auth/tokenInput';
 import './NaiAuthSettings.css';
+import NetworkModeSettings from './NetworkModeSettings';
+import type { NetworkModeClient } from '../../networkMode';
 
 interface Props {
   onClose: () => void;
   offline: boolean;
   client: NaiAuthClient | undefined;
+  networkClient: NetworkModeClient | undefined;
+  beforeRestart: () => Promise<'JOBS_PENDING' | 'SAVE_FAILED' | undefined>;
 }
 
-export default function NaiAuthSettings({ onClose, offline, client }: Props) {
+export default function NaiAuthSettings({
+  onClose,
+  offline,
+  client,
+  networkClient,
+  beforeRestart,
+}: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const alive = useRef(true);
@@ -28,6 +38,7 @@ export default function NaiAuthSettings({ onClose, offline, client }: Props) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [networkBusy, setNetworkBusy] = useState(false);
   const enabled = !!client && !offline;
 
   const run = async (action: () => Promise<NaiAuthResult>, message = '') => {
@@ -58,6 +69,7 @@ export default function NaiAuthSettings({ onClose, offline, client }: Props) {
     const control = input.current;
     const modal = dialog.current;
     modal?.showModal();
+    modal?.focus();
     if (enabled) run(() => client!.status());
     return () => {
       alive.current = false;
@@ -93,19 +105,30 @@ export default function NaiAuthSettings({ onClose, offline, client }: Props) {
     <dialog
       ref={dialog}
       className="nai-auth"
+      tabIndex={-1}
       aria-labelledby="nai-auth-title"
       onCancel={(event) => {
         event.preventDefault();
-        onClose();
+        if (!networkBusy) onClose();
       }}
       data-testid="nai-auth-dialog"
     >
       <header>
         <h2 id="nai-auth-title">NovelAI API 토큰</h2>
-        <button type="button" onClick={onClose} aria-label="토큰 설정 닫기">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={networkBusy}
+          aria-label="토큰 설정 닫기"
+        >
           닫기
         </button>
       </header>
+      <NetworkModeSettings
+        client={networkClient}
+        beforeRestart={beforeRestart}
+        onBusy={setNetworkBusy}
+      />
       <p>
         새 모델 연결용 Persistent API token을 보관합니다. 기존 V3 로그인과는
         별도이며 새 모델 생성은 준비 중입니다. 이 화면에서는 통신하거나 이미지를
@@ -118,7 +141,7 @@ export default function NaiAuthSettings({ onClose, offline, client }: Props) {
         <p>오프라인 모드에서는 토큰을 확인하거나 변경할 수 없습니다.</p>
       )}
       {!client && <p>토큰 보관은 데스크톱 앱에서 사용할 수 있습니다.</p>}
-      <fieldset disabled={!enabled || busy}>
+      <fieldset disabled={!enabled || busy || networkBusy}>
         <legend>새 토큰 보관</legend>
         <p>
           계정 비밀번호가 아닙니다. NovelAI 사용자 설정의 Account에서 Get
@@ -173,7 +196,7 @@ export default function NaiAuthSettings({ onClose, offline, client }: Props) {
       <div className="nai-actions">
         <button
           type="button"
-          disabled={!enabled || busy}
+          disabled={!enabled || busy || networkBusy}
           onClick={() => {
             run(() => client!.status());
           }}
@@ -183,7 +206,7 @@ export default function NaiAuthSettings({ onClose, offline, client }: Props) {
         </button>
         <button
           type="button"
-          disabled={!enabled || busy || !status?.configured}
+          disabled={!enabled || busy || networkBusy || !status?.configured}
           onClick={() => {
             run(
               () => client!.check(),
@@ -196,7 +219,7 @@ export default function NaiAuthSettings({ onClose, offline, client }: Props) {
         </button>
         <button
           type="button"
-          disabled={!enabled || busy || !status?.configured}
+          disabled={!enabled || busy || networkBusy || !status?.configured}
           onClick={() => setConfirmDelete(true)}
           data-testid="nai-auth-delete"
         >
@@ -218,7 +241,7 @@ export default function NaiAuthSettings({ onClose, offline, client }: Props) {
           </button>
           <button
             type="button"
-            disabled={!enabled || busy}
+            disabled={!enabled || busy || networkBusy}
             data-testid="nai-auth-confirm-delete"
             onClick={() => {
               setConfirmDelete(false);

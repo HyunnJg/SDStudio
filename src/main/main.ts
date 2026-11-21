@@ -15,6 +15,7 @@ import { createRuntimeOptions } from '../runtimeOptions';
 import { installOfflineRequestGuard } from './offlineNetwork';
 import { NaiTokenStore } from './nai/tokenStore';
 import { registerNaiAuth, isTrustedAuthFrame } from './nai/authIpc';
+import { NetworkModeSettings, registerNetworkMode } from './networkMode';
 import path from 'path';
 import {
   app,
@@ -64,8 +65,14 @@ if (developmentProfile.active) {
   // electron-log v4 may cache its fallback directory independently of app.setPath.
   log.transports.file.resolvePath = () => path.join(app.getPath('logs'), 'main.log');
 }
+const networkMode = new NetworkModeSettings(
+  path.join(app.getPath('userData'), 'network-mode.v1.json'),
+  developmentProfile.explicit,
+  process.env,
+);
 const runtimeOptions = createRuntimeOptions(
-  process.env, developmentProfile.active,
+  { ...process.env, SDSTUDIO_OFFLINE: networkMode.current === 'offline' ? '1' : '0' },
+  developmentProfile.active,
 );
 const requireOnline = () => {
   if (runtimeOptions.offline) {
@@ -847,6 +854,7 @@ const createWindow = async () => {
   });
 
   mainWindow.on('close', (e) => {
+    if (networkMode.restarting) return; // UI already awaited saveAll before relaunch.
     if (saveCompleted) {
       e.preventDefault();
     } else {
@@ -970,6 +978,17 @@ if (!gotTheLock) {
         (event) => isTrustedAuthFrame(
           event, mainWindow?.webContents, resolveHtmlPath('index.html'),
         ),
+      );
+      registerNetworkMode(
+        ipcMain,
+        networkMode,
+        (event) => isTrustedAuthFrame(
+          event, mainWindow?.webContents, resolveHtmlPath('index.html'),
+        ),
+        () => {
+          app.relaunch();
+          setImmediate(() => app.quit());
+        },
       );
       app.on('before-quit', () => tokenStore.lock());
       await createWindow();
