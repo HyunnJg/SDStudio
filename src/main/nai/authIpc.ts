@@ -1,0 +1,58 @@
+import type { IpcMain, IpcMainInvokeEvent, WebContents } from 'electron';
+import type { NaiAuthResult } from '../../naiAuth';
+import { NaiError } from './errors';
+import { NaiTokenStore } from './tokenStore';
+
+export function isTrustedAuthFrame(
+  event: IpcMainInvokeEvent,
+  contents: WebContents | undefined,
+  expectedURL: string,
+): boolean {
+  if (
+    !contents ||
+    event.sender !== contents ||
+    event.senderFrame !== contents.mainFrame
+  )
+    return false;
+  try {
+    const actual = new URL(event.senderFrame.url);
+    const expected = new URL(expectedURL);
+    return (
+      actual.protocol === expected.protocol &&
+      actual.host === expected.host &&
+      actual.pathname === expected.pathname &&
+      !actual.username &&
+      !actual.password
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function registerNaiAuth(
+  ipc: Pick<IpcMain, 'handle'>,
+  store: NaiTokenStore,
+  offline: () => boolean,
+  trusted: (event: IpcMainInvokeEvent) => boolean,
+): void {
+  const handle = (
+    channel: string,
+    action: (...args: unknown[]) => ReturnType<NaiTokenStore['status']>,
+  ) => {
+    ipc.handle(channel, (event, ...args): NaiAuthResult => {
+      try {
+        if (!trusted(event)) throw new NaiError('UNTRUSTED_SENDER');
+        if (offline()) throw new NaiError('OFFLINE');
+        return { ok: true, status: action(...args) };
+      } catch (error) {
+        return {
+          ok: false,
+          code: error instanceof NaiError ? error.code : 'STORE_UNREADABLE',
+        };
+      }
+    });
+  };
+  handle('nai-auth-status', () => store.status());
+  handle('nai-auth-set', (token, remember) => store.set(token, remember));
+  handle('nai-auth-clear', () => store.clear());
+}

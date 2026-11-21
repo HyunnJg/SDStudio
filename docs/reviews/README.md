@@ -37,3 +37,5 @@ docs/reviews/2026-11-20-initial-request.md의 질문을 독립적으로 검토�
 - [PR #7 후속 처리](2026-11-21-pr7-followup.md)
 
 - [PR #8 후속 처리](2026-11-21-pr8-followup.md)
+
+- [PR #9 후속 처리](2026-11-21-pr9-followup.md)
