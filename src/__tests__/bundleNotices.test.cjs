@@ -19,7 +19,13 @@ async function fixture(t) {
   };
   const lock = '{"packages":{}}\n';
   put('package-lock.json', lock);
-  put('LICENSE', fs.readFileSync(path.resolve(__dirname, '../../LICENSE')));
+  put(
+    'LICENSES/electron-react-boilerplate.txt',
+    fs.readFileSync(
+      path.resolve(__dirname, '../../LICENSES/electron-react-boilerplate.txt'),
+    ),
+  );
+  put('CREDITS.md', 'Synthetic credits.\n');
   put('entry.js', 'import {value} from "foo"; console.log(value);');
   for (const name of ['foo', 'bar', 'unused']) {
     put(
@@ -53,7 +59,9 @@ async function fixture(t) {
   );
   put(
     'release/app/node_modules/readme-only/README.md',
-    fs.readFileSync(path.resolve(__dirname, '../../LICENSE')),
+    fs.readFileSync(
+      path.resolve(__dirname, '../../LICENSES/electron-react-boilerplate.txt'),
+    ),
   );
   put(
     '.erb/scripts/notice-package-identity.cjs',
@@ -67,7 +75,9 @@ async function fixture(t) {
   );
   put(
     'release/app/node_modules/missing/types/embedded/LICENSE',
-    fs.readFileSync(path.resolve(__dirname, '../../LICENSE')),
+    fs.readFileSync(
+      path.resolve(__dirname, '../../LICENSES/electron-react-boilerplate.txt'),
+    ),
   );
   put(
     'docs/licenses/APP_LICENSE_STATUS.md',

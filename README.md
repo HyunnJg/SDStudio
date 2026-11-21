@@ -14,7 +14,7 @@
 | [다른 AI와 검토하기](docs/reviews/README.md) | 전달할 요청문과 검토 양식 |
 | [AI 작업 지침](AGENTS.md) | 작은 브랜치·PR·인수인계 규칙 |
 
-원본 기준: `f2088add103ad683a31e0590448e6e5bb4d71556` (`3.1.11` 표기). 원본 코드·이력·크레딧을 보존합니다. `NAI-Auto-Generator`의 코드는 가져오지 않았습니다. 최종 앱 이름과 세부 UI는 미정입니다.
+원본 기준: `f2088add103ad683a31e0590448e6e5bb4d71556` (`3.1.11` 표기). 원본 코드·이력·크레딧을 보존합니다. [원작자·출처](CREDITS.md)와 [고지 확인 범위](docs/licenses/APP_LICENSE_STATUS.md)를 함께 제공합니다. `NAI-Auto-Generator`의 코드는 가져오지 않았습니다. 최종 앱 이름과 세부 UI는 미정입니다.
 
 ---
 

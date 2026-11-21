@@ -7,7 +7,7 @@
 
 초기 조상 `7091c9135bf0ddd29710e78f907906db96ea4975`의 LICENSE를 찾았다. 원문은 **Copyright (c) 2015-present Electron React Boilerplate**가 적힌 MIT 고지다. 같은 이력의 `fb2582c02ef184eac8a7b441075660d20151ab93`에서 삭제되었다. 두 커밋이 고정 원본 f2088의 조상임을 확인했다.
 
-루트 LICENSE를 이 원문 그대로 복원했다. [고정 upstream 파일](https://github.com/sunho/SDStudio/blob/7091c9135bf0ddd29710e78f907906db96ea4975/LICENSE)과 SHA-256 `5e98c15fe806a18f79422d2cd0c4587129f4e03081b5ab4c030627d6f6840d68`까지 같다. Sunho Kim의 별도 저작권 문구/연도를 만들어 넣거나 ERB 표기를 바꾸지 않았다.
+`LICENSES/electron-react-boilerplate.txt`에 이 원문을 그대로 보존한다(PR #9 검토 후 루트에서 이동). [고정 upstream 파일](https://github.com/sunho/SDStudio/blob/7091c9135bf0ddd29710e78f907906db96ea4975/LICENSE)과 SHA-256 `5e98c15fe806a18f79422d2cd0c4587129f4e03081b5ab4c030627d6f6840d68`까지 같다. Sunho Kim의 별도 저작권 문구/연도를 만들어 넣거나 ERB 표기를 바꾸지 않았다.
 
 이는 역사적 ERB 고지를 보존한 것이다. SDStudio 고유 저작권 문구와 native ISC 전문은 아직 미확인이다. [APP_LICENSE_STATUS.md](APP_LICENSE_STATUS.md)를 고지 묶음에 함께 넣어 이 한계를 명시한다. 앱 package.json의 MIT 선언과 native의 ISC 선언도 그대로다.
 
@@ -23,7 +23,8 @@
 
 패키지에는 다음 경로가 있다.
 
-- `resources/LICENSE`: 복원한 역사적 ERB MIT 원문
+- `resources/LICENSES/electron-react-boilerplate.txt`: 역사적 ERB MIT 원문
+- `resources/CREDITS.md`: 원작자·원본 리비전·포크 출처
 - `resources/THIRD_PARTY_NOTICES/THIRD_PARTY_NOTICES.txt`: 읽을 수 있는 고지 묶음
 - `resources/THIRD_PARTY_NOTICES/index.json`: 컴파일 입력·사본 해시·누락 목록
 - `resources/THIRD_PARTY_NOTICES/APP_LICENSE_STATUS.md`: 앱/고유 모듈의 미확인 범위

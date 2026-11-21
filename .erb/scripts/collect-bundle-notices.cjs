@@ -213,9 +213,18 @@ function collectNotices() {
       })),
     applicationDocuments: [
       {
-        resourcePath: 'LICENSE',
-        source: 'LICENSE',
-        sha256: hash(fs.readFileSync(path.join(root, 'LICENSE'))),
+        resourcePath: 'LICENSES/electron-react-boilerplate.txt',
+        source: 'LICENSES/electron-react-boilerplate.txt',
+        sha256: hash(
+          fs.readFileSync(
+            path.join(root, 'LICENSES/electron-react-boilerplate.txt'),
+          ),
+        ),
+      },
+      {
+        resourcePath: 'CREDITS.md',
+        source: 'CREDITS.md',
+        sha256: hash(fs.readFileSync(path.join(root, 'CREDITS.md'))),
       },
       {
         resourcePath: 'THIRD_PARTY_NOTICES/APP_LICENSE_STATUS.md',
@@ -247,5 +256,6 @@ function collectNotices() {
   );
   return inventory;
 }
-module.exports = collectNotices;
+// electron-builder passes a context; keep it separate from collector options.
+module.exports = () => collectNotices();
 if (require.main === module) collectNotices();

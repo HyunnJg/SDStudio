@@ -4,7 +4,7 @@
 
 ## 현재 단계
 
-**PR #8 보완·병합 / P0-04b2 고지 묶음 생성·실제 포함 검사 완료(미해결 항목 있음).** [고지 범위·검증](licenses/BUNDLE_NOTICES.md). [PR #8 처리](reviews/2026-11-21-pr8-followup.md). [전후 목록·기동](validation/2026-11-21-package-manifest.md). [PR #7 처리](reviews/2026-11-21-pr7-followup.md). [증거·재현](licenses/README.md). [PR #6 처리](reviews/2026-11-21-pr6-followup.md). [검증·화면](validation/2026-11-21-p1-scene-queue.md). [PR #5 처리](reviews/2026-11-21-pr5-followup.md). [화면·검증](validation/2026-11-20-p1-workspace.md), [PR #4 의견 처리](reviews/2026-11-20-pr4-followup.md). [처리 결과](reviews/2026-11-20-pr3-followup.md). [프로필 검증](validation/2026-11-20-p0-profile.md), [추가 검토 처리](reviews/2026-11-20-pr2-followup.md), [오프라인 기동 검증](validation/2026-11-20-p0-offline.md)을 참고한다.
+**PR #9 검토 반영 / P0-04b2 고지 묶음 생성·실제 포함 검사 완료(미해결 항목 있음).** [고지 범위·검증](licenses/BUNDLE_NOTICES.md). [PR #8 처리](reviews/2026-11-21-pr8-followup.md). [전후 목록·기동](validation/2026-11-21-package-manifest.md). [PR #7 처리](reviews/2026-11-21-pr7-followup.md). [증거·재현](licenses/README.md). [PR #6 처리](reviews/2026-11-21-pr6-followup.md). [검증·화면](validation/2026-11-21-p1-scene-queue.md). [PR #5 처리](reviews/2026-11-21-pr5-followup.md). [화면·검증](validation/2026-11-20-p1-workspace.md), [PR #4 의견 처리](reviews/2026-11-20-pr4-followup.md). [처리 결과](reviews/2026-11-20-pr3-followup.md). [프로필 검증](validation/2026-11-20-p0-profile.md), [추가 검토 처리](reviews/2026-11-20-pr2-followup.md), [오프라인 기동 검증](validation/2026-11-20-p0-offline.md)을 참고한다.
 
 | 항목 | 상태 | 근거 |
 | --- | --- | --- |
@@ -24,7 +24,7 @@
 | P1-01b 씬·대기열 | PR #6 보완·병합 / Linux 17시나리오 통과 | 3씬 × 2회, 중지·계속·결과 열기, 시드·공통 알림·테마·삭제 취소 |
 | P0-04a 라이선스 증거 | 검토 반영·상태/경로 5건 통과 | 자산 101파일·3 lock, 폰트 메타데이터 및 OFL 원문, 선택 설치 고지·버전 자료 7개. 배포 허용 판정과 구분 |
 | P0-04b1 실제 패키지 | PR #8 검토 반영 / Linux 전후 기동 통과 | 미사용 폰트·중복 DB·테스트 파일 제외, 전후 각각 17시나리오. 전체 라이선스 조사와 구분 |
-| P0-04b2 고지 묶음 | 구현·검사 / 리뷰 대기 | 244 레코드·250 원문 사본, 실제 경로/번들/112 복사 metadata 확인. 원문 8건과 앱 고유 표기는 미확인 |
+| P0-04b2 고지 묶음 | 검토 반영 / 잔여 출처 확인 유지 | 244 레코드·250 원문 사본, 실제 경로/번들/112 복사 metadata 확인. 원문 8건과 앱 고유 표기는 미확인 |
 | 실제 NovelAI API 생성 | 미실행 | 자격증명 사용 및 과금 없음 |
 | 다른 AI의 독립 검토 | 수령·계획 반영 | [Gemini](reviews/2026-11-20-gemini-initial-review.md), [Claude](reviews/2026-11-20-claude-initial-review.md), [처리 결과](reviews/2026-11-20-review-resolution.md) |
 
@@ -32,7 +32,7 @@
 
 - 기존 장점: 씬별 예약 생성, 이미지 선별, 인페인팅, 프롬프트 조각과 조합. 원본 README와 해당 소스가 존재한다. 현재 환경에서 기능 작동을 검증한 것은 아니다.
 - `src/renderer/backends/genVendors/nai.ts`는 `nai-diffusion-3` 계열을 매핑한다. 공식 V4.5/V5 입력 구조는 별도 초안으로 조사했고 실제 모델 바인딩은 P0-03b다.
-- 고정 원본 f2088 트리에는 독립 LICENSE가 없지만 조상 7091c91에서 ERB MIT 원문을 발견해 복원했다. 앱 고유 저작권 문구는 미확인이다. 루트/배포 패키지는 MIT, 네이티브는 ISC로 표기한다. [확인 범위](LICENSE_REVIEW.md)를 참고한다.
+- 고정 원본 f2088 트리에는 독립 LICENSE가 없지만 조상 7091c91에서 ERB MIT 원문을 발견해 LICENSES/electron-react-boilerplate.txt에 보존한다. 앱 고유 저작권 문구는 미확인이다. 루트/배포 패키지는 MIT, 네이티브는 ISC로 표기한다. [확인 범위](LICENSE_REVIEW.md)를 참고한다.
 - 원본 IP 확인은 온라인 모바일 분기에만 남겼다. 데스크톱에서는 호출·UUID 저장을 하지 않는다. 업데이트는 기본 비활성이고 포크를 참조한다.
 - 업데이트 생성자의 자동 시작을 제거하고 중복 run과 stop을 테스트했다. 오프라인 로컬 AI와 계정/API·다운로드는 실행 전에 거부한다.
 - 격리 프로필에서는 원본 userData 조회 부작용도 피하며 saveLocation을 무시한다. 원본 커스텀 저장 폴더는 자동 탐지하지 않으므로 그 안에 개발 프로필을 만들지 않는다.
@@ -41,8 +41,8 @@
 
 ## 바로 다음 작업
 
-1. **고지 묶음 검토:** 역사적 ERB LICENSE 범위, 컴파일·복사 패키지 추적, 원문 누락 8건 및 패키지 검사를 확인한다.
-2. **P0-04b2:** 남은 DB·그림체/아이콘·바이너리 출처와 원본 고지·조건 이행, DB 제외 필요 시 빈 DB 기동·자동완성 비활성 경로를 확인한다. 배포 OS와 다른 플랫폼 검증도 별도 결정한다.
+1. **P0-03b1:** 메인 인증 저장·오프라인 전송 경계를 합성 데이터로 구현·검증한다. PR #9 검토는 [처리 기록](reviews/2026-11-21-pr9-followup.md), 원본 귀속·개발 지속은 D-024.
+2. **P0-04b2 (배포 정리 시):** 남은 DB·그림체/아이콘·바이너리 출처와 원본 고지·조건 이행, DB 제외 필요 시 빈 DB 기동·자동완성 비활성 경로를 확인한다. 배포 OS와 다른 플랫폼 검증도 별도 결정한다.
 3. **P0-03b:** 모델 ID·필수 파라미터·좌표·인증 및 저장/복구 구현을 확인한 뒤 P1-02 실제 연결로 간다. 종료 저장·기존 데이터·PNG 메타데이터 회귀도 포함한다.
 4. **실기 한계 보완:** Windows/macOS, 실제 단일 인스턴스 잠금, 독립 브라우저 미리보기는 아직 미검증이다.
 

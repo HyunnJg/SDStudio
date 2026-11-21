@@ -335,12 +335,30 @@
       "output": "release/build"
     },
     "extraResources": [
-      { "from": "LICENSE", "to": "LICENSE" },
-      { "from": ".erb/generated/notices", "to": "THIRD_PARTY_NOTICES", "filter": ["**/*"] },
+      {
+        "from": "LICENSES/electron-react-boilerplate.txt",
+        "to": "LICENSES/electron-react-boilerplate.txt"
+      },
+      {
+        "from": "CREDITS.md",
+        "to": "CREDITS.md"
+      },
+      {
+        "from": ".erb/generated/notices",
+        "to": "THIRD_PARTY_NOTICES",
+        "filter": [
+          "**/*"
+        ]
+      },
       {
         "from": "assets",
         "to": "assets",
-        "filter": ["**/*", "!fonts/**", "!db.txt", "!assets.d.ts"]
+        "filter": [
+          "**/*",
+          "!fonts/**",
+          "!db.txt",
+          "!assets.d.ts"
+        ]
       }
     ],
     "publish": {

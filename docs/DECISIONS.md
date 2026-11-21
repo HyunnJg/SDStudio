@@ -162,8 +162,16 @@
 
 ## D-023 — 번들 고지의 추적과 누락을 함께 보존한다 (P0-04b2)
 
-- 초기 조상 7091c91의 ERB MIT LICENSE를 원문 그대로 복원하고 패키지 resources/LICENSE로 제공한다. 이를 미확인 앱 고유 저작권 표기로 바꾸지 않고 APP_LICENSE_STATUS로 범위를 설명한다.
+- 초기 조상 7091c91의 ERB MIT 원문을 보존한다. PR #9 검토 후 LICENSES/electron-react-boilerplate.txt 및 같은 이름의 패키지 resources 경로로 옮겼다. 이를 미확인 앱 고유 저작권 표기로 바꾸지 않고 APP_LICENSE_STATUS로 범위를 설명한다.
 - production 컴파일 모듈/결합 자식과 설치된 복사 런타임·내장 metadata에서 고지를 생성한다. 보수적 컴파일 목록은 tree-shaken 항목을 포함할 수 있다. README에 실제 MIT 허가/보증 배제/저작권 문구가 있을 때 해당 파일 전체를 원문으로 보관하고 발견 기준을 기록한다.
 - 빌드 자산·lock·패키지 metadata가 바뀌면 수집을 거부하고 재빌드를 요구한다. beforePack에서도 재생성해 오래된 고지 묶음의 조용한 사용을 피한다.
 - 패키징 후 JSON은 builder가 정리하므로 source JSON 해시와 name/version/license/author/repository identity 해시를 구분한다. 실제 notice 경로·사본 해시·번들·복사 metadata 대응을 검사한다.
 - 원문 누락은 index에 남기고 --require-notice-files 검사로 검출한다. 현 8건과 앱 고유 표기/native ISC·compiler-generated 추가 귀속·vendor/자산 조건을 전체 재배포 검토 완료로 표시하지 않는다.
+
+
+## D-024 — 원작자 귀속을 보존하고 미확인 항목을 기록하며 개발을 계속한다 (PR #9 검토)
+
+- 사용자는 2026-11-21 원작자 활동 중단 상황에서 원본을 명시하고 존중하며 개발을 계속하도록 결정했다. 원작자 회신을 개발 선행 조건으로 두지 않고 외부 연락도 수행하지 않는다.
+- 역사적 ERB 고지를 프로젝트 전체 허가로 읽히지 않도록 LICENSES/electron-react-boilerplate.txt로 이동한다. 원문 해시·기존 MIT/ISC 선언·원본 Git 이력은 보존한다. CREDITS.md는 원작자, 고정 원본과 포크 출처를 기록하고 패키지에도 포함한다.
+- 사용자 결정은 미확인 라이선스 전문·저작권 연도를 새로 만들어 넣거나 확보한 허가로 표시할 근거가 아니다. 앱 고유/native 고지, MIT 의존성 5개, 내장 타입·예제 metadata 2개는 성격을 나눠 추적하며 엄격 검사 실패를 숨기지 않는다.
+- P0-04 잔여 확인은 기록을 유지하고 기능 개발로 전환한다. 다음 작은 범위는 P0-03b1 메인 인증 저장·전송 경계이며 실제 계정·과금 검증은 별도 범위다.
