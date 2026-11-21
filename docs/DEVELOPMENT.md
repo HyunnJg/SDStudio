@@ -99,3 +99,8 @@ npm run profile:check -- /tmp/sdstudio-dev-profile --ozone-platform=headless --d
 `npm run start:mock`은 브라우저 예제, `npm run start:preview -- /절대/개발프로필`은 Electron 개발 모드다. 새 화면은 mock 전용이며 기존 V3 화면에서 편집한 뒤 다시 미리보기로 돌아올 수 있다. 창을 닫으면 새 초안과 예제는 사라진다. [P1-01 검증과 화면](validation/2026-11-20-p1-workspace.md)을 참고한다.
 
 P1-01b 작업실에서는 씬별 입력을 편집한 뒤 `전체 씬 예약` → `대기열 시작`으로 3씬 × 반복 2회의 기본 예제를 볼 수 있다. `중지`는 현재 예제 완료 후 멈추며 `계속`은 남은 예약만 실행한다. 예약 후 편집은 기존 예약을 바꾸지 않으므로 필요하면 명시적으로 `전체 예약 교체`를 누른다. 기본 시드는 매번 무작위이며 고정 모드에서는 0을 포함한 uint32 시드를 사용한다. 실패 작업은 자동 재시도하지 않는다. 창을 닫으면 씬·예약·결과가 사라진다. [검증·화면](validation/2026-11-21-p1-scene-queue.md).
+
+
+## 로컬 패키지 범위 검사
+
+`package:manifest`는 실제 디렉터리 패키지의 물리 파일과 ASAR 논리 항목을 SHA-256으로 기록한다. `smoke:package`는 Linux X11에서 실제 패키지 바이너리를 격리 오프라인 mock으로 실행한다. 검사 하네스를 loopback inspector로 진입 전에 주입하고 패키지 파일은 수정하지 않는다. 제품 실행·OS 지원/릴리스와 구분한다. [정확한 명령·한계](validation/2026-11-21-package-manifest.md)를 따른다.

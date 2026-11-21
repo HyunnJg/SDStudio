@@ -49,3 +49,10 @@
 추적 자산 101개와 lock 3개의 선언·직접 의존성을 목록화했다. Linux 설치 고지·버전 자료 7개와 패키지 버전을 해시로 보존했고 폰트는 파일 내 name 레코드를 별도 파서와 대조했다. 수집 결과는 전체 배포 허용 목록이 아니다.
 
 P0-04b는 원본/네이티브/배경 모듈/보일러플레이트의 정확한 고지, 태그 데이터·그림체/아이콘/예제 출처, 전이 의존성 전수 고지, LGPL 구성의 소스/재링크 조건, ExifTool 본체 및 Windows exe, 로컬 AI 바이너리·가중치와 실제 패키징 manifest를 다룬다. 출처가 끝내 확인되지 않는 자산의 제외·대체는 기능/기동 영향까지 별도 결정한다.
+
+
+## P0-04b1 실제 포함 범위 정리
+
+[전후 manifest·기동](validation/2026-11-21-package-manifest.md)을 확보했다. 데스크톱은 data/db.csv를 사용하고 Android는 assets/db.txt를 import한다. native/test.js가 읽는 src/native/db.csv도 file: sdsnative 패키지 안에 실제 포함되어 있었으므로 배포 대상이 아니라고 단정하지 않는다.
+
+데스크톱 필터로 미사용 fonts 폴더(TTF/OFL), assets/db.txt와 선언 파일, sdsnative/db.csv/test.js를 제외했다. 원본은 저장소에 남고 필수 data/db.csv는 그대로다. 전체 P0-04b의 나머지는 P0-04b2다. 빈 DB 기동·자동완성 비활성 경로, 남은 데이터/이미지·바이너리 출처와 조건, 다른 OS·실제 배포 조건 확인은 여전히 필요하다.

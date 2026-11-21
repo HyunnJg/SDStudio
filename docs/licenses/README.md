@@ -38,7 +38,7 @@ npm 집계는 lock **항목** 수로, 동일 패키지의 중복 경로나 local
 
 ## 공식 원문과 보존 범위
 
-- Noto 원문: [고정 커밋 ffaec0a의 OFL.txt](https://github.com/notofonts/latin-greek-cyrillic/blob/ffaec0a756877220dbf718ce08b8479a0be82479/OFL.txt). [추가한 원문](../../assets/fonts/OFL.txt). 저작권·문구를 수정하지 않았다. 기존 extraResources의 `assets/**` 아래에 두었으며 새 폰트 적용/교체는 하지 않았다.
+- Noto 원문: [고정 커밋 ffaec0a의 OFL.txt](https://github.com/notofonts/latin-greek-cyrillic/blob/ffaec0a756877220dbf718ce08b8479a0be82479/OFL.txt). [추가한 원문](../../assets/fonts/OFL.txt). 저작권·문구를 수정하지 않았다. P0-04a에서 자산 옆에 원문을 보관했으며 새 폰트 적용/교체는 하지 않았다. P0-04b1 필터는 미사용 fonts 폴더 전체를 데스크톱 산출물에서 제외하고 원본은 유지한다.
 - [SIL OFL 공식 안내](https://openfontlicense.org/open-font-license-official-text/), [ExifTool 공식 자료](https://exiftool.org/), [Perl 라이선스 안내](https://dev.perl.org/licenses/). 최신 일반 안내와 현재 설치 버전의 원문은 구분한다.
 - sharp는 수집한 **0.32.6/실제 vendor 8.14.5 파일**을 근거로 한다. 최신 sharp 설치 문서를 이 구버전의 바이너리 구성으로 간주하지 않는다.
 
@@ -46,10 +46,12 @@ npm 집계는 lock **항목** 수로, 동일 패키지의 중복 경로나 local
 
 두 JSON의 gitHead/dirty는 **수집 직전**의 상태다. 파일 바이트는 작업 트리, 추적 목록·서브모듈 리비전은 index에서 읽는다. dirty이면 경고하되 수정 파일의 해시를 그대로 기록한다. 저장소 내부 출력은 docs/licenses 하위 폴더만 허용하고 심볼릭 링크 우회도 거부한다. 외부 임시 폴더를 쓸 수 있다.
 
-현재 JSON은 보완 소스의 깨끗한 fd3307b 커밋에서 임시 폴더로 먼저 수집한 뒤 복사했다. 스냅샷을 보관한 후속 커밋의 HEAD와 같을 필요는 없다. 같은 조사 입력·상태에서 바이트 단위 재현을 검사한다. 후속 HEAD에서 비교할 때에는 gitHead/dirty와 파일 payload를 분리하고 sourceFiles 해시·목록도 함께 확인한다.
+현재 JSON은 패키징 필터를 반영한 깨끗한 6e2b76b 커밋에서 임시 폴더로 먼저 수집한 뒤 복사했다. PR #7의 이전 스냅샷은 fd3307b 조사 상태였으며 Git 이력에서 확인할 수 있다. 스냅샷을 보관한 후속 커밋의 HEAD와 같을 필요는 없다. 같은 조사 입력·상태에서 바이트 단위 재현을 검사한다. 후속 HEAD에서 비교할 때에는 gitHead/dirty와 파일 payload를 분리하고 sourceFiles 해시·목록도 함께 확인한다.
 
 ## 검사
 
 독립 임시 폴더로 다시 생성한 9개 출력의 SHA-256이 모두 일치했다. TTF 메타데이터는 별도 fontTools 파서와 3종 전체 name 레코드를 대조해 일치했다(수집기 의존성은 아님). 선택한 설치 패키지 3개의 버전은 배포 lock과 일치하고, 고지·버전 자료 7개 복사본은 원본과 바이트/해시가 같다. OFL은 고정 커밋 원문과 일치한다. 앱 빌드·기동·실제 API·과금·패키징은 이 문서/수집기 변경에서 실행하지 않았다. UI 보완의 검증은 [별도 PR #6 기록](../reviews/2026-11-21-pr6-followup.md)이다.
 
 PR #7 보완: 수집기 상태·경로 회귀 5/5, 깨끗한 조사 커밋에서 두 임시 폴더의 9개 산출물 일치. [처리표](../reviews/2026-11-21-pr7-followup.md).
+
+[P0-04b1 실제 포함 범위·제외 전후](../validation/2026-11-21-package-manifest.md): 원본 자산 101개의 존재와 데스크톱 배포 포함 여부를 구분한다. 이제 폰트·Android용 DB·native 테스트 입력은 데스크톱 필터로 제외한다. 남은 라이선스 조건 이행은 P0-04b2다.

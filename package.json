@@ -21,6 +21,8 @@
   "main": "./src/main/main.ts",
   "version": "3.1.11",
   "scripts": {
+    "smoke:package": "node .erb/scripts/smoke-package.cjs",
+    "package:manifest": "node .erb/scripts/inspect-package.cjs",
     "test:licenses": "python3 src/__tests__/licenseEvidence.test.py",
     "licenses:evidence": "python3 .erb/scripts/collect-license-evidence.py --installed",
     "profile:check": "node .erb/scripts/isolated-profile.cjs check",
@@ -274,7 +276,9 @@
       "node_modules",
       "package.json",
       "data",
-      "localai"
+      "localai",
+      "!node_modules/sdsnative/db.csv",
+      "!node_modules/sdsnative/test.js"
     ],
     "afterSign": ".erb/scripts/notarize.js",
     "mac": {
@@ -327,7 +331,11 @@
       "output": "release/build"
     },
     "extraResources": [
-      "./assets/**"
+      {
+        "from": "assets",
+        "to": "assets",
+        "filter": ["**/*", "!fonts/**", "!db.txt", "!assets.d.ts"]
+      }
     ],
     "publish": {
       "provider": "github",
