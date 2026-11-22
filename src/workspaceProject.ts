@@ -78,6 +78,11 @@ export interface ProjectClient {
   ): Promise<ProjectReply<ProjectSnapshot>>;
   history(id: string): Promise<ProjectReply<string[]>>;
   recover(id: string, revision: string): Promise<ProjectReply<ProjectSnapshot>>;
+  copy(
+    id: string,
+    revision: string,
+    content: ProjectContent,
+  ): Promise<ProjectReply<ProjectSnapshot>>;
 }
 export function projectCheck(
   value: unknown,

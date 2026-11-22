@@ -142,7 +142,7 @@ app
       png(),
     );
     const image = generated.project.images[0];
-    store.save(id, generated.revision, edited);
+    store.save(id, generated.revision, { ...edited, name: 'after-image' });
     fs.writeFileSync(
       path.join(profile, 'projects-v1', id, 'project.json'),
       '{synthetic broken',

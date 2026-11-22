@@ -80,7 +80,7 @@ window.imageService = imageService;
 window.taskQueueService = taskQueueService;
 window.loginService = loginService;
 
-backend.onClose(() => {
+if (!window.electron) backend.onClose(() => {
   (async () => {
     await sessionService.saveAll();
     await backend.close();

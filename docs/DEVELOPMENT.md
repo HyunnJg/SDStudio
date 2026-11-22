@@ -245,3 +245,17 @@ npm run test:project:electron
 ```
 
 기존 V3 파일이나 개인 이미지를 입력하지 않는다. 새 IPC는 오프라인에서도 사용할 수 있으나 현재 화면의 저장/열기 버튼은 아직 미연결이다. [저장 형식과 후속 UI 범위](PROJECT_STORAGE.md).
+
+### 프로젝트 조작 화면 검사 (D-039)
+
+```sh
+npm run test:project
+npm run test:project-ui
+# production main/preload/renderer + projectWorker 빌드 후 Linux X11
+npm run smoke:project-ui
+npm run smoke:workspace
+```
+
+smoke:project-ui는 빈 전용 프로필로 실제 Electron을 두 번 실행한다. UI 저장·닫기 취소·남은 잠금 복사·손상 이력 복구 뒤 실제 native close를 완료하고 다음 PID에서 목록을 열어 입력을 복원한다. 환경 단일 인스턴스 잠금만 모의하고 원격 요청을 차단한다. 합성 프로젝트와 임시 파일만 사용하며 종료 후 정리한다. 새 프로젝트 저장은 mock 작업실에서도 별도 IPC로 실제 비공개 프로필에 기록되므로 이전의 “모든 저장 없음” 배지와 구분한다.
+
+production worker는 projectWorker.js를 추가 산출물로 빌드한다. 개발 TS worker에는 기존 루트 ts-node hook 경로를 지정하되 ts-node를 production 번들로 끌어오지 않는다. Node worker 단위 검사와 production Electron UI는 확인했지만 Windows/macOS·ASAR/패키지 실행·전체 dev 서버 재기동은 이번 검증 범위가 아니다.

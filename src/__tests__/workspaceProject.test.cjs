@@ -161,6 +161,15 @@ test('PNG metadata/alpha bytes, explicit model and resolved seed are preserved t
     name: 'renamed',
   });
   assert.deepEqual(after.project.images, result.project.images);
+  const copied = f.store.copy(id, after.revision, {
+    ...f.content,
+    name: 'PNG copy',
+  });
+  assert.notEqual(copied.project.id, id);
+  assert.deepEqual(
+    Buffer.from(f.store.readPNG(copied.project.id, image.sha256)),
+    png(),
+  );
   const recovered = f.store.recover(id, result.revision);
   assert.deepEqual(
     Buffer.from(f.store.readPNG(recovered.project.id, image.sha256)),
@@ -261,7 +270,7 @@ test('profile/project/manifest/image/history symlinks are refused and a leftover
   t.after(() => fs.unlinkSync(alias));
   assert.throws(() => new ProjectStore(alias).list(), code('PROJECT_CORRUPT'));
 });
-test('offline local IPC checks trust before storage and returns fixed codes without paths or raw exceptions', (t) => {
+test('offline local IPC checks trust before storage and returns fixed codes without paths or raw exceptions', async (t) => {
   const f = fixture(t),
     handlers = new Map();
   let trusted = false;
@@ -271,18 +280,21 @@ test('offline local IPC checks trust before storage and returns fixed codes with
     () => trusted,
   );
   for (const handler of handlers.values())
-    assert.deepEqual(handler({}), { ok: false, code: 'PROJECT_UNTRUSTED' });
+    assert.deepEqual(await handler({}), {
+      ok: false,
+      code: 'PROJECT_UNTRUSTED',
+    });
   assert.deepEqual(fs.readdirSync(f.profile), []);
   trusted = true;
-  const created = handlers.get('workspace-project-create')({}, f.content);
+  const created = await handlers.get('workspace-project-create')({}, f.content);
   assert.equal(created.ok, true);
   const id = created.value.project.id;
-  assert.equal(handlers.get('workspace-project-open')({}, id).ok, true);
+  assert.equal((await handlers.get('workspace-project-open')({}, id)).ok, true);
   assert.deepEqual(
-    handlers.get('workspace-project-open')({}, '../../synthetic-private'),
+    await handlers.get('workspace-project-open')({}, '../../synthetic-private'),
     { ok: false, code: 'PROJECT_INPUT' },
   );
-  assert.equal(handlers.size, 6);
+  assert.equal(handlers.size, 7);
   assert.equal(handlers.has('workspace-project-import-png'), false);
 });
 test('V3 fixture files/config/TOKEN remain byte-identical and cannot be silently adopted as a modern project', (t) => {
@@ -353,7 +365,7 @@ test('tampered history is refused before copying and missing result bytes cannot
     imageInput(f.content),
     png(),
   );
-  f.store.save(id, image.revision, f.content);
+  f.store.save(id, image.revision, { ...f.content, name: 'after image' });
   const history = path.join(
     path.dirname(f.file(id)),
     'history',

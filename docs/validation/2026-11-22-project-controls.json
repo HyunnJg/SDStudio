@@ -1,0 +1,191 @@
+{
+  "date": "2026-11-22",
+  "timezone": "Asia/Seoul",
+  "baseCommit": "0a13c31b227be82187903473deeb49c6a8914611",
+  "runtimeCommit": "fda9f812c68a3f57a863c2222915482ba023e4c7",
+  "runtimeTree": "f314331f9a18819170023c3b9b9fdf3dd63fe443",
+  "host": {
+    "node": "22.4.1",
+    "npm": "11.19.1",
+    "platform": "linux-x64",
+    "npmCompatibilityWarning": true
+  },
+  "unit": {
+    "projectStore": 13,
+    "projectController": 5,
+    "projectServiceAndClose": 5,
+    "authTransportMedia": 36,
+    "responseAndInspection": 19,
+    "offline": 11,
+    "workspace": 14,
+    "contract": 10,
+    "networkMode": 10,
+    "total": 123,
+    "failed": 0,
+    "skipped": 0
+  },
+  "performance": {
+    "fixture": "120 records sharing one synthetic 2MiB PNG",
+    "logicalPNGBytes": 251673960,
+    "saveMs": 8.04798900000003,
+    "workerOpenMs": 472.526153,
+    "mainHeartbeat": 88,
+    "pngReadsDuringSave": 0
+  },
+  "projectUI": {
+    "reports": [
+      {
+        "phase": "create",
+        "pid": 40,
+        "projectUI": {
+          "checks": [
+            "explicit UI save preserves the edited selected scene through worker IPC",
+            "new/open dirty guard cancels without losing input and explicit discard restores saved input",
+            "busy save keeps the current input and explicit new copy leaves the original lock untouched",
+            "actual native close waits for unsaved decision; cancel retains the live window",
+            "visible history recovery creates a new copy while the corrupt source stays byte-identical",
+            "390px controls and dialogs stay within the window width"
+          ],
+          "closeWithSave": true
+        },
+        "nativeQuitObserved": true,
+        "ready": true,
+        "project": "오프라인 예제",
+        "offline": true,
+        "mock": true,
+        "singleInstanceLockSimulated": true,
+        "externalRequests": [],
+        "rendererErrors": []
+      },
+      {
+        "phase": "reopen",
+        "pid": 134,
+        "projectUI": {
+          "checks": [
+            "new PID opens saved three-scene input through the project UI"
+          ],
+          "nativeCloseRequested": true
+        },
+        "nativeQuitObserved": true,
+        "ready": true,
+        "project": "오프라인 예제",
+        "offline": true,
+        "mock": true,
+        "singleInstanceLockSimulated": true,
+        "externalRequests": [],
+        "rendererErrors": []
+      }
+    ],
+    "actualAccountRequests": 0,
+    "syntheticOnly": true
+  },
+  "legacyWorkspaceSmoke": {
+    "ready": true,
+    "project": "오프라인 예제",
+    "offline": true,
+    "mock": true,
+    "workspace": {
+      "checks": [
+        "global service dialog remains visible in the new workspace",
+        "model family switches without clearing the draft",
+        "character add/reorder/delete and manual grid",
+        "visible SVG example and seed zero",
+        "length error preserves input",
+        "connection error display",
+        "legacy session unchanged by modern draft",
+        "V3 view round trip preserves draft and results",
+        "theme toggle follows the shared application setting",
+        "character deletion can be undone",
+        "three scenes twice reserve six jobs and stop after the active example",
+        "resume across V3 view, six distinct recorded seeds, and open an earlier result",
+        "model limit warns immediately and add follows active rather than stored count",
+        "queue failure stops and displays a shared global alert",
+        "idle queue collapses automatically and manual collapse restores canvas height",
+        "390px layout has no horizontal overflow and reachable controls",
+        "390px scene queue can reserve, start and stop without horizontal overflow"
+      ],
+      "desktop": "1363x1023",
+      "narrow": "390x844",
+      "simulatedErrors": true,
+      "canvasHeight": {
+        "collapsed": 539,
+        "expanded": 377
+      }
+    },
+    "singleInstanceLockSimulated": true,
+    "externalRequests": [],
+    "rendererErrors": []
+  },
+  "projectBridge": {
+    "electron": "26.6.10",
+    "node": "18.16.1",
+    "syntheticOnly": true,
+    "checks": [
+      "offline listing through compiled sandbox preload creates no project directory",
+      "three-scene save and stale-revision rejection work without token/network IPC",
+      "secondary window cannot access projects",
+      "explicit recovery copies valid history and original PNG into a new project and preserves the broken source",
+      "fresh store reads persisted project while a replacement unapproved document stays denied",
+      "no token file, raw filesystem path API or renderer PNG import endpoint"
+    ],
+    "remoteRequestsAllowed": 0,
+    "remoteRequestsBlocked": 0,
+    "rendererErrors": []
+  },
+  "authTransportBridge": {
+    "electron": "26.6.10",
+    "node": "18.16.1",
+    "platform": "linux",
+    "syntheticCredentialsOnly": true,
+    "checks": [
+      "insecure OS backend refuses persistent storage",
+      "compiled preload IPC stores session token without returning it or writing a file",
+      "offline IPC rejects before accessing token storage",
+      "clear drops session credential",
+      "transport offline gate refuses before reading a token",
+      "Electron net.request is blocked by the production defaultSession webRequest guard",
+      "real loopback response preserves bytes and sends explicit Authorization without cookies",
+      "real Electron ZIP decoding preserves original RGBA and opaque metadata bytes",
+      "default production image transport accepts unknown MIME ZIP without diagnostic capture",
+      "default production image transport accepts absent MIME ZIP without diagnostic capture",
+      "default production image transport rejects HTML without capture or retry",
+      "invalid image response retains zip-eocd internally and mayHaveReachedServer without retry",
+      "real HTTP redirect is rejected without following"
+    ],
+    "remoteRequestsAllowed": 0,
+    "storageBackend": "basic_text",
+    "boundToDefaultSession": true,
+    "events": [
+      "finish",
+      "close",
+      "abort"
+    ],
+    "networkDiagnostic": "net::ERR_BLOCKED_BY_CLIENT",
+    "blockedByDefaultSession": 1,
+    "loopbackRequests": 7,
+    "responseStatus": 200
+  },
+  "checks": {
+    "scopedStrictTypes": true,
+    "scopedLint": true,
+    "cjsSyntax": true,
+    "prettier": true,
+    "mainBuild": true,
+    "rendererBuild": true,
+    "workerBundleBuild": true,
+    "bundleNoticeCollection": true,
+    "noticePackages": 244,
+    "unresolvedNotices": 8
+  },
+  "actualAccountRequests": 0,
+  "notRun": [
+    "Windows/macOS",
+    "ASAR package worker execution/new packaging",
+    "actual online mode relaunch with the new project UI",
+    "full development server Electron restart (TS worker tested under Node)",
+    "macOS same-process reactivation",
+    "power-cut durability or stale-lock forced unlock",
+    "real model/generation/queue persistence",
+    "new authenticated API calls"
+  ]
+}
