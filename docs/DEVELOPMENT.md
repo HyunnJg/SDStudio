@@ -282,3 +282,14 @@ npm run smoke:package -- /absolute/linux-unpacked generation
 smoke:generation은 실제 앱3PID로 생성/취소/PNG 저장 실패 뒤 새 프로젝트 보관, 재열기, 오프라인 PNG 표시와 생성 거부를 확인한다. native net.request의 고정 주소를 테스트만 루프백으로 바꾸고 원격 요청은 차단한다. 공개 결과에는 합성 체크만 남긴다. 실제 key/PNG를 입력하지 않는다. 기본1장은 새 작업실 버튼으로 들어가고, 실제 계정 확인이 필요할 때만 사용자가 앱의 API 토큰 창에 직접 입력한다. 현재 새 UI의 실제 계정 호출은 미검증이다. [조건·오류·버전 호환](WORKSPACE_GENERATION.md).
 
 Windows 첫 전체 앱 확인에는 Node22 기준/VS2022 Build Tools 선택지·npm ci를 먼저 구분하고, packaged 프로젝트 저장/PNG 재열기 및 무응답 창에 붙은 native dialog의 표시 위치·포커스·취소/버리기도 확인한다. Linux GUI 선택 모의가 Windows OS 모달 검증을 대신하지 않는다. 이번에 Windows 설치 문제를 해결하거나 다른 OS 지원 정책을 확정하지 않았다.
+
+
+### PNG 읽기 횟수 회귀 검사 (D-042)
+
+```sh
+npm run test:project-reads
+# 선택 사항: 합성 데이터의 읽기 횟수만 로컬 JSON으로 출력
+SDSTUDIO_PROJECT_READ_REPORT=/tmp/project-reads.json npm run test:project-reads
+```
+
+PowerShell에서는 `$env:SDSTUDIO_PROJECT_READ_REPORT`에 임시 결과 경로를 먼저 지정하고 같은 npm 스크립트를 실행한다. 테스트가 임시 프로필·120개 서로 다른 합성 PNG를 만들고 정리한다. 선택 이미지의 참조/해시/크기, 생성 준비의 리비전/잠금/한도, 저장-only 재시도와 실제 TS worker 경계를 검사한다. 파일 open 횟수 측정이며 256 MiB 지연 benchmark가 아니다. 실제 키·계정 호출은 필요 없다. [실행 기록](validation/2026-11-23-project-reads.md).
