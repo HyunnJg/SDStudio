@@ -13,9 +13,14 @@ interface TransportOptions {
   session: Session;
   offline: () => boolean;
   token: () => string | Promise<string>;
+  // Explicit research-tool opt-in only. Never returned through auth IPC or errors.
+  diagnosticCapture?: (result: {
+    bytes: Uint8Array;
+    truncated: boolean;
+  }) => void;
 }
 
-// No model binding or generation IPC exists yet. Only main-process callers may use this.
+// Production generation IPC/model binding is pending. Research callers stay in main.
 export class NaiTransport {
   private readonly options: TransportOptions;
 
@@ -126,30 +131,25 @@ export class NaiTransport {
             if (settled) return;
             response.on('error', () => finish(new NaiError('NETWORK', sent)));
             response.on('aborted', () => finish(new NaiError('NETWORK', sent)));
-            if (response.statusCode < 200 || response.statusCode >= 300) {
-              finish(new NaiError('HTTP_ERROR', sent, response.statusCode));
-              return;
-            }
-            if (
-              !/^application\/(zip|x-zip-compressed|octet-stream)(;|$)/i.test(
+            const statusError =
+              response.statusCode < 200 || response.statusCode >= 300
+                ? new NaiError('HTTP_ERROR', sent, response.statusCode)
+                : undefined;
+            const responseError =
+              statusError ??
+              (!/^application\/(zip|x-zip-compressed|octet-stream)(;|$)/i.test(
                 String(response.headers['content-type'] || '').trim(),
               )
-            ) {
-              finish(
-                new NaiError('RESPONSE_FORMAT', sent, response.statusCode),
-              );
+                ? new NaiError('RESPONSE_FORMAT', sent, response.statusCode)
+                : undefined);
+            if (responseError && !this.options.diagnosticCapture) {
+              finish(responseError);
               return;
             }
+            const limit = responseError ? 64 * 1024 : 64 * 1024 * 1024;
             const chunks: Uint8Array[] = [];
             let size = 0;
-            response.on('data', (chunk: Buffer) => {
-              if (settled) return;
-              size += chunk.length;
-              if (size > 64 * 1024 * 1024)
-                finish(new NaiError('RESPONSE_TOO_LARGE', sent));
-              else chunks.push(Uint8Array.from(chunk));
-            });
-            response.on('end', () => {
+            const complete = (truncated = false) => {
               if (settled) return;
               const joined = new Uint8Array(size);
               let offset = 0;
@@ -157,8 +157,43 @@ export class NaiTransport {
                 joined.set(chunk, offset);
                 offset += chunk.length;
               });
-              finish(undefined, joined);
+              try {
+                this.options.diagnosticCapture?.({
+                  bytes: Uint8Array.from(joined),
+                  truncated,
+                });
+              } catch {
+                finish(new NaiError('RESPONSE_CAPTURE_FAILED', sent));
+                return;
+              }
+              try {
+                guard();
+              } catch (error) {
+                finish(
+                  error instanceof NaiError
+                    ? error
+                    : new NaiError('NETWORK', sent),
+                );
+                return;
+              }
+              finish(responseError, responseError ? undefined : joined);
+            };
+            response.on('data', (chunk: Buffer) => {
+              if (settled) return;
+              if (size + chunk.length > limit) {
+                if (!responseError) {
+                  finish(new NaiError('RESPONSE_TOO_LARGE', sent));
+                  return;
+                }
+                chunks.push(Uint8Array.from(chunk.subarray(0, limit - size)));
+                size = limit;
+                complete(true);
+              } else {
+                size += chunk.length;
+                chunks.push(Uint8Array.from(chunk));
+              }
             });
+            response.on('end', () => complete());
           });
           request.setHeader('Authorization', `Bearer ${token}`);
           request.setHeader('Content-Type', 'application/json');

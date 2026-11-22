@@ -294,3 +294,77 @@ test('Electron writable finish/close before the HTTP response does not abort a s
   assert.deepEqual(Array.from(await p), [80, 75, 3, 4]);
   assert.equal(f.request.aborted, false);
 });
+
+test('opt-in research capture receives bounded HTTP error bytes before sanitized rejection', async () => {
+  let captured;
+  const f = fixture({
+      diagnosticCapture: (value) => {
+        captured = value;
+      },
+    }),
+    task = f.transport.send(body);
+  await flush();
+  const r = f.response(400, 'application/json');
+  r.emit('data', Buffer.from('synthetic private server response'));
+  r.emit('end');
+  await assert.rejects(task, {
+    code: 'HTTP_ERROR',
+    mayHaveReachedServer: true,
+    httpStatus: 400,
+  });
+  assert.equal(
+    Buffer.from(captured.bytes).toString(),
+    'synthetic private server response',
+  );
+  assert.equal(captured.truncated, false);
+  assert.equal(f.reads, 1);
+});
+test('research HTTP body capture truncates at 64 KiB and never changes default capture-off behavior', async () => {
+  let captured;
+  const f = fixture({
+      diagnosticCapture: (value) => {
+        captured = value;
+      },
+    }),
+    task = f.transport.send(body);
+  await flush();
+  const r = f.response(400, 'application/json');
+  r.emit('data', Buffer.alloc(70000));
+  await assert.rejects(task, {
+    code: 'HTTP_ERROR',
+    mayHaveReachedServer: true,
+  });
+  assert.equal(captured.bytes.length, 65536);
+  assert.equal(captured.truncated, true);
+  assert.equal(f.request.aborted, true);
+});
+test('capture storage failure is sanitized and does not retry or return a successful response', async () => {
+  const f = fixture({
+      diagnosticCapture: () => {
+        throw Error('synthetic private path');
+      },
+    }),
+    task = f.transport.send(body);
+  await flush();
+  const r = f.response();
+  r.emit('data', Buffer.from('PK'));
+  r.emit('end');
+  await assert.rejects(
+    task,
+    (error) =>
+      error.code === 'RESPONSE_CAPTURE_FAILED' &&
+      error.mayHaveReachedServer &&
+      !error.message.includes('private'),
+  );
+  assert.equal(f.reads, 1);
+});
+
+test('research capture callback cannot mutate the returned transport bytes', async () => {
+  const f = fixture({ diagnosticCapture: (value) => value.bytes.fill(0) }),
+    task = f.transport.send(body);
+  await flush();
+  const r = f.response();
+  r.emit('data', Buffer.from([80, 75, 3, 4]));
+  r.emit('end');
+  assert.deepEqual(Array.from(await task), [80, 75, 3, 4]);
+});

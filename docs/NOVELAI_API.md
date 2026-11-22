@@ -118,3 +118,10 @@ P0-03b: 정확한 API 모델 ID와 action/params_version, 모델별 sampler/nois
 main/nai/transport.sendImage와 imageResponse.ts로 제한 ZIP 해제·CRC/PNG 구조·원본 바이트 보존·공유 기한/취소 경계를 구현했다. 실제 NovelAI 호출/모델 바인딩은 없다. 단일 엔트리 응답 형식과 한도는 우리 정책이며 서버 호환을 확정한 값이 아니다. fixture용 readPreviewPNGZip과 구분한다. [검증](validation/2026-11-21-image-response.md).
 
 같은 날 공식 doc.json을 다시 열었지만 image.ImageGenerationRequest.model은 여전히 string이며 모델별 ID enum·action/params_version 조합을 확정하지 못했다. 타사 구현의 ID/기본값을 공식 계약으로 옮기지 않는다. [최소 실호출 검증 계획](NAI_LIVE_VALIDATION.md)의 계정·비용 범위가 정해지기 전 실제 인증/생성 호출은 하지 않는다.
+
+
+## P0-03b2 연구 후보 추가 — D-032
+
+공식 스키마에 model ID enum·모델별 action/params_version 기본값이 없는 상태는 유지된다. 이번에는 서버 수락 여부를 조사할 **미확인 연구 fixture** nai-live-candidate.json을 별도 도구에서만 사용한다. nai-diffusion-4-5-full/generate/3, sampler=k_euler_ancestral/noise_schedule=karras 등은 실험 가설이다. 운영 지원 목록이나 UI 기본값으로 등록하지 않는다. 기존 mock 투영의 fixture-… 값은 바꾸지 않는다.
+
+사용자의 실험 위임에 따라 고정 후보 1회를 전송할 도구와 사전 수동 비용 확인/원문 보관을 준비했다. 실제 토큰은 아직 사용하지 않았으며 서버 수락·실제 MIME/ZIP·청구는 미확인이다. 첫 기본 이미지가 성공하더라도 캐릭터 긍정/부정·격자·V5·신규 저장 호환·실제 대기열은 별도 검증한다. [정확한 후보와 실행 조건](NAI_LIVE_VALIDATION.md).
