@@ -5,14 +5,22 @@ import type {
 } from 'electron';
 import { NaiError, validateToken } from './errors';
 import { readNaiImageResponse } from './imageResponse';
+import { describeResponseMediaType } from './responseMediaType';
+import type { ResponseMediaType } from './responseMediaType';
 
 export const IMAGE_ENDPOINT = 'https://image.novelai.net/ai/generate-image';
+
+export interface NaiResponseInfo extends ResponseMediaType {
+  httpStatus?: number;
+}
 
 interface TransportOptions {
   request: (options: ClientRequestConstructorOptions) => ClientRequest;
   session: Session;
   offline: () => boolean;
   token: () => string | Promise<string>;
+  // Optional main-side observation; no body, parameters, token or raw header.
+  observeResponse?: (info: Readonly<NaiResponseInfo>) => void;
   // Research opt-in only; requires capture and subsequent strict ZIP/PNG parsing.
   acceptZipSignature?: boolean;
   // Explicit research-tool opt-in only. Never returned through auth IPC or errors.
@@ -37,7 +45,8 @@ export class NaiTransport {
     timeoutMs = 90000,
   ): Promise<Uint8Array> {
     const deadline = performance.now() + timeoutMs;
-    const response = await this.send(body, signal, timeoutMs);
+    // Image reception may probe ZIP bytes; success always requires the decoder below.
+    const response = await this.sendResponse(body, signal, timeoutMs, true);
     try {
       const remaining = deadline - performance.now();
       if (remaining <= 0)
@@ -57,6 +66,21 @@ export class NaiTransport {
     body: Uint8Array,
     signal?: AbortSignal,
     timeoutMs = 90000,
+  ): Promise<Uint8Array> {
+    return this.sendResponse(
+      body,
+      signal,
+      timeoutMs,
+      !!this.options.diagnosticCapture &&
+        this.options.acceptZipSignature === true,
+    );
+  }
+
+  private sendResponse(
+    body: Uint8Array,
+    signal: AbortSignal | undefined,
+    timeoutMs: number,
+    acceptZipSignature: boolean,
   ): Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
       let settled = false;
@@ -134,27 +158,47 @@ export class NaiTransport {
             if (settled) return;
             response.on('error', () => finish(new NaiError('NETWORK', sent)));
             response.on('aborted', () => finish(new NaiError('NETWORK', sent)));
+            const mediaType = describeResponseMediaType(
+              response.headers['content-type'],
+            );
+            try {
+              this.options.observeResponse?.(
+                Object.freeze({
+                  ...mediaType,
+                  ...(Number.isInteger(response.statusCode) &&
+                  response.statusCode >= 100 &&
+                  response.statusCode <= 599
+                    ? { httpStatus: response.statusCode }
+                    : {}),
+                }),
+              );
+            } catch {
+              // A diagnostic observer cannot change transport success or retry a request.
+            }
             const statusError =
               response.statusCode < 200 || response.statusCode >= 300
                 ? new NaiError('HTTP_ERROR', sent, response.statusCode)
                 : undefined;
             let responseError =
               statusError ??
-              (!/^application\/(zip|x-zip-compressed|octet-stream)(;|$)/i.test(
-                String(response.headers['content-type'] || '').trim(),
-              )
+              (![
+                'application/zip',
+                'application/x-zip-compressed',
+                'application/octet-stream',
+              ].includes(mediaType.mediaType ?? '')
                 ? new NaiError('RESPONSE_FORMAT', sent, response.statusCode)
                 : undefined);
-            if (responseError && !this.options.diagnosticCapture) {
+            let probeSignature =
+              !statusError && !!responseError && acceptZipSignature;
+            if (
+              responseError &&
+              !this.options.diagnosticCapture &&
+              !probeSignature
+            ) {
               finish(responseError);
               return;
             }
             let limit = responseError ? 64 * 1024 : 64 * 1024 * 1024;
-            let probeSignature =
-              !statusError &&
-              !!responseError &&
-              !!this.options.diagnosticCapture &&
-              this.options.acceptZipSignature === true;
             const signature: number[] = [];
             let acceptedByZipSignature = false;
             const chunks: Uint8Array[] = [];
@@ -208,6 +252,9 @@ export class NaiTransport {
                     acceptedByZipSignature = true;
                     responseError = undefined;
                     limit = 64 * 1024 * 1024;
+                  } else if (!this.options.diagnosticCapture) {
+                    finish(responseError);
+                    return;
                   }
                 }
               }

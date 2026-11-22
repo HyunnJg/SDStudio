@@ -319,3 +319,37 @@ test('production renderer/preload cannot read internal image response diagnostic
   };
   roots.forEach(visit);
 });
+
+test('unexpected synchronous post-response failure always clears active state and preserves the consumed attempt', async (t) => {
+  const f = fixture(t, {
+    metadata: () => ({
+      get mediaTypeState() {
+        throw Error('synthetic private failure');
+      },
+    }),
+  });
+  await assert.rejects(f.runner.run(f.evidence), /synthetic private failure/);
+  assert.equal(f.runner.status().canRecordBalance, true);
+  assert.equal(f.runner.status().incomplete, true);
+  await assert.rejects(f.runner.run(f.evidence), { code: 'ALREADY_USED' });
+  assert.deepEqual(f.runner.recordAfterBalance(100), { ok: true });
+  assert.equal(f.sends(), 1);
+});
+test('persisted MIME diagnostics are sanitized again at the private result boundary', async (t) => {
+  for (const value of [
+    'application/x-synthetic; token=private',
+    'bad\r\nprivate',
+  ]) {
+    const f = fixture(t, {
+      metadata: () => ({ mediaTypeState: 'present', mediaType: value }),
+    });
+    const result = await f.runner.run(f.evidence);
+    assert.equal(
+      result.mediaTypeState,
+      value.startsWith('application') ? 'present' : 'invalid',
+    );
+    assert.ok(!JSON.stringify(result).includes('private'));
+    if (value.startsWith('application'))
+      assert.equal(result.mediaType, 'application/x-synthetic');
+  }
+});

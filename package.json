@@ -28,7 +28,7 @@
     "smoke:network-mode": "node .erb/scripts/smoke-network-mode.cjs",
     "test:identity": "node --test -r ts-node/register/transpile-only src/__tests__/forkIdentity.test.cjs",
     "test:auth-ui": "node --test -r ts-node/register/transpile-only src/__tests__/naiAuthUi.test.cjs",
-    "test:nai-main": "node --test -r ts-node/register/transpile-only src/__tests__/naiAuth.test.cjs src/__tests__/naiTransport.test.cjs",
+    "test:nai-main": "node --test -r ts-node/register/transpile-only src/__tests__/naiAuth.test.cjs src/__tests__/naiTransport.test.cjs src/__tests__/naiMediaType.test.cjs",
     "test:nai-main:electron": "node --test src/__tests__/naiMain.electron.cjs",
     "test:bundle-notices": "node --test src/__tests__/bundleNotices.test.cjs",
     "package:check-notices": "node .erb/scripts/check-package-notices.cjs",

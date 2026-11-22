@@ -55,17 +55,17 @@ const options = {
     }
     const archive = new JSZip();
     imageBytes =
-      mode === 'unknown-mime'
+      mode === 'unknown-mime' || mode === 'absent-mime'
         ? png(2, 1, require('node:crypto').randomBytes(80000))
         : png();
     archive.file('image.png', imageBytes);
     const image = await archive.generateAsync({
       type: 'nodebuffer',
       compression: 'DEFLATE',
-      streamFiles: mode === 'unknown-mime',
+      streamFiles: mode === 'unknown-mime' || mode === 'absent-mime',
     });
     payload =
-      mode === 'valid' || mode === 'unknown-mime'
+      mode === 'valid' || mode === 'unknown-mime' || mode === 'absent-mime'
         ? image
         : Buffer.from(
             mode === 'http-error'
@@ -81,14 +81,19 @@ const options = {
       assert.equal(request.headers.cookie, undefined);
       request.on('data', () => {});
       if (mode === 'cancel') return;
-      response.writeHead(mode === 'http-error' ? 400 : 200, {
-        'Content-Type':
-          mode === 'http-error'
-            ? 'application/json'
-            : mode === 'unknown-mime'
-              ? 'application/x-sdstudio-test'
-              : 'application/zip',
-      });
+      response.writeHead(
+        mode === 'http-error' ? 400 : 200,
+        mode === 'absent-mime'
+          ? {}
+          : {
+              'Content-Type':
+                mode === 'http-error'
+                  ? 'application/json'
+                  : mode === 'unknown-mime'
+                    ? 'application/x-sdstudio-test; charset=utf-8'
+                    : 'application/zip',
+            },
+      );
       response.end(payload);
     });
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -254,16 +259,30 @@ const options = {
       assert.equal(requests, 1);
       assert.equal(result.responseCaptured, mode !== 'cancel');
       assert.equal(result.mayHaveReachedServer, true);
-      if (mode === 'valid' || mode === 'unknown-mime') {
+      if (
+        mode === 'valid' ||
+        mode === 'unknown-mime' ||
+        mode === 'absent-mime'
+      ) {
         assert.equal(result.ok, true);
         assert.deepEqual(
           fs.readFileSync(path.join(runner.directory, 'result.png')),
           imageBytes,
         );
         assert.equal(result.zipHeader.method, 8);
-        if (mode === 'unknown-mime') {
+        if (mode === 'unknown-mime' || mode === 'absent-mime') {
           assert.equal(result.zipHeader.flags, 8);
-          assert.equal(result.contentType, 'other');
+          assert.equal(
+            result.contentType,
+            mode === 'unknown-mime' ? 'other' : 'absent',
+          );
+          assert.equal(
+            result.mediaTypeState,
+            mode === 'unknown-mime' ? 'present' : 'absent',
+          );
+          if (mode === 'unknown-mime')
+            assert.equal(result.mediaType, 'application/x-sdstudio-test');
+          else assert.equal(result.mediaType, undefined);
           assert.equal(result.acceptedByZipSignature, true);
           assert.equal(result.captureTruncated, false);
           assert.ok(result.responseBytes > 65536);
@@ -300,9 +319,15 @@ const options = {
         );
         assert.equal(
           replay.status,
-          mode === 'valid' || mode === 'unknown-mime' ? 0 : 1,
+          mode === 'valid' || mode === 'unknown-mime' || mode === 'absent-mime'
+            ? 0
+            : 1,
         );
-        if (mode !== 'valid' && mode !== 'unknown-mime')
+        if (
+          mode !== 'valid' &&
+          mode !== 'unknown-mime' &&
+          mode !== 'absent-mime'
+        )
           assert.equal(JSON.parse(replay.stdout).reason, 'zip-eocd');
         report.checks.push(
           'saved response can be rechecked locally without a second request',

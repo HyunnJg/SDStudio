@@ -252,6 +252,7 @@ app
     });
     // The same real Electron transport now validates the bounded ZIP-to-PNG path.
     let imagePayload = validImage;
+    let imageMime = 'application/zip';
     server.removeAllListeners('request');
     server.on('request', (request, response) => {
       requests++;
@@ -264,7 +265,11 @@ app
         response.writeHead(307, {
           Location: `http://127.0.0.1:${server.address().port}/should-not-follow`,
         });
-      } else response.writeHead(200, { 'Content-Type': 'application/zip' });
+      } else
+        response.writeHead(
+          200,
+          imageMime === undefined ? {} : { 'Content-Type': imageMime },
+        );
       response.end(imagePayload);
     });
     assert.deepEqual(
@@ -280,7 +285,47 @@ app
     report.checks.push(
       'real Electron ZIP decoding preserves original RGBA and opaque metadata bytes',
     );
-    imagePayload = Buffer.from('synthetic invalid image response');
+    for (const mime of [
+      'application/x-sdstudio-test; charset=utf-8',
+      undefined,
+    ]) {
+      imageMime = mime;
+      let observed;
+      assert.deepEqual(
+        Buffer.from(
+          await createNaiTransport(
+            fakeStore,
+            () => false,
+            (info) => {
+              observed = info;
+            },
+          ).sendImage(Buffer.from('{}'), undefined, 5000),
+        ),
+        png(),
+      );
+      assert.equal(observed.mediaTypeState, mime ? 'present' : 'absent');
+      if (mime) assert.equal(observed.mediaType, 'application/x-sdstudio-test');
+      report.checks.push(
+        mime
+          ? 'default production image transport accepts unknown MIME ZIP without diagnostic capture'
+          : 'default production image transport accepts absent MIME ZIP without diagnostic capture',
+      );
+    }
+    imageMime = 'text/html';
+    imagePayload = Buffer.from('<html>synthetic</html>');
+    await assert.rejects(
+      createNaiTransport(fakeStore, () => false).sendImage(
+        Buffer.from('{}'),
+        undefined,
+        5000,
+      ),
+      { code: 'RESPONSE_FORMAT', mayHaveReachedServer: true },
+    );
+    report.checks.push(
+      'default production image transport rejects HTML without capture or retry',
+    );
+    imageMime = 'application/x-sdstudio-test';
+    imagePayload = Buffer.from('PK\x03\x04synthetic invalid image response');
     await assert.rejects(
       createNaiTransport(fakeStore, () => false).sendImage(
         Buffer.from('{}'),
@@ -305,7 +350,7 @@ app
       ),
       { code: 'REDIRECT' },
     );
-    assert.equal(requests, 4);
+    assert.equal(requests, 7);
     report.loopbackRequests = requests;
     report.checks.push('real HTTP redirect is rejected without following');
     server.closeAllConnections();

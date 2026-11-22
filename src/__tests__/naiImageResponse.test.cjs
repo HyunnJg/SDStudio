@@ -1,6 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const zlib = require('node:zlib');
+const { EventEmitter } = require('node:events');
 const JSZip = require('jszip');
 const {
   readNaiImageResponse,
@@ -185,18 +186,46 @@ test('cancellation before and during inflation and the decoding deadline settle 
     rejection('TIMEOUT'),
   );
 });
-test('sendImage preserves request errors and marks decode failures as possibly processed without retry', async (t) => {
-  const transport = new NaiTransport({ offline: () => false });
+function imageTransport(respond) {
+  let requests = 0;
+  const transport = new NaiTransport({
+    offline: () => false,
+    token: () => 'synthetic-token',
+    session: {},
+    request: () => {
+      requests++;
+      const request = new EventEmitter();
+      request.setHeader = () => {};
+      request.write = () => {};
+      request.abort = () => {};
+      request.end = () => respond(request);
+      return request;
+    },
+  });
+  return { transport, requests: () => requests };
+}
+function emitImageResponse(request, bytes, status = 200) {
+  const response = new EventEmitter();
+  response.statusCode = status;
+  response.headers = { 'content-type': 'application/zip' };
+  request.emit('response', response);
+  response.emit('data', bytes);
+  response.emit('end');
+}
+test('sendImage marks decode failures and cancellation after reception as possibly processed without retry', async () => {
   const good = await zip();
-  const send = t.mock.method(transport, 'send', async () => good);
+  let bytes = good;
+  let afterResponse = () => {};
+  const f = imageTransport((request) => {
+    emitImageResponse(request, bytes);
+    afterResponse();
+  });
   assert.deepEqual(
-    Buffer.from(await transport.sendImage(Buffer.from('{}'))),
+    Buffer.from(await f.transport.sendImage(Buffer.from('{}'))),
     png(),
   );
-  send.mock.mockImplementation(async () =>
-    Buffer.from('bad response with synthetic sensitive text'),
-  );
-  await assert.rejects(transport.sendImage(Buffer.from('{}')), (error) => {
+  bytes = Buffer.from('bad response with synthetic sensitive text');
+  await assert.rejects(f.transport.sendImage(Buffer.from('{}')), (error) => {
     assert.equal(error.code, 'INVALID_IMAGE_RESPONSE');
     assert.equal(error.mayHaveReachedServer, true);
     assert.equal(error.message.includes('sensitive'), false);
@@ -204,15 +233,16 @@ test('sendImage preserves request errors and marks decode failures as possibly p
     return true;
   });
   const controller = new AbortController();
-  send.mock.mockImplementation(async () => {
-    controller.abort();
-    return good;
-  });
+  bytes = good;
+  afterResponse = () => controller.abort();
   await assert.rejects(
-    transport.sendImage(Buffer.from('{}'), controller.signal),
-    { code: 'CANCELLED', mayHaveReachedServer: true },
+    f.transport.sendImage(Buffer.from('{}'), controller.signal),
+    {
+      code: 'CANCELLED',
+      mayHaveReachedServer: true,
+    },
   );
-  assert.equal(send.mock.callCount(), 3);
+  assert.equal(f.requests(), 3);
 });
 
 test('unused compressed trailing data and malformed or ZIP64 extra fields cannot hide in a valid archive', async () => {
@@ -249,27 +279,40 @@ test('unused compressed trailing data and malformed or ZIP64 extra fields cannot
   }
 });
 
-test('sendImage shares the original deadline across transport and decoding and preserves pre-response errors', async (t) => {
-  const transport = new NaiTransport({ offline: () => false }),
-    good = await zip();
-  const send = t.mock.method(transport, 'send', async () => {
-    await new Promise((resolve) => setTimeout(resolve, 15));
-    return good;
+test('sendImage deadline includes response waiting and preserves pre-decode HTTP errors', async () => {
+  const good = await zip();
+  const f = imageTransport((request) => {
+    setTimeout(() => emitImageResponse(request, good), 15);
   });
-  await assert.rejects(transport.sendImage(Buffer.from('{}'), undefined, 1), {
+  await assert.rejects(f.transport.sendImage(Buffer.from('{}'), undefined, 1), {
     code: 'TIMEOUT',
     mayHaveReachedServer: true,
   });
-  const { NaiError } = require('../main/nai/errors');
-  const original = new NaiError('HTTP_ERROR', true, 429);
-  send.mock.mockImplementation(async () => {
-    throw original;
+  assert.equal(f.requests(), 1);
+  const consumed = imageTransport((request) => {
+    emitImageResponse(request, good);
+    // Resolve reception, then use the remaining budget before its await resumes.
+    const end = performance.now() + 75;
+    while (performance.now() < end) {
+      /* synthetic main-thread delay */
+    }
   });
   await assert.rejects(
-    transport.sendImage(Buffer.from('{}')),
-    (error) => error === original,
+    consumed.transport.sendImage(Buffer.from('{}'), undefined, 50),
+    {
+      code: 'TIMEOUT',
+      mayHaveReachedServer: true,
+      imageResponseReason: 'response-deadline',
+    },
   );
-  assert.equal(send.mock.callCount(), 2);
+  assert.equal(consumed.requests(), 1);
+  const g = imageTransport((request) => emitImageResponse(request, good, 429));
+  await assert.rejects(g.transport.sendImage(Buffer.from('{}')), {
+    code: 'HTTP_ERROR',
+    mayHaveReachedServer: true,
+    httpStatus: 429,
+  });
+  assert.equal(g.requests(), 1);
 });
 
 test('rejection reasons identify format stages without reflecting input contents', async () => {

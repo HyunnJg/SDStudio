@@ -28,6 +28,7 @@ const {
   ValidationError,
 } = require('../../src/main/nai/liveValidation');
 const { NaiError } = require('../../src/main/nai/errors');
+const { mediaTypeBucket } = require('../../src/main/nai/responseMediaType');
 function start(options = {}) {
   const profile = process.argv[2];
   if (
@@ -101,6 +102,9 @@ function start(options = {}) {
             offline: () => offline,
             token: () => store.read(),
             acceptZipSignature: true,
+            observeResponse: (info) => {
+              metadata = { ...info, contentType: mediaTypeBucket(info) };
+            },
             diagnosticCapture: (result) => {
               capture(result.bytes);
               metadata.truncated = result.truncated;
@@ -108,31 +112,11 @@ function start(options = {}) {
                 result.acceptedByZipSignature === true;
             },
             request: (requestOptions) => {
-              const request = net.request(
+              return net.request(
                 options.synthetic
                   ? { ...requestOptions, url: allowed }
                   : requestOptions,
               );
-              request.on('response', (response) => {
-                const mime = String(response.headers['content-type'] || '')
-                  .trim()
-                  .split(';')[0]
-                  .toLowerCase();
-                metadata = {
-                  httpStatus: response.statusCode,
-                  contentType: [
-                    'application/zip',
-                    'application/x-zip-compressed',
-                    'application/octet-stream',
-                    'application/json',
-                    'text/plain',
-                    'text/html',
-                  ].includes(mime)
-                    ? mime
-                    : 'other',
-                };
-              });
-              return request;
             },
           }),
       });
