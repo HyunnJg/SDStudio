@@ -12,6 +12,7 @@ for (const mode of [
   'http-error',
   'valid',
   'unknown-mime',
+  'absent-mime',
   'cancel',
   'offline',
   'recovery',

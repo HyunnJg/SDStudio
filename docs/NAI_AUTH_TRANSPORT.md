@@ -89,3 +89,11 @@ nai:inspect-response는 명시적으로 고른 일반 파일 하나만 제한해
 연구 entry만 acceptZipSignature를 켠다. capture가 함께 지정된2xx에서 미분류 MIME여도 첫4바이트PK0304가 확인되면64MiB상한으로 수신하고 원문 보관 후 기존 엄격 ZIP/PNG 검사로 넘긴다. ZIP 시작부만으로 성공을 판정하지 않는다. 비2xx·비ZIP·기본 운영 옵션의 즉시 거부/64KiB 진단 prefix 정책은 유지한다. acceptedByZipSignature와 elapsedMs만 정제 결과에 추가하며 원시 MIME/본문/토큰은 IPC 오류에 붙이지 않는다.
 
 결과 기록이 없는 used 프로필도 현재 인스턴스 실행 중이 아니면 후잔액을 남길 수 있다. incomplete/resultRecord=missing을 기록하고 결과를 꾸며내거나 요청을 재개하지 않는다. 다른 프로세스 종료 확인은 사용자 안내이며 그 프로세스의 생존/서버 과금을 판정하는 API가 아니다. [검증](validation/2026-11-22-live-recovery.md).
+
+## 운영 이미지 수신 보완 (D-036, 2026-11-22)
+
+이 절은 위 D-030/D-034 당시의 MIME 정책을 갱신한다. `sendImage()`는 진단 옵션 없이 2xx 미분류/미지정 MIME도 첫 4바이트 ZIP 시작부를 확인해 수신한 뒤 동일한 엄격 ZIP·PNG 검사를 수행한다. 원문 반환용 `send()`는 기존 MIME 기본값과 연구 opt-in을 유지한다. 64 MiB/32 MiB·픽셀/CRC/구조·공유 기한·취소·오프라인 선행 거부와 자동 재시도 금지는 그대로다. 운영 경로는 원문을 자동 저장하지 않는다.
+
+`createNaiTransport`의 선택 observer는 고정 HTTP 상태 범위와 정제 MIME 식별자/상태만 관찰한다. 매개변수는 제거하고 헤더 부재/형식 오류를 구분한다. 관찰 객체는 freeze하며 observer 예외는 전송 결과를 바꾸지 않는다. 연구 도구만 이 관찰을 내용 없는 결과 파일에 연결하고 저장 경계에서도 재검사한다. 제품 렌더러/IPC·일반 로그에는 추가하지 않았다.
+
+사용자 기본1장 성공은 D-035의 한 후보 관찰이며 정확한 MIME은 여전히 모른다. 합성 응답에서 운영 기본 수신이 통과해도 실제 모델·생성 IPC·새 프로젝트·제품 대기열 연결 완료는 아니다. [검증 기록](validation/2026-11-22-production-image-transport.md).

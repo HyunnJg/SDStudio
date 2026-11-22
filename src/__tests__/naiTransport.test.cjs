@@ -477,3 +477,110 @@ test('signature fallback keeps the 64 MiB limit without returning a partial imag
   assert.equal(captured, false);
   assert.equal(f.request.aborted, true);
 });
+
+test('default image operation accepts unknown or absent MIME without capture, then verifies the entire PNG', async () => {
+  const JSZip = require('jszip');
+  const { png } = require('./fixtures/nai/png.cjs');
+  const archive = new JSZip();
+  archive.file('image.png', png());
+  const bytes = await archive.generateAsync({
+    type: 'nodebuffer',
+    compression: 'DEFLATE',
+    streamFiles: true,
+  });
+  for (const mime of ['application/x-synthetic-zip; charset=utf-8', null]) {
+    let info;
+    const f = fixture({
+      observeResponse: (value) => {
+        info = value;
+      },
+    });
+    const task = f.transport.sendImage(body);
+    await flush();
+    const r = f.response(200, mime);
+    r.emit('data', bytes.subarray(0, 2));
+    r.emit('data', bytes.subarray(2));
+    r.emit('end');
+    assert.deepEqual(Buffer.from(await task), png());
+    assert.equal(info.mediaTypeState, mime ? 'present' : 'absent');
+    if (mime) assert.equal(info.mediaType, 'application/x-synthetic-zip');
+    assert.ok(Object.isFrozen(info));
+    assert.equal(f.reads, 1);
+  }
+});
+test('default image operation rejects unknown MIME HTML, HTTP error ZIP, and corrupt ZIP without retry', async () => {
+  for (const item of [
+    {
+      status: 200,
+      data: Buffer.from('<html>private</html>'),
+      code: 'RESPONSE_FORMAT',
+    },
+    { status: 400, data: Buffer.from([80, 75, 3, 4]), code: 'HTTP_ERROR' },
+    {
+      status: 200,
+      data: Buffer.from([80, 75, 3, 4]),
+      code: 'INVALID_IMAGE_RESPONSE',
+    },
+  ]) {
+    const f = fixture();
+    const task = f.transport.sendImage(body);
+    const rejected = assert.rejects(task, {
+      code: item.code,
+      mayHaveReachedServer: true,
+    });
+    await flush();
+    const r = f.response(item.status, 'application/x-synthetic-zip');
+    r.emit('data', item.data);
+    r.emit('end');
+    await rejected;
+    assert.equal(f.reads, 1);
+  }
+});
+test('default image operation keeps size, pre-send offline and cancellation guards', async () => {
+  const f = fixture();
+  const task = f.transport.sendImage(body);
+  const rejected = assert.rejects(task, {
+    code: 'RESPONSE_TOO_LARGE',
+    mayHaveReachedServer: true,
+  });
+  await flush();
+  const r = f.response(200, null);
+  const bytes = Buffer.alloc(64 * 1024 * 1024 + 1);
+  bytes.set([80, 75, 3, 4]);
+  r.emit('data', bytes);
+  await rejected;
+  const off = fixture({ offline: () => true });
+  await assert.rejects(off.transport.sendImage(body), {
+    code: 'OFFLINE',
+    mayHaveReachedServer: false,
+  });
+  assert.equal(off.reads, 0);
+  const controller = new AbortController();
+  controller.abort();
+  const cancelled = fixture();
+  await assert.rejects(cancelled.transport.sendImage(body, controller.signal), {
+    code: 'CANCELLED',
+    mayHaveReachedServer: false,
+  });
+  assert.equal(cancelled.reads, 0);
+});
+test('metadata observer cannot change a request outcome or receive arbitrary headers', async () => {
+  let info;
+  const f = fixture({
+    observeResponse: (value) => {
+      info = value;
+      throw Error('synthetic private observer failure');
+    },
+  });
+  const task = f.transport.send(body);
+  await flush();
+  const r = f.response(200, 'application/zip; private=secret');
+  r.emit('data', Buffer.from([80, 75, 3, 4]));
+  r.emit('end');
+  assert.deepEqual(Array.from(await task), [80, 75, 3, 4]);
+  assert.deepEqual(info, {
+    httpStatus: 200,
+    mediaTypeState: 'present',
+    mediaType: 'application/zip',
+  });
+});

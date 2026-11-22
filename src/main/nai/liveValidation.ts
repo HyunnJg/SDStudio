@@ -6,6 +6,8 @@ import { createHash } from 'crypto';
 import type { NaiTransport } from './transport';
 import { NaiError } from './errors';
 import { readNaiImageResponse, IMAGE_RESPONSE_LIMITS } from './imageResponse';
+import { describeResponseMediaType } from './responseMediaType';
+import type { ResponseMediaType } from './responseMediaType';
 
 export class ValidationError extends Error {
   constructor(readonly code: string) {
@@ -32,6 +34,8 @@ interface Options {
     contentType?: string;
     truncated?: boolean;
     acceptedByZipSignature?: boolean;
+    mediaTypeState?: string;
+    mediaType?: string;
   };
 }
 function integer(value: unknown): value is number {
@@ -165,6 +169,15 @@ export class LiveValidation {
       throw new ValidationError('STORAGE_FAILED');
     }
     this.active = true;
+    try {
+      return await this.runClaimed(fd, signal);
+    } finally {
+      this.active = false;
+    }
+  }
+
+  private async runClaimed(reservedFd: number, signal?: AbortSignal) {
+    let fd = reservedFd;
     const started = performance.now();
     const deadline = started + 90000;
     let reached = false;
@@ -244,14 +257,28 @@ export class LiveValidation {
       contentType?: string;
       truncated?: boolean;
       acceptedByZipSignature?: boolean;
+      mediaTypeState?: string;
+      mediaType?: string;
     } = {};
     try {
       metadata = this.options.metadata?.() ?? {};
     } catch {
       /* Diagnostic observer cannot retry a request. */
     }
+    let mediaType: ResponseMediaType | undefined;
+    if (metadata.mediaTypeState === 'present') {
+      mediaType = describeResponseMediaType(metadata.mediaType);
+      if (mediaType.mediaTypeState !== 'present')
+        mediaType = { mediaTypeState: 'invalid' };
+    } else if (
+      metadata.mediaTypeState === 'absent' ||
+      metadata.mediaTypeState === 'invalid'
+    ) {
+      mediaType = { mediaTypeState: metadata.mediaTypeState };
+    }
     result = {
       ...result,
+      ...mediaType,
       requestHash: this.requestHash,
       responseCaptured: captured,
       responseBytes,
@@ -269,6 +296,8 @@ export class LiveValidation {
         'text/plain',
         'text/html',
         'other',
+        'absent',
+        'invalid',
       ].includes(metadata.contentType ?? '')
         ? { contentType: metadata.contentType }
         : {}),
@@ -282,8 +311,6 @@ export class LiveValidation {
       this.finished = true;
     } catch {
       return { ...result, recordError: 'STORAGE_FAILED' };
-    } finally {
-      this.active = false;
     }
     return result;
   }

@@ -118,3 +118,9 @@ main/nai/imageResponse.ts는 단일 엔트리 ZIP의 헤더/디렉터리/descrip
 일반 main.ts/App/작업실과 별도로 nai-live-entry.cjs가 Electron ready 전에 명시적 외부 테스트 프로필을 선택한다. 저장된 연결 모드·원본 TOKEN.txt·세션은 읽지 않는다. production 프리로드 대신 좁은 validation facade와 기존 신뢰 프레임 검사를 사용한다. 기본 세션은 정확한 생성 HTTPS POST만 허용하고 offline/mock은 IPC와 전송 전에 거부한다. 목적지 치환은 합성 하네스 내부에만 있다.
 
 LiveValidation은 고정 후보의 해시와 수동 웹 비용 근거를 묶고 wx 기록으로 1회를 선점한다. NaiTransport의 선택 diagnosticCapture가 수신 바이트를 먼저 비공개 파일에 남기고 기존 해석기가 검증한다. capture 미지정인 일반 경로는 오류 본문을 폐기한다. 연구 창은 내용 없는 내부 사유를 명시적으로 읽는 진단 도구이며 운영 renderer/preload의 내부 사유 접근은 정적 검사로 금지한다. 결과 PNG/원문 파일은 일반 프로젝트·씬·대기열 저장 형식이 아니다. [실행·한계](NAI_LIVE_VALIDATION.md).
+
+## 운영 이미지 MIME 정책 (D-036)
+
+`NaiTransport.sendImage`는 운영 기본값으로 2xx의 미분류/미지정 MIME을 ZIP 시작부로 선별 수신하고, 기존 제한된 ZIP·PNG 해석을 통과한 원본 PNG만 반환한다. 원문 `send`의 연구 opt-in과 구분한다. 새 Node 네트워크 경로·다른 partition·목적지 옵션을 추가하지 않는다.
+
+메인 전용 `responseMediaType.ts`는 길이 제한/파라미터 제거/형식 검사를 하고 present/absent/invalid를 구분한다. 선택 observer에는 이 결과와 HTTP 상태만 전달하며 연구 결과 파일도 재검사한다. 기존 분류 other를 임의의 실제 MIME으로 치환하지 않는다. 제품 생성 IPC/모델 바인딩·프로젝트 저장·대기열 연결은 아직 후속이다.

@@ -1,0 +1,344 @@
+{
+  "date": "2026-11-22",
+  "timezone": "Asia/Seoul",
+  "baseCommit": "c87380a3db6fd83cc7150320b71a75087df1cfb4",
+  "runtimeCommit": "f364bb9200efa9411a451460f3a7f1ebead065b8",
+  "runtimeTree": "9e7eda5b383dff7d43afd2937ec286f6deba3e34",
+  "host": {
+    "node": "22.4.1",
+    "npm": "11.19.1",
+    "npmCompatibilityWarning": true,
+    "platform": "linux-x64"
+  },
+  "unit": {
+    "authTransportMediaType": 34,
+    "liveValidation": 12,
+    "imageResponseAndInspector": 19,
+    "offlineRuntime": 11,
+    "total": 76,
+    "failed": 0,
+    "skipped": 0
+  },
+  "mainElectron": {
+    "electron": "26.6.10",
+    "node": "18.16.1",
+    "platform": "linux",
+    "syntheticCredentialsOnly": true,
+    "checks": [
+      "insecure OS backend refuses persistent storage",
+      "compiled preload IPC stores session token without returning it or writing a file",
+      "offline IPC rejects before accessing token storage",
+      "clear drops session credential",
+      "transport offline gate refuses before reading a token",
+      "Electron net.request is blocked by the production defaultSession webRequest guard",
+      "real loopback response preserves bytes and sends explicit Authorization without cookies",
+      "real Electron ZIP decoding preserves original RGBA and opaque metadata bytes",
+      "default production image transport accepts unknown MIME ZIP without diagnostic capture",
+      "default production image transport accepts absent MIME ZIP without diagnostic capture",
+      "default production image transport rejects HTML without capture or retry",
+      "invalid image response retains zip-eocd internally and mayHaveReachedServer without retry",
+      "real HTTP redirect is rejected without following"
+    ],
+    "remoteRequestsAllowed": 0,
+    "storageBackend": "basic_text",
+    "boundToDefaultSession": true,
+    "events": [
+      "finish",
+      "close",
+      "abort"
+    ],
+    "networkDiagnostic": "net::ERR_BLOCKED_BY_CLIENT",
+    "blockedByDefaultSession": 1,
+    "loopbackRequests": 7,
+    "responseStatus": 200
+  },
+  "researchElectron": {
+    "paths": 8,
+    "checks": 50,
+    "loopbackRequests": 6,
+    "externalRequests": 0,
+    "rendererErrors": 0,
+    "reports": [
+      {
+        "mode": "absent-mime",
+        "checks": [
+          "no request before token and web-cost evidence; over-budget rejection does not consume an attempt",
+          "token enters through trusted IPC, is cleared from DOM and is not saved to disk",
+          "secondary window is rejected by validation IPC",
+          "private response capture and safe result preserve server uncertainty; successful PNG is byte-identical",
+          "saved response can be rechecked locally without a second request",
+          "token memory is dropped after attempt and another send is refused",
+          "manual after-balance is recorded without claiming per-request billing proof",
+          "390px form has no horizontal overflow"
+        ],
+        "externalRequests": [],
+        "rendererErrors": [],
+        "credentials": "synthetic-only",
+        "loopbackRequests": 1,
+        "safeResult": {
+          "ok": true,
+          "pngBytes": 80131,
+          "pngSaved": true,
+          "mayHaveReachedServer": true,
+          "mediaTypeState": "absent",
+          "requestHash": "f9ab339756a902823b94d47a26e37e872537b3ff3d05526c7baa15e4999f68a5",
+          "responseCaptured": true,
+          "responseBytes": 80288,
+          "zipHeader": {
+            "flags": 8,
+            "method": 8,
+            "extraBytes": 0
+          },
+          "httpStatus": 200,
+          "contentType": "absent",
+          "captureTruncated": false,
+          "acceptedByZipSignature": true,
+          "elapsedMs": 16,
+          "finishedAt": "2026-11-22T08:40:09.921Z"
+        },
+        "electron": "26.6.10",
+        "node": "18.16.1"
+      },
+      {
+        "mode": "bad-zip",
+        "checks": [
+          "no request before token and web-cost evidence; over-budget rejection does not consume an attempt",
+          "token enters through trusted IPC, is cleared from DOM and is not saved to disk",
+          "secondary window is rejected by validation IPC",
+          "private response capture and safe result preserve server uncertainty; successful PNG is byte-identical",
+          "saved response can be rechecked locally without a second request",
+          "token memory is dropped after attempt and another send is refused",
+          "manual after-balance is recorded without claiming per-request billing proof",
+          "390px form has no horizontal overflow"
+        ],
+        "externalRequests": [],
+        "rendererErrors": [],
+        "credentials": "synthetic-only",
+        "loopbackRequests": 1,
+        "safeResult": {
+          "ok": false,
+          "code": "INVALID_IMAGE_RESPONSE",
+          "reason": "zip-eocd",
+          "mayHaveReachedServer": true,
+          "mediaTypeState": "present",
+          "mediaType": "application/zip",
+          "requestHash": "f9ab339756a902823b94d47a26e37e872537b3ff3d05526c7baa15e4999f68a5",
+          "responseCaptured": true,
+          "responseBytes": 17,
+          "httpStatus": 200,
+          "contentType": "application/zip",
+          "captureTruncated": false,
+          "acceptedByZipSignature": false,
+          "elapsedMs": 10,
+          "finishedAt": "2026-11-22T08:40:02.335Z"
+        },
+        "electron": "26.6.10",
+        "node": "18.16.1"
+      },
+      {
+        "mode": "cancel",
+        "checks": [
+          "no request before token and web-cost evidence; over-budget rejection does not consume an attempt",
+          "token enters through trusted IPC, is cleared from DOM and is not saved to disk",
+          "secondary window is rejected by validation IPC",
+          "private response capture and safe result preserve server uncertainty; successful PNG is byte-identical",
+          "cancellation consumes the attempt without claiming a complete response",
+          "token memory is dropped after attempt and another send is refused",
+          "manual after-balance is recorded without claiming per-request billing proof",
+          "390px form has no horizontal overflow"
+        ],
+        "externalRequests": [],
+        "rendererErrors": [],
+        "credentials": "synthetic-only",
+        "loopbackRequests": 1,
+        "safeResult": {
+          "ok": false,
+          "code": "CANCELLED",
+          "mayHaveReachedServer": true,
+          "requestHash": "f9ab339756a902823b94d47a26e37e872537b3ff3d05526c7baa15e4999f68a5",
+          "responseCaptured": false,
+          "responseBytes": 0,
+          "captureTruncated": false,
+          "acceptedByZipSignature": false,
+          "elapsedMs": 23,
+          "finishedAt": "2026-11-22T08:40:11.829Z"
+        },
+        "electron": "26.6.10",
+        "node": "18.16.1"
+      },
+      {
+        "mode": "http-error",
+        "checks": [
+          "no request before token and web-cost evidence; over-budget rejection does not consume an attempt",
+          "token enters through trusted IPC, is cleared from DOM and is not saved to disk",
+          "secondary window is rejected by validation IPC",
+          "private response capture and safe result preserve server uncertainty; successful PNG is byte-identical",
+          "saved response can be rechecked locally without a second request",
+          "token memory is dropped after attempt and another send is refused",
+          "manual after-balance is recorded without claiming per-request billing proof",
+          "390px form has no horizontal overflow"
+        ],
+        "externalRequests": [],
+        "rendererErrors": [],
+        "credentials": "synthetic-only",
+        "loopbackRequests": 1,
+        "safeResult": {
+          "ok": false,
+          "code": "HTTP_ERROR",
+          "mayHaveReachedServer": true,
+          "mediaTypeState": "present",
+          "mediaType": "application/json",
+          "requestHash": "f9ab339756a902823b94d47a26e37e872537b3ff3d05526c7baa15e4999f68a5",
+          "responseCaptured": true,
+          "responseBytes": 36,
+          "httpStatus": 400,
+          "contentType": "application/json",
+          "captureTruncated": false,
+          "acceptedByZipSignature": false,
+          "elapsedMs": 10,
+          "finishedAt": "2026-11-22T08:40:04.062Z"
+        },
+        "electron": "26.6.10",
+        "node": "18.16.1"
+      },
+      {
+        "mode": "offline",
+        "checks": [
+          "forced offline disables token/send UI and IPC before any attempt or request"
+        ],
+        "externalRequests": [],
+        "rendererErrors": [],
+        "credentials": "synthetic-only",
+        "loopbackRequests": 0,
+        "electron": "26.6.10",
+        "node": "18.16.1"
+      },
+      {
+        "mode": "recovery",
+        "checks": [
+          "reopened interrupted attempt shows missing result, records incomplete balance without sending or overwriting"
+        ],
+        "externalRequests": [],
+        "rendererErrors": [],
+        "credentials": "synthetic-only",
+        "loopbackRequests": 0,
+        "electron": "26.6.10",
+        "node": "18.16.1"
+      },
+      {
+        "mode": "unknown-mime",
+        "checks": [
+          "no request before token and web-cost evidence; over-budget rejection does not consume an attempt",
+          "token enters through trusted IPC, is cleared from DOM and is not saved to disk",
+          "secondary window is rejected by validation IPC",
+          "private response capture and safe result preserve server uncertainty; successful PNG is byte-identical",
+          "saved response can be rechecked locally without a second request",
+          "token memory is dropped after attempt and another send is refused",
+          "manual after-balance is recorded without claiming per-request billing proof",
+          "390px form has no horizontal overflow"
+        ],
+        "externalRequests": [],
+        "rendererErrors": [],
+        "credentials": "synthetic-only",
+        "loopbackRequests": 1,
+        "safeResult": {
+          "ok": true,
+          "pngBytes": 80131,
+          "pngSaved": true,
+          "mayHaveReachedServer": true,
+          "mediaTypeState": "present",
+          "mediaType": "application/x-sdstudio-test",
+          "requestHash": "f9ab339756a902823b94d47a26e37e872537b3ff3d05526c7baa15e4999f68a5",
+          "responseCaptured": true,
+          "responseBytes": 80288,
+          "zipHeader": {
+            "flags": 8,
+            "method": 8,
+            "extraBytes": 0
+          },
+          "httpStatus": 200,
+          "contentType": "other",
+          "captureTruncated": false,
+          "acceptedByZipSignature": true,
+          "elapsedMs": 19,
+          "finishedAt": "2026-11-22T08:40:07.955Z"
+        },
+        "electron": "26.6.10",
+        "node": "18.16.1"
+      },
+      {
+        "mode": "valid",
+        "checks": [
+          "no request before token and web-cost evidence; over-budget rejection does not consume an attempt",
+          "token enters through trusted IPC, is cleared from DOM and is not saved to disk",
+          "secondary window is rejected by validation IPC",
+          "private response capture and safe result preserve server uncertainty; successful PNG is byte-identical",
+          "saved response can be rechecked locally without a second request",
+          "token memory is dropped after attempt and another send is refused",
+          "manual after-balance is recorded without claiming per-request billing proof",
+          "390px form has no horizontal overflow"
+        ],
+        "externalRequests": [],
+        "rendererErrors": [],
+        "credentials": "synthetic-only",
+        "loopbackRequests": 1,
+        "safeResult": {
+          "ok": true,
+          "pngBytes": 156,
+          "pngSaved": true,
+          "mayHaveReachedServer": true,
+          "mediaTypeState": "present",
+          "mediaType": "application/zip",
+          "requestHash": "f9ab339756a902823b94d47a26e37e872537b3ff3d05526c7baa15e4999f68a5",
+          "responseCaptured": true,
+          "responseBytes": 265,
+          "zipHeader": {
+            "flags": 0,
+            "method": 8,
+            "extraBytes": 0
+          },
+          "httpStatus": 200,
+          "contentType": "application/zip",
+          "captureTruncated": false,
+          "acceptedByZipSignature": false,
+          "elapsedMs": 14,
+          "finishedAt": "2026-11-22T08:40:05.918Z"
+        },
+        "electron": "26.6.10",
+        "node": "18.16.1"
+      }
+    ]
+  },
+  "standaloneRunner": {
+    "tests": 3,
+    "failed": 0,
+    "skipped": 0,
+    "rootNodeModulesUnavailableInTemporaryCheckout": true
+  },
+  "build": {
+    "main": true,
+    "renderer": true,
+    "bundleNoticeCollection": true,
+    "noticePackages": 244,
+    "unresolvedNoticeFiles": 8
+  },
+  "checks": {
+    "scopedStrictTypes": true,
+    "scopedLint": true,
+    "cjsSyntax": true,
+    "prettier": true
+  },
+  "actualAccountRequests": 0,
+  "credentials": "synthetic-only",
+  "actualServerMediaType": "not-recorded-in-user-observations",
+  "notRun": [
+    "Windows/macOS",
+    "Windows root npm ci and native rebuild",
+    "new package build",
+    "real Linux keyring",
+    "additional authenticated API calls",
+    "product model/generation/queue integration",
+    "new project persistence",
+    "repository-wide tsc (known TS2688; scoped check only)"
+  ]
+}
