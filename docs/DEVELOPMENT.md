@@ -211,3 +211,21 @@ npm --prefix tools/nai-validation start -- "$env:LOCALAPPDATA\SDStudio-Live-Test
 ```
 
 첫 프로필은 그대로 둔다. 첫 attempt.json의 displayedCost와 새 웹 표시 비용의 합계10 Anlas 이내, 동일 설정의 웹 비용·잔액 확인 후 추가1회만 진행한다. 값을 모르면 전송하지 않는다. [정확한 조건](NAI_LIVE_VALIDATION.md#첫-관찰과-수정-후-추가1회-규칙-d-034). 도구가 모든 프로필의 횟수/비용을 전역으로 추적하거나 서버 청구 상한을 강제하는 것은 아니다.
+
+### Windows 전체 앱용 Node 버전 준비 (PR #16 후속)
+
+전체 앱의 재현 기준은 `.nvmrc`의 **22.4.1**이다. 최신 권장 버전이나 전체 Windows 지원 인증을 뜻하지 않는다. 연구 도구가 이미 열리는 PC에서 이를 위해 복구한 Electron을 지우거나 연구 실험을 반복할 필요는 없다.
+
+[Microsoft의 Windows Node 안내](https://learn.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-windows)와 [NVM for Windows 공식 안내](https://docs.nvm-windows.com/)를 따라 버전 관리 도구를 준비한다. 기존 MSI Node와 버전 관리 도구의 PATH 충돌은 해당 공식 절차로 먼저 확인한다. NVM이 이미 준비됐다면 별도 PowerShell에서 다음처럼 전환한다.
+
+```powershell
+nvm install 22.4.1
+nvm use 22.4.1
+node --version
+npm --version
+where.exe node
+```
+
+`node --version`은 v22.4.1인지, 실제 node 경로가 선택한 관리 경로인지 확인한다. npm은 선택한 Node 설치에 포함된 버전을 사용하며 기존의 npm 11을 이 조합에 강제로 유지하지 않는다. 권한이 필요한 버전 전환은 공식 안내를 따른다.
+
+이 단계만으로 **VS2026 탐지 실패가 고쳐지는 것은 아니다**. 사용자 로그의 로컬 @electron/node-gyp10.2.0-electron.1은 VS18/2026을 인식하지 못했다. 전역 node-gyp 갱신도 이 호출을 자동 교체하지 않는다. Windows 전체 npm ci 성공은 아직 재현하지 않았으며, Node 전환 직후 루트 재설치가 성공한다고 안내하지 않는다. 네이티브 도구 체인/재빌드 의존성을 별도 변경·검증한 뒤 전체 앱 설치를 진행한다. 지금은 VS/Python 재설치, 원본 데이터/lock 삭제, npm audit fix --force를 요구하지 않는다.
