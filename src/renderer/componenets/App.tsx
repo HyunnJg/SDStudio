@@ -7,6 +7,7 @@ import {
   useEffect,
   createContext,
   useState,
+  useSyncExternalStore,
   useRef,
 } from 'react';
 import SessionSelect from './SessionSelect';
@@ -49,6 +50,8 @@ import {
 import { appState } from '../models/AppService';
 import { AppContextMenu } from './AppContextMenu';
 import PreviewWorkspace from './PreviewWorkspace';
+import WorkspaceProjectControls from './WorkspaceProjectControls';
+import { ProjectController } from '../projects/projectController';
 import NaiAuthSettings from './NaiAuthSettings';
 import { prepareRestart } from '../network/restartPreparation';
 import {
@@ -170,6 +173,49 @@ export const App = observer(() => {
       taskQueueService.stop();
     };
   }, []);
+  const workspaceRef = useRef(workspace);
+  workspaceRef.current = workspace;
+  const singlePreviewBusy = useRef(false);
+  const [projectClosing, setProjectClosing] = useState(false);
+  const projectClosingRef = useRef(false);
+  const projectTasksBusy = () => {
+    const queue = workspaceQueue.getSnapshot();
+    return singlePreviewBusy.current || taskQueueService.hasActiveRun() || !taskQueueService.isEmpty() ||
+      queue.active || queue.running || queue.jobs.some(job => job.status === 'pending' || job.status === 'running');
+  };
+  const [project] = useState(() => new ProjectController({
+    client: window.electron?.projects,
+    workspace: () => workspaceRef.current,
+    busy: projectTasksBusy,
+    reset: () => { const next = createWorkspaceState(); workspaceRef.current = next; setWorkspace(next); workspaceQueue.clear(); },
+    apply: (snapshot) => {
+      const next = {...createWorkspaceState(), scenes: snapshot.project.scenes,
+        selectedSceneId: snapshot.project.selectedSceneId,
+        draft: snapshot.project.scenes.find(scene => scene.id === snapshot.project.selectedSceneId)!.draft,
+        selectedCharacter: snapshot.project.scenes.find(scene => scene.id === snapshot.project.selectedSceneId)!.draft.characters[0]?.id ?? '',
+        results: [], selectedResult: 0};
+      workspaceRef.current = next; setWorkspace(next); workspaceQueue.clear();
+    },
+  }));
+  const projectView = useSyncExternalStore(project.subscribe, project.getSnapshot);
+  useEffect(() => window.electron?.projectLifecycle.onCloseRequested(() => {
+    if (projectClosingRef.current) return;
+    projectClosingRef.current = true; setProjectClosing(true);
+    (async () => {
+      try {
+        if (projectTasksBusy() || project.getSnapshot().operation) { appState.pushMessage('프로젝트 저장 또는 예약·실행 중인 작업을 마치거나 비운 뒤 닫아 주세요.'); await window.electron.projectLifecycle.cancelClose(); return; }
+        if (!(await project.prepareLeave()) || projectTasksBusy()) { await window.electron.projectLifecycle.cancelClose(); return; }
+        await sessionService.saveAll();
+        if (projectTasksBusy()) { await window.electron.projectLifecycle.cancelClose(); return; }
+        await window.electron.projectLifecycle.finishClose();
+      } catch { appState.pushMessage('저장 상태를 확인하지 못해 닫기를 중단했습니다. 입력은 유지됩니다.'); await window.electron.projectLifecycle.cancelClose(); }
+      finally { projectClosingRef.current = false; setProjectClosing(false); }
+    })();
+  }), [project]);
+  const projectContentRoot = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    projectContentRoot.current?.toggleAttribute('inert', !!projectView.operation || projectClosing);
+  }, [projectView.operation, projectClosing]);
   const previewStarted = useRef(false);
   useEffect(() => {
     if (!runtimeOptions.mockBackend || previewStarted.current) return;
@@ -304,7 +350,7 @@ export const App = observer(() => {
     },
   ];
   const content = runtimeOptions.mockBackend && previewOpen ? (
-    <PreviewWorkspace state={workspace} setState={setWorkspace}
+    <PreviewWorkspace project={project} projectLocked={!!projectView.operation || projectClosing} onBusyChange={value => { singlePreviewBusy.current = value; }} state={workspace} setState={setWorkspace}
       queue={workspaceQueue}
       onResult={recordPreviewResult}
       darkMode={darkMode}
@@ -393,10 +439,15 @@ export const App = observer(() => {
     </DndProvider>
   );
   return <div className={darkMode ? 'dark' : ''}>
-    {content}
+    <div ref={projectContentRoot} style={{display: 'contents'}}>{content}</div>
     {authOpen && <NaiAuthSettings onClose={() => setAuthOpen(false)} offline={runtimeOptions.offline} client={window.electron?.naiAuth}
       networkClient={window.electron?.networkMode}
-      beforeRestart={() => prepareRestart(
+      beforeRestart={async () => {
+        if (projectClosingRef.current) return 'PROJECT_NOT_READY';
+        projectClosingRef.current = true; setProjectClosing(true);
+        try {
+          if (!(await project.prepareLeave())) return 'PROJECT_NOT_READY';
+          return await prepareRestart(
         () => {
           if (taskQueueService.hasActiveRun()) return 'LEGACY_RUNNING';
           if (!taskQueueService.isEmpty()) return 'LEGACY_PENDING';
@@ -407,7 +458,10 @@ export const App = observer(() => {
           return undefined;
         },
         () => sessionService.saveAll(),
-      )} />}
+      );
+        } finally { projectClosingRef.current = false; setProjectClosing(false); }
+      }} />}
+    <WorkspaceProjectControls controller={project} locked={!!projectView.operation || projectClosing} mode="dialogs" />
     <AlertWindow />
     <ConfirmWindow />
     {appState.progressDialog && <ProgressWindow dialog={appState.progressDialog} />}

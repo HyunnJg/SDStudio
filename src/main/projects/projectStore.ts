@@ -290,20 +290,25 @@ export class ProjectStore {
         throw error;
       }
       try {
-        const current = this.open(id);
+        const current = this.readSnapshot(
+          id,
+          path.join(folder, 'project.json'),
+          false,
+        );
         projectCheck(current.revision === revision, 'PROJECT_CONFLICT');
         const previous = read(
           path.join(folder, 'project.json'),
           PROJECT_LIMITS.jsonBytes,
         );
         projectCheck(hash(previous) === revision, 'PROJECT_CONFLICT');
+        const next = action(structuredClone(current.project), folder);
+        const bytes = encode(next);
+        if (hash(bytes) === revision) return current; // Unchanged explicit save adds no history.
         const revisions = this.history(id);
         projectCheck(
           revisions.includes(revision) || revisions.length < 1000,
           'PROJECT_LIMIT',
         );
-        const next = action(structuredClone(current.project), folder);
-        const bytes = encode(next);
         const history = this.directory([id, 'history'], true);
         ProjectStore.immutable(
           path.join(history, `${revision}.json`),
@@ -392,6 +397,16 @@ export class ProjectStore {
         .sort();
       projectCheck(files.length <= 1000, 'PROJECT_LIMIT');
       return files.map((file) => file.slice(0, -5));
+    });
+  }
+
+  copy(id: string, revision: string, content: unknown): ProjectSnapshot {
+    return io(() => {
+      const validated = validateProjectContent(content);
+      projectHash(revision);
+      const current = this.open(id); // Copies verify every referenced PNG, unlike metadata-only save.
+      projectCheck(current.revision === revision, 'PROJECT_CONFLICT');
+      return this.createSnapshot(validated, current.project.images, id);
     });
   }
 

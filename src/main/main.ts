@@ -15,7 +15,8 @@ import { createRuntimeOptions } from '../runtimeOptions';
 import { installOfflineRequestGuard } from './offlineNetwork';
 import { NaiTokenStore } from './nai/tokenStore';
 import { registerNaiAuth, isTrustedAuthFrame } from './nai/authIpc';
-import { ProjectStore } from './projects/projectStore';
+import { ProjectService } from './projects/projectService';
+import { ProjectCloseCoordinator } from './projects/projectClose';
 import { registerProjects } from './projects/projectIpc';
 import { NetworkModeSettings, registerNetworkMode } from './networkMode';
 import path from 'path';
@@ -135,7 +136,7 @@ async function readFileAsDataURL(filePath: any) {
 const DEFAULT_APP_DIR = developmentProfile.appDirectory;
 let APP_DIR = DEFAULT_APP_DIR;
 
-let saveCompleted = false;
+let projectClose: ProjectCloseCoordinator | undefined;
 let config: Config = {};
 
 ipcMain.handle('get-config', async (event) => {
@@ -299,8 +300,7 @@ ipcMain.handle('trash-file', async (event, filename) => {
 });
 
 ipcMain.handle('close', async (event) => {
-  saveCompleted = true;
-  mainWindow!.close();
+  if (isTrustedAuthFrame(event, mainWindow?.webContents, resolveHtmlPath('index.html'))) projectClose?.finish();
 });
 
 ipcMain.handle('exist-file', async (event, filename) => {
@@ -759,6 +759,7 @@ const createWindow = async () => {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width, height } = primaryDisplay.workAreaSize;
 
+  projectClose?.reset();
   mainWindow = new BrowserWindow({
     show: false,
     width: width,
@@ -857,11 +858,7 @@ const createWindow = async () => {
 
   mainWindow.on('close', (e) => {
     if (networkMode.restarting) return; // UI already awaited saveAll before relaunch.
-    if (saveCompleted) {
-      e.preventDefault();
-    } else {
-      mainWindow!.webContents.send('close');
-    }
+    if (!projectClose?.request()) e.preventDefault();
   });
 
   mainWindow.on('closed', () => {
@@ -981,13 +978,22 @@ if (!gotTheLock) {
           event, mainWindow?.webContents, resolveHtmlPath('index.html'),
         ),
       );
+      const projectService = new ProjectService(app.getPath('userData'),
+        usesDevelopmentAssets(app.isPackaged, process.env.NODE_ENV)
+          ? path.join(__dirname, 'projects/projectWorker.ts') : path.join(__dirname, 'projectWorker.js'));
+      app.on('will-quit', () => projectService.close());
       registerProjects(
         ipcMain,
-        new ProjectStore(app.getPath('userData')),
+        projectService,
         (event) => isTrustedAuthFrame(
           event, mainWindow?.webContents, resolveHtmlPath('index.html'),
         ),
       );
+      projectClose = new ProjectCloseCoordinator(
+        () => mainWindow?.webContents.send('workspace-close-request'),
+        () => mainWindow?.close(),
+      );
+      projectClose.register(ipcMain, (event) => isTrustedAuthFrame(event, mainWindow?.webContents, resolveHtmlPath('index.html')));
       registerNetworkMode(
         ipcMain,
         networkMode,
@@ -999,7 +1005,7 @@ if (!gotTheLock) {
           setImmediate(() => app.quit());
         },
       );
-      app.on('before-quit', () => tokenStore.lock());
+      app.on('will-quit', () => tokenStore.lock());
       await createWindow();
       app.on('activate', () => {
         // On macOS it's common to re-create a window in the app when the

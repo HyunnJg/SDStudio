@@ -1,0 +1,110 @@
+.workspace-project-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 8px 16px;
+  background: var(--pw-panel, #17212b);
+  color: var(--pw-text, #e6edf1);
+  border-bottom: 1px solid var(--pw-line, #2a3743);
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.workspace-project-controls label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.workspace-project-controls input {
+  max-width: 200px;
+  background: var(--pw-input, #111b24);
+  color: inherit;
+  border: 1px solid var(--pw-line, #2a3743);
+  padding: 6px;
+}
+.workspace-project-controls button,
+.workspace-project-dialog button {
+  padding: 6px 10px;
+  border: 1px solid #617181;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.workspace-project-controls p {
+  margin: 0;
+  flex-basis: 100%;
+  line-height: 1.5;
+}
+.workspace-project-controls small {
+  flex-basis: 100%;
+}
+.workspace-project-dialog {
+  width: min(700px, calc(100vw - 24px));
+  max-height: 85dvh;
+  overflow: auto;
+  border: 1px solid #617181;
+  border-radius: 10px;
+  background: #17212b;
+  color: #e6edf1;
+  padding: 20px;
+}
+.workspace-project-dialog::backdrop {
+  background: #0009;
+}
+.workspace-project-dialog h2 {
+  font-size: 20px;
+}
+.workspace-project-dialog p {
+  margin: 10px 0;
+  line-height: 1.5;
+}
+.workspace-project-dialog button {
+  margin: 4px;
+  min-height: 36px;
+}
+.workspace-project-dialog button:disabled {
+  opacity: 0.45;
+}
+.workspace-project-dialog .project-list article {
+  border: 1px solid #617181;
+  padding: 10px;
+  margin: 8px 0;
+}
+.workspace-project-dialog .project-list strong {
+  display: block;
+}
+.workspace-project-dialog:focus-visible,
+.workspace-project-dialog button:focus-visible {
+  outline: 2px solid #8dd8cd;
+  outline-offset: 2px;
+}
+.pw-project-fieldset {
+  display: contents;
+}
+.pw-project-fieldset[disabled] {
+  opacity: 0.65;
+}
+@media (max-width: 600px) {
+  .workspace-project-controls {
+    padding: 6px 10px;
+    gap: 5px;
+  }
+  .workspace-project-controls input {
+    max-width: 150px;
+  }
+  .workspace-project-controls button {
+    font-size: 11px;
+    padding: 5px;
+  }
+  .workspace-project-dialog {
+    padding: 12px;
+  }
+}
+
+.workspace-project-dialog {
+  background: #f3f5f6;
+  color: #1d2934;
+}
+.dark .workspace-project-dialog {
+  background: #17212b;
+  color: #e6edf1;
+}

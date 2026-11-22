@@ -98,6 +98,36 @@ app.on('web-contents-created', (_event, contents) => {
               return blocked;
             })()`);
           }
+          if (result.mock && process.env.SDSTUDIO_SMOKE_PROJECTS === '1') {
+            let projectUI;
+            app.once('will-quit', () =>
+              finish(external.length || errors.length ? 1 : 0, {
+                projectUI,
+                nativeQuitObserved: true,
+                ...result,
+                text: undefined,
+              }),
+            );
+            projectUI = await require('./project-ui-smoke.cjs')(contents);
+            if (projectUI.closeWithSave) {
+              require('electron')
+                .BrowserWindow.fromWebContents(contents)
+                .close();
+              for (let n = 0; n < 100; n++) {
+                if (
+                  await contents.executeJavaScript(
+                    "document.querySelector('[data-testid=project-confirm]')?.open",
+                  )
+                )
+                  break;
+                await new Promise((resolve) => setTimeout(resolve, 20));
+              }
+              await contents.executeJavaScript(
+                "document.querySelector('[data-testid=project-confirm-save]').click()",
+              );
+            }
+            return;
+          }
           if (result.mock && process.env.SDSTUDIO_SMOKE_WORKSPACE === '1') {
             result.workspace = await require('./workspace-smoke.cjs')(contents);
             if (process.env.SDSTUDIO_SMOKE_AUTH_PREVIEW === '1')

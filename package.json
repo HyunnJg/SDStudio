@@ -70,7 +70,9 @@
     "nai:inspect-response": "node .erb/scripts/inspect-nai-response.cjs",
     "test:nai-response": "node --test -r ts-node/register/transpile-only src/__tests__/naiImageResponse.test.cjs src/__tests__/naiResponseInspection.test.cjs",
     "test:project": "node --test -r ts-node/register/transpile-only src/__tests__/workspaceProject.test.cjs",
-    "test:project:electron": "node --test src/__tests__/workspaceProject.electron.cjs"
+    "test:project:electron": "node --test src/__tests__/workspaceProject.electron.cjs",
+    "test:project-ui": "node --test -r ts-node/register/transpile-only src/__tests__/projectController.test.cjs src/__tests__/projectService.test.cjs",
+    "smoke:project-ui": "node .erb/scripts/smoke-project-ui.cjs"
   },
   "browserslist": [],
   "prettier": {

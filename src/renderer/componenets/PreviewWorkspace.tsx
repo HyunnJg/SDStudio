@@ -20,10 +20,15 @@ import WorkspacePrompts from './WorkspacePrompts';
 import WorkspaceResults from './WorkspaceResults';
 import WorkspaceSettings from './WorkspaceSettings';
 import WorkspaceScenes from './WorkspaceScenes';
+import WorkspaceProjectControls from './WorkspaceProjectControls';
+import type { ProjectController } from '../projects/projectController';
 import { WorkspaceQueue } from '../preview/workspaceQueue';
 import './PreviewWorkspace.css';
 
 interface Props {
+  project: ProjectController;
+  projectLocked: boolean;
+  onBusyChange: (busy: boolean) => void;
   queue: WorkspaceQueue;
   onResult: (
     image: string,
@@ -45,6 +50,9 @@ interface Props {
 }
 
 export default function PreviewWorkspace({
+  project,
+  projectLocked,
+  onBusyChange,
   state,
   setState,
   queue,
@@ -152,12 +160,14 @@ export default function PreviewWorkspace({
         state.scenes.find((item) => item.id === state.selectedSceneId)?.name ??
         '';
       setBusy(true);
+      onBusyChange(true);
       const image = await renderPreview(request, state.scenario);
       onResult(image, request, sceneName);
     } catch (failure) {
       setError(previewErrorMessage(failure));
     } finally {
       setBusy(false);
+      onBusyChange(false);
     }
   };
 
@@ -167,7 +177,9 @@ export default function PreviewWorkspace({
       data-testid="preview-workspace"
     >
       <header className="pw-header">
-        <button type="button" data-testid="open-nai-auth" onClick={onOpenAuth}>API 토큰</button>
+        <button type="button" data-testid="open-nai-auth" onClick={onOpenAuth}>
+          API 토큰
+        </button>
         <div className="pw-brand">
           <span className="pw-brand-mark" aria-hidden="true">
             S
@@ -183,6 +195,7 @@ export default function PreviewWorkspace({
           <button
             type="button"
             onClick={onOpenLegacy}
+            disabled={projectLocked}
             data-testid="open-legacy"
           >
             기존 V3 화면 <span aria-hidden="true">↗</span>
@@ -192,68 +205,79 @@ export default function PreviewWorkspace({
           <span aria-hidden="true">●</span> 오프라인 예제
         </span>
       </header>
-      <main className="pw-body">
-        <WorkspacePrompts
-          {...{
-            state,
-            setState,
-            updateDraft,
-            updateCharacter,
-            addCharacter,
-            removeCharacter,
-            undoCharacter,
-            canUndo:
-              !!undo &&
-              undo.sceneId === state.selectedSceneId &&
-              draft.characters.length < 32,
-          }}
-        />
-        <WorkspaceResults {...{ state, setState }} />
-        <WorkspaceSettings
-          {...{
-            state,
-            setState,
-            updateDraft,
-            legacyName,
-            legacySceneCount,
-            onOpenLegacy,
-          }}
-        />
-      </main>
-      <WorkspaceScenes
-        {...{ state, setState, queue, queueState }}
-        disabled={
-          busy || queueState.active || queueState.running || active > limit
-        }
-        onSelect={() => {
-          setError('');
-          setUndo(null);
-        }}
-        onError={(failure) => setError(previewErrorMessage(failure))}
+      <WorkspaceProjectControls
+        controller={project}
+        locked={projectLocked}
+        mode="bar"
       />
-      <footer className="pw-footer">
-        <div className="pw-footer-status" aria-live="polite">
-          <span className="pw-status-dot" aria-hidden="true" />
-          <div>
-            <strong>
-              {busy ? '예제를 준비하고 있습니다' : '초안을 자유롭게 편집하세요'}
-            </strong>
-            <span>실제 생성·저장 없음 · 창을 닫으면 초안이 사라집니다</span>
-          </div>
-        </div>
-        <button
-          type="button"
-          className="pw-generate"
-          data-testid="generate-preview"
+      <fieldset className="pw-project-fieldset" disabled={projectLocked}>
+        <main className="pw-body">
+          <WorkspacePrompts
+            {...{
+              state,
+              setState,
+              updateDraft,
+              updateCharacter,
+              addCharacter,
+              removeCharacter,
+              undoCharacter,
+              canUndo:
+                !!undo &&
+                undo.sceneId === state.selectedSceneId &&
+                draft.characters.length < 32,
+            }}
+          />
+          <WorkspaceResults {...{ state, setState }} />
+          <WorkspaceSettings
+            {...{
+              state,
+              setState,
+              updateDraft,
+              legacyName,
+              legacySceneCount,
+              onOpenLegacy,
+            }}
+          />
+        </main>
+        <WorkspaceScenes
+          {...{ state, setState, queue, queueState }}
           disabled={
             busy || queueState.active || queueState.running || active > limit
           }
-          onClick={generate}
-        >
-          <span aria-hidden="true">✦</span>{' '}
-          {busy ? '예제 준비 중' : '예제 만들기'}
-        </button>
-      </footer>
+          onSelect={() => {
+            setError('');
+            setUndo(null);
+          }}
+          onError={(failure) => setError(previewErrorMessage(failure))}
+        />
+        <footer className="pw-footer">
+          <div className="pw-footer-status" aria-live="polite">
+            <span className="pw-status-dot" aria-hidden="true" />
+            <div>
+              <strong>
+                {busy
+                  ? '예제를 준비하고 있습니다'
+                  : '초안을 자유롭게 편집하세요'}
+              </strong>
+              <span>
+                실제 생성 없음 · 입력은 저장 버튼으로 보관 · 예제 결과는 임시
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="pw-generate"
+            data-testid="generate-preview"
+            disabled={
+              busy || queueState.active || queueState.running || active > limit
+            }
+            onClick={generate}
+          >
+            <span aria-hidden="true">✦</span>{' '}
+            {busy ? '예제 준비 중' : '예제 만들기'}
+          </button>
+        </footer>
+      </fieldset>
       {error && (
         <div className="pw-error" role="alert" data-testid="preview-error">
           <strong>예제를 만들지 못했습니다</strong>

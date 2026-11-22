@@ -67,6 +67,19 @@ const electronHandler = {
     clear: (): Promise<NaiAuthResult> => ipcRenderer.invoke('nai-auth-clear'),
     check: (): Promise<NaiAuthResult> => ipcRenderer.invoke('nai-auth-check'),
   },
+  projectLifecycle: {
+    onCloseRequested: (callback: () => void) => {
+      const listener = () => callback();
+      ipcRenderer.on('workspace-close-request', listener);
+      return () => {
+        ipcRenderer.removeListener('workspace-close-request', listener);
+      };
+    },
+    finishClose: (): Promise<boolean> =>
+      ipcRenderer.invoke('workspace-close-finish'),
+    cancelClose: (): Promise<boolean> =>
+      ipcRenderer.invoke('workspace-close-cancel'),
+  },
   projects: {
     list: () => ipcRenderer.invoke('workspace-project-list'),
     create: (content) =>
@@ -74,6 +87,8 @@ const electronHandler = {
     open: (id) => ipcRenderer.invoke('workspace-project-open', id),
     save: (id, revision, content) =>
       ipcRenderer.invoke('workspace-project-save', id, revision, content),
+    copy: (id, revision, content) =>
+      ipcRenderer.invoke('workspace-project-copy', id, revision, content),
     history: (id) => ipcRenderer.invoke('workspace-project-history', id),
     recover: (id, revision) =>
       ipcRenderer.invoke('workspace-project-recover', id, revision),
