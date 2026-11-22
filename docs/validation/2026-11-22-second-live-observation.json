@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-22",
+  "timezone": "Asia/Seoul",
+  "source": "user-reported sanitized second result; not a developer account call",
+  "attemptOrdinal": 2,
+  "requestHash": "f9ab339756a902823b94d47a26e37e872537b3ff3d05526c7baa15e4999f68a5",
+  "ok": true,
+  "pngBytes": 609129,
+  "pngSaved": true,
+  "mayHaveReachedServer": true,
+  "responseCaptured": true,
+  "responseBytes": 609317,
+  "zipHeader": {
+    "flags": 8,
+    "method": 8,
+    "extraBytes": 0
+  },
+  "httpStatus": 200,
+  "contentType": "other",
+  "captureTruncated": false,
+  "acceptedByZipSignature": true,
+  "elapsedMs": 8006,
+  "balanceObservation": {
+    "observedAnlasDifference": 0,
+    "actualAccountBalancesOmitted": true,
+    "subscriptionTier": "Opus",
+    "tierSource": "user-report",
+    "quotaBeforeAfterNotMeasured": true,
+    "noInferenceOfZeroQuotaUse": true
+  },
+  "rawResponseOrImageCommitted": false,
+  "credentialOrAccountIdentifierRecorded": false,
+  "pixelRenderingOrPromptSemanticsIndependentlyInspected": false,
+  "exactUserCheckoutShaNotSeparatelyReported": true
+}

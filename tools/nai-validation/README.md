@@ -21,3 +21,5 @@ npm --prefix tools/nai-validation test
 
 
 PR15 이후 응답 수신 보완은 work/p0-live-recovery 브랜치다. 기존 창을 닫고 코드를 갱신한 뒤 의존성 재설치 없이 새 명시적 프로필에서 실행할 수 있다. 첫/다음 웹 표시 비용 합계10 Anlas 이내·동일 요청의 추가1회 조건을 [실험 안내](../../docs/NAI_LIVE_VALIDATION.md)에서 확인한다. 기존 프로필은 지우지 않는다.
+
+기본1장 실측2회는 완료했다. [성공·Opus/Anlas 구분](../../docs/validation/2026-11-22-live-success.md). 위 실행 명령은 도구 사용법이며 추가 전송 요청이 아니다. 기존 결과/프로필을 보존한다.
