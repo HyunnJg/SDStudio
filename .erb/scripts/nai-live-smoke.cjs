@@ -19,6 +19,7 @@ const report = {
 };
 let server,
   payload,
+  imageBytes,
   requests = 0;
 function finish(code) {
   fs.writeFileSync(
@@ -35,14 +36,36 @@ setTimeout(() => {
 const options = {
   synthetic: true,
   prepare: async () => {
+    if (mode === 'recovery') {
+      const directory = path.join(process.argv[2], 'live-validation');
+      fs.mkdirSync(directory, { mode: 0o700 });
+      const candidate = require('../fixtures/nai-live-candidate.json');
+      fs.writeFileSync(
+        path.join(directory, 'attempt.json'),
+        JSON.stringify({
+          version: 1,
+          requestHash: require('node:crypto')
+            .createHash('sha256')
+            .update(JSON.stringify(candidate.request))
+            .digest('hex'),
+          beforeBalance: 100,
+        }),
+        { mode: 0o600 },
+      );
+    }
     const archive = new JSZip();
-    archive.file('image.png', png());
+    imageBytes =
+      mode === 'unknown-mime'
+        ? png(2, 1, require('node:crypto').randomBytes(80000))
+        : png();
+    archive.file('image.png', imageBytes);
     const image = await archive.generateAsync({
       type: 'nodebuffer',
       compression: 'DEFLATE',
+      streamFiles: mode === 'unknown-mime',
     });
     payload =
-      mode === 'valid'
+      mode === 'valid' || mode === 'unknown-mime'
         ? image
         : Buffer.from(
             mode === 'http-error'
@@ -60,7 +83,11 @@ const options = {
       if (mode === 'cancel') return;
       response.writeHead(mode === 'http-error' ? 400 : 200, {
         'Content-Type':
-          mode === 'http-error' ? 'application/json' : 'application/zip',
+          mode === 'http-error'
+            ? 'application/json'
+            : mode === 'unknown-mime'
+              ? 'application/x-sdstudio-test'
+              : 'application/zip',
       });
       response.end(payload);
     });
@@ -95,6 +122,48 @@ const options = {
         capture: true,
         candidateAcknowledged: true,
       };
+      if (mode === 'recovery') {
+        assert.equal(state.status.incomplete, true);
+        await until(`document.querySelector('#after-save').disabled===false`);
+        assert.match(
+          await call(`document.querySelector('#recovery-state').textContent`),
+          /결과 기록이 없습니다/,
+        );
+        assert.equal(
+          (await call(`window.validation.run(${JSON.stringify(evidence)})`))
+            .code,
+          'ALREADY_USED',
+        );
+        await call(
+          `document.querySelector('#after').value='95';document.querySelector('#after-save').click();void 0`,
+        );
+        await until(
+          `document.querySelector('#message').textContent.includes('잔액을 기록')`,
+        );
+        const balance = JSON.parse(
+          fs.readFileSync(path.join(runner.directory, 'balance-after.json')),
+        );
+        assert.equal(balance.incomplete, true);
+        assert.equal(balance.resultRecord, 'missing');
+        assert.equal(balance.afterBalance, 95);
+        assert.equal(
+          fs.existsSync(path.join(runner.directory, 'result.json')),
+          false,
+        );
+        assert.equal(
+          (await call('window.validation.after(90)')).code,
+          'STORAGE_FAILED',
+        );
+        assert.equal(requests, 0);
+        report.checks.push(
+          'reopened interrupted attempt shows missing result, records incomplete balance without sending or overwriting',
+        );
+        report.loopbackRequests = requests;
+        report.electron = process.versions.electron;
+        report.node = process.versions.node;
+        finish(0);
+        return;
+      }
       if (mode === 'offline') {
         assert.equal(state.status.offline, true);
         assert.equal(
@@ -185,13 +254,20 @@ const options = {
       assert.equal(requests, 1);
       assert.equal(result.responseCaptured, mode !== 'cancel');
       assert.equal(result.mayHaveReachedServer, true);
-      if (mode === 'valid') {
+      if (mode === 'valid' || mode === 'unknown-mime') {
         assert.equal(result.ok, true);
         assert.deepEqual(
           fs.readFileSync(path.join(runner.directory, 'result.png')),
-          png(),
+          imageBytes,
         );
         assert.equal(result.zipHeader.method, 8);
+        if (mode === 'unknown-mime') {
+          assert.equal(result.zipHeader.flags, 8);
+          assert.equal(result.contentType, 'other');
+          assert.equal(result.acceptedByZipSignature, true);
+          assert.equal(result.captureTruncated, false);
+          assert.ok(result.responseBytes > 65536);
+        }
       } else
         assert.equal(
           result.code,
@@ -222,8 +298,11 @@ const options = {
           [path.resolve(__dirname, 'inspect-nai-response.cjs'), file],
           { encoding: 'utf8' },
         );
-        assert.equal(replay.status, mode === 'valid' ? 0 : 1);
-        if (mode !== 'valid')
+        assert.equal(
+          replay.status,
+          mode === 'valid' || mode === 'unknown-mime' ? 0 : 1,
+        );
+        if (mode !== 'valid' && mode !== 'unknown-mime')
           assert.equal(JSON.parse(replay.stdout).reason, 'zip-eocd');
         report.checks.push(
           'saved response can be rechecked locally without a second request',

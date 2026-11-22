@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-22",
+  "timezone": "Asia/Seoul",
+  "source": "user-reported sanitized result; not an API call from the development environment",
+  "requestHash": "f9ab339756a902823b94d47a26e37e872537b3ff3d05526c7baa15e4999f68a5",
+  "attemptsReported": 1,
+  "ok": false,
+  "code": "RESPONSE_FORMAT",
+  "httpStatus": 200,
+  "contentType": "other",
+  "responseCaptured": true,
+  "responseBytes": 65536,
+  "zipHeader": {
+    "flags": 8,
+    "method": 8,
+    "extraBytes": 0
+  },
+  "captureTruncated": true,
+  "mayHaveReachedServer": true,
+  "balanceObservation": {
+    "observedDifference": 0,
+    "perRequestChargeConfirmed": false,
+    "actualAccountBalancesOmitted": true,
+    "webDisplayedCostNotProvided": true
+  },
+  "actualMediaTypeIdentifierKnown": false,
+  "completeResponseAvailable": false,
+  "completePNGValidated": false,
+  "accountIdentifierRecorded": false,
+  "credentialRecorded": false,
+  "rawResponseOrImageCommitted": false
+}

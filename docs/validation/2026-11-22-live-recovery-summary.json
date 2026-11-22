@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-22",
+  "timezone": "Asia/Seoul",
+  "baseCommit": "b79fa4e643de805589c4149c2b76330b63cf019d",
+  "implementationCommit": "fdc8c65b9114dc818c538458b7c245c4e6845d52",
+  "implementationTree": "73a79bcc3e66d3fee0c4d12f637bac1f30a4f454",
+  "hostNode": "22.4.1",
+  "electron": "26.6.10",
+  "electronNode": "18.16.1",
+  "platform": "linux-x64",
+  "tests": {
+    "liveValidation": 10,
+    "mainAuthTransport": 27,
+    "responseAndLocalInspection": 19,
+    "offline": 11,
+    "researchElectron": {
+      "tests": 7,
+      "checks": 42,
+      "loopbackRequests": 5
+    },
+    "standalone": {
+      "tests": 3,
+      "electronTestsIncluded": 1
+    }
+  },
+  "scopedStrictTypes": true,
+  "scopedLint": true,
+  "productionBuild": true,
+  "noticeRecords": 244,
+  "unresolvedNoticeFiles": 8,
+  "dependenciesChanged": false,
+  "newNpmCi": false,
+  "newPackaging": false,
+  "windowsAutomationPerformed": false,
+  "developerAuthenticatedCalls": 0,
+  "userReportedAttempts": 1,
+  "userReportedBalanceDifference": 0,
+  "chargeConfirmed": false,
+  "actualAccountBalancesRecorded": false,
+  "newExperimentPerformedByDeveloper": false,
+  "candidateChanged": false,
+  "originalRequestHashPreserved": true
+}

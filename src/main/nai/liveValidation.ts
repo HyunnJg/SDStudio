@@ -31,6 +31,7 @@ interface Options {
     httpStatus?: number;
     contentType?: string;
     truncated?: boolean;
+    acceptedByZipSignature?: boolean;
   };
 }
 function integer(value: unknown): value is number {
@@ -58,6 +59,8 @@ export class LiveValidation {
   private used = false;
 
   private finished = false;
+
+  private active = false;
 
   constructor(options: Options) {
     this.options = options;
@@ -118,6 +121,8 @@ export class LiveValidation {
     return {
       used: this.used,
       finished: this.finished,
+      incomplete: this.used && !this.finished && !this.active,
+      canRecordBalance: this.used && !this.active,
       requestHash: this.requestHash,
     };
   }
@@ -159,7 +164,9 @@ export class LiveValidation {
       this.used = fs.existsSync(path.join(this.directory, 'attempt.json'));
       throw new ValidationError('STORAGE_FAILED');
     }
-    const deadline = performance.now() + 90000;
+    this.active = true;
+    const started = performance.now();
+    const deadline = started + 90000;
     let reached = false;
     let captured = false;
     let responseBytes = 0;
@@ -236,6 +243,7 @@ export class LiveValidation {
       httpStatus?: number;
       contentType?: string;
       truncated?: boolean;
+      acceptedByZipSignature?: boolean;
     } = {};
     try {
       metadata = this.options.metadata?.() ?? {};
@@ -265,6 +273,8 @@ export class LiveValidation {
         ? { contentType: metadata.contentType }
         : {}),
       captureTruncated: metadata.truncated === true,
+      acceptedByZipSignature: metadata.acceptedByZipSignature === true,
+      elapsedMs: Math.max(0, Math.round(performance.now() - started)),
       finishedAt: new Date().toISOString(),
     };
     try {
@@ -272,12 +282,14 @@ export class LiveValidation {
       this.finished = true;
     } catch {
       return { ...result, recordError: 'STORAGE_FAILED' };
+    } finally {
+      this.active = false;
     }
     return result;
   }
 
   recordAfterBalance(value: unknown) {
-    if (!this.used || !this.finished) throw new ValidationError('NOT_FINISHED');
+    if (!this.used || this.active) throw new ValidationError('NOT_FINISHED');
     if (!integer(value)) throw new ValidationError('COST_EVIDENCE_REQUIRED');
     try {
       const file = path.join(this.directory, 'attempt.json');
@@ -285,7 +297,7 @@ export class LiveValidation {
       if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 4096)
         throw new Error('invalid record');
       const before = JSON.parse(fs.readFileSync(file, 'utf8'));
-      if (!integer(before.beforeBalance))
+      if (before.version !== 1 || !integer(before.beforeBalance))
         throw new ValidationError('STORAGE_FAILED');
       if (before.requestHash !== this.requestHash)
         throw new ValidationError('REQUEST_CHANGED');
@@ -295,6 +307,8 @@ export class LiveValidation {
         observedDifference: before.beforeBalance - value,
         source: 'user-verified-novelai-web',
         recordedAt: new Date().toISOString(),
+        incomplete: !this.finished,
+        resultRecord: this.finished ? 'present' : 'missing',
         note: 'Observed balance difference is not proof of a per-request charge.',
       });
       return { ok: true };

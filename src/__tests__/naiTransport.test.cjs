@@ -368,3 +368,112 @@ test('research capture callback cannot mutate the returned transport bytes', asy
   r.emit('end');
   assert.deepEqual(Array.from(await task), [80, 75, 3, 4]);
 });
+
+test('research opt-in receives a fragmented ZIP signature with unknown MIME beyond 64 KiB', async () => {
+  let captured;
+  const f = fixture({
+    acceptZipSignature: true,
+    diagnosticCapture: (value) => {
+      captured = value;
+    },
+  });
+  const task = f.transport.send(body);
+  await flush();
+  const r = f.response(200, 'application/x-sdstudio-test');
+  const bytes = Buffer.concat([
+    Buffer.from([80, 75, 3, 4]),
+    Buffer.alloc(80000, 7),
+  ]);
+  r.emit('data', bytes.subarray(0, 1));
+  r.emit('data', bytes.subarray(1, 3));
+  r.emit('data', bytes.subarray(3));
+  r.emit('end');
+  assert.deepEqual(Buffer.from(await task), bytes);
+  assert.deepEqual(Buffer.from(captured.bytes), bytes);
+  assert.equal(captured.truncated, false);
+  assert.equal(captured.acceptedByZipSignature, true);
+});
+test('signature opt-in does not accept HTML, HTTP error ZIPs, or change the default MIME policy', async () => {
+  for (const item of [
+    {
+      status: 200,
+      data: Buffer.from('<html>synthetic</html>'),
+      flag: true,
+      capture: true,
+      code: 'RESPONSE_FORMAT',
+    },
+    {
+      status: 400,
+      data: Buffer.from([80, 75, 3, 4]),
+      flag: true,
+      capture: true,
+      code: 'HTTP_ERROR',
+    },
+    {
+      status: 200,
+      data: Buffer.from([80, 75, 3, 4]),
+      flag: false,
+      capture: true,
+      code: 'RESPONSE_FORMAT',
+    },
+    {
+      status: 200,
+      data: Buffer.from([80, 75, 3, 4]),
+      flag: true,
+      capture: false,
+      code: 'RESPONSE_FORMAT',
+    },
+  ]) {
+    const f = fixture({
+      acceptZipSignature: item.flag,
+      ...(item.capture ? { diagnosticCapture: () => {} } : {}),
+    });
+    const task = f.transport.send(body);
+    const rejected = assert.rejects(task, {
+      code: item.code,
+      mayHaveReachedServer: true,
+    });
+    await flush();
+    const r = f.response(item.status, 'application/x-sdstudio-test');
+    r.emit('data', item.data);
+    r.emit('end');
+    await rejected;
+  }
+});
+test('a ZIP prefix never bypasses the strict image decoder', async () => {
+  const f = fixture({ acceptZipSignature: true, diagnosticCapture: () => {} });
+  const task = f.transport.sendImage(body);
+  const rejected = assert.rejects(task, {
+    code: 'INVALID_IMAGE_RESPONSE',
+    imageResponseReason: 'zip-eocd',
+    mayHaveReachedServer: true,
+  });
+  await flush();
+  const r = f.response(200, 'application/x-sdstudio-test');
+  r.emit('data', Buffer.from([80, 75, 3, 4]));
+  r.emit('end');
+  await rejected;
+});
+
+test('signature fallback keeps the 64 MiB limit without returning a partial image', async () => {
+  let captured = false;
+  const f = fixture({
+    acceptZipSignature: true,
+    diagnosticCapture: () => {
+      captured = true;
+    },
+  });
+  const task = f.transport.send(body);
+  const rejected = assert.rejects(task, {
+    code: 'RESPONSE_TOO_LARGE',
+    mayHaveReachedServer: true,
+  });
+  await flush();
+  const r = f.response(200, 'application/x-sdstudio-test');
+  const bytes = Buffer.alloc(64 * 1024 * 1024 + 1);
+  bytes.set([80, 75, 3, 4]);
+  r.emit('data', bytes);
+  await rejected;
+  assert.equal(captured, false);
+  assert.equal(f.request.aborted, true);
+});

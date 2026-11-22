@@ -102,6 +102,10 @@ test('concurrent runs and a second process/controller cannot send twice', async 
     }),
   });
   const task = f.runner.run(f.evidence);
+  assert.equal(f.runner.status().canRecordBalance, false);
+  assert.throws(() => f.runner.recordAfterBalance(100), {
+    code: 'NOT_FINISHED',
+  });
   await assert.rejects(f.runner.run(f.evidence), { code: 'ALREADY_USED' });
   const other = new LiveValidation({
     profile: f.root,
@@ -156,6 +160,7 @@ test('valid PNG and zero displayed cost remain explicit and after-balance is rec
     displayedCost: 0,
   });
   assert.equal(result.ok, true);
+  assert.ok(Number.isInteger(result.elapsedMs) && result.elapsedMs >= 0);
   assert.equal(result.pngBytes, png().length);
   assert.deepEqual(
     fs.readFileSync(path.join(f.runner.directory, 'result.png')),
@@ -173,6 +178,67 @@ test('valid PNG and zero displayed cost remain explicit and after-balance is rec
     code: 'STORAGE_FAILED',
   });
   assert.deepEqual(fs.readFileSync(file), before);
+});
+test('interrupted attempt can record incomplete balance after reopening without sending or fabricating a result', async (t) => {
+  const f = fixture(t);
+  const file = path.join(f.runner.directory, 'attempt.json');
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      version: 1,
+      requestHash: f.runner.requestHash,
+      beforeBalance: 100,
+    }),
+    { mode: 0o600 },
+  );
+  const before = fs.readFileSync(file);
+  const reopened = new LiveValidation({
+    profile: f.root,
+    request: candidate.request,
+    ready: () => assert.fail(),
+    transport: () => assert.fail(),
+  });
+  assert.equal(reopened.status().incomplete, true);
+  assert.equal(reopened.status().canRecordBalance, true);
+  await assert.rejects(reopened.run(f.evidence), { code: 'ALREADY_USED' });
+  assert.deepEqual(reopened.recordAfterBalance(95), { ok: true });
+  const record = path.join(reopened.directory, 'balance-after.json');
+  const saved = fs.readFileSync(record);
+  assert.equal(JSON.parse(saved).incomplete, true);
+  assert.equal(JSON.parse(saved).resultRecord, 'missing');
+  assert.equal(JSON.parse(saved).observedDifference, 5);
+  assert.equal(
+    fs.existsSync(path.join(reopened.directory, 'result.json')),
+    false,
+  );
+  assert.deepEqual(fs.readFileSync(file), before);
+  assert.throws(() => reopened.recordAfterBalance(90), {
+    code: 'STORAGE_FAILED',
+  });
+  assert.deepEqual(fs.readFileSync(record), saved);
+  assert.equal(f.sends(), 0);
+});
+test('incomplete balance recovery preserves invalid or different candidate attempt records', (t) => {
+  for (const record of [
+    { version: 2, requestHash: 'wrong', beforeBalance: 100 },
+    { version: 1, requestHash: 'wrong', beforeBalance: 100 },
+  ]) {
+    const f = fixture(t);
+    const file = path.join(f.runner.directory, 'attempt.json');
+    fs.writeFileSync(file, JSON.stringify(record));
+    const reopened = new LiveValidation({
+      profile: f.root,
+      request: candidate.request,
+    });
+    assert.throws(() => reopened.recordAfterBalance(100), {
+      code: record.version === 2 ? 'STORAGE_FAILED' : 'REQUEST_CHANGED',
+    });
+    assert.equal(
+      fs.existsSync(path.join(reopened.directory, 'balance-after.json')),
+      false,
+    );
+    assert.deepEqual(JSON.parse(fs.readFileSync(file)), record);
+  }
 });
 test('failure before a response records no complete capture; received HTTP error body stays private', async (t) => {
   const f = fixture(t, {
