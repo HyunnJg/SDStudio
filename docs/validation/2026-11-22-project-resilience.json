@@ -1,0 +1,348 @@
+{
+  "date": "2026-11-22 (Asia/Seoul)",
+  "baseCommit": "57e1a277af4aa2c6dd764221cc094b8fbe0e6142",
+  "runtimeCommit": "3d7b6e3f07f7f597ed27850b48065c57edca69ab",
+  "runtimeTree": "be53156ee8e076c2e466a4f7df02dbdc027d5833",
+  "environment": {
+    "platform": "Linux x64",
+    "node": "22.4.1",
+    "npm": "11.19.1 (unsupported pairing warning; not recommended setup)",
+    "electron": "26.6.10",
+    "electronNode": "18.16.1",
+    "display": "Xorg dummy, cookie authenticated TCP loopback"
+  },
+  "unitTests": {
+    "passed": 127,
+    "failed": 0,
+    "skipped": 0,
+    "projectStore": 13,
+    "projectController": 6,
+    "projectServiceAndClose": 8,
+    "naiMain": 36,
+    "naiResponse": 19,
+    "offline": 11,
+    "workspace": 14,
+    "naiContract": 10,
+    "networkMode": 10
+  },
+  "checks": {
+    "scopedStrictTypes": true,
+    "scopedLint": true,
+    "formatAndSyntax": true,
+    "productionBuild": true,
+    "packaging": true
+  },
+  "packageWorker": {
+    "baseline": {
+      "appAsarSHA256": "c5883fa091cb2358af7b41dee907eb8a9057fecd45dd75dc84df39e460dd8d88",
+      "worker": {
+        "size": 12121,
+        "integrity": {
+          "algorithm": "SHA256",
+          "hash": "9d5295943657e63b5c579b6b221a4fe65b996ca99ae468ff4130fddcf9aede97",
+          "blockSize": 4194304,
+          "blocks": [
+            "9d5295943657e63b5c579b6b221a4fe65b996ca99ae468ff4130fddcf9aede97"
+          ]
+        },
+        "offset": "24214202"
+      },
+      "workerUnpacked": false
+    },
+    "final": {
+      "appAsarSHA256": "ae5a40474f68d6c74a935f07eca5306c6aa9a143ba50bc7731ce2f2db05bebe4",
+      "worker": {
+        "size": 12121,
+        "integrity": {
+          "algorithm": "SHA256",
+          "hash": "9d5295943657e63b5c579b6b221a4fe65b996ca99ae468ff4130fddcf9aede97",
+          "blockSize": 4194304,
+          "blocks": [
+            "9d5295943657e63b5c579b6b221a4fe65b996ca99ae468ff4130fddcf9aede97"
+          ]
+        },
+        "offset": "26011940"
+      },
+      "workerUnpacked": false
+    }
+  },
+  "baselinePackagedProjectUI": {
+    "projectUI": {
+      "checks": [
+        "explicit UI save preserves the edited selected scene through worker IPC",
+        "new/open dirty guard cancels without losing input and explicit discard restores saved input",
+        "busy save keeps the current input and explicit new copy leaves the original lock untouched",
+        "actual native close waits for unsaved decision; cancel retains the live window",
+        "visible history recovery creates a new copy while the corrupt source stays byte-identical",
+        "390px controls and dialogs stay within the window width"
+      ],
+      "closeWithSave": true
+    },
+    "nativeQuitObserved": true,
+    "ready": true,
+    "project": "오프라인 예제",
+    "offline": true,
+    "mock": true,
+    "singleInstanceLockSimulated": true,
+    "externalRequests": [],
+    "rendererErrors": [],
+    "packageContext": {
+      "isPackaged": true,
+      "archiveUnchanged": true,
+      "profileIsolated": true,
+      "inspectorInjectedHarness": true
+    }
+  },
+  "finalPackagedModes": {
+    "projects": {
+      "projectUI": {
+        "checks": [
+          "explicit UI save preserves the edited selected scene through worker IPC",
+          "new/open dirty guard cancels without losing input and explicit discard restores saved input",
+          "busy save keeps the current input and explicit new copy leaves the original lock untouched",
+          "actual native close waits for unsaved decision; cancel retains the live window",
+          "visible history recovery creates a new copy while the corrupt source stays byte-identical",
+          "390px controls and dialogs stay within the window width"
+        ],
+        "closeWithSave": true
+      },
+      "nativeQuitObserved": true,
+      "ready": true,
+      "project": "오프라인 예제",
+      "offline": true,
+      "mock": true,
+      "singleInstanceLockSimulated": true,
+      "externalRequests": [],
+      "rendererErrors": [],
+      "packageContext": {
+        "isPackaged": true,
+        "archiveUnchanged": true,
+        "profileIsolated": true,
+        "inspectorInjectedHarness": true
+      }
+    },
+    "worker": {
+      "resilience": {
+        "mode": "worker",
+        "checks": [
+          "terminated real worker returns stopped error; failed close-save keeps window and original manifest",
+          "explicit storage restart keeps input and never replays failed save",
+          "new explicit save after restart succeeds through replacement worker"
+        ],
+        "nativeDialogSelectionsSimulated": false,
+        "dialogs": []
+      },
+      "nativeQuitObserved": true,
+      "ready": true,
+      "project": "오프라인 예제",
+      "offline": true,
+      "mock": true,
+      "singleInstanceLockSimulated": true,
+      "externalRequests": [],
+      "rendererErrors": [],
+      "packageContext": {
+        "isPackaged": true,
+        "archiveUnchanged": true,
+        "profileIsolated": true,
+        "inspectorInjectedHarness": true
+      }
+    },
+    "crash": {
+      "resilience": {
+        "mode": "crash",
+        "checks": [
+          "real renderer crash observed",
+          "native dialog cancel/wait retains window and saved bytes"
+        ],
+        "nativeDialogSelectionsSimulated": true,
+        "dialogs": [
+          "화면이 중단됐습니다",
+          "화면이 중단됐습니다"
+        ]
+      },
+      "nativeQuitObserved": true,
+      "ready": true,
+      "project": "오프라인 예제",
+      "offline": true,
+      "mock": true,
+      "singleInstanceLockSimulated": true,
+      "externalRequests": [],
+      "rendererErrors": [],
+      "packageContext": {
+        "isPackaged": true,
+        "archiveUnchanged": true,
+        "profileIsolated": true,
+        "inspectorInjectedHarness": true
+      }
+    },
+    "unresponsive": {
+      "resilience": {
+        "mode": "unresponsive",
+        "checks": [
+          "synthetic unresponsive event enters native close path",
+          "native dialog cancel/wait retains window and saved bytes"
+        ],
+        "nativeDialogSelectionsSimulated": true,
+        "dialogs": [
+          "화면이 응답하지 않습니다",
+          "화면이 응답하지 않습니다"
+        ]
+      },
+      "nativeQuitObserved": true,
+      "ready": true,
+      "project": "오프라인 예제",
+      "offline": true,
+      "mock": true,
+      "singleInstanceLockSimulated": true,
+      "externalRequests": [],
+      "rendererErrors": [],
+      "packageContext": {
+        "isPackaged": true,
+        "archiveUnchanged": true,
+        "profileIsolated": true,
+        "inspectorInjectedHarness": true
+      }
+    }
+  },
+  "unpackagedProjectUI": {
+    "reports": [
+      {
+        "phase": "create",
+        "pid": 24,
+        "projectUI": {
+          "checks": [
+            "explicit UI save preserves the edited selected scene through worker IPC",
+            "new/open dirty guard cancels without losing input and explicit discard restores saved input",
+            "busy save keeps the current input and explicit new copy leaves the original lock untouched",
+            "actual native close waits for unsaved decision; cancel retains the live window",
+            "visible history recovery creates a new copy while the corrupt source stays byte-identical",
+            "390px controls and dialogs stay within the window width"
+          ],
+          "closeWithSave": true
+        },
+        "nativeQuitObserved": true,
+        "ready": true,
+        "project": "오프라인 예제",
+        "offline": true,
+        "mock": true,
+        "singleInstanceLockSimulated": true,
+        "externalRequests": [],
+        "rendererErrors": []
+      },
+      {
+        "phase": "reopen",
+        "pid": 117,
+        "projectUI": {
+          "checks": [
+            "new PID opens saved three-scene input through the project UI"
+          ],
+          "nativeCloseRequested": true
+        },
+        "nativeQuitObserved": true,
+        "ready": true,
+        "project": "오프라인 예제",
+        "offline": true,
+        "mock": true,
+        "singleInstanceLockSimulated": true,
+        "externalRequests": [],
+        "rendererErrors": []
+      }
+    ],
+    "actualAccountRequests": 0,
+    "syntheticOnly": true
+  },
+  "electronBridge": [
+    {
+      "electron": "26.6.10",
+      "node": "18.16.1",
+      "syntheticOnly": true,
+      "checks": [
+        "offline listing through compiled sandbox preload creates no project directory",
+        "three-scene save and stale-revision rejection work without token/network IPC",
+        "secondary window cannot access projects",
+        "explicit recovery copies valid history and original PNG into a new project and preserves the broken source",
+        "fresh store reads persisted project while a replacement unapproved document stays denied",
+        "no token file, raw filesystem path API or renderer PNG import endpoint"
+      ],
+      "remoteRequestsAllowed": 0,
+      "remoteRequestsBlocked": 0,
+      "rendererErrors": []
+    }
+  ],
+  "packageNotices": {
+    "requiredResourcesPresent": [
+      "LICENSES/electron-react-boilerplate.txt",
+      "CREDITS.md",
+      "THIRD_PARTY_NOTICES/THIRD_PARTY_NOTICES.txt",
+      "THIRD_PARTY_NOTICES/index.json",
+      "THIRD_PARTY_NOTICES/APP_LICENSE_STATUS.md"
+    ],
+    "noticeCopiesVerified": 250,
+    "bundlePackageOccurrencesIndexed": 143,
+    "copiedRuntimePackagesIndexed": 112,
+    "runtimeIdentityBasis": "name/version/license/author/repository (builder strips scripts and other build metadata)",
+    "unresolvedNoticeFiles": [
+      {
+        "root": "node_modules/@react-dnd/invariant",
+        "name": "@react-dnd/invariant",
+        "version": "4.0.2",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "node_modules/@react-dnd/shallowequal",
+        "name": "@react-dnd/shallowequal",
+        "version": "4.0.2",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "release/app/node_modules/batch-cluster/types/chai-withintoleranceof",
+        "name": "@types/chai-withintoleranceof",
+        "version": "0.0.1",
+        "declaredLicense": null
+      },
+      {
+        "root": "release/app/node_modules/github-from-package/example",
+        "name": "beep-boop",
+        "version": "1.2.3",
+        "declaredLicense": null
+      },
+      {
+        "root": "release/app/node_modules/browserify-zlib",
+        "name": "browserify-zlib",
+        "version": "0.1.4",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "release/app/node_modules/is-gzip",
+        "name": "is-gzip",
+        "version": "1.0.0",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "src/native",
+        "name": "native",
+        "version": "1.0.0",
+        "declaredLicense": "ISC"
+      },
+      {
+        "root": "node_modules/react-dnd-preview",
+        "name": "react-dnd-preview",
+        "version": "8.1.2",
+        "declaredLicense": "MIT"
+      }
+    ],
+    "allIdentifiedPackagesHaveNoticeFiles": false,
+    "completeRedistributionReview": false
+  },
+  "actualAccountRequests": 0,
+  "limitations": [
+    "Linux directory packages only; Windows/macOS not executed",
+    "Existing native dependencies reused, npmRebuild=false; no clean install, signing or release",
+    "Singleton lock is simulated by harness; app.asar and app.isPackaged unchanged",
+    "Native dialog choices simulated; real renderer force-crash, synthetic unresponsive event",
+    "No automatic timeout approval, storage write replay, lock removal or partial-file cleanup",
+    "120 distinct physical PNG performance benchmark deferred",
+    "Whole repository tsc not rerun; prior TS2688 not resolved",
+    "No actual generation, PNG UI or persistent queue integration"
+  ]
+}

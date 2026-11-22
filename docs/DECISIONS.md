@@ -318,3 +318,13 @@
 - Electron 기본 닫기는 메인이 먼저 막고 승인 문서에 요청한다. 렌더러의 프로젝트 결정과 V3 saveAll 완료 뒤에만 trusted finish로 native close한다. 취소/저장 실패는 창을 유지한다. 기존 데스크톱의 별도 backend.onClose 저장 루프는 이 경로로 통합하고 모바일 경로는 유지한다. macOS 재활성화 시 승인 상태를 초기화한다. token lock과 worker 종료는 will-quit로 옮겨 닫기 취소 때 토큰/worker가 먼저 사라지지 않게 한다.
 - 목록은 metadata, 열기는 PNG 전체 검사라는 차이를 표시한다. 저장 PNG 기록은 개수만 표시하고 이번에 이미지 파일을 새로 표시하거나 예제 SVG를 PNG로 보관하지 않는다. 오프라인 배지의 “저장 없음”은 실제 프로젝트 저장과 충돌해 “실제 생성 없음”으로 정정했다.
 - Windows/macOS·ASAR 패키지의 worker·실제 온라인 모드 재시작·renderer 무응답 강제 종료·동일 프로세스 macOS 재개는 미실측이다. 전체 모델/과금/실행 연결의 완료로 표시하지 않는다.
+
+## D-040 — 비정상 닫기는 native 선택, 저장 worker는 명시적 재시작만 허용한다 (PR #19 검토)
+
+- PR #19 head `607173ff4d45ddfafed4a9595858dd12a9727466`를 `57e1a277af4aa2c6dd764221cc094b8fbe0e6142`로 병합했다. 실제 생성 연결 전 저장/닫기의 실패 복구만 작은 후속으로 보완한다.
+- render-process-gone/unresponsive 상태에서 native close를 누르면 메인 dialog로 취소/기다리기 또는 저장하지 않고 닫기를 고른다. 기본/취소는 유지이며 시간 초과 자동 승인은 없다. 정상 renderer는 기존 프로젝트 결정/V3 저장을 기다린다. 복귀 이벤트는 무응답 상태를 풀고 새 창 reset은 오래된 dialog 응답의 적용도 무효화한다.
+- worker 생성 동기 예외·오류·exit·서비스 종료는 PROJECT_SERVICE_STOPPED로 구분한다. 입력/미저장 상태는 유지한다. 사용자가 저장 기능 다시 시작을 누르면 이전 worker 종료를 기다리고 새 worker에서 읽기 전용 list로 준비를 확인한다. 실패한 create/save/copy 등은 자동 재전송하지 않으며 쓰기 완료 여부는 다시 목록/열기로 확인한다. 종료 중 남은 lock/임시 파일은 자동 삭제하지 않는다.
+- 수동 복구는 저장 확인창에서도 가능하다. 복구 성공이 과거 저장 성공을 의미하지 않고 새 저장 버튼/동작은 별도 선택이다. 실제 사용 중 오류가 다시 나면 중지 상태를 그대로 알린다.
+- 개발 TS hook과 TS_NODE_PROJECT는 모듈 기준 절대 경로로 정하고 cwd가 바뀌어도 동일 설치를 사용한다. production execArgv는 비워 두며 ts-node를 번들에 넣지 않는다.
+- ASAR worker는 추측으로 unpack하지 않는다. PR19 기준과 이번 Linux 디렉터리 패키지에서 실제 저장/복구/닫기를 실행해 ASAR 내부 worker의 정상 동작을 확인했다. 실제 worker terminate 뒤 수동 복구도 같은 최종 패키지에서 통과했다. Windows/macOS의 동작을 입증한 것은 아니다.
+- [검증](validation/2026-11-22-project-resilience.md): 127단위, 범위 타입/린트, 빌드/패키지 고지, 실제 패키지4경로와 비패키지2PID. renderer crash는 실제 강제 종료, 무응답은 이벤트 주입, dialog 선택·환경 singleton 잠금은 모의다. 실제 계정 호출0회. 120개의 서로 다른 물리 PNG 성능은 후속이며 기존 동일 파일 참조 측정을 확대 해석하지 않는다.

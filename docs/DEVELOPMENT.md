@@ -259,3 +259,11 @@ npm run smoke:workspace
 smoke:project-ui는 빈 전용 프로필로 실제 Electron을 두 번 실행한다. UI 저장·닫기 취소·남은 잠금 복사·손상 이력 복구 뒤 실제 native close를 완료하고 다음 PID에서 목록을 열어 입력을 복원한다. 환경 단일 인스턴스 잠금만 모의하고 원격 요청을 차단한다. 합성 프로젝트와 임시 파일만 사용하며 종료 후 정리한다. 새 프로젝트 저장은 mock 작업실에서도 별도 IPC로 실제 비공개 프로필에 기록되므로 이전의 “모든 저장 없음” 배지와 구분한다.
 
 production worker는 projectWorker.js를 추가 산출물로 빌드한다. 개발 TS worker에는 기존 루트 ts-node hook 경로를 지정하되 ts-node를 production 번들로 끌어오지 않는다. Node worker 단위 검사와 production Electron UI는 확인했지만 Windows/macOS·ASAR/패키지 실행·전체 dev 서버 재기동은 이번 검증 범위가 아니다.
+
+### 프로젝트 worker·화면 중단 패키지 검사 (D-040)
+
+위 D-039의 ASAR 미검증 상태는 [후속 실측](validation/2026-11-22-project-resilience.md)으로 Linux 디렉터리 패키지에 한해 보완했다. Windows/macOS는 계속 미검증이다. 빌드 후 패키지 경로를 지정해 `npm run smoke:package -- /absolute/linux-unpacked projects`로 실제 ASAR 내부 worker 저장/복구/닫기를 검사한다. 마지막 인자를 `worker`, `crash`, `unresponsive`로 각각 바꾸면 저장 worker 종료/수동 복구, 실제 renderer 강제 종료, 무응답 이벤트 주입을 검사한다. 네 모드는 Linux X11에서 순서대로 실행한다.
+
+패키지 archive를 바꾸지 않고 loopback inspector로 테스트 하네스만 주입한다. native dialog 선택과 singleton 잠금은 모의이며 일반 제품 실행 옵션이 아니다. 하네스의 의도적 crash 외 renderer 오류/원격 요청은 실패다. 선택 `SDSTUDIO_PACKAGE_REPORT`는 정제 결과 JSON을 지정한 로컬 파일로 복사한다. 테스트 프로필은 임시 폴더이며 실제 사용자 파일을 입력하지 않는다.
+
+운영에서 PROJECT_SERVICE_STOPPED가 보이면 입력을 유지한 채 저장 기능 다시 시작을 선택할 수 있다. 이전 쓰기는 다시 보내지 않으므로 목록/열기로 완료 여부를 확인한다. 잠금/부분 파일을 자동 삭제하지 않는다. 개발 TS worker는 시작 cwd와 관계없이 모듈 기준 hook/tsconfig를 사용한다.
