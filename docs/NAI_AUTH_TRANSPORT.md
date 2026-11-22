@@ -97,3 +97,9 @@ nai:inspect-response는 명시적으로 고른 일반 파일 하나만 제한해
 `createNaiTransport`의 선택 observer는 고정 HTTP 상태 범위와 정제 MIME 식별자/상태만 관찰한다. 매개변수는 제거하고 헤더 부재/형식 오류를 구분한다. 관찰 객체는 freeze하며 observer 예외는 전송 결과를 바꾸지 않는다. 연구 도구만 이 관찰을 내용 없는 결과 파일에 연결하고 저장 경계에서도 재검사한다. 제품 렌더러/IPC·일반 로그에는 추가하지 않았다.
 
 사용자 기본1장 성공은 D-035의 한 후보 관찰이며 정확한 MIME은 여전히 모른다. 합성 응답에서 운영 기본 수신이 통과해도 실제 모델·생성 IPC·새 프로젝트·제품 대기열 연결 완료는 아니다. [검증 기록](validation/2026-11-22-production-image-transport.md).
+
+## PR #17 후속 회귀와 운영 진단 계획
+
+빈 2xx 본문/3바이트 ZIP 조각도 RESPONSE_FORMAT으로 끝나는 회귀와, 연구 외 main의 raw send 오용을 잡는 AST tripwire를 추가했다. tripwire는 webContents.send 메시지를 허용하며 별칭/동적 호출까지 증명하지 않는다. 실제 모델 연결에는 계속 sendImage를 사용한다.
+
+P1-02 첫 운영 생성 때 정제 MIME/state·HTTP 상태만 비공개 로컬 진단으로 관찰할 계획을 D-038에 명시했다. 현재는 연구 결과와 테스트만 observer를 사용하며 실제 서버 MIME은 계속 미확인이다. 새 프로젝트 로컬 IPC는 auth와 같은 프레임 검사를 쓰지만 네트워크/토큰을 사용하지 않아 오프라인에서도 허용된다.

@@ -248,6 +248,21 @@ function checkPNG(bytes: Buffer): void {
   check(ended, 'png-iend');
 }
 
+// Reuse the same bounded structural checks when persisting an already decoded PNG.
+export function validatePNGBytes(input: Uint8Array): Uint8Array {
+  check(input instanceof Uint8Array, 'response-input');
+  if (input.byteLength > IMAGE_RESPONSE_LIMITS.pngBytes)
+    throw new NaiError(
+      'RESPONSE_TOO_LARGE',
+      false,
+      undefined,
+      'response-expanded-limit',
+    );
+  const bytes = Buffer.from(input);
+  checkPNG(bytes);
+  return Uint8Array.from(bytes);
+}
+
 export async function readNaiImageResponse(
   input: Uint8Array,
   signal?: AbortSignal,

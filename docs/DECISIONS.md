@@ -290,3 +290,19 @@
 - 연구 결과 저장 시에도 MIME을 다시 정제한다. 예전 other 기록을 사후에 특정 MIME으로 바꾸지 않는다. 새 합성 MIME은 테스트 값일 뿐 실제 서버 MIME의 근거가 아니다. LiveValidation의 active 해제는 시도 선점 뒤 전체 본문 바깥 finally로 보장한다.
 - P1-02 실제 대기열 연결 때 앱은 비용·무료 조건·할당량을 계산하지 않는다고 표시한다. 예약 수·설정과 웹 비용 확인을 묶어 실행 전에 한 번 확인하고, 예약/설정 변경 시 확인을 다시 받는 흐름을 구현한다. 이미지마다 확인하거나 자동 재시도하는 흐름은 만들지 않는다. 현재 mock 큐는 바꾸지 않으며 사용자 Opus/Anlas 관찰차이0에서 사용량 소모를 추정하지 않는다.
 - Windows Node 22.4.1 준비는 기존 재현 기준으로의 정렬이다. VS2026을 인식하지 못하는 로컬 @electron/node-gyp10.2.0-electron.1 문제의 해결과 구분한다. 전체 Windows npm ci·네이티브 빌드·패키징 호환은 미검증이며 의존성 변경은 별도 작업이다.
+
+## D-037 — 신규 프로젝트는 독립 형식·불변 이력과 복사 복구로 시작한다
+
+- PR #17 head `1cc3c17`을 검토 후 `30d238181d7c4d48262a40e2d1c8be04554ffd07`로 병합했다. 신규 저장은 UI/모델 변경과 분리해 shared schema, 메인 ProjectStore, 제한된 IPC/프리로드를 먼저 구현한다. 화면 버튼·자동 저장은 아직 없으며 이번 결과를 전체 P0-03b2 완료로 표시하지 않는다.
+- format=sdstudio-workspace/version=1을 V3 Session.version과 분리한다. 포크 userData/projects-v1 아래만 사용하고 원본 V3·config/TOKEN.txt를 읽거나 자동 변환하지 않는다. 알려진 스키마의 허용 키·ID·크기·배열/텍스트 한도를 검사하며 미완성 입력도 보존한다. 생성 규격 검증은 별도다.
+- UUID별 현재 manifest와 수정 전 바이트의 SHA-256 이력을 둔다. 기대 리비전·wx 잠금으로 충돌을 거부하고 파일 fsync 후 rename한다. Linux 디렉터리 fsync를 포함하되 Windows ACL/rename·전원 차단은 미실측이다. 오류 뒤 자동 재저장하지 않고 다시 읽어 상태를 확인한다. 남은 잠금·부분 기록을 자동 삭제하지 않는다.
+- 손상/상위 버전은 원본을 보존하고 저장을 거부한다. 명시적 이력 복구는 새 UUID 복사본을 만들며 원본을 덮어쓰지 않는다. PNG 해시/크기와 이력을 검증하고 분실 PNG를 manifest만으로 복구했다고 표시하지 않는다. 저장 이력/참조 밖 파일의 자동 삭제·GC는 없다.
+- 메인 addPNG는 기존 PNG 구조/CRC·한도를 재사용해 원본 바이트를 보존한다. 명시 model/sampler/noiseSchedule·resolved seed·초안/sceneId를 기록하되 실제 바인딩이 최종 값을 제공해야 한다. API body 전체/파라미터 의미·모델 지원을 확정한 것은 아니다. PNG 쓰기·읽기 IPC는 아직 열지 않는다.
+- 프로젝트 IPC는 인증과 같은 신뢰 프레임 검사 뒤 오프라인에서도 허용한다. 경로/OS 원문 예외를 받거나 반환하지 않고 토큰 필드·인증 요청을 추가하지 않는다. 기존 범용 파일 IPC의 보안 변경으로 확대하지 않는다. [형식·복구·한계](PROJECT_STORAGE.md).
+
+## D-038 — PR #17 후속은 회귀 고정과 연결 시 진단 계획으로 제한한다
+
+- 운영 이미지의 빈 2xx 본문 및 3바이트 PK03을 청크별로 보내도 RESPONSE_FORMAT/mayHaveReachedServer=true로 끝나는 회귀를 추가했다.
+- main의 raw send 호출은 연구 LiveValidation에 한정하고 Electron webContents 메시지 send만 예외로 둔 AST 검토 tripwire를 추가한다. 별칭·동적 접근까지 입증하는 데이터 흐름 분석이나 보안 경계는 아니다. 공개 메서드 이름은 이번에 바꾸지 않는다.
+- P1-02 첫 운영 생성 연결 때 선택 메인 observer의 정제 MIME/state·HTTP 상태만 포크 프로필의 비공개 로컬 진단에 남기는 범위를 구현한다. IPC/화면·원문/프롬프트/토큰 로그로 보내지 않는다. 현재 실제 MIME은 미확인이고 이를 알아내려 추가 계정 호출을 하지 않는다.
+- Windows에서 의존성 변경 없는 선택지는 VS2022 Build Tools와 C++ 데스크톱 workload 병행 설치다. 로컬 @electron/node-gyp10.2.0-electron.1에 VS17→2022 탐지 코드가 있고 Microsoft는 다른 주요 버전 병행 설치를 안내한다. 이 저장소/사용자 PC의 npm ci 성공은 미검증이며 선택지일 뿐 지금 설치를 요구하지 않는다. Node22 정렬·VS탐지·네이티브 빌드 성공은 계속 구분한다.
