@@ -269,3 +269,29 @@ test('generated revision preserves current input and uses actual persisted conte
   assert.equal(f.controller.dirty(), false);
   assert.equal(f.workspace.draft.prompt, 'edited');
 });
+
+test('result metadata comes from the accepted snapshot without a second open; clearing/new input drops the old record list', async () => {
+  const f = fixture();
+  await f.controller.save();
+  const current = f.controller.getSnapshot();
+  const content = f.controller.content();
+  const image = { id: '33333333-3333-4333-8333-333333333333', seed: 0 };
+  const snapshot = {
+    project: {
+      ...content,
+      id: current.id,
+      images: [image],
+      format: 'sdstudio-workspace',
+      version: 2,
+    },
+    revision: 'c'.repeat(64),
+  };
+  f.controller.acceptGenerated(snapshot);
+  assert.deepEqual(f.controller.getSnapshot().imageRecords, [image]);
+  assert.equal(f.controller.dirty(), false);
+  snapshot.project.images[0].seed = 99;
+  assert.equal(f.controller.getSnapshot().imageRecords[0].seed, 0);
+  assert.deepEqual(f.calls, ['create']);
+  await f.controller.newProject();
+  assert.deepEqual(f.controller.getSnapshot().imageRecords, []);
+});

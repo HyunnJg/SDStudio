@@ -12,6 +12,8 @@ const operations = [
   'recover',
   'copy',
   'generationSnapshot',
+  'readManifest',
+  'image',
   'addPNG',
   'readPNG',
 ] as const;

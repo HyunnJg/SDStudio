@@ -45,7 +45,9 @@ export class ProjectService implements ProjectOperations {
       | 'copy'
       | 'addPNG'
       | 'readPNG'
-      | 'generationSnapshot',
+      | 'generationSnapshot'
+      | 'readManifest'
+      | 'image',
   >(
     operation: K,
     args: Parameters<ProjectStore[K]>,
@@ -144,6 +146,14 @@ export class ProjectService implements ProjectOperations {
   }
 
   // Main-only methods. No renderer endpoint accepts PNG bytes or a raw filesystem path.
+  readManifest(id: string) {
+    return this.call('readManifest', [id]);
+  }
+
+  image(id: string, imageId: string) {
+    return this.call('image', [id, imageId]);
+  }
+
   generationSnapshot(...args: Parameters<ProjectStore['generationSnapshot']>) {
     return this.call('generationSnapshot', args);
   }

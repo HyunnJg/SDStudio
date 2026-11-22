@@ -41,7 +41,7 @@ interface Pending {
 interface Options {
   store: Pick<
     ProjectService,
-    'open' | 'addPNG' | 'readPNG' | 'generationSnapshot' | 'create'
+    'readManifest' | 'image' | 'addPNG' | 'generationSnapshot' | 'create'
   >;
   offline: () => boolean;
   sendImage: (bytes: Uint8Array, signal: AbortSignal) => Promise<Uint8Array>;
@@ -240,7 +240,7 @@ export class WorkspaceGeneration {
         this.pending.revision = next.revision;
         return await this.persist(next.revision);
       }
-      const snapshot = await this.options.store.open(this.pending.id);
+      const snapshot = await this.options.store.readManifest(this.pending.id);
       // An ambiguous prior write may already contain this result. Do not append twice.
       const existing = snapshot.project.images.find(
         (i) => i.id === this.pending!.imageId,
@@ -251,6 +251,7 @@ export class WorkspaceGeneration {
           createHash('sha256').update(this.pending.bytes).digest('hex')
         )
           throw new ProjectError('PROJECT_CORRUPT');
+        await this.options.store.image(this.pending.id, existing.id); // Validate only this already-committed result before releasing the retained PNG.
         this.pending = undefined;
         return { snapshot, imageId: existing.id };
       }
@@ -282,9 +283,6 @@ export class WorkspaceGeneration {
   async image(id: string, imageId: string): Promise<Uint8Array> {
     projectId(id);
     projectId(imageId);
-    const snapshot = await this.options.store.open(id);
-    const image = snapshot.project.images.find((i) => i.id === imageId);
-    if (!image) throw new ProjectError('PROJECT_NOT_FOUND');
-    return this.options.store.readPNG(id, image.sha256);
+    return this.options.store.image(id, imageId);
   }
 }
