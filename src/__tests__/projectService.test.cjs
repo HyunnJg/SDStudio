@@ -196,15 +196,112 @@ test('worker failure and queue bound return fixed failures and never automatical
   );
   await assert.rejects(service.list(), { code: 'PROJECT_BUSY' });
   service.close();
-  assert.deepEqual(await Promise.all(pending), Array(16).fill('PROJECT_IO'));
-  await assert.rejects(service.list(), { code: 'PROJECT_IO' });
+  assert.deepEqual(
+    await Promise.all(pending),
+    Array(16).fill('PROJECT_SERVICE_STOPPED'),
+  );
+  await assert.rejects(service.list(), { code: 'PROJECT_SERVICE_STOPPED' });
   const failing = path.join(f.profile, 'fail.cjs');
   fs.writeFileSync(failing, "throw Error('synthetic private path')");
   const broken = new ProjectService(f.profile, failing);
   t.after(() => broken.close());
   await assert.rejects(broken.list(), {
-    code: 'PROJECT_IO',
-    message: 'PROJECT_IO',
+    code: 'PROJECT_SERVICE_STOPPED',
+    message: 'PROJECT_SERVICE_STOPPED',
   });
-  await assert.rejects(broken.list(), { code: 'PROJECT_IO' });
+  await assert.rejects(broken.list(), { code: 'PROJECT_SERVICE_STOPPED' });
+});
+
+test('synchronous Worker construction errors always reject a Promise with the stopped code', async (t) => {
+  const f = fixture(t),
+    service = new ProjectService(f.profile, 'invalid-bare-worker-path');
+  t.after(() => service.close());
+  const result = service.list();
+  assert.ok(result instanceof Promise);
+  await assert.rejects(result, {
+    code: 'PROJECT_SERVICE_STOPPED',
+    message: 'PROJECT_SERVICE_STOPPED',
+  });
+  await assert.rejects(service.list(), { code: 'PROJECT_SERVICE_STOPPED' });
+});
+test('manual storage restart does not replay writes and development hook is independent of cwd', async (t) => {
+  const f = fixture(t),
+    entry = path.resolve('src/main/projects/projectWorker.ts'),
+    service = new ProjectService(f.profile, entry);
+  t.after(() => service.close());
+  const initial = await service.create(f.content);
+  await service.worker.terminate();
+  await new Promise(setImmediate);
+  await assert.rejects(
+    service.save(initial.project.id, initial.revision, {
+      ...f.content,
+      name: 'never sent',
+    }),
+    { code: 'PROJECT_SERVICE_STOPPED' },
+  );
+  const before = fs.readFileSync(
+    path.join(f.profile, 'projects-v1', initial.project.id, 'project.json'),
+  );
+  const cwd = process.cwd();
+  try {
+    process.chdir(f.profile);
+    await service.restartStorage();
+  } finally {
+    process.chdir(cwd);
+  }
+  assert.deepEqual(
+    fs.readFileSync(
+      path.join(f.profile, 'projects-v1', initial.project.id, 'project.json'),
+    ),
+    before,
+  );
+  assert.equal(
+    (await service.open(initial.project.id)).project.name,
+    'synthetic',
+  );
+  assert.equal(
+    (
+      await service.save(initial.project.id, initial.revision, {
+        ...f.content,
+        name: 'explicit new save',
+      })
+    ).project.name,
+    'explicit new save',
+  );
+});
+test('renderer unavailable close requires an explicit native decision and stale decisions cannot close a new window', async () => {
+  const events = [],
+    decisions = [];
+  const close = new ProjectCloseCoordinator(
+    () => events.push('renderer'),
+    () => events.push('close'),
+    (reason) => new Promise((resolve) => decisions.push({ reason, resolve })),
+  );
+  close.setRendererState('unresponsive');
+  assert.equal(close.request(), false);
+  assert.equal(close.request(), false);
+  await new Promise(setImmediate);
+  assert.equal(decisions.length, 1);
+  assert.equal(close.finish(), false);
+  decisions[0].resolve(false);
+  await new Promise(setImmediate);
+  assert.deepEqual(events, []);
+  close.setRendererState();
+  close.request();
+  assert.deepEqual(events, ['renderer']);
+  close.setRendererState('gone');
+  close.request();
+  await new Promise(setImmediate);
+  assert.equal(decisions[1].reason, 'gone');
+  close.reset();
+  decisions[1].resolve(true);
+  await new Promise(setImmediate);
+  assert.deepEqual(events, ['renderer']);
+  close.setRendererState('gone');
+  close.request();
+  await new Promise(setImmediate);
+  decisions[2].resolve(true);
+  await new Promise(setImmediate);
+  assert.deepEqual(events, ['renderer', 'close']);
+  assert.equal(close.request(), true);
 });

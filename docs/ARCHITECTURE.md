@@ -138,3 +138,5 @@ App이 ProjectController를 소유하고 WorkspaceProjectControls의 조작부/�
 projectIpc는 awaited ProjectOperations를 받는다. 일반 main.ts는 ProjectService를 주입하며 worker_threads의 고정 projectWorker가 허용된 list/create/open/save/history/recover/copy만 실행한다. worker에 Electron 세션/인증을 넘기지 않는다. 기존 동기 ProjectStore는 코어 검사와 파일 원자성/잠금 정책을 유지한다. 실행 중 main 전송 타이머와 프로젝트 I/O를 같은 스레드에서 돌리지 않는다.
 
 ProjectCloseCoordinator가 native close를 보류하고 승인된 메인 문서의 프로젝트 결정/V3 저장 완료 응답을 기다린다. 요청은 workspace-close-request, 응답은 trusted finish/cancel이다. 새 창 생성 때 승인 상태를 reset한다. App의 전체 입력 영역은 저장/닫기 준비 중 inert이고 dialog는 그 바깥에 있다. 앱 종료 준비 실패는 창을 유지하며 임의 timeout 종료나 자동 잠금 해제는 없다. 모바일의 기존 backend close 동작은 유지한다.
+
+PR #19 후속(D-040): worker 생성/종료는 PROJECT_SERVICE_STOPPED로 고정해 UI에서 명시적으로 restartStorage할 수 있다. 기존 pending 호출은 실패로 끝내며 재전송하지 않는다. restart는 과거 worker를 종료한 후 새 worker의 list만 확인한다. native close는 renderer crash/unresponsive 상태에 한해 메인 dialog로 취소/기다리기 또는 버리기를 고르며 타이머 자동 승인은 없다. 정상 trusted finish 경계는 유지한다. Linux 실제 ASAR 패키지에서도 worker 저장/복구/닫기를 검증했으므로 이 환경에서 불필요한 unpack 변경을 하지 않았다.

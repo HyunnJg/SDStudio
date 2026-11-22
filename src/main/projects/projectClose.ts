@@ -6,29 +6,76 @@ export class ProjectCloseCoordinator {
 
   private approved = false;
 
+  private rendererState?: 'gone' | 'unresponsive';
+
+  private deciding = false;
+
+  private generation = 0;
+
+  private readonly askWithoutRenderer?: (
+    state: 'gone' | 'unresponsive',
+  ) => Promise<boolean>;
+
   private readonly requestRenderer: () => void;
 
   private readonly closeWindow: () => void;
 
-  constructor(requestRenderer: () => void, closeWindow: () => void) {
+  constructor(
+    requestRenderer: () => void,
+    closeWindow: () => void,
+    askWithoutRenderer?: (state: 'gone' | 'unresponsive') => Promise<boolean>,
+  ) {
     this.requestRenderer = requestRenderer;
     this.closeWindow = closeWindow;
+    this.askWithoutRenderer = askWithoutRenderer;
   }
 
   reset() {
     this.pending = false;
     this.approved = false;
+    this.rendererState = undefined;
+    this.deciding = false;
+    this.generation += 1;
+  }
+
+  setRendererState(state?: 'gone' | 'unresponsive') {
+    this.rendererState = state;
+    if (state) this.pending = false;
   }
 
   request() {
     if (this.approved) return true;
+    if (this.rendererState) {
+      if (this.deciding || !this.askWithoutRenderer) return false;
+      this.deciding = true;
+      const { generation } = this;
+      const state = this.rendererState;
+      Promise.resolve()
+        .then(() => this.askWithoutRenderer!(state))
+        .then((approved) => {
+          if (!approved || generation !== this.generation) return false;
+          this.approved = true;
+          this.closeWindow();
+          return true;
+        })
+        .catch(() => {
+          /* Dialog failure must never approve data loss. */
+        })
+        .finally(() => {
+          if (generation === this.generation) this.deciding = false;
+        })
+        .catch(() => {
+          /* Final cleanup must not produce an unhandled rejection. */
+        });
+      return false;
+    }
     this.pending = true;
     this.requestRenderer();
     return false;
   }
 
   finish() {
-    if (!this.pending) return false;
+    if (!this.pending || this.rendererState) return false;
     this.approved = true;
     this.closeWindow();
     return true;

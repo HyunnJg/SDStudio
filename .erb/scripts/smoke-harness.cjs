@@ -11,6 +11,11 @@ if (authUI) {
     ),
   );
 }
+const resilience = process.env.SDSTUDIO_SMOKE_RESILIENCE;
+const resilienceTest = resilience
+  ? require('./project-resilience-smoke.cjs')
+  : undefined;
+resilienceTest?.install();
 const external = [];
 const errors = [];
 let finished = false;
@@ -56,7 +61,9 @@ app.on('web-contents-created', (_event, contents) => {
     if (level >= 3) errors.push(message);
   });
   contents.on('render-process-gone', (_event, details) =>
-    finish(1, { error: `Renderer exited: ${details.reason}` }),
+    resilience === 'crash' && resilienceTest.expectedCrash
+      ? undefined
+      : finish(1, { error: `Renderer exited: ${details.reason}` }),
   );
   contents.on('did-finish-load', async () => {
     try {
@@ -97,6 +104,24 @@ app.on('web-contents-created', (_event, contents) => {
               if (blocked.length !== calls.length) throw new Error('An offline operation was permitted');
               return blocked;
             })()`);
+          }
+          if (result.mock && resilience) {
+            let report;
+            app.once('will-quit', () =>
+              finish(external.length || errors.length ? 1 : 0, {
+                resilience: report,
+                nativeQuitObserved: true,
+                ...result,
+                text: undefined,
+              }),
+            );
+            report = await resilienceTest.exercise(contents, resilience);
+            setImmediate(() =>
+              require('electron')
+                .BrowserWindow.fromWebContents(contents)
+                .close(),
+            );
+            return;
           }
           if (result.mock && process.env.SDSTUDIO_SMOKE_PROJECTS === '1') {
             let projectUI;

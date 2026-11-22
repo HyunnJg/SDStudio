@@ -63,3 +63,11 @@ PNG add/read는 **메인 내부 메서드**뿐이다. 렌더러가 임의 PNG·�
 공유 프로젝트 대화상자는 V3 화면에서도 표시된다. 다른 프로젝트로 전환할 때나 실제 창 닫기/연결 모드 재시작 전에는 미저장 입력의 저장·저장하지 않기·취소를 묻는다. 프로젝트 작업/예약·실행 중에는 전환하지 않는다. 저장 후 새 편집이 들어왔다면 계속 미저장이다. native close는 V3 saveAll까지 기다린 뒤 신뢰 프레임의 finish가 있어야 진행한다. 사용자 확인을 거친 재시작만 기존 networkMode.restarting 우회를 사용한다.
 
 production은 dist/main/projectWorker.js, 개발 시작은 기존 TS hook의 별도 worker를 사용한다. 새 production 파일은 webpack 고지 inventory에 포함되지만 이번에는 패키지/ASAR 안에서 실행하지 않았다. 개발 TS worker는 Node 단위 검사로 확인했으며 전체 개발 서버의 실제 재시작은 이번에 실행하지 않았다. [검증·성능 측정·미실행 범위](validation/2026-11-22-project-controls.md).
+
+## PR #19 후속: 중지된 저장 기능과 화면 중단 (D-040)
+
+worker 생성/오류/종료는 일반 PROJECT_IO와 구분한 PROJECT_SERVICE_STOPPED다. 화면의 “저장 기능 다시 시작”은 앱 전체 재시작이 아니라 별도 저장 worker만 명시적으로 복구한다. 종료 확인창 안에서도 사용할 수 있다. 이전 worker 종료를 기다린 뒤 새 list로 준비를 확인하며 실패한 쓰기는 다시 보내지 않는다. 이전 저장이 완료됐을 가능성은 남으므로 목록/열기로 상태를 확인한다. 현재 입력·미저장 상태와 기존 파일/lock은 그대로다. core 작업7개 외에 trusted `restartStorage` 서비스 IPC가 하나 추가됐다.
+
+renderer crash/unresponsive 상태에서는 프로젝트 dialog에 의존하지 않고 native close 때 메인 dialog로 취소/기다리기 또는 버리고 닫기를 고른다. 후자는 미저장 입력을 복구한다는 뜻이 아니다. 진행 중 저장은 다음 실행에서 확인하고 남은 부분 기록/lock을 자동 수리하지 않는다. 시간 초과로 닫기를 승인하지 않는다. 정상 화면으로 돌아오면 기존 미저장 확인/저장 경로를 다시 사용한다.
+
+PR19 기준과 변경 후의 실제 Linux 패키지에서 ASAR 내부 worker가 정상 실행됨을 확인했다. unpack 설정은 바꾸지 않았다. 개발 TS worker는 hook과 tsconfig를 모듈 기준 절대 경로로 고정했다. [패키지/실패 주입 검증과 한계](validation/2026-11-22-project-resilience.md).

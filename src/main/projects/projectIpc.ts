@@ -4,7 +4,7 @@ import { ProjectError } from '../../workspaceProject';
 import type { ProjectReply } from '../../workspaceProject';
 import type { ProjectStore } from './projectStore';
 
-export type ProjectOperations = {
+export type ProjectOperations = { restartStorage?: () => Promise<void> } & {
   [K in 'list' | 'create' | 'open' | 'save' | 'history' | 'recover' | 'copy']: (
     ...args: Parameters<ProjectStore[K]>
   ) => ReturnType<ProjectStore[K]> | Promise<ReturnType<ProjectStore[K]>>;
@@ -32,6 +32,11 @@ export function registerProjects(
       },
     );
   };
+  handle('workspace-project-restart-storage', () => {
+    if (!store.restartStorage)
+      throw new ProjectError('PROJECT_SERVICE_STOPPED');
+    return store.restartStorage();
+  });
   handle('workspace-project-list', () => store.list());
   handle('workspace-project-create', (content) => store.create(content));
   handle('workspace-project-open', (id) => store.open(id));

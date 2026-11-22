@@ -26,6 +26,8 @@ export const projectErrorMessage = (code: ProjectErrorCode): string =>
       '다른 저장이 반영됐을 수 있습니다. 현재 편집을 유지한 채 다시 열거나 입력만 새 프로젝트로 저장하세요.',
     PROJECT_BUSY:
       '다른 저장 또는 이전 종료의 잠금이 남아 있습니다. 잠금을 지우지 않고 새 복사본으로 계속할 수 있습니다.',
+    PROJECT_SERVICE_STOPPED:
+      '저장 기능이 중지됐습니다. 입력은 유지됩니다. 저장 기능 다시 시작 후 목록을 확인하세요. 이전 저장은 자동 재시도하지 않습니다.',
     PROJECT_IO:
       '저장 결과를 확정하지 못했습니다. 교체됐을 수도 있으니 다시 열어 확인하세요. 현재 편집은 유지됩니다.',
     PROJECT_LIMIT:
@@ -153,6 +155,17 @@ export class ProjectController {
       baseline,
       message: '입력·씬 저장됨 · 예제 결과/대기열은 저장하지 않습니다.',
       error: undefined,
+    });
+  }
+
+  async restartStorage() {
+    return this.execute('저장 기능 다시 시작 중', async () => {
+      unwrap(await this.client().restartStorage());
+      this.update({
+        message:
+          '저장 기능을 다시 시작했습니다. 이전 저장의 완료 여부는 목록/열기로 확인하세요. 이전 요청은 다시 보내지 않았습니다.',
+        error: undefined,
+      });
     });
   }
 

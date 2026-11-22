@@ -203,3 +203,33 @@ test('close/restart waits for a decision and an edit after a captured save remai
   await save;
   assert.equal(g.controller.dirty(), true);
 });
+
+test('stopped storage has specific UI guidance and manual restart preserves dirty input and failed-save intent', async () => {
+  let saves = 0,
+    restarts = 0;
+  const f = fixture({
+    save: async () => {
+      saves++;
+      return { ok: false, code: 'PROJECT_SERVICE_STOPPED' };
+    },
+    restartStorage: async () => {
+      restarts++;
+      return { ok: true };
+    },
+  });
+  await f.controller.save();
+  f.edit();
+  const leaving = f.controller.prepareLeave();
+  await f.controller.confirm('save');
+  assert.equal(f.controller.getSnapshot().error, 'PROJECT_SERVICE_STOPPED');
+  assert.match(f.controller.getSnapshot().message, /다시 시작/);
+  assert.ok(f.controller.getSnapshot().confirm);
+  await f.controller.restartStorage();
+  assert.equal(restarts, 1);
+  assert.equal(saves, 1);
+  assert.equal(f.workspace.draft.prompt, 'edited');
+  assert.equal(f.controller.dirty(), true);
+  assert.ok(f.controller.getSnapshot().confirm);
+  await f.controller.confirm('cancel');
+  assert.equal(await leaving, false);
+});

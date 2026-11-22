@@ -294,7 +294,7 @@ test('offline local IPC checks trust before storage and returns fixed codes with
     await handlers.get('workspace-project-open')({}, '../../synthetic-private'),
     { ok: false, code: 'PROJECT_INPUT' },
   );
-  assert.equal(handlers.size, 7);
+  assert.equal(handlers.size, 8);
   assert.equal(handlers.has('workspace-project-import-png'), false);
 });
 test('V3 fixture files/config/TOKEN remain byte-identical and cannot be silently adopted as a modern project', (t) => {

@@ -856,6 +856,15 @@ const createWindow = async () => {
     }
   });
 
+  let rendererGone = false;
+  mainWindow.webContents.on('render-process-gone', () => {
+    rendererGone = true;
+    projectClose?.setRendererState('gone');
+  });
+  mainWindow.on('unresponsive', () => { if (!rendererGone) projectClose?.setRendererState('unresponsive'); });
+  mainWindow.on('responsive', () => { if (!rendererGone) projectClose?.setRendererState(); });
+  mainWindow.webContents.on('did-finish-load', () => { rendererGone = false; projectClose?.setRendererState(); });
+
   mainWindow.on('close', (e) => {
     if (networkMode.restarting) return; // UI already awaited saveAll before relaunch.
     if (!projectClose?.request()) e.preventDefault();
@@ -992,6 +1001,19 @@ if (!gotTheLock) {
       projectClose = new ProjectCloseCoordinator(
         () => mainWindow?.webContents.send('workspace-close-request'),
         () => mainWindow?.close(),
+        async (state) => {
+          const window = mainWindow;
+          if (!window || window.isDestroyed()) return false;
+          const result = await dialog.showMessageBox(window, {
+            type: 'warning',
+            title: state === 'gone' ? '화면이 중단됐습니다' : '화면이 응답하지 않습니다',
+            message: '저장하지 않은 입력을 확인할 수 없습니다. 저장하지 않고 닫으시겠습니까?',
+            detail: '저장된 프로젝트 파일은 삭제하지 않습니다. 진행 중이던 저장은 다음 실행에서 확인해야 하며, 남은 잠금이나 부분 기록을 자동 정리하지 않습니다.',
+            buttons: [state === 'gone' ? '취소' : '기다리기', '저장하지 않고 닫기'],
+            defaultId: 0, cancelId: 0, noLink: true,
+          });
+          return result.response === 1 && mainWindow === window && !window.isDestroyed();
+        },
       );
       projectClose.register(ipcMain, (event) => isTrustedAuthFrame(event, mainWindow?.webContents, resolveHtmlPath('index.html')));
       registerNetworkMode(

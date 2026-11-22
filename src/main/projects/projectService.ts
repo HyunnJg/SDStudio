@@ -11,6 +11,10 @@ export class ProjectService implements ProjectOperations {
 
   private closed = false;
 
+  private stopped = false;
+
+  private restarting = false;
+
   private next = 1;
 
   private pending = new Map<
@@ -37,21 +41,40 @@ export class ProjectService implements ProjectOperations {
     operation: K,
     args: Parameters<ProjectStore[K]>,
   ): Promise<ReturnType<ProjectStore[K]>> {
-    if (this.closed) return Promise.reject(new ProjectError('PROJECT_IO'));
+    if (this.closed || this.stopped)
+      return Promise.reject(new ProjectError('PROJECT_SERVICE_STOPPED'));
+    if (this.restarting)
+      return Promise.reject(new ProjectError('PROJECT_BUSY'));
     if (this.pending.size >= 16)
       return Promise.reject(new ProjectError('PROJECT_BUSY'));
     if (!this.worker) {
-      this.worker = new Worker(this.entry, {
-        workerData: { profile: this.profile },
-        ...(this.entry.endsWith('.ts')
-          ? {
-              execArgv: [
-                '-r',
-                path.resolve('node_modules/ts-node/register/transpile-only.js'),
-              ],
-            }
-          : { execArgv: [] }),
-      });
+      try {
+        this.worker = new Worker(this.entry, {
+          workerData: { profile: this.profile },
+          ...(this.entry.endsWith('.ts')
+            ? {
+                env: {
+                  ...process.env,
+                  TS_NODE_PROJECT: path.resolve(
+                    __dirname,
+                    '../../../tsconfig.json',
+                  ),
+                },
+                execArgv: [
+                  '-r',
+                  path.resolve(
+                    __dirname,
+                    '../../../node_modules/ts-node/register/transpile-only.js',
+                  ),
+                ],
+              }
+            : { execArgv: [] }),
+        });
+      } catch {
+        this.stopped = true;
+        return Promise.reject(new ProjectError('PROJECT_SERVICE_STOPPED'));
+      }
+      const activeWorker = this.worker;
       this.worker.on('message', (r) => {
         const task = this.pending.get(r.id);
         if (!task) return;
@@ -60,8 +83,11 @@ export class ProjectService implements ProjectOperations {
         else task.reject(new ProjectError(r.code));
       });
       const fail = () => {
-        this.closed = true;
-        this.pending.forEach((t) => t.reject(new ProjectError('PROJECT_IO')));
+        if (this.worker !== activeWorker) return;
+        this.stopped = true;
+        this.pending.forEach((t) =>
+          t.reject(new ProjectError('PROJECT_SERVICE_STOPPED')),
+        );
         this.pending.clear();
       };
       this.worker.on('error', fail);
@@ -108,9 +134,29 @@ export class ProjectService implements ProjectOperations {
     return this.call('copy', [id, revision, content]);
   }
 
+  async restartStorage(): Promise<void> {
+    if (this.closed || !this.stopped) throw new ProjectError('PROJECT_INPUT');
+    if (this.restarting) throw new ProjectError('PROJECT_BUSY');
+    this.restarting = true;
+    const previous = this.worker;
+    this.worker = undefined; // Old exit/error callbacks cannot stop the replacement.
+    try {
+      await previous?.terminate();
+    } catch {
+      /* Already stopped. Never replay a pending request. */
+    } finally {
+      this.restarting = false;
+    }
+    if (this.closed) throw new ProjectError('PROJECT_SERVICE_STOPPED');
+    this.stopped = false;
+    await this.list(); // Read-only readiness check; no previous write is retried.
+  }
+
   close() {
     this.closed = true;
-    this.pending.forEach((t) => t.reject(new ProjectError('PROJECT_IO')));
+    this.pending.forEach((t) =>
+      t.reject(new ProjectError('PROJECT_SERVICE_STOPPED')),
+    );
     this.pending.clear();
     this.worker?.terminate().catch(() => {
       /* Pending calls already failed; never retry writes. */

@@ -20,6 +20,7 @@ export type ProjectErrorCode =
   | 'PROJECT_NOT_FOUND'
   | 'PROJECT_CONFLICT'
   | 'PROJECT_BUSY'
+  | 'PROJECT_SERVICE_STOPPED'
   | 'PROJECT_IO'
   | 'PROJECT_LIMIT'
   | 'PROJECT_UNTRUSTED';
@@ -68,6 +69,7 @@ export interface ProjectListing {
 export type ProjectReply<T> =
   { ok: true; value: T } | { ok: false; code: ProjectErrorCode };
 export interface ProjectClient {
+  restartStorage(): Promise<ProjectReply<void>>;
   list(): Promise<ProjectReply<ProjectListing[]>>;
   create(content: ProjectContent): Promise<ProjectReply<ProjectSnapshot>>;
   open(id: string): Promise<ProjectReply<ProjectSnapshot>>;

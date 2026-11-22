@@ -81,6 +81,8 @@ const electronHandler = {
       ipcRenderer.invoke('workspace-close-cancel'),
   },
   projects: {
+    restartStorage: () =>
+      ipcRenderer.invoke('workspace-project-restart-storage'),
     list: () => ipcRenderer.invoke('workspace-project-list'),
     create: (content) =>
       ipcRenderer.invoke('workspace-project-create', content),
