@@ -25,6 +25,7 @@ const messages = {
   OFFLINE: '오프라인 강제 설정이 적용되어 있습니다.',
   INVALID_INPUT: '토큰 형식을 확인해 주세요.',
   UNTRUSTED_SENDER: '이 창에서는 요청할 수 없습니다.',
+  NOT_FINISHED: '현재 요청이 진행 중이거나 기록할 시도가 없습니다.',
 };
 function refresh() {
   $('run').disabled =
@@ -32,7 +33,7 @@ function refresh() {
   $('cancel').disabled = !busy;
   $('token-save').disabled = busy || snapshot?.used || snapshot?.offline;
   $('token').disabled = busy || snapshot?.used || snapshot?.offline;
-  $('after-save').disabled = busy || !snapshot?.finished;
+  $('after-save').disabled = busy || !snapshot?.canRecordBalance;
 }
 async function load() {
   const value = await window.validation.status();
@@ -46,6 +47,9 @@ async function load() {
     $('token-state').textContent = '전송 시도 사용됨 · 토큰 메모리 사본 삭제';
   $('candidate').textContent = JSON.stringify(snapshot.candidate, null, 2);
   if (snapshot.used) $('message').textContent = messages.ALREADY_USED;
+  $('recovery-state').textContent = snapshot.incomplete
+    ? '결과 기록이 없습니다. 다른 실행 창이 모두 종료됐는지 확인한 뒤 현재 웹 잔액을 기록하세요. 서버 처리·과금 여부는 미확인입니다.'
+    : '';
   refresh();
 }
 $('token-save').onclick = async () => {

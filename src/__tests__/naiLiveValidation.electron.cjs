@@ -7,7 +7,15 @@ const fs = require('node:fs'),
 const {
   extraElectronArgs,
 } = require('../../.erb/scripts/isolated-profile.cjs');
-for (const mode of ['bad-zip', 'http-error', 'valid', 'cancel', 'offline'])
+for (const mode of [
+  'bad-zip',
+  'http-error',
+  'valid',
+  'unknown-mime',
+  'cancel',
+  'offline',
+  'recovery',
+])
   test(
     `real Electron one-shot validation UI: ${mode}`,
     {

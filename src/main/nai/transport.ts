@@ -13,10 +13,13 @@ interface TransportOptions {
   session: Session;
   offline: () => boolean;
   token: () => string | Promise<string>;
+  // Research opt-in only; requires capture and subsequent strict ZIP/PNG parsing.
+  acceptZipSignature?: boolean;
   // Explicit research-tool opt-in only. Never returned through auth IPC or errors.
   diagnosticCapture?: (result: {
     bytes: Uint8Array;
     truncated: boolean;
+    acceptedByZipSignature?: true;
   }) => void;
 }
 
@@ -135,7 +138,7 @@ export class NaiTransport {
               response.statusCode < 200 || response.statusCode >= 300
                 ? new NaiError('HTTP_ERROR', sent, response.statusCode)
                 : undefined;
-            const responseError =
+            let responseError =
               statusError ??
               (!/^application\/(zip|x-zip-compressed|octet-stream)(;|$)/i.test(
                 String(response.headers['content-type'] || '').trim(),
@@ -146,7 +149,14 @@ export class NaiTransport {
               finish(responseError);
               return;
             }
-            const limit = responseError ? 64 * 1024 : 64 * 1024 * 1024;
+            let limit = responseError ? 64 * 1024 : 64 * 1024 * 1024;
+            let probeSignature =
+              !statusError &&
+              !!responseError &&
+              !!this.options.diagnosticCapture &&
+              this.options.acceptZipSignature === true;
+            const signature: number[] = [];
+            let acceptedByZipSignature = false;
             const chunks: Uint8Array[] = [];
             let size = 0;
             const complete = (truncated = false) => {
@@ -161,6 +171,9 @@ export class NaiTransport {
                 this.options.diagnosticCapture?.({
                   bytes: Uint8Array.from(joined),
                   truncated,
+                  ...(acceptedByZipSignature
+                    ? { acceptedByZipSignature: true as const }
+                    : {}),
                 });
               } catch {
                 finish(new NaiError('RESPONSE_CAPTURE_FAILED', sent));
@@ -180,6 +193,24 @@ export class NaiTransport {
             };
             response.on('data', (chunk: Buffer) => {
               if (settled) return;
+              if (probeSignature) {
+                for (
+                  let i = 0;
+                  i < chunk.length && signature.length < 4;
+                  i += 1
+                )
+                  signature.push(chunk[i]);
+                if (signature.length === 4) {
+                  probeSignature = false;
+                  if (
+                    signature.every((byte, i) => byte === [80, 75, 3, 4][i])
+                  ) {
+                    acceptedByZipSignature = true;
+                    responseError = undefined;
+                    limit = 64 * 1024 * 1024;
+                  }
+                }
+              }
               if (size + chunk.length > limit) {
                 if (!responseError) {
                   finish(new NaiError('RESPONSE_TOO_LARGE', sent));

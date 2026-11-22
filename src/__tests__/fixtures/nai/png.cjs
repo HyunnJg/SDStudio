@@ -17,7 +17,11 @@ function chunk(type, data) {
   tail.writeUInt32BE(crc(value));
   return Buffer.concat([head, value, tail]);
 }
-function png(width = 2, height = 1) {
+function png(
+  width = 2,
+  height = 1,
+  opaque = Buffer.from('synthetic opaque metadata'),
+) {
   const header = Buffer.alloc(13);
   header.writeUInt32BE(width);
   header.writeUInt32BE(height, 4);
@@ -31,7 +35,7 @@ function png(width = 2, height = 1) {
       zlib.deflateSync(Buffer.from([0, 1, 2, 3, 0, 17, 18, 19, 255])),
     ),
     chunk('tEXt', Buffer.from('Comment\0{"seed":0,"fixture":true}')),
-    chunk('stEg', Buffer.from('synthetic opaque metadata')),
+    chunk('stEg', opaque),
     chunk('IEND', Buffer.alloc(0)),
   ]);
 }

@@ -100,9 +100,12 @@ function start(options = {}) {
             session: session.defaultSession,
             offline: () => offline,
             token: () => store.read(),
+            acceptZipSignature: true,
             diagnosticCapture: (result) => {
               capture(result.bytes);
               metadata.truncated = result.truncated;
+              metadata.acceptedByZipSignature =
+                result.acceptedByZipSignature === true;
             },
             request: (requestOptions) => {
               const request = net.request(
