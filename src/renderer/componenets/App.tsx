@@ -51,6 +51,7 @@ import { appState } from '../models/AppService';
 import { AppContextMenu } from './AppContextMenu';
 import PreviewWorkspace from './PreviewWorkspace';
 import WorkspaceProjectControls from './WorkspaceProjectControls';
+import { finishProjectClose } from '../projects/finishProjectClose';
 import { ProjectController } from '../projects/projectController';
 import NaiAuthSettings from './NaiAuthSettings';
 import { prepareRestart } from '../network/restartPreparation';
@@ -60,6 +61,8 @@ import {
   previewErrorMessage,
 } from '../preview/workspaceDraft';
 import { WorkspaceQueue } from '../preview/workspaceQueue';
+import ConnectedWorkspace from './ConnectedWorkspace';
+import { createConnectedWorkspaceState } from '../generation/connectedDraft';
 import { MockBackend } from '../backends/mockBackend';
 
 import { configure } from 'mobx';
@@ -142,7 +145,8 @@ const DnDPreview = () => {
 export const App = observer(() => {
   const [authOpen, setAuthOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(runtimeOptions.mockBackend);
-  const [workspace, setWorkspace] = useState(createWorkspaceState);
+  const freshWorkspace = () => runtimeOptions.mockBackend ? createWorkspaceState() : createConnectedWorkspaceState();
+  const [workspace, setWorkspace] = useState(freshWorkspace);
   const nextPreviewResult = useRef(1);
   const recordPreviewResult = (
     image: string,
@@ -187,7 +191,7 @@ export const App = observer(() => {
     client: window.electron?.projects,
     workspace: () => workspaceRef.current,
     busy: projectTasksBusy,
-    reset: () => { const next = createWorkspaceState(); workspaceRef.current = next; setWorkspace(next); workspaceQueue.clear(); },
+    reset: () => { const next = freshWorkspace(); workspaceRef.current = next; setWorkspace(next); workspaceQueue.clear(); },
     apply: (snapshot) => {
       const next = {...createWorkspaceState(), scenes: snapshot.project.scenes,
         selectedSceneId: snapshot.project.selectedSceneId,
@@ -207,7 +211,7 @@ export const App = observer(() => {
         if (!(await project.prepareLeave()) || projectTasksBusy()) { await window.electron.projectLifecycle.cancelClose(); return; }
         await sessionService.saveAll();
         if (projectTasksBusy()) { await window.electron.projectLifecycle.cancelClose(); return; }
-        await window.electron.projectLifecycle.finishClose();
+        await finishProjectClose(() => window.electron.projectLifecycle.finishClose(), message => appState.pushMessage(message));
       } catch { appState.pushMessage('저장 상태를 확인하지 못해 닫기를 중단했습니다. 입력은 유지됩니다.'); await window.electron.projectLifecycle.cancelClose(); }
       finally { projectClosingRef.current = false; setProjectClosing(false); }
     })();
@@ -367,6 +371,14 @@ export const App = observer(() => {
         if (!(backend instanceof MockBackend)) throw new Error('Preview requires the mock backend');
         return backend.renderDraftPreview(request, scenario);
       }} />
+  ) : window.electron && previewOpen ? (
+    <ConnectedWorkspace state={workspace} setState={setWorkspace} project={project}
+      projectLocked={!!projectView.operation || projectClosing} darkMode={darkMode}
+      onBusyChange={value => { singlePreviewBusy.current = value; }}
+      onOpenLegacy={() => setPreviewOpen(false)} onOpenAuth={() => setAuthOpen(true)}
+      onToggleTheme={async () => {
+        const config = await backend.getConfig(); await backend.setConfig({ ...config, whiteMode: darkMode }); setDarkMode(!darkMode);
+      }} />
   ) : (
     <DndProvider
       backend={isMobile ? TouchBackend : HTML5Backend}
@@ -398,7 +410,7 @@ export const App = observer(() => {
             }
             <VerticalStack>
               <StackFixed>
-                <TobBar onOpenAuth={window.electron ? () => setAuthOpen(true) : undefined} onOpenPreview={runtimeOptions.mockBackend ? () => setPreviewOpen(true) : undefined} />
+                <TobBar onOpenAuth={window.electron ? () => setAuthOpen(true) : undefined} onOpenPreview={window.electron ? () => setPreviewOpen(true) : undefined} />
               </StackFixed>
               <StackGrow className="flex">
                 {appState.curSession && (
@@ -449,6 +461,7 @@ export const App = observer(() => {
           if (!(await project.prepareLeave())) return 'PROJECT_NOT_READY';
           return await prepareRestart(
         () => {
+          if (singlePreviewBusy.current) return 'WORKSPACE_PENDING';
           if (taskQueueService.hasActiveRun()) return 'LEGACY_RUNNING';
           if (!taskQueueService.isEmpty()) return 'LEGACY_PENDING';
           const snapshot = workspaceQueue.getSnapshot();

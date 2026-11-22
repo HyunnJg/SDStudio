@@ -71,3 +71,11 @@ worker 생성/오류/종료는 일반 PROJECT_IO와 구분한 PROJECT_SERVICE_ST
 renderer crash/unresponsive 상태에서는 프로젝트 dialog에 의존하지 않고 native close 때 메인 dialog로 취소/기다리기 또는 버리고 닫기를 고른다. 후자는 미저장 입력을 복구한다는 뜻이 아니다. 진행 중 저장은 다음 실행에서 확인하고 남은 부분 기록/lock을 자동 수리하지 않는다. 시간 초과로 닫기를 승인하지 않는다. 정상 화면으로 돌아오면 기존 미저장 확인/저장 경로를 다시 사용한다.
 
 PR19 기준과 변경 후의 실제 Linux 패키지에서 ASAR 내부 worker가 정상 실행됨을 확인했다. unpack 설정은 바꾸지 않았다. 개발 TS worker는 hook과 tsconfig를 모듈 기준 절대 경로로 고정했다. [패키지/실패 주입 검증과 한계](validation/2026-11-22-project-resilience.md).
+
+## 기본1장 결과와 manifest v2 (D-041)
+
+실제 생성이 연결된 현재 범위/실패 복구는 [WORKSPACE_GENERATION.md](WORKSPACE_GENERATION.md)에 정리했다. 프로젝트를 읽거나 입력만 저장한다고 v1을 자동 승격하지 않는다. 생성 결과의 `binding={id, requestHash}`를 처음 명시적으로 추가할 때 v2로 쓰며 reader는 v1/v2를 함께 지원한다. 이전 v1-only reader는 v2에 PROJECT_VERSION을 반환한다. 직전 v1 스냅샷은 기존 불변 이력에 남고 새 복사본으로 복구할 수 있다. PNG/메타데이터·binding은 copy/recover에 함께 보존한다. 기존 물리 projects-v1 경로는 바꾸지 않는다.
+
+ProjectService worker는 main-only generationSnapshot/addPNG/readPNG를 추가로 실행한다. generationSnapshot은 참조 PNG·리비전/잠금/이력·이미지/JSON 한도를 전송 전에 검사하고 실제 write 시에도 다시 검사한다. addPNG의 stable image UUID는 저장 응답이 유실/모호해도 동일 결과를 중복 추가하지 않기 위한 것이다. renderer projects IPC에 PNG 쓰기를 열지 않는다. generation image IPC는 manifest 참조 image UUID만 받아 읽고 PNG 바이트를 반환한다. 로컬 PNG 읽기는 오프라인에서도 가능하다.
+
+새 결과의 draft는 논리 편집 초안이며 실제 픽셀 수의 유일한 근거가 아니다. 고정 binding.id와 body hash 및 전송 seed로512px 요청을 구분한다. PNG 안의 모델·seed 의미를 추출/검증하거나 서버가 요청을 어떻게 해석했는지 증명한 것은 아니다. 메모리 pending 결과는 프로세스 종료를 견디는 journal이 아니므로 저장-only 복구/명시적 새 프로젝트 저장으로 먼저 보관한다.

@@ -15,6 +15,10 @@ import { createRuntimeOptions } from '../runtimeOptions';
 import { installOfflineRequestGuard } from './offlineNetwork';
 import { NaiTokenStore } from './nai/tokenStore';
 import { registerNaiAuth, isTrustedAuthFrame } from './nai/authIpc';
+import { WorkspaceGeneration } from './nai/workspaceGeneration';
+import { registerGeneration } from './nai/generationIpc';
+import { createNaiTransport } from './nai/electronTransport';
+import { firstGenerationObserver } from './nai/generationDiagnostics';
 import { ProjectService } from './projects/projectService';
 import { ProjectCloseCoordinator } from './projects/projectClose';
 import { registerProjects } from './projects/projectIpc';
@@ -137,6 +141,7 @@ const DEFAULT_APP_DIR = developmentProfile.appDirectory;
 let APP_DIR = DEFAULT_APP_DIR;
 
 let projectClose: ProjectCloseCoordinator | undefined;
+let workspaceGeneration: WorkspaceGeneration | undefined;
 let config: Config = {};
 
 ipcMain.handle('get-config', async (event) => {
@@ -859,6 +864,7 @@ const createWindow = async () => {
   let rendererGone = false;
   mainWindow.webContents.on('render-process-gone', () => {
     rendererGone = true;
+    workspaceGeneration?.cancel();
     projectClose?.setRendererState('gone');
   });
   mainWindow.on('unresponsive', () => { if (!rendererGone) projectClose?.setRendererState('unresponsive'); });
@@ -990,6 +996,12 @@ if (!gotTheLock) {
       const projectService = new ProjectService(app.getPath('userData'),
         usesDevelopmentAssets(app.isPackaged, process.env.NODE_ENV)
           ? path.join(__dirname, 'projects/projectWorker.ts') : path.join(__dirname, 'projectWorker.js'));
+      const generationTransport = createNaiTransport(tokenStore, () => runtimeOptions.offline,
+        firstGenerationObserver(app.getPath('userData')));
+      workspaceGeneration = new WorkspaceGeneration({ store: projectService, offline: () => runtimeOptions.offline,
+        sendImage: (bytes, signal) => generationTransport.sendImage(bytes, signal) });
+      registerGeneration(ipcMain, workspaceGeneration, (event) => isTrustedAuthFrame(event, mainWindow?.webContents, resolveHtmlPath('index.html')));
+      app.on('will-quit', () => workspaceGeneration?.cancel());
       app.on('will-quit', () => projectService.close());
       registerProjects(
         ipcMain,
@@ -1007,13 +1019,14 @@ if (!gotTheLock) {
           const result = await dialog.showMessageBox(window, {
             type: 'warning',
             title: state === 'gone' ? '화면이 중단됐습니다' : '화면이 응답하지 않습니다',
-            message: '저장하지 않은 입력을 확인할 수 없습니다. 저장하지 않고 닫으시겠습니까?',
-            detail: '저장된 프로젝트 파일은 삭제하지 않습니다. 진행 중이던 저장은 다음 실행에서 확인해야 하며, 남은 잠금이나 부분 기록을 자동 정리하지 않습니다.',
+            message: '저장하지 않은 입력·생성 결과를 확인할 수 없습니다. 저장하지 않고 닫으시겠습니까?',
+            detail: '메모리에만 남은 PNG는 사라질 수 있습니다. 저장된 프로젝트 파일은 삭제하지 않습니다. 진행 중이던 저장은 다음 실행에서 확인해야 하며, 남은 잠금이나 부분 기록을 자동 정리하지 않습니다.',
             buttons: [state === 'gone' ? '취소' : '기다리기', '저장하지 않고 닫기'],
             defaultId: 0, cancelId: 0, noLink: true,
           });
           return result.response === 1 && mainWindow === window && !window.isDestroyed();
         },
+        () => !workspaceGeneration?.hasWork(),
       );
       projectClose.register(ipcMain, (event) => isTrustedAuthFrame(event, mainWindow?.webContents, resolveHtmlPath('index.html')));
       registerNetworkMode(
@@ -1023,6 +1036,7 @@ if (!gotTheLock) {
           event, mainWindow?.webContents, resolveHtmlPath('index.html'),
         ),
         () => {
+          if (workspaceGeneration?.hasWork()) throw new Error('Generation is active or has an unsaved result');
           app.relaunch();
           setImmediate(() => app.quit());
         },

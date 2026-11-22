@@ -7,10 +7,7 @@ import type {
   ProjectErrorCode,
   ProjectReply,
 } from '../../workspaceProject';
-import {
-  snapshotWorkspaceScenes,
-  createWorkspaceState,
-} from '../preview/workspaceDraft';
+import { snapshotWorkspaceScenes } from '../preview/workspaceDraft';
 import type { WorkspaceState } from '../preview/workspaceDraft';
 
 export const projectErrorMessage = (code: ProjectErrorCode): string =>
@@ -153,9 +150,25 @@ export class ProjectController {
       revision: snapshot.revision,
       images: snapshot.project.images.length,
       baseline,
-      message: '입력·씬 저장됨 · 예제 결과/대기열은 저장하지 않습니다.',
+      message:
+        '입력·씬 저장됨 · 기존 PNG 기록 유지 · 대기열은 저장하지 않습니다.',
       error: undefined,
     });
+  }
+
+  acceptGenerated(snapshot: ProjectSnapshot, asNewProject = false) {
+    if (snapshot.project.id !== this.state.id) {
+      if (!asNewProject) throw new ProjectError('PROJECT_CONFLICT');
+      this.options.apply(snapshot);
+      this.update({ name: snapshot.project.name });
+    }
+    const { name, selectedSceneId, scenes } = snapshot.project;
+    this.bind(snapshot, JSON.stringify({ name, selectedSceneId, scenes }));
+    if (this.dirty())
+      this.update({
+        message:
+          '생성 결과를 저장했습니다. 현재 편집과 저장된 입력이 달라 미저장 상태로 유지합니다.',
+      });
   }
 
   async restartStorage() {
@@ -163,7 +176,7 @@ export class ProjectController {
       unwrap(await this.client().restartStorage());
       this.update({
         message:
-          '저장 기능을 다시 시작했습니다. 이전 저장의 완료 여부는 목록/열기로 확인하세요. 이전 요청은 다시 보내지 않았습니다.',
+          '저장 기능을 다시 시작했습니다. 이전 저장의 완료 여부는 목록/열기로 확인하세요. 이전 요청은 다시 보내지 않았습니다. 저장이 중간에 끊겼다면 새 복사본으로 계속해야 할 수 있습니다.',
         error: undefined,
       });
     });
@@ -256,7 +269,7 @@ export class ProjectController {
   async newProject() {
     return this.guard('새 입력 시작', async () => {
       this.options.reset();
-      const initial = createWorkspaceState();
+      const initial = this.options.workspace();
       this.update({
         id: undefined,
         revision: undefined,

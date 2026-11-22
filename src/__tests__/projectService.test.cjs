@@ -305,3 +305,58 @@ test('renderer unavailable close requires an explicit native decision and stale 
   assert.deepEqual(events, ['renderer', 'close']);
   assert.equal(close.request(), true);
 });
+
+test('renderer recovery with an invalidated close request shows retry guidance instead of silently keeping the window', async () => {
+  const {
+    finishProjectClose,
+  } = require('../renderer/projects/finishProjectClose');
+  let closed = 0;
+  const messages = [];
+  const close = new ProjectCloseCoordinator(
+    () => {},
+    () => {
+      closed++;
+    },
+  );
+  close.request();
+  close.setRendererState('unresponsive');
+  close.setRendererState();
+  assert.equal(
+    await finishProjectClose(
+      async () => close.finish(),
+      (message) => messages.push(message),
+    ),
+    false,
+  );
+  assert.match(messages[0], /닫기를 다시/);
+  assert.equal(closed, 0);
+  close.request();
+  assert.equal(
+    await finishProjectClose(
+      async () => close.finish(),
+      (message) => messages.push(message),
+    ),
+    true,
+  );
+  assert.equal(messages.length, 1);
+  assert.equal(closed, 1);
+});
+
+test('main-side close guard retains an active request or unsaved PNG despite an outdated renderer finish acknowledgement', () => {
+  let busy = true,
+    closed = 0;
+  const close = new ProjectCloseCoordinator(
+    () => {},
+    () => {
+      closed++;
+    },
+    undefined,
+    () => !busy,
+  );
+  close.request();
+  assert.equal(close.finish(), false);
+  assert.equal(closed, 0);
+  busy = false;
+  assert.equal(close.finish(), true);
+  assert.equal(closed, 1);
+});

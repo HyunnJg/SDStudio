@@ -328,3 +328,15 @@
 - 개발 TS hook과 TS_NODE_PROJECT는 모듈 기준 절대 경로로 정하고 cwd가 바뀌어도 동일 설치를 사용한다. production execArgv는 비워 두며 ts-node를 번들에 넣지 않는다.
 - ASAR worker는 추측으로 unpack하지 않는다. PR19 기준과 이번 Linux 디렉터리 패키지에서 실제 저장/복구/닫기를 실행해 ASAR 내부 worker의 정상 동작을 확인했다. 실제 worker terminate 뒤 수동 복구도 같은 최종 패키지에서 통과했다. Windows/macOS의 동작을 입증한 것은 아니다.
 - [검증](validation/2026-11-22-project-resilience.md): 127단위, 범위 타입/린트, 빌드/패키지 고지, 실제 패키지4경로와 비패키지2PID. renderer crash는 실제 강제 종료, 무응답은 이벤트 주입, dialog 선택·환경 singleton 잠금은 모의다. 실제 계정 호출0회. 120개의 서로 다른 물리 PNG 성능은 후속이며 기존 동일 파일 참조 측정을 확대 해석하지 않는다.
+
+## D-041 — 실제 생성은 저장된 현재 씬의 고정 기본1장부터 연결한다 (PR #20 후속)
+
+- PR20 head `0ea443b`를 `6445b0968d5847fe3b6e2fa4dbbfd97f263376a0`로 병합했다. finish=false 재안내·worker 재시작 뒤 잠금 안내를 별도 커밋으로 처리하고 Windows native 모달 확인을 목록에 추가했다. responsive 복귀 뒤 이미 표시한 native 버리기 선택의 의미는 유지한다.
+- 새 작업실은 non-mock 데스크톱에서도 명시적으로 열 수 있게 한다. 기존 mock 패널/큐·V3는 유지한다. 이번은 현재 저장된 씬의 기본1장·PNG 보관/열기인 P1-02a이고 실제 반복 큐/캐릭터/V5·기존 V3 변환은 후속이다.
+- 실제 사용자 기본1장 수락 요청과 같은 V4.5 Full·512×512·28/5·Euler ancestral/Karras·n_samples1·빈 캐릭터·coords=false/order=true를 고정 바인딩한다. 이는 공식 enum/파라미터 의미 확인이 아니라 좁은 관찰 기반 연결이다. 미확인 설정을 예제 기본값에서 복사하거나 조용히 변환하지 않는다.
+- 입력 저장 → 메인 prepare(전송0) → 확정 seed/설정/버전·웹 비용 확인 → 1회 run으로 연결한다. 5분 확인·선행 선점·리비전/잠금/한도 검사·메인 단일 실행, 기존 sendImage/defaultSession/오프라인·토큰 경계를 유지한다. 비용/무료/할당량을 계산하지 않고 자동 재시도하지 않는다.
+- 원본 PNG·실제 전송 식별값/seed·당시 입력을 worker에 보관하고, main→renderer는 manifest가 참조한 UUID 이미지의 바이트만 반환한다. 임의 경로·PNG 입력·token 반환은 없다. 로컬 조회는 오프라인에서도 허용한다. 현재 편집을 결과 저장 때 덮어쓰지 않는다.
+- 저장 실패 PNG는 프로세스 메모리에1건만 유지한다. 명시적 저장-only retry는 stable 결과 UUID로 이미 반영됐는지 확인하고 새 API 요청 없이 끝낸다. 새 프로젝트 보관은 준비 당시 입력/씬과 이번 PNG만 보관하며 이전 PNG/잠금/원본은 그대로다. 메모리 결과 버리기는 별도 확인한다. renderer의 상태 갱신만 믿지 않고 메인의 정상 finish/연결 모드 재시작도 active/pending이면 거부한다. native 명시 버리기는 별도로 유지한다.
+- 편집 초안의 square가 실제512px을 뜻하지 않으므로, 결과에 binding.id=nai-v45-basic512-v1 및 인증 없는 실제 body SHA-256을 추가한다. 이를 쓰는 명시적 PNG 결과 저장에서만 manifest **v2**로 올린다. v1 읽기·직전 v1 이력 복구를 유지하고 기존 copy/recover가 binding/PNG를 보존한다. v1-only 이전 앱이 v2를 거부하는 차이는 확인창에 알린다. 물리 projects-v1 폴더와 독립된 manifest 버전이다.
+- 첫 응답의 정제 MIME/state·HTTP 상태·진단 버전만 private wx/0600 first-response.v1.json에 best effort로 남긴다. 원시 헤더/본문·토큰·프롬프트를 진단에 넣지 않는다. **실제 NovelAI MIME은 여전히 미확인**이며 이번 테스트의 binary/octet-stream은 합성 루프백 값이다.
+- [검증](validation/2026-11-22-workspace-generation.md): 단위146, 실제 새 UI3PID·8체크/ASAR 패키지6체크, 기존 mock17·프로젝트 UI7·bridge6. 실제 계정 요청0. singleton/전송 목적지·좁은 폭의 테스트 대체와 Windows/macOS·실제 계정/키링·전체 tsc·일반 배포 한계를 구분한다. [사용/오류/버전](WORKSPACE_GENERATION.md).

@@ -1,0 +1,125 @@
+.connected-workspace .pw-header {
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 64px;
+  height: auto;
+  padding: 12px 20px;
+}
+.connected-workspace .pw-header nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.connected-body {
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
+  overflow: auto;
+}
+.connected-input,
+.connected-results {
+  min-width: 0;
+  padding: 20px;
+}
+.connected-input {
+  background: var(--pw-panel);
+  border-right: 1px solid var(--pw-line);
+  overflow-y: auto;
+}
+.connected-input fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.connected-input label {
+  color: var(--pw-text);
+}
+.connected-input textarea,
+.connected-input input:not([type='checkbox']),
+.connected-input select {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--pw-input);
+  color: var(--pw-text);
+  border: 1px solid var(--pw-line);
+  border-radius: 6px;
+  padding: 10px;
+}
+.connected-input p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--pw-muted);
+  overflow-wrap: anywhere;
+}
+.connected-workspace button {
+  padding: 9px 12px;
+  border: 1px solid var(--pw-line);
+  border-radius: 6px;
+  color: var(--pw-text);
+  background: var(--pw-panel);
+  cursor: pointer;
+}
+.connected-workspace button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.connected-workspace button:focus-visible {
+  outline: 2px solid var(--pw-accent);
+}
+.connected-confirm {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--pw-accent);
+  border-radius: 8px;
+}
+.connected-confirm label {
+  display: block;
+  margin-bottom: 14px;
+  line-height: 1.6;
+}
+.connected-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+.connected-image {
+  width: 100%;
+  min-height: 0;
+  max-height: 65vh;
+  object-fit: contain;
+}
+.connected-empty {
+  min-height: 280px;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  text-align: center;
+  color: var(--pw-muted);
+  border: 1px dashed var(--pw-line);
+}
+.connected-history {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.connected-history [aria-pressed='true'] {
+  border-color: var(--pw-accent);
+}
+@media (max-width: 800px) {
+  .connected-body {
+    display: block;
+  }
+  .connected-input,
+  .connected-results {
+    padding: 14px;
+    overflow: visible;
+  }
+  .connected-workspace .pw-header {
+    padding: 12px;
+  }
+}

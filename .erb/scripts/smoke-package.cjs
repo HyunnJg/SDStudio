@@ -5,15 +5,18 @@ const { spawn } = require('node:child_process');
 const WebSocket = require('ws');
 if (!process.argv[2])
   throw Error(
-    'Usage: npm run smoke:package -- /absolute/linux-unpacked [real|auth|projects|worker|crash|unresponsive]',
+    'Usage: npm run smoke:package -- /absolute/linux-unpacked [real|auth|projects|worker|crash|unresponsive|generation]',
   );
 const directory = fs.realpathSync(process.argv[2]);
 const resilience = ['worker', 'crash', 'unresponsive'].includes(process.argv[3])
   ? process.argv[3]
   : '';
+const generationMode = process.argv[3] === 'generation';
 const projectMode = process.argv[3] === 'projects';
 const authMode = process.argv[3] === 'auth';
-const mock = ['real', 'auth'].includes(process.argv[3]) ? '0' : '1';
+const mock = ['real', 'auth', 'generation'].includes(process.argv[3])
+  ? '0'
+  : '1';
 if (process.platform !== 'linux' || !process.env.DISPLAY)
   throw Error('Packaged smoke requires a Linux X11 DISPLAY');
 const archive = path.join(directory, 'resources/app.asar');
@@ -21,7 +24,10 @@ const crypto = require('node:crypto');
 const archiveHash = () =>
   crypto.createHash('sha256').update(fs.readFileSync(archive)).digest('hex');
 const beforeHash = archiveHash();
-const harness = path.join(__dirname, 'smoke-harness.cjs');
+const harness = path.join(
+  __dirname,
+  generationMode ? 'generation-ui-harness.cjs' : 'smoke-harness.cjs',
+);
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sdstudio-packaged-smoke-'));
 const original = path.join(root, 'original');
 fs.mkdirSync(original);
@@ -31,13 +37,14 @@ const childEnv = {
   XDG_CONFIG_HOME: original,
   SDSTUDIO_USER_DATA_DIR: path.join(root, 'isolated'),
   SDSTUDIO_MOCK_BACKEND: mock,
-  SDSTUDIO_OFFLINE: authMode ? '0' : '1',
+  SDSTUDIO_OFFLINE: authMode || generationMode ? '0' : '1',
   SDSTUDIO_SMOKE_REPORT: report,
   SDSTUDIO_SMOKE_WORKSPACE: mock,
   SDSTUDIO_SMOKE_SKIP_SINGLETON: '1',
   SDSTUDIO_SMOKE_AUTH_UI: authMode ? '1' : '0',
   SDSTUDIO_SMOKE_PROJECTS: projectMode ? '1' : '0',
   SDSTUDIO_PROJECT_UI_PHASE: 'create',
+  SDSTUDIO_GENERATION_PHASE: 'create',
   SDSTUDIO_SMOKE_RESILIENCE: resilience,
 };
 if (authMode) delete childEnv.SDSTUDIO_USER_DATA_DIR;
@@ -162,8 +169,15 @@ child.on('exit', (code) => {
         : projectMode
           ? data.projectUI
           : data.workspace)) ||
-    (mock === '0' && !authMode && data.blockedOperations?.length !== 5) ||
+    (mock === '0' &&
+      !authMode &&
+      !generationMode &&
+      data.blockedOperations?.length !== 5) ||
     (authMode && !data.authUI) ||
+    (generationMode &&
+      (!data.nativeQuitObserved ||
+        data.loopbackRequests !== 3 ||
+        data.checks?.length !== 6)) ||
     !setupInfo?.isPackaged ||
     !data.packageContext.archiveUnchanged ||
     data.externalRequests.length ||

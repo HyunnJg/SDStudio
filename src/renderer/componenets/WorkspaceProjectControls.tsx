@@ -9,11 +9,13 @@ interface Props {
   controller: ProjectController;
   locked: boolean;
   mode: 'bar' | 'dialogs';
+  connected?: boolean;
 }
 export default function WorkspaceProjectControls({
   controller,
   locked,
   mode,
+  connected = false,
 }: Props) {
   const state = useSyncExternalStore(
     controller.subscribe,
@@ -123,8 +125,10 @@ export default function WorkspaceProjectControls({
           </p>
           {state.images > 0 && (
             <small>
-              원본 PNG {state.images}장 보관 · 이 화면의 PNG 표시/생성 연결은
-              후속입니다.
+              원본 PNG {state.images}장 보관 ·{' '}
+              {connected
+                ? '결과 영역에서 저장된 PNG를 열 수 있습니다.'
+                : '이 화면의 PNG 표시/생성 연결은 후속입니다.'}
             </small>
           )}
         </section>
@@ -283,3 +287,5 @@ export default function WorkspaceProjectControls({
     </>
   );
 }
+
+WorkspaceProjectControls.defaultProps = { connected: false };

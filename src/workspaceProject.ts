@@ -35,7 +35,12 @@ export interface ProjectContent {
   selectedSceneId: string;
   scenes: WorkspaceScene[];
 }
+export interface ImageBinding {
+  id: 'nai-v45-basic512-v1';
+  requestHash: string;
+}
 export interface ProjectImage {
+  binding?: ImageBinding;
   id: string;
   sceneId: string;
   model: string;
@@ -52,7 +57,7 @@ export type ProjectImageInput = Omit<
 >;
 export interface WorkspaceProject extends ProjectContent {
   format: typeof PROJECT_FORMAT;
-  version: 1;
+  version: 1 | 2;
   id: string;
   images: ProjectImage[];
 }
@@ -201,7 +206,10 @@ export function validateProjectContent(value: unknown): ProjectContent {
   return structuredClone(value as ProjectContent);
 }
 export function validateImageInput(value: unknown): ProjectImageInput {
+  const hasBinding =
+    !!value && typeof value === 'object' && Object.hasOwn(value, 'binding');
   const r = record(value, [
+    ...(hasBinding ? ['binding'] : []),
     'sceneId',
     'model',
     'sampler',
@@ -220,6 +228,11 @@ export function validateImageInput(value: unknown): ProjectImageInput {
       Number(r.seed) >= 0 &&
       Number(r.seed) <= 4294967295,
   );
+  if (hasBinding) {
+    const binding = record(r.binding, ['id', 'requestHash']);
+    projectCheck(binding.id === 'nai-v45-basic512-v1');
+    projectHash(binding.requestHash);
+  }
   draft(r.draft);
   return structuredClone(value as ProjectImageInput);
 }
@@ -231,7 +244,7 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
     Number.isInteger(v.version) && Number(v.version) > 0,
     'PROJECT_CORRUPT',
   );
-  projectCheck(v.version === 1, 'PROJECT_VERSION');
+  projectCheck(v.version === 1 || v.version === 2, 'PROJECT_VERSION');
   try {
     const p = record(value, [
       'format',
@@ -253,7 +266,11 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
     const ids = new Set<string>();
     let total = 0;
     for (const image of p.images) {
+      const hasBinding =
+        !!image && typeof image === 'object' && Object.hasOwn(image, 'binding');
+      projectCheck(!hasBinding || p.version === 2);
       const i = record(image, [
+        ...(hasBinding ? ['binding'] : []),
         'id',
         'sceneId',
         'model',
@@ -270,6 +287,7 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
       ids.add(i.id);
       const { pngBytes } = i;
       const input = {
+        ...(hasBinding ? { binding: i.binding } : {}),
         sceneId: i.sceneId,
         model: i.model,
         sampler: i.sampler,

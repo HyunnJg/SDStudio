@@ -36,7 +36,16 @@ export class ProjectService implements ProjectOperations {
 
   private call<
     K extends
-      'list' | 'create' | 'open' | 'save' | 'history' | 'recover' | 'copy',
+      | 'list'
+      | 'create'
+      | 'open'
+      | 'save'
+      | 'history'
+      | 'recover'
+      | 'copy'
+      | 'addPNG'
+      | 'readPNG'
+      | 'generationSnapshot',
   >(
     operation: K,
     args: Parameters<ProjectStore[K]>,
@@ -132,6 +141,19 @@ export class ProjectService implements ProjectOperations {
 
   copy(id: string, revision: string, content: unknown) {
     return this.call('copy', [id, revision, content]);
+  }
+
+  // Main-only methods. No renderer endpoint accepts PNG bytes or a raw filesystem path.
+  generationSnapshot(...args: Parameters<ProjectStore['generationSnapshot']>) {
+    return this.call('generationSnapshot', args);
+  }
+
+  addPNG(...args: Parameters<ProjectStore['addPNG']>) {
+    return this.call('addPNG', args);
+  }
+
+  readPNG(...args: Parameters<ProjectStore['readPNG']>) {
+    return this.call('readPNG', args);
   }
 
   async restartStorage(): Promise<void> {

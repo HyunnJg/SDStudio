@@ -243,7 +243,7 @@ export class ProjectStore {
     const id = randomUUID();
     const project: WorkspaceProject = {
       format: PROJECT_FORMAT,
-      version: 1,
+      version: images.some((image) => image.binding) ? 2 : 1,
       id,
       ...content,
       images,
@@ -339,6 +339,44 @@ export class ProjectStore {
     }));
   }
 
+  generationSnapshot(
+    id: string,
+    revision: string,
+    value?: unknown,
+  ): ProjectSnapshot {
+    const snapshot = this.open(id);
+    projectCheck(snapshot.revision === revision, 'PROJECT_CONFLICT');
+    projectCheck(
+      !fs.existsSync(path.join(this.folder(id), 'write.lock')),
+      'PROJECT_BUSY',
+    );
+    projectCheck(
+      snapshot.project.images.length < PROJECT_LIMITS.results &&
+        snapshot.project.images.reduce((n, i) => n + i.pngBytes, 0) +
+          32 * 1024 * 1024 <=
+          PROJECT_LIMITS.totalPNGBytes &&
+        this.history(id).length < 1000,
+      'PROJECT_LIMIT',
+    );
+    if (value !== undefined) {
+      const input = validateImageInput(value);
+      encode({
+        ...snapshot.project,
+        version: input.binding ? 2 : snapshot.project.version,
+        images: [
+          ...snapshot.project.images,
+          {
+            ...input,
+            id: randomUUID(),
+            sha256: '0'.repeat(64),
+            pngBytes: 32 * 1024 * 1024,
+          },
+        ],
+      });
+    }
+    return snapshot;
+  }
+
   // Main-only: future generation code supplies verified PNG bytes and an explicit request snapshot.
   // No renderer PNG/path import IPC is exposed in this step.
   addPNG(
@@ -346,7 +384,9 @@ export class ProjectStore {
     revision: string,
     input: unknown,
     value: Uint8Array,
+    imageId: string = randomUUID(),
   ): ProjectSnapshot {
+    projectId(imageId);
     const info: ProjectImageInput = validateImageInput(input);
     let png: Uint8Array;
     try {
@@ -357,8 +397,12 @@ export class ProjectStore {
     return this.update(id, revision, (current, folder) => {
       projectCheck(current.scenes.some((s) => s.id === info.sceneId));
       const sha256 = hash(png);
-      const image = { ...info, id: randomUUID(), sha256, pngBytes: png.length };
-      const next = { ...current, images: [...current.images, image] };
+      const image = { ...info, id: imageId, sha256, pngBytes: png.length };
+      const next = {
+        ...current,
+        version: info.binding ? (2 as const) : current.version,
+        images: [...current.images, image],
+      };
       encode(next); // Validate count/total/JSON bounds before any image write.
       this.directory([id, 'images'], true);
       ProjectStore.immutable(path.join(folder, 'images', `${sha256}.png`), png);

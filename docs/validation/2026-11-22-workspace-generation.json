@@ -1,0 +1,323 @@
+{
+  "date": "2026-11-22 (Asia/Seoul)",
+  "baseCommit": "6445b0968d5847fe3b6e2fa4dbbfd97f263376a0",
+  "runtimeCommits": [
+    "5e36a3d9718941b2d29de78d768b6e85611f60e9",
+    "a602d755d4b67dec4e1fa4c2b4486f715b166f47",
+    "54f68804591a78cda3db30d9adfab811a1ccbf26"
+  ],
+  "runtimeTree": "26fb258f08f4730b44f88878c29d0446383ba8ca",
+  "environment": {
+    "platform": "Linux x64",
+    "node": "22.4.1",
+    "npm": "11.19.1; unsupported pairing warning, not recommended setup",
+    "electron": "26.6.10",
+    "electronNode": "18.16.1",
+    "display": "Xorg dummy, authenticated TCP loopback"
+  },
+  "unitTests": {
+    "passed": 146,
+    "failed": 0,
+    "skipped": 0,
+    "projectStore": 13,
+    "projectController": 7,
+    "projectServiceAndClose": 10,
+    "generation": 16,
+    "naiMain": 36,
+    "naiResponse": 19,
+    "offline": 11,
+    "workspace": 14,
+    "naiContract": 10,
+    "networkMode": 10
+  },
+  "checks": {
+    "scopedStrictTypes": true,
+    "scopedLint": true,
+    "syntaxAndFormat": true,
+    "mainWorkerRendererBuild": true,
+    "noticeCollection": true,
+    "packageBuild": true
+  },
+  "newWorkspaceUI": {
+    "reports": [
+      {
+        "pid": 24,
+        "phase": "create",
+        "ready": true,
+        "checks": [
+          "save/prepare and unconfirmed button send zero requests; visible confirmation fixes request seed/settings",
+          "actual Electron session transport accepts unknown MIME ZIP, worker persists original alpha/metadata PNG, renderer decodes it",
+          "in-flight cancel reports possible server processing, preserves input and prior PNG, no automatic retry",
+          "post-response storage fault retains result; explicit new-project save preserves original lock/PNG and adds the received PNG without a fourth request",
+          "first response diagnostic contains only sanitized MIME/state/status/version in private profile",
+          "390px layout probe (test-only window minimum override) has no horizontal overflow"
+        ],
+        "loopbackRequests": 3,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 116,
+        "phase": "reopen",
+        "ready": true,
+        "checks": [
+          "new PID reopens the result-only project and decodes byte-identical PNG with no generation request"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 208,
+        "phase": "offline",
+        "ready": true,
+        "checks": [
+          "offline generation refuses prepare before token/network access while saved v2 PNG remains viewable"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      }
+    ],
+    "actualAccountRequests": 0,
+    "transportDestinationRewrittenToLoopback": true
+  },
+  "actualPackagedUI": {
+    "phase": "create",
+    "ready": true,
+    "checks": [
+      "save/prepare and unconfirmed button send zero requests; visible confirmation fixes request seed/settings",
+      "actual Electron session transport accepts unknown MIME ZIP, worker persists original alpha/metadata PNG, renderer decodes it",
+      "in-flight cancel reports possible server processing, preserves input and prior PNG, no automatic retry",
+      "post-response storage fault retains result; explicit new-project save preserves original lock/PNG and adds the received PNG without a fourth request",
+      "first response diagnostic contains only sanitized MIME/state/status/version in private profile",
+      "390px layout probe (test-only window minimum override) has no horizontal overflow"
+    ],
+    "loopbackRequests": 3,
+    "actualAccountRequests": 0,
+    "externalRequests": [],
+    "rendererErrors": [],
+    "singleInstanceLockSimulated": true,
+    "nativeQuitObserved": true,
+    "packageContext": {
+      "isPackaged": true,
+      "archiveUnchanged": true,
+      "profileIsolated": true,
+      "inspectorInjectedHarness": true
+    }
+  },
+  "packageArchive": {
+    "archiveSHA256": "6ee82ffa4e57221d3423dc5517700253ce631027d0bc934b565ff76d8d541305",
+    "worker": {
+      "size": 13019,
+      "integrity": {
+        "algorithm": "SHA256",
+        "hash": "1c0baba911843bd81b370ce46dfad9bfb8b2c6c801afee19db95050bffeaa67d",
+        "blockSize": 4194304,
+        "blocks": [
+          "1c0baba911843bd81b370ce46dfad9bfb8b2c6c801afee19db95050bffeaa67d"
+        ]
+      },
+      "offset": "12287211"
+    },
+    "workerUnpacked": false
+  },
+  "projectUIRegression": {
+    "reports": [
+      {
+        "phase": "create",
+        "pid": 442,
+        "projectUI": {
+          "checks": [
+            "explicit UI save preserves the edited selected scene through worker IPC",
+            "new/open dirty guard cancels without losing input and explicit discard restores saved input",
+            "busy save keeps the current input and explicit new copy leaves the original lock untouched",
+            "actual native close waits for unsaved decision; cancel retains the live window",
+            "visible history recovery creates a new copy while the corrupt source stays byte-identical",
+            "390px controls and dialogs stay within the window width"
+          ],
+          "closeWithSave": true
+        },
+        "nativeQuitObserved": true,
+        "ready": true,
+        "project": "오프라인 예제",
+        "offline": true,
+        "mock": true,
+        "singleInstanceLockSimulated": true,
+        "externalRequests": [],
+        "rendererErrors": []
+      },
+      {
+        "phase": "reopen",
+        "pid": 535,
+        "projectUI": {
+          "checks": [
+            "new PID opens saved three-scene input through the project UI"
+          ],
+          "nativeCloseRequested": true
+        },
+        "nativeQuitObserved": true,
+        "ready": true,
+        "project": "오프라인 예제",
+        "offline": true,
+        "mock": true,
+        "singleInstanceLockSimulated": true,
+        "externalRequests": [],
+        "rendererErrors": []
+      }
+    ],
+    "actualAccountRequests": 0,
+    "syntheticOnly": true
+  },
+  "workspaceRegression": {
+    "workspace": {
+      "checks": [
+        "global service dialog remains visible in the new workspace",
+        "model family switches without clearing the draft",
+        "character add/reorder/delete and manual grid",
+        "visible SVG example and seed zero",
+        "length error preserves input",
+        "connection error display",
+        "legacy session unchanged by modern draft",
+        "V3 view round trip preserves draft and results",
+        "theme toggle follows the shared application setting",
+        "character deletion can be undone",
+        "three scenes twice reserve six jobs and stop after the active example",
+        "resume across V3 view, six distinct recorded seeds, and open an earlier result",
+        "model limit warns immediately and add follows active rather than stored count",
+        "queue failure stops and displays a shared global alert",
+        "idle queue collapses automatically and manual collapse restores canvas height",
+        "390px layout has no horizontal overflow and reachable controls",
+        "390px scene queue can reserve, start and stop without horizontal overflow"
+      ],
+      "desktop": "1363x1023",
+      "narrow": "390x844",
+      "simulatedErrors": true,
+      "canvasHeight": {
+        "collapsed": 539,
+        "expanded": 377
+      }
+    },
+    "singleInstanceLockSimulated": true,
+    "externalRequests": [],
+    "rendererErrors": []
+  },
+  "electronProjectBridge": {
+    "electron": "26.6.10",
+    "node": "18.16.1",
+    "syntheticOnly": true,
+    "checks": [
+      "offline listing through compiled sandbox preload creates no project directory",
+      "three-scene save and stale-revision rejection work without token/network IPC",
+      "secondary window cannot access projects",
+      "explicit recovery copies valid history and original PNG into a new project and preserves the broken source",
+      "fresh store reads persisted project while a replacement unapproved document stays denied",
+      "no token file, raw filesystem path API or renderer PNG import endpoint"
+    ],
+    "remoteRequestsAllowed": 0,
+    "remoteRequestsBlocked": 0,
+    "rendererErrors": []
+  },
+  "packageNotices": {
+    "requiredResourcesPresent": [
+      "LICENSES/electron-react-boilerplate.txt",
+      "CREDITS.md",
+      "THIRD_PARTY_NOTICES/THIRD_PARTY_NOTICES.txt",
+      "THIRD_PARTY_NOTICES/index.json",
+      "THIRD_PARTY_NOTICES/APP_LICENSE_STATUS.md"
+    ],
+    "noticeCopiesVerified": 250,
+    "bundlePackageOccurrencesIndexed": 143,
+    "copiedRuntimePackagesIndexed": 112,
+    "runtimeIdentityBasis": "name/version/license/author/repository (builder strips scripts and other build metadata)",
+    "unresolvedNoticeFiles": [
+      {
+        "root": "node_modules/@react-dnd/invariant",
+        "name": "@react-dnd/invariant",
+        "version": "4.0.2",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "node_modules/@react-dnd/shallowequal",
+        "name": "@react-dnd/shallowequal",
+        "version": "4.0.2",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "release/app/node_modules/batch-cluster/types/chai-withintoleranceof",
+        "name": "@types/chai-withintoleranceof",
+        "version": "0.0.1",
+        "declaredLicense": null
+      },
+      {
+        "root": "release/app/node_modules/github-from-package/example",
+        "name": "beep-boop",
+        "version": "1.2.3",
+        "declaredLicense": null
+      },
+      {
+        "root": "release/app/node_modules/browserify-zlib",
+        "name": "browserify-zlib",
+        "version": "0.1.4",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "release/app/node_modules/is-gzip",
+        "name": "is-gzip",
+        "version": "1.0.0",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "src/native",
+        "name": "native",
+        "version": "1.0.0",
+        "declaredLicense": "ISC"
+      },
+      {
+        "root": "node_modules/react-dnd-preview",
+        "name": "react-dnd-preview",
+        "version": "8.1.2",
+        "declaredLicense": "MIT"
+      }
+    ],
+    "allIdentifiedPackagesHaveNoticeFiles": false,
+    "completeRedistributionReview": false
+  },
+  "screenshots": {
+    "desktop": {
+      "path": "images/2026-11-22-generation-desktop.png",
+      "width": 1363,
+      "height": 1023,
+      "syntheticPNGOnly": true
+    },
+    "mobile": {
+      "path": "images/2026-11-22-generation-mobile.png",
+      "width": 390,
+      "height": 844,
+      "syntheticPNGOnly": true
+    }
+  },
+  "actualAccountRequests": 0,
+  "actualNovelAIMediaType": "still unknown; binary/octet-stream in this validation is loopback synthetic data",
+  "limitations": [
+    "Native dependencies reused, npmRebuild=false; no clean install/signing/release",
+    "Built from the working tree whose runtime content matches the recorded runtime tree; not a pristine checkout build",
+    "Singleton lock simulated; 390px layout uses test-only minimum-window override (normal V3 minimum stays1024)",
+    "Only synthetic token and 2x1 RGBA PNG with opaque metadata; no image quality claim",
+    "Transport URL rewrite is test-only; production has fixed destination and no override IPC",
+    "No Windows/macOS/real keyring, actual account generation from new UI, actual hang/power-loss or full app tsc success",
+    "V5/characters/variable resolution/steps/guidance/wildcards/real repeat queue/PNG export remain pending",
+    "Pending PNG is process memory until persisted; forced process exit can lose it",
+    "Original exact MIME remains unobserved; no new account or quota measurement"
+  ],
+  "finalizedDate": "2026-11-23 (Asia/Seoul)"
+}

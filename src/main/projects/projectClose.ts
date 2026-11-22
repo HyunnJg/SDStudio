@@ -20,14 +20,18 @@ export class ProjectCloseCoordinator {
 
   private readonly closeWindow: () => void;
 
+  private readonly canFinish: () => boolean;
+
   constructor(
     requestRenderer: () => void,
     closeWindow: () => void,
     askWithoutRenderer?: (state: 'gone' | 'unresponsive') => Promise<boolean>,
+    canFinish: () => boolean = () => true,
   ) {
     this.requestRenderer = requestRenderer;
     this.closeWindow = closeWindow;
     this.askWithoutRenderer = askWithoutRenderer;
+    this.canFinish = canFinish;
   }
 
   reset() {
@@ -75,7 +79,7 @@ export class ProjectCloseCoordinator {
   }
 
   finish() {
-    if (!this.pending || this.rendererState) return false;
+    if (!this.pending || this.rendererState || !this.canFinish()) return false;
     this.approved = true;
     this.closeWindow();
     return true;

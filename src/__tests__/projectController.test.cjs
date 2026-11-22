@@ -233,3 +233,39 @@ test('stopped storage has specific UI guidance and manual restart preserves dirt
   await f.controller.confirm('cancel');
   assert.equal(await leaving, false);
 });
+
+test('generated revision preserves current input and uses actual persisted content as dirty baseline; an explicit result-only new project adopts its input', async () => {
+  const f = fixture();
+  await f.controller.save();
+  const id = f.controller.getSnapshot().id;
+  const stored = f.controller.content();
+  f.edit();
+  f.controller.acceptGenerated({
+    project: {
+      ...stored,
+      id,
+      images: [],
+      format: 'sdstudio-workspace',
+      version: 1,
+    },
+    revision: 'c'.repeat(64),
+  });
+  assert.equal(f.controller.dirty(), true);
+  assert.equal(f.workspace.draft.prompt, 'edited');
+  const content = f.controller.content();
+  f.controller.acceptGenerated(
+    {
+      project: {
+        ...content,
+        id: '22222222-2222-4222-8222-222222222222',
+        images: [],
+        format: 'sdstudio-workspace',
+        version: 1,
+      },
+      revision: 'd'.repeat(64),
+    },
+    true,
+  );
+  assert.equal(f.controller.dirty(), false);
+  assert.equal(f.workspace.draft.prompt, 'edited');
+});

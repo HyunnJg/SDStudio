@@ -1,0 +1,376 @@
+// Test only: real app/preload/transport/worker, synthetic token and loopback ZIP response.
+const fs = require('node:fs'),
+  path = require('node:path'),
+  assert = require('node:assert/strict');
+const http = require('node:http');
+const { app, net, session, BrowserWindow } = require('electron');
+const { png } = require('../../src/__tests__/fixtures/nai/png.cjs');
+const JSZip = require('jszip');
+const expectedPNG = png();
+const phase = process.env.SDSTUDIO_GENERATION_PHASE;
+const profile = process.env.SDSTUDIO_USER_DATA_DIR;
+const checks = [],
+  remote = [],
+  errors = [];
+let firstRequestHash;
+let requests = 0,
+  lock,
+  loopback,
+  completed = false;
+app.requestSingleInstanceLock = () => true;
+const archive = new JSZip();
+archive.file('image.png', expectedPNG);
+const payload = archive.generateAsync({
+  type: 'nodebuffer',
+  compression: 'DEFLATE',
+  streamFiles: true,
+});
+const server = http.createServer(async (request, response) => {
+  requests++;
+  assert.equal(
+    request.headers.authorization,
+    'Bearer synthetic-never-a-real-token',
+  );
+  let body = '';
+  for await (const chunk of request) body += chunk;
+  if (requests === 1)
+    firstRequestHash = require('node:crypto')
+      .createHash('sha256')
+      .update(body)
+      .digest('hex');
+  const parsed = JSON.parse(body);
+  assert.equal(parsed.model, 'nai-diffusion-4-5-full');
+  assert.equal(parsed.parameters.n_samples, 1);
+  if (requests === 3) fs.writeFileSync(lock, 'synthetic interrupted writer');
+  await new Promise((r) => setTimeout(r, requests === 2 ? 1200 : 150));
+  if (response.destroyed) return;
+  response.writeHead(200, { 'Content-Type': 'binary/octet-stream' });
+  response.end(await payload);
+});
+const originalRequest = net.request.bind(net);
+net.request = (options) => {
+  assert.equal(options.url, 'https://image.novelai.net/ai/generate-image');
+  assert.equal(options.session, session.defaultSession);
+  assert.equal(options.method, 'POST');
+  assert.ok(loopback);
+  return originalRequest({ ...options, url: loopback });
+};
+app.once('ready', async () => {
+  session.defaultSession.webRequest.onBeforeRequest(
+    { urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] },
+    (details, callback) => {
+      const allowed = new URL(details.url).hostname === '127.0.0.1';
+      if (!allowed) remote.push('blocked-remote-request');
+      callback({ cancel: !allowed });
+    },
+  );
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  loopback = `http://127.0.0.1:${server.address().port}/fixture`;
+});
+function finish(code, error) {
+  if (completed) return;
+  completed = true;
+  const report = {
+    phase,
+    ready: !error,
+    checks,
+    loopbackRequests: requests,
+    actualAccountRequests: 0,
+    externalRequests: remote,
+    rendererErrors: errors,
+    singleInstanceLockSimulated: true,
+    nativeQuitObserved: !error,
+    ...(error ? { error: String(error) } : {}),
+  };
+  fs.writeFileSync(
+    process.env.SDSTUDIO_SMOKE_REPORT,
+    JSON.stringify(report, null, 2),
+  );
+  console.log(JSON.stringify(report));
+  app.exit(code);
+}
+setTimeout(() => finish(1, 'Generation smoke timeout'), 40000).unref();
+process.on('uncaughtException', (error) => finish(1, error.stack));
+process.on('unhandledRejection', (error) => finish(1, error.stack));
+app.on('web-contents-created', (_event, contents) => {
+  contents.on('console-message', (_e, level, message) => {
+    if (level >= 3) errors.push(message);
+  });
+  contents.on('render-process-gone', () =>
+    finish(1, 'Unexpected renderer exit'),
+  );
+  contents.once('did-finish-load', async () => {
+    const evaluate = (code) => contents.executeJavaScript(code);
+    const pause = () => new Promise((r) => setTimeout(r, 30));
+    const until = async (test) => {
+      for (let n = 0; n < 250; n++) {
+        if (await test()) return;
+        await pause();
+      }
+      throw Error('Generation UI wait: ' + String(test));
+    };
+    const click = async (selector) => {
+      await evaluate(
+        `document.querySelector(${JSON.stringify(selector)}).click()`,
+      );
+      await pause();
+    };
+    const fill = async (selector, value) => {
+      await evaluate(
+        `(()=>{const c=document.querySelector(${JSON.stringify(selector)});Object.getOwnPropertyDescriptor(c.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value').set.call(c,${JSON.stringify(value)});c.dispatchEvent(new Event('input',{bubbles:true}));})()`,
+      );
+      await pause();
+    };
+    try {
+      await until(() =>
+        evaluate("!!document.querySelector('[data-testid=open-preview]')"),
+      );
+      await click('[data-testid=open-preview]');
+      await until(() =>
+        evaluate(
+          "!!document.querySelector('[data-testid=connected-workspace]')",
+        ),
+      );
+      if (phase === 'offline') {
+        assert.equal(
+          await evaluate(
+            "document.querySelector('[data-testid=prepare-generation]').disabled",
+          ),
+          true,
+        );
+        const denied = await evaluate(
+          "window.electron.generation.prepare('invalid','invalid','invalid')",
+        );
+        assert.equal(denied.code, 'OFFLINE');
+        assert.equal(requests, 0);
+        const listing = await evaluate('window.electron.projects.list()');
+        const target = listing.value.find((p) =>
+          p.name.includes('(이번 결과)'),
+        );
+        await click('[data-testid=project-list]');
+        await until(() =>
+          evaluate(
+            `!!document.querySelector('[data-project-open="${target.id}"]')`,
+          ),
+        );
+        await click(`[data-project-open="${target.id}"]`);
+        await until(() =>
+          evaluate(
+            "document.querySelector('[data-testid=generated-png]')?.naturalWidth===2",
+          ),
+        );
+        checks.push(
+          'offline generation refuses prepare before token/network access while saved v2 PNG remains viewable',
+        );
+      } else if (phase === 'reopen') {
+        const list = await evaluate('window.electron.projects.list()');
+        assert.equal(list.ok, true);
+        const restored = list.value.find((p) => p.name.includes('(이번 결과)'));
+        assert.ok(restored);
+        await click('[data-testid=project-list]');
+        await until(() =>
+          evaluate(
+            `!!document.querySelector('[data-project-open="${restored.id}"]')`,
+          ),
+        );
+        await click(`[data-project-open="${restored.id}"]`);
+        await until(() =>
+          evaluate(
+            "document.querySelector('[data-testid=generated-png]')?.naturalWidth===2",
+          ),
+        );
+        const data = await evaluate(
+          `window.electron.projects.open('${restored.id}')`,
+        );
+        assert.equal(data.value.project.images.length, 1);
+        for (const image of data.value.project.images)
+          assert.deepEqual(
+            fs.readFileSync(
+              path.join(
+                profile,
+                'projects-v1',
+                data.value.project.id,
+                'images',
+                image.sha256 + '.png',
+              ),
+            ),
+            expectedPNG,
+          );
+        assert.equal(requests, 0);
+        checks.push(
+          'new PID reopens the result-only project and decodes byte-identical PNG with no generation request',
+        );
+      } else {
+        const set = await evaluate(
+          "window.electron.naiAuth.setToken('synthetic-never-a-real-token',false)",
+        );
+        assert.equal(set.ok, true);
+        await fill('[data-testid=live-prompt]', 'synthetic lake from UI');
+        await evaluate(
+          "(()=>{const s=document.querySelector('#live-seed-mode');s.value='fixed';s.dispatchEvent(new Event('change',{bubbles:true}));})()",
+        );
+        await fill('#live-seed', '0');
+        const prepare = async () => {
+          await until(() =>
+            evaluate(
+              "!document.querySelector('[data-testid=prepare-generation]').matches(':disabled')",
+            ),
+          );
+          await click('[data-testid=prepare-generation]');
+          await until(() =>
+            evaluate(
+              "!!document.querySelector('[data-testid=generation-confirm]')",
+            ),
+          );
+          assert.equal(
+            await evaluate(
+              "document.querySelector('[data-testid=send-generation]').disabled",
+            ),
+            true,
+          );
+          await click('[data-testid=generation-cost-confirm]');
+        };
+        await prepare();
+        assert.equal(requests, 0);
+        checks.push(
+          'save/prepare and unconfirmed button send zero requests; visible confirmation fixes request seed/settings',
+        );
+        await click('[data-testid=send-generation]');
+        await until(() =>
+          evaluate(
+            "document.querySelector('[data-testid=generated-png]')?.naturalWidth===2",
+          ),
+        );
+        const list = await evaluate('window.electron.projects.list()');
+        const id = list.value[0].id;
+        const manifest = path.join(profile, 'projects-v1', id, 'project.json');
+        lock = path.join(profile, 'projects-v1', id, 'write.lock');
+        const first = JSON.parse(fs.readFileSync(manifest));
+        assert.equal(first.images.length, 1);
+        assert.equal(first.version, 2);
+        assert.deepEqual(first.images[0].binding, {
+          id: 'nai-v45-basic512-v1',
+          requestHash: firstRequestHash,
+        });
+        assert.equal(first.images[0].seed, 0);
+        assert.deepEqual(
+          fs.readFileSync(
+            path.join(
+              profile,
+              'projects-v1',
+              id,
+              'images',
+              first.images[0].sha256 + '.png',
+            ),
+          ),
+          expectedPNG,
+        );
+        checks.push(
+          'actual Electron session transport accepts unknown MIME ZIP, worker persists original alpha/metadata PNG, renderer decodes it',
+        );
+        await prepare();
+        await click('[data-testid=send-generation]');
+        await until(() => requests === 2);
+        await click('[data-testid=cancel-generation]');
+        await until(() =>
+          evaluate(
+            "document.querySelector('[data-testid=generation-status]').innerText.includes('서버가 이미')",
+          ),
+        );
+        assert.equal(JSON.parse(fs.readFileSync(manifest)).images.length, 1);
+        checks.push(
+          'in-flight cancel reports possible server processing, preserves input and prior PNG, no automatic retry',
+        );
+        await prepare();
+        await click('[data-testid=send-generation]');
+        await until(() =>
+          evaluate(
+            "!!document.querySelector('[data-testid=retry-result-save]')",
+          ),
+        );
+        await until(() =>
+          evaluate(
+            "!document.querySelector('[data-testid=retry-result-save]').disabled",
+          ),
+        );
+        assert.equal(requests, 3);
+        assert.equal(
+          fs.readFileSync(lock, 'utf8'),
+          'synthetic interrupted writer',
+        );
+        await click('[data-testid=save-result-new-project]');
+        await until(
+          async () =>
+            (await evaluate('window.electron.projects.list()')).value.length ===
+            2,
+        );
+        await until(() =>
+          evaluate(
+            "document.querySelector('[data-testid=generation-status]').innerText.includes('PNG 원본')",
+          ),
+        );
+        assert.equal(
+          fs.readFileSync(lock, 'utf8'),
+          'synthetic interrupted writer',
+        );
+        assert.equal(JSON.parse(fs.readFileSync(manifest)).images.length, 1);
+        await until(() =>
+          evaluate(
+            "!document.querySelector('[data-testid=project-save]').disabled",
+          ),
+        );
+        assert.equal(requests, 3);
+        checks.push(
+          'post-response storage fault retains result; explicit new-project save preserves original lock/PNG and adds the received PNG without a fourth request',
+        );
+        const diag = JSON.parse(
+          fs.readFileSync(
+            path.join(profile, 'nai-diagnostics', 'first-response.v1.json'),
+          ),
+        );
+        assert.equal(diag.mediaType, 'binary/octet-stream');
+        assert.deepEqual(Object.keys(diag).sort(), [
+          'httpStatus',
+          'mediaType',
+          'mediaTypeState',
+          'version',
+        ]);
+        checks.push(
+          'first response diagnostic contains only sanitized MIME/state/status/version in private profile',
+        );
+        const window = BrowserWindow.fromWebContents(contents);
+        if (process.env.SDSTUDIO_GENERATION_SCREENSHOT)
+          fs.writeFileSync(
+            process.env.SDSTUDIO_GENERATION_SCREENSHOT + '.desktop.png',
+            (await contents.capturePage()).toPNG(),
+          );
+        window.setMinimumSize(360, 500); // Test-only layout probe; normal V3 window minimum remains 1024px.
+        window.setSize(390, 844);
+        await until(() => evaluate('innerWidth===390'));
+        assert.equal(
+          await evaluate('document.documentElement.scrollWidth<=innerWidth'),
+          true,
+        );
+        if (process.env.SDSTUDIO_GENERATION_SCREENSHOT)
+          fs.writeFileSync(
+            process.env.SDSTUDIO_GENERATION_SCREENSHOT,
+            (await contents.capturePage()).toPNG(),
+          );
+        checks.push(
+          '390px layout probe (test-only window minimum override) has no horizontal overflow',
+        );
+      }
+      await until(
+        async () =>
+          !(await evaluate('window.electron.generation.status()')).value.active,
+      );
+      await new Promise((r) => setTimeout(r, 650));
+      app.once('will-quit', () =>
+        finish(remote.length || errors.length ? 1 : 0),
+      );
+      BrowserWindow.fromWebContents(contents).close();
+    } catch (error) {
+      finish(1, error.stack);
+    }
+  });
+});

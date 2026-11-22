@@ -267,3 +267,18 @@ production worker는 projectWorker.js를 추가 산출물로 빌드한다. 개�
 패키지 archive를 바꾸지 않고 loopback inspector로 테스트 하네스만 주입한다. native dialog 선택과 singleton 잠금은 모의이며 일반 제품 실행 옵션이 아니다. 하네스의 의도적 crash 외 renderer 오류/원격 요청은 실패다. 선택 `SDSTUDIO_PACKAGE_REPORT`는 정제 결과 JSON을 지정한 로컬 파일로 복사한다. 테스트 프로필은 임시 폴더이며 실제 사용자 파일을 입력하지 않는다.
 
 운영에서 PROJECT_SERVICE_STOPPED가 보이면 입력을 유지한 채 저장 기능 다시 시작을 선택할 수 있다. 이전 쓰기는 다시 보내지 않으므로 목록/열기로 완료 여부를 확인한다. 잠금/부분 파일을 자동 삭제하지 않는다. 개발 TS worker는 시작 cwd와 관계없이 모듈 기준 hook/tsconfig를 사용한다.
+
+### 기본1장 생성·PNG 저장 검사 (D-041)
+
+```sh
+npm run test:generation
+npm run test:project-ui
+npm run build
+# Linux X11, 합성 토큰/루프백만 사용하며 실제 계정 호출 없음
+npm run smoke:generation
+npm run smoke:package -- /absolute/linux-unpacked generation
+```
+
+smoke:generation은 실제 앱3PID로 생성/취소/PNG 저장 실패 뒤 새 프로젝트 보관, 재열기, 오프라인 PNG 표시와 생성 거부를 확인한다. native net.request의 고정 주소를 테스트만 루프백으로 바꾸고 원격 요청은 차단한다. 공개 결과에는 합성 체크만 남긴다. 실제 key/PNG를 입력하지 않는다. 기본1장은 새 작업실 버튼으로 들어가고, 실제 계정 확인이 필요할 때만 사용자가 앱의 API 토큰 창에 직접 입력한다. 현재 새 UI의 실제 계정 호출은 미검증이다. [조건·오류·버전 호환](WORKSPACE_GENERATION.md).
+
+Windows 첫 전체 앱 확인에는 Node22 기준/VS2022 Build Tools 선택지·npm ci를 먼저 구분하고, packaged 프로젝트 저장/PNG 재열기 및 무응답 창에 붙은 native dialog의 표시 위치·포커스·취소/버리기도 확인한다. Linux GUI 선택 모의가 Windows OS 모달 검증을 대신하지 않는다. 이번에 Windows 설치 문제를 해결하거나 다른 OS 지원 정책을 확정하지 않았다.

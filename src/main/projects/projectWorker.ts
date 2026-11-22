@@ -11,6 +11,9 @@ const operations = [
   'history',
   'recover',
   'copy',
+  'generationSnapshot',
+  'addPNG',
+  'readPNG',
 ] as const;
 parentPort!.on('message', ({ id, operation, args }) => {
   try {
