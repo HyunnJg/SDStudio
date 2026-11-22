@@ -104,6 +104,18 @@ export default function WorkspaceProjectControls({
           >
             입력만 새로 저장
           </button>
+          {state.error === 'PROJECT_SERVICE_STOPPED' && (
+            <button
+              type="button"
+              data-testid="restart-project-storage"
+              onClick={() => {
+                controller.restartStorage();
+              }}
+              disabled={!!state.operation || unavailable}
+            >
+              저장 기능 다시 시작
+            </button>
+          )}
           <p role={state.error ? 'alert' : 'status'}>
             {unavailable
               ? '프로젝트 저장은 Electron 데스크톱에서 사용할 수 있습니다.'
@@ -223,6 +235,18 @@ export default function WorkspaceProjectControls({
               대기열은 저장하지 않습니다.
             </p>
             <p role="status">{state.operation || state.message}</p>
+            {state.error === 'PROJECT_SERVICE_STOPPED' && (
+              <button
+                type="button"
+                data-testid="restart-project-storage-confirm"
+                onClick={() => {
+                  controller.restartStorage();
+                }}
+                disabled={!!state.operation || unavailable}
+              >
+                저장 기능 다시 시작
+              </button>
+            )}
             <button
               type="button"
               data-testid="project-confirm-save"

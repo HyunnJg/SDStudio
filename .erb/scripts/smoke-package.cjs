@@ -5,9 +5,13 @@ const { spawn } = require('node:child_process');
 const WebSocket = require('ws');
 if (!process.argv[2])
   throw Error(
-    'Usage: npm run smoke:package -- /absolute/linux-unpacked [real|auth]',
+    'Usage: npm run smoke:package -- /absolute/linux-unpacked [real|auth|projects|worker|crash|unresponsive]',
   );
 const directory = fs.realpathSync(process.argv[2]);
+const resilience = ['worker', 'crash', 'unresponsive'].includes(process.argv[3])
+  ? process.argv[3]
+  : '';
+const projectMode = process.argv[3] === 'projects';
 const authMode = process.argv[3] === 'auth';
 const mock = ['real', 'auth'].includes(process.argv[3]) ? '0' : '1';
 if (process.platform !== 'linux' || !process.env.DISPLAY)
@@ -32,6 +36,9 @@ const childEnv = {
   SDSTUDIO_SMOKE_WORKSPACE: mock,
   SDSTUDIO_SMOKE_SKIP_SINGLETON: '1',
   SDSTUDIO_SMOKE_AUTH_UI: authMode ? '1' : '0',
+  SDSTUDIO_SMOKE_PROJECTS: projectMode ? '1' : '0',
+  SDSTUDIO_PROJECT_UI_PHASE: 'create',
+  SDSTUDIO_SMOKE_RESILIENCE: resilience,
 };
 if (authMode) delete childEnv.SDSTUDIO_USER_DATA_DIR;
 const child = spawn(
@@ -149,7 +156,12 @@ child.on('exit', (code) => {
   if (
     data.error ||
     !data.ready ||
-    (mock === '1' && !data.workspace) ||
+    (mock === '1' &&
+      !(resilience
+        ? data.resilience
+        : projectMode
+          ? data.projectUI
+          : data.workspace)) ||
     (mock === '0' && !authMode && data.blockedOperations?.length !== 5) ||
     (authMode && !data.authUI) ||
     !setupInfo?.isPackaged ||
@@ -159,5 +171,7 @@ child.on('exit', (code) => {
     !profileIsolated
   )
     process.exitCode = 1;
+  if (process.env.SDSTUDIO_PACKAGE_REPORT)
+    fs.copyFileSync(report, process.env.SDSTUDIO_PACKAGE_REPORT);
   process.stdout.write('Packaged smoke report: ' + report + '\n');
 });
