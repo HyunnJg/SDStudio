@@ -1026,6 +1026,7 @@ if (!gotTheLock) {
           });
           return result.response === 1 && mainWindow === window && !window.isDestroyed();
         },
+        () => !workspaceGeneration?.hasWork(),
       );
       projectClose.register(ipcMain, (event) => isTrustedAuthFrame(event, mainWindow?.webContents, resolveHtmlPath('index.html')));
       registerNetworkMode(
@@ -1035,6 +1036,7 @@ if (!gotTheLock) {
           event, mainWindow?.webContents, resolveHtmlPath('index.html'),
         ),
         () => {
+          if (workspaceGeneration?.hasWork()) throw new Error('Generation is active or has an unsaved result');
           app.relaunch();
           setImmediate(() => app.quit());
         },
