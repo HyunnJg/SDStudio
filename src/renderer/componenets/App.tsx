@@ -51,6 +51,7 @@ import { appState } from '../models/AppService';
 import { AppContextMenu } from './AppContextMenu';
 import PreviewWorkspace from './PreviewWorkspace';
 import WorkspaceProjectControls from './WorkspaceProjectControls';
+import { finishProjectClose } from '../projects/finishProjectClose';
 import { ProjectController } from '../projects/projectController';
 import NaiAuthSettings from './NaiAuthSettings';
 import { prepareRestart } from '../network/restartPreparation';
@@ -207,7 +208,7 @@ export const App = observer(() => {
         if (!(await project.prepareLeave()) || projectTasksBusy()) { await window.electron.projectLifecycle.cancelClose(); return; }
         await sessionService.saveAll();
         if (projectTasksBusy()) { await window.electron.projectLifecycle.cancelClose(); return; }
-        await window.electron.projectLifecycle.finishClose();
+        await finishProjectClose(() => window.electron.projectLifecycle.finishClose(), message => appState.pushMessage(message));
       } catch { appState.pushMessage('저장 상태를 확인하지 못해 닫기를 중단했습니다. 입력은 유지됩니다.'); await window.electron.projectLifecycle.cancelClose(); }
       finally { projectClosingRef.current = false; setProjectClosing(false); }
     })();

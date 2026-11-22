@@ -163,7 +163,7 @@ export class ProjectController {
       unwrap(await this.client().restartStorage());
       this.update({
         message:
-          '저장 기능을 다시 시작했습니다. 이전 저장의 완료 여부는 목록/열기로 확인하세요. 이전 요청은 다시 보내지 않았습니다.',
+          '저장 기능을 다시 시작했습니다. 이전 저장의 완료 여부는 목록/열기로 확인하세요. 이전 요청은 다시 보내지 않았습니다. 저장이 중간에 끊겼다면 새 복사본으로 계속해야 할 수 있습니다.',
         error: undefined,
       });
     });
