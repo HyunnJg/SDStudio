@@ -2,6 +2,7 @@
 /* eslint no-unused-vars: off */
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import type { NaiAuthResult } from '../naiAuth';
+import type { ProjectClient } from '../workspaceProject';
 import type { NetworkMode, NetworkModeResult } from '../networkMode';
 
 export type Channels =
@@ -66,6 +67,17 @@ const electronHandler = {
     clear: (): Promise<NaiAuthResult> => ipcRenderer.invoke('nai-auth-clear'),
     check: (): Promise<NaiAuthResult> => ipcRenderer.invoke('nai-auth-check'),
   },
+  projects: {
+    list: () => ipcRenderer.invoke('workspace-project-list'),
+    create: (content) =>
+      ipcRenderer.invoke('workspace-project-create', content),
+    open: (id) => ipcRenderer.invoke('workspace-project-open', id),
+    save: (id, revision, content) =>
+      ipcRenderer.invoke('workspace-project-save', id, revision, content),
+    history: (id) => ipcRenderer.invoke('workspace-project-history', id),
+    recover: (id, revision) =>
+      ipcRenderer.invoke('workspace-project-recover', id, revision),
+  } satisfies ProjectClient,
   runtime: {
     offline: process.argv.includes('--sdstudio-offline'),
     mockBackend: process.argv.includes('--sdstudio-mock-backend'),

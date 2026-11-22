@@ -68,7 +68,9 @@
     "test:nai-live:electron": "node --test src/__tests__/naiLiveValidation.electron.cjs",
     "test:nai-live": "node --test -r ts-node/register/transpile-only src/__tests__/naiLiveValidation.test.cjs",
     "nai:inspect-response": "node .erb/scripts/inspect-nai-response.cjs",
-    "test:nai-response": "node --test -r ts-node/register/transpile-only src/__tests__/naiImageResponse.test.cjs src/__tests__/naiResponseInspection.test.cjs"
+    "test:nai-response": "node --test -r ts-node/register/transpile-only src/__tests__/naiImageResponse.test.cjs src/__tests__/naiResponseInspection.test.cjs",
+    "test:project": "node --test -r ts-node/register/transpile-only src/__tests__/workspaceProject.test.cjs",
+    "test:project:electron": "node --test src/__tests__/workspaceProject.electron.cjs"
   },
   "browserslist": [],
   "prettier": {

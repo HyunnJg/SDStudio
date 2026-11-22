@@ -15,6 +15,8 @@ import { createRuntimeOptions } from '../runtimeOptions';
 import { installOfflineRequestGuard } from './offlineNetwork';
 import { NaiTokenStore } from './nai/tokenStore';
 import { registerNaiAuth, isTrustedAuthFrame } from './nai/authIpc';
+import { ProjectStore } from './projects/projectStore';
+import { registerProjects } from './projects/projectIpc';
 import { NetworkModeSettings, registerNetworkMode } from './networkMode';
 import path from 'path';
 import {
@@ -975,6 +977,13 @@ if (!gotTheLock) {
         ipcMain,
         tokenStore,
         () => runtimeOptions.offline,
+        (event) => isTrustedAuthFrame(
+          event, mainWindow?.webContents, resolveHtmlPath('index.html'),
+        ),
+      );
+      registerProjects(
+        ipcMain,
+        new ProjectStore(app.getPath('userData')),
         (event) => isTrustedAuthFrame(
           event, mainWindow?.webContents, resolveHtmlPath('index.html'),
         ),

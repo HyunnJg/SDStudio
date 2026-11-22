@@ -584,3 +584,63 @@ test('metadata observer cannot change a request outcome or receive arbitrary hea
     mediaType: 'application/zip',
   });
 });
+
+test('default image reception rejects empty or incomplete ZIP prefixes as response format errors', async () => {
+  for (const bytes of [Buffer.alloc(0), Buffer.from([80, 75, 3])]) {
+    const f = fixture();
+    const task = f.transport.sendImage(body);
+    const rejected = assert.rejects(task, {
+      code: 'RESPONSE_FORMAT',
+      mayHaveReachedServer: true,
+    });
+    await flush();
+    const r = f.response(200, 'application/x-sdstudio-test');
+    for (const byte of bytes) r.emit('data', Buffer.from([byte]));
+    r.emit('end');
+    await rejected;
+    assert.equal(f.request.writes.length, 1);
+  }
+});
+test('production main code keeps raw transport send outside the research runner', () => {
+  const fs = require('node:fs'),
+    path = require('node:path'),
+    ts = require('typescript');
+  const root = path.resolve(__dirname, '../main'),
+    findings = [];
+  function scan(folder) {
+    for (const entry of fs.readdirSync(folder, { withFileTypes: true })) {
+      const file = path.join(folder, entry.name);
+      if (entry.isDirectory()) {
+        scan(file);
+        continue;
+      }
+      if (!file.endsWith('.ts')) continue;
+      const relative = path.relative(root, file).replaceAll(path.sep, '/');
+      const source = ts.createSourceFile(
+        file,
+        fs.readFileSync(file, 'utf8'),
+        ts.ScriptTarget.Latest,
+        true,
+      );
+      function visit(node) {
+        if (
+          ts.isCallExpression(node) &&
+          ts.isPropertyAccessExpression(node.expression) &&
+          node.expression.name.text === 'send'
+        ) {
+          const receiver = node.expression.expression.getText(source);
+          if (
+            !receiver.endsWith('.webContents') &&
+            relative !== 'nai/liveValidation.ts'
+          )
+            findings.push(relative + ':' + receiver + '.send');
+        }
+        ts.forEachChild(node, visit);
+      }
+      visit(source);
+    }
+  }
+  scan(root);
+  assert.deepEqual(findings, []);
+  // Review tripwire only: aliases/dynamic property access are not a data-flow/security proof.
+});
