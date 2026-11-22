@@ -163,7 +163,7 @@ npm run smoke:network-mode -- /absolute/linux-unpacked
 
 ```powershell
 git fetch origin
-git switch work/p0-live-validation
+git switch work/p0-live-recovery
 git pull --ff-only
 npm --prefix tools/nai-validation ci
 npm --prefix tools/nai-validation start -- "$env:LOCALAPPDATA\SDStudio-Live-Test"
@@ -176,7 +176,7 @@ npm --prefix tools/nai-validation ci
 npm --prefix tools/nai-validation start -- /home/your-name/SDStudio-Live-Test
 ```
 
-이미 전체 앱 의존성을 설치한 개발자는 기존 npm run nai:validate-live 명령도 사용할 수 있다. 새 경로는 자체 ts-node/TypeScript를 먼저 등록해 루트에 남은 부분 설치를 사용하지 않는다. Electron prebuilt 다운로드는 필요하지만 C++ 소스 컴파일은 없다. Node 호스트는 실행 파일을 시작하고 TypeScript는 Electron 안에서 처리한다. 이 경로의 깨끗한 설치/화면 기동은 Linux Node24.22.3/npm11.19.1에서 검증했다. 사용자 Node26.13.1/npm11.21.3 및 Windows/macOS 실제 실행은 아직 미검증이다.
+이미 전체 앱 의존성을 설치한 개발자는 기존 npm run nai:validate-live 명령도 사용할 수 있다. 새 경로는 자체 ts-node/TypeScript를 먼저 등록해 루트에 남은 부분 설치를 사용하지 않는다. Electron prebuilt 다운로드는 필요하지만 C++ 소스 컴파일은 없다. Node 호스트는 실행 파일을 시작하고 TypeScript는 Electron 안에서 처리한다. 이 경로의 깨끗한 설치/화면 기동은 Linux Node24.22.3/npm11.19.1에서 검증했다. 사용자가 Windows/Node26.13.1에서 공식 ZIP 수동 해제 후 창과 실제 API1회 응답을 보고했다. 이는 로컬 자동 Windows 검사나 정상 npm postinstall 재현 성공은 아니다. macOS는 미검증이다. [설치 복구](../tools/nai-validation/WINDOWS.md).
 
 ### Windows 전체 앱 설치 오류와 구분
 
@@ -196,4 +196,18 @@ npm run test:nai-live
 npm run test:nai-live:electron
 ```
 
-Electron 검사는 Linux X11에서 5경로를 실행한다. Windows/macOS, 실제 키링/실제 계정·비용 확인을 대신하는 검사가 아니다. 도구 실행은 사용자 PC에서 이루어지며 이 개발 환경이 사용자의 입력 토큰을 원격 수신하는 방식이 아니다.
+Electron 검사는 Linux X11에서 7경로를 실행한다. Windows/macOS, 실제 키링/실제 계정·비용 확인을 대신하는 검사가 아니다. 도구 실행은 사용자 PC에서 이루어지며 이 개발 환경이 사용자의 입력 토큰을 원격 수신하는 방식이 아니다.
+
+
+### PR15 이후 실측 보완 실행
+
+현재 실험 창을 닫고, 저장소에서 다음을 실행한다. 설치 의존성은 바뀌지 않았으므로 기존에 수동 복구한 Electron을 다시 지우는 npm ci는 필요 없다.
+
+```powershell
+git fetch origin
+git switch work/p0-live-recovery
+git pull --ff-only
+npm --prefix tools/nai-validation start -- "$env:LOCALAPPDATA\SDStudio-Live-Test-02"
+```
+
+첫 프로필은 그대로 둔다. 첫 attempt.json의 displayedCost와 새 웹 표시 비용의 합계10 Anlas 이내, 동일 설정의 웹 비용·잔액 확인 후 추가1회만 진행한다. 값을 모르면 전송하지 않는다. [정확한 조건](NAI_LIVE_VALIDATION.md#첫-관찰과-수정-후-추가1회-규칙-d-034). 도구가 모든 프로필의 횟수/비용을 전역으로 추적하거나 서버 청구 상한을 강제하는 것은 아니다.

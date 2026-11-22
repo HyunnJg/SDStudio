@@ -82,3 +82,10 @@ nai:inspect-response는 명시적으로 고른 일반 파일 하나만 제한해
 일반 제품 생성 연결은 계속 대기다. 별도 개발 연구 창만 NaiTransport.diagnosticCapture를 켠다. 정상 이미지 응답은 64 MiB, HTTP/MIME 오류는 64 KiB prefix를 저장하고 잘림을 기록한다. 원문을 오류 객체/auth IPC에 붙이지 않는다. callback 실패는 RESPONSE_CAPTURE_FAILED이며 재시도하지 않는다. observer에는 반환 바이트와 분리한 사본을 준다. 기본 운영 호출은 여전히 capture 미지정으로 원문 오류를 폐기한다.
 
 연구 창은 토큰을 세션 메모리에만 두고 시도 후/종료 시 lock한다. 전송과 해제는 전체 90초 기한·같은 AbortSignal을 사용한다. 보관 후 해석 실패에도 서버 처리 가능성을 유지한다. ZIP 보관 파일이 있어야 기존 CLI로 재검사할 수 있다는 PR #14 의견을 이 경로에서 해소했다. 전송 전 실패/단절은 완전한 원문이 없을 수 있다. [계획·수동 비용 확인](NAI_LIVE_VALIDATION.md), [합성 실기 근거](validation/2026-11-21-live-validation.md).
+
+
+## D-034 후속 — 미분류 MIME의 연구 ZIP 수신과 중단 기록
+
+연구 entry만 acceptZipSignature를 켠다. capture가 함께 지정된2xx에서 미분류 MIME여도 첫4바이트PK0304가 확인되면64MiB상한으로 수신하고 원문 보관 후 기존 엄격 ZIP/PNG 검사로 넘긴다. ZIP 시작부만으로 성공을 판정하지 않는다. 비2xx·비ZIP·기본 운영 옵션의 즉시 거부/64KiB 진단 prefix 정책은 유지한다. acceptedByZipSignature와 elapsedMs만 정제 결과에 추가하며 원시 MIME/본문/토큰은 IPC 오류에 붙이지 않는다.
+
+결과 기록이 없는 used 프로필도 현재 인스턴스 실행 중이 아니면 후잔액을 남길 수 있다. incomplete/resultRecord=missing을 기록하고 결과를 꾸며내거나 요청을 재개하지 않는다. 다른 프로세스 종료 확인은 사용자 안내이며 그 프로세스의 생존/서버 과금을 판정하는 API가 아니다. [검증](validation/2026-11-22-live-recovery.md).

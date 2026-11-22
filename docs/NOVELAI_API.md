@@ -125,3 +125,8 @@ main/nai/transport.sendImage와 imageResponse.ts로 제한 ZIP 해제·CRC/PNG �
 공식 스키마에 model ID enum·모델별 action/params_version 기본값이 없는 상태는 유지된다. 이번에는 서버 수락 여부를 조사할 **미확인 연구 fixture** nai-live-candidate.json을 별도 도구에서만 사용한다. nai-diffusion-4-5-full/generate/3, sampler=k_euler_ancestral/noise_schedule=karras 등은 실험 가설이다. 운영 지원 목록이나 UI 기본값으로 등록하지 않는다. 기존 mock 투영의 fixture-… 값은 바꾸지 않는다.
 
 사용자의 실험 위임에 따라 고정 후보 1회를 전송할 도구와 사전 수동 비용 확인/원문 보관을 준비했다. 실제 토큰은 아직 사용하지 않았으며 서버 수락·실제 MIME/ZIP·청구는 미확인이다. 첫 기본 이미지가 성공하더라도 캐릭터 긍정/부정·격자·V5·신규 저장 호환·실제 대기열은 별도 검증한다. [정확한 후보와 실행 조건](NAI_LIVE_VALIDATION.md).
+
+
+## 첫 사용자 실측 — 2026-11-22
+
+사용자가 후보 해시f9ab339756a902823b94d47a26e37e872537b3ff3d05526c7baa15e4999f68a5로1회 전송해 HTTP200·ZIP시작부(flags8/method8/extra0)를 보고했다. 이는 해당 요청의 첫 응답 관찰이며 모델별 의미/정확한 MIME/PNG 전체 검증이나 공식 규격 확정은 아니다. 연구 capture의 미분류 MIME 처리로 응답이64KiB에서 잘렸고, D-034가 수신 경로만 보완한다. 후보 필드·seed0·기존 mock 투영과 운영 모델 목록은 그대로다. 캐릭터/좌표·새 프로젝트 저장·실제 대기열 연결은 계속 후속이다. [관찰/추가1회 조건](NAI_LIVE_VALIDATION.md).
