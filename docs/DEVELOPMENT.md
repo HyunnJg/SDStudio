@@ -229,3 +229,19 @@ where.exe node
 `node --version`은 v22.4.1인지, 실제 node 경로가 선택한 관리 경로인지 확인한다. npm은 선택한 Node 설치에 포함된 버전을 사용하며 기존의 npm 11을 이 조합에 강제로 유지하지 않는다. 권한이 필요한 버전 전환은 공식 안내를 따른다.
 
 이 단계만으로 **VS2026 탐지 실패가 고쳐지는 것은 아니다**. 사용자 로그의 로컬 @electron/node-gyp10.2.0-electron.1은 VS18/2026을 인식하지 못했다. 전역 node-gyp 갱신도 이 호출을 자동 교체하지 않는다. Windows 전체 npm ci 성공은 아직 재현하지 않았으며, Node 전환 직후 루트 재설치가 성공한다고 안내하지 않는다. 네이티브 도구 체인/재빌드 의존성을 별도 변경·검증한 뒤 전체 앱 설치를 진행한다. 지금은 VS/Python 재설치, 원본 데이터/lock 삭제, npm audit fix --force를 요구하지 않는다.
+
+### VS2022 Build Tools 병행 설치는 선택적인 호환 후보
+
+전체 앱을 Windows에서 빌드할 시점에, 의존성을 바꾸지 않는 후보로 **VS2022 Build Tools + C++를 사용한 데스크톱 개발**을 VS2026 옆에 설치하는 방법이 있다. [Microsoft 병행 설치 안내](https://learn.microsoft.com/en-us/visualstudio/install/install-visual-studio-versions-side-by-side?view=vs-2026)와 [VS2022 릴리스 목록](https://learn.microsoft.com/en-us/visualstudio/releases/2022/release-history)을 따라 2022/17 계열을 선택한다. VS2026을 지우거나 이미 작동하는 연구 도구를 다시 설치할 필요는 없다.
+
+이 체크아웃의 @electron/node-gyp10.2.0-electron.1 find-visualstudio.js에는 17→2022 탐지 경로가 있다. 그러나 이 저장소의 Windows 전체 npm ci·Electron 재빌드·sharp 성공은 아직 미검증이다. Node22를 선택한 뒤 VS2022 설치를 **별도로 선택한 경우에만** 실패 단계가 바뀌는지 확인한다. 성공을 약속하거나 사용자에게 지금 재설치를 요구하는 절차가 아니다. 실패하면 원문 전체 대신 도구 버전과 실패 단계로 다음 도구 체인 변경 범위를 결정한다.
+
+### 새 프로젝트 저장 기반의 합성 검사
+
+```sh
+npm run test:project
+# Linux X11과 빌드된 preload가 있을 때
+npm run test:project:electron
+```
+
+기존 V3 파일이나 개인 이미지를 입력하지 않는다. 새 IPC는 오프라인에서도 사용할 수 있으나 현재 화면의 저장/열기 버튼은 아직 미연결이다. [저장 형식과 후속 UI 범위](PROJECT_STORAGE.md).

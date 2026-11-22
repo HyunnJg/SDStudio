@@ -124,3 +124,9 @@ LiveValidation은 고정 후보의 해시와 수동 웹 비용 근거를 묶고 
 `NaiTransport.sendImage`는 운영 기본값으로 2xx의 미분류/미지정 MIME을 ZIP 시작부로 선별 수신하고, 기존 제한된 ZIP·PNG 해석을 통과한 원본 PNG만 반환한다. 원문 `send`의 연구 opt-in과 구분한다. 새 Node 네트워크 경로·다른 partition·목적지 옵션을 추가하지 않는다.
 
 메인 전용 `responseMediaType.ts`는 길이 제한/파라미터 제거/형식 검사를 하고 present/absent/invalid를 구분한다. 선택 observer에는 이 결과와 HTTP 상태만 전달하며 연구 결과 파일도 재검사한다. 기존 분류 other를 임의의 실제 MIME으로 치환하지 않는다. 제품 생성 IPC/모델 바인딩·프로젝트 저장·대기열 연결은 아직 후속이다.
+
+## 신규 프로젝트 저장 기반 (D-037)
+
+workspaceProject.ts는 V3와 독립된 허용 스키마/고정 오류·IPC 타입이다. WorkspaceDraft/Scene의 type import만 사용하며 renderer 서비스/계정 모듈을 메인에서 실행하지 않는다. main/projects/projectStore.ts는 고정 포크 프로필 아래 manifest·불변 history·내용 해시 PNG를 관리한다. PNG 검사는 main/nai/imageResponse.ts의 동일 구조 검사 함수를 재사용한다.
+
+main.ts는 인증과 같은 trusted frame 검사로 projects IPC를 등록한다. offline은 이 로컬 동작을 차단하지 않는다. preload.projects는 list/create/open/save/history/recover만 제공하며 임의 경로·PNG 입력/반환은 없다. 메인 내부 addPNG/readPNG는 후속 실제 생성 연결용이다. 기존 작업실 상태·MockBackend·V3 서비스에는 아직 연결하지 않는다. [상세 저장/복구](PROJECT_STORAGE.md).
