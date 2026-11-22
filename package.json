@@ -72,7 +72,9 @@
     "test:project": "node --test -r ts-node/register/transpile-only src/__tests__/workspaceProject.test.cjs",
     "test:project:electron": "node --test src/__tests__/workspaceProject.electron.cjs",
     "test:project-ui": "node --test -r ts-node/register/transpile-only src/__tests__/projectController.test.cjs src/__tests__/projectService.test.cjs",
-    "smoke:project-ui": "node .erb/scripts/smoke-project-ui.cjs"
+    "smoke:project-ui": "node .erb/scripts/smoke-project-ui.cjs",
+    "test:generation": "node --test -r ts-node/register/transpile-only src/__tests__/workspaceGeneration.test.cjs",
+    "smoke:generation": "node .erb/scripts/smoke-generation.cjs"
   },
   "browserslist": [],
   "prettier": {

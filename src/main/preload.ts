@@ -2,6 +2,7 @@
 /* eslint no-unused-vars: off */
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import type { NaiAuthResult } from '../naiAuth';
+import type { GenerationClient } from '../workspaceGeneration';
 import type { ProjectClient } from '../workspaceProject';
 import type { NetworkMode, NetworkModeResult } from '../networkMode';
 
@@ -80,6 +81,19 @@ const electronHandler = {
     cancelClose: (): Promise<boolean> =>
       ipcRenderer.invoke('workspace-close-cancel'),
   },
+  generation: {
+    status: () => ipcRenderer.invoke('workspace-generation-status'),
+    prepare: (id, revision, sceneId) =>
+      ipcRenderer.invoke('workspace-generation-prepare', id, revision, sceneId),
+    run: (ticket, confirmed) =>
+      ipcRenderer.invoke('workspace-generation-run', ticket, confirmed),
+    cancel: () => ipcRenderer.invoke('workspace-generation-cancel'),
+    retrySave: (asNewProject) =>
+      ipcRenderer.invoke('workspace-generation-retry-save', asNewProject),
+    discardPending: () => ipcRenderer.invoke('workspace-generation-discard'),
+    image: (id, imageId) =>
+      ipcRenderer.invoke('workspace-generation-image', id, imageId),
+  } satisfies GenerationClient,
   projects: {
     restartStorage: () =>
       ipcRenderer.invoke('workspace-project-restart-storage'),
