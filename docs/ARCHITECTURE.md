@@ -140,3 +140,11 @@ projectIpc는 awaited ProjectOperations를 받는다. 일반 main.ts는 ProjectS
 ProjectCloseCoordinator가 native close를 보류하고 승인된 메인 문서의 프로젝트 결정/V3 저장 완료 응답을 기다린다. 요청은 workspace-close-request, 응답은 trusted finish/cancel이다. 새 창 생성 때 승인 상태를 reset한다. App의 전체 입력 영역은 저장/닫기 준비 중 inert이고 dialog는 그 바깥에 있다. 앱 종료 준비 실패는 창을 유지하며 임의 timeout 종료나 자동 잠금 해제는 없다. 모바일의 기존 backend close 동작은 유지한다.
 
 PR #19 후속(D-040): worker 생성/종료는 PROJECT_SERVICE_STOPPED로 고정해 UI에서 명시적으로 restartStorage할 수 있다. 기존 pending 호출은 실패로 끝내며 재전송하지 않는다. restart는 과거 worker를 종료한 후 새 worker의 list만 확인한다. native close는 renderer crash/unresponsive 상태에 한해 메인 dialog로 취소/기다리기 또는 버리기를 고르며 타이머 자동 승인은 없다. 정상 trusted finish 경계는 유지한다. Linux 실제 ASAR 패키지에서도 worker 저장/복구/닫기를 검증했으므로 이 환경에서 불필요한 unpack 변경을 하지 않았다.
+
+## 현재 씬 기본1장·PNG 연결 (D-041)
+
+non-mock Electron은 별도 ConnectedWorkspace를 명시적으로 열며 App의 WorkspaceState/ProjectController를 공유한다. mock PreviewWorkspace/메모리 큐는 유지한다. prepare/run/결과 보관은 main WorkspaceGeneration 단일 경로, body는 workspaceBinding의 고정 V4.5 기본 요청, 전송은 기존 createNaiTransport→sendImage다. 암호 토큰·원문 오류·목적지 선택권을 renderer/worker에 넘기지 않는다.
+
+prepare와 run에서 고정 ProjectService worker의 generationSnapshot으로 저장 상태/참조 PNG/한도를 확인한다. 정상 PNG는 main-only worker addPNG로 append하며 image 조회는 승인 문서·UUID manifest 참조로 제한한다. 저장 실패는 API 재호출 없이 pending PNG를 저장하거나 입력/이번 결과만 새 프로젝트에 보관한다. generation.status는 main의 active/pending만 알리며 정상 native finish/연결 모드 restart도 main 상태로 거부해 UI 통지 지연을 보완한다.
+
+새 PNG의 binding/versioned body hash 때문에 manifest v2를 명시적으로 쓴다. v1 읽기/이력 복구는 유지한다. 첫 정제 MIME 진단은 파일 단위의 메인 observer이며, 이번 루프백 검증을 실제 NovelAI MIME 확인으로 기록하지 않는다. [상세](WORKSPACE_GENERATION.md), [검증](validation/2026-11-22-workspace-generation.md).

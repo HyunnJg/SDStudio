@@ -59,3 +59,5 @@ docs/reviews/2026-11-20-initial-request.md의 질문을 독립적으로 검토�
 - [PR #18 의견·저장 화면/worker 후속](2026-11-22-pr18-followup.md)
 
 - [PR #19 비정상 닫기·worker 및 실제 ASAR 검증 후속](2026-11-22-pr19-followup.md)
+
+- [PR #20 의견·기본1장 생성/PNG 연결 후속](2026-11-22-pr20-followup.md)
