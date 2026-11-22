@@ -55,3 +55,5 @@ docs/reviews/2026-11-20-initial-request.md의 질문을 독립적으로 검토�
 - [PR #16 운영 MIME 수신·진단 후속](2026-11-22-pr16-followup.md)
 
 - [PR #17 의견·신규 프로젝트 저장 후속](2026-11-22-pr17-followup.md)
+
+- [PR #18 의견·저장 화면/worker 후속](2026-11-22-pr18-followup.md)

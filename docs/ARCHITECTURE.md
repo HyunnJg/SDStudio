@@ -130,3 +130,11 @@ LiveValidation은 고정 후보의 해시와 수동 웹 비용 근거를 묶고 
 workspaceProject.ts는 V3와 독립된 허용 스키마/고정 오류·IPC 타입이다. WorkspaceDraft/Scene의 type import만 사용하며 renderer 서비스/계정 모듈을 메인에서 실행하지 않는다. main/projects/projectStore.ts는 고정 포크 프로필 아래 manifest·불변 history·내용 해시 PNG를 관리한다. PNG 검사는 main/nai/imageResponse.ts의 동일 구조 검사 함수를 재사용한다.
 
 main.ts는 인증과 같은 trusted frame 검사로 projects IPC를 등록한다. offline은 이 로컬 동작을 차단하지 않는다. preload.projects는 list/create/open/save/history/recover만 제공하며 임의 경로·PNG 입력/반환은 없다. 메인 내부 addPNG/readPNG는 후속 실제 생성 연결용이다. 기존 작업실 상태·MockBackend·V3 서비스에는 아직 연결하지 않는다. [상세 저장/복구](PROJECT_STORAGE.md).
+
+## 프로젝트 UI·worker·닫기 수명 (D-039)
+
+App이 ProjectController를 소유하고 WorkspaceProjectControls의 조작부/공유 dialog를 분리한다. 이력·목록/오류·저장 바인딩은 서비스 스냅샷이며 프롬프트 편집 원본은 기존 WorkspaceState다. snapshotWorkspaceScenes로 현재 선택 씬의 편집을 합쳐 저장하며 저장 중 캡처한 fingerprint만 저장됨 기준으로 삼는다. 프로젝트를 열면 이전 예제 기록/대기열을 비우되 pending/running이 있으면 전환하지 않는다.
+
+projectIpc는 awaited ProjectOperations를 받는다. 일반 main.ts는 ProjectService를 주입하며 worker_threads의 고정 projectWorker가 허용된 list/create/open/save/history/recover/copy만 실행한다. worker에 Electron 세션/인증을 넘기지 않는다. 기존 동기 ProjectStore는 코어 검사와 파일 원자성/잠금 정책을 유지한다. 실행 중 main 전송 타이머와 프로젝트 I/O를 같은 스레드에서 돌리지 않는다.
+
+ProjectCloseCoordinator가 native close를 보류하고 승인된 메인 문서의 프로젝트 결정/V3 저장 완료 응답을 기다린다. 요청은 workspace-close-request, 응답은 trusted finish/cancel이다. 새 창 생성 때 승인 상태를 reset한다. App의 전체 입력 영역은 저장/닫기 준비 중 inert이고 dialog는 그 바깥에 있다. 앱 종료 준비 실패는 창을 유지하며 임의 timeout 종료나 자동 잠금 해제는 없다. 모바일의 기존 backend close 동작은 유지한다.
