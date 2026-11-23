@@ -27,6 +27,9 @@ export function registerGeneration(
                 : {}),
               ...(error.projectCode ? { projectCode: error.projectCode } : {}),
               ...(error.pendingResult ? { pendingResult: true } : {}),
+              ...(error.conflictSceneId
+                ? { conflictSceneId: error.conflictSceneId }
+                : {}),
             };
           return {
             ok: false,

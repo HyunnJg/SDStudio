@@ -274,6 +274,47 @@ app.on('web-contents-created', (_event, contents) => {
         checks.push(
           'stop aborts the one in-flight request; five unsent tasks remain and no automatic eighth request starts',
         );
+        // Regression: merely viewing a different scene and renaming the project must not invalidate unsent input.
+        const changedScene = stopped.items[1].sceneId;
+        await evaluate(
+          `(()=>{const c=document.querySelector('#live-scene');c.value=${JSON.stringify(changedScene)};c.dispatchEvent(new Event('change',{bubbles:true}));})()`,
+        );
+        await pause();
+        await fill('#workspace-project-name', 'renamed synthetic project');
+        const originalPrompt = await evaluate(
+          "document.querySelector('[data-testid=live-prompt]').value",
+        );
+        await fill(
+          '[data-testid=live-prompt]',
+          'synthetic changed reserved input',
+        );
+        await click('[data-testid=resume-live-queue]');
+        await until(() =>
+          evaluate(
+            "document.querySelector('[data-testid=generation-status]').innerText.includes('예약한 씬')",
+          ),
+        );
+        const conflictMessage = await evaluate(
+          "document.querySelector('[data-testid=generation-status]').innerText",
+        );
+        assert.ok(conflictMessage.includes(stopped.items[1].sceneName));
+        assert.equal(requests, 7);
+        const stillPending = (
+          await evaluate('window.electron.generation.queueStatus()')
+        ).value.queue;
+        assert.equal(
+          stillPending.items.filter((item) => item.status === 'pending').length,
+          5,
+        );
+        checks.push(
+          'changed reserved draft displays the local scene name, sends0 extra requests and preserves all5 unsent tasks',
+        );
+        await until(() =>
+          evaluate(
+            "!document.querySelector('[data-testid=resume-live-queue]').matches(':disabled')",
+          ),
+        );
+        await fill('[data-testid=live-prompt]', originalPrompt);
         await click('[data-testid=resume-live-queue]');
         await until(() =>
           evaluate("!!document.querySelector('[data-testid=queue-confirm]')"),
@@ -291,6 +332,9 @@ app.on('web-contents-created', (_event, contents) => {
             "document.querySelector('[data-testid=send-live-queue]').disabled",
           ),
           true,
+        );
+        checks.push(
+          'restored draft permits5-task reconfirmation despite project rename and a different viewed scene; confirmed seeds stay unchanged',
         );
         await click('[data-testid=queue-cost-confirm]');
         await click('[data-testid=send-live-queue]');

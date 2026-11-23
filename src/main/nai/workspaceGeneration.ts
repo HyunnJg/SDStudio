@@ -1,5 +1,6 @@
 /* eslint import/prefer-default-export: off, max-classes-per-file: off */
 import { randomUUID, createHash } from 'crypto';
+import { isDeepStrictEqual } from 'util';
 import { ProjectError, projectId, projectHash } from '../../workspaceProject';
 import type { ProjectImageInput, ProjectContent } from '../../workspaceProject';
 import type {
@@ -16,14 +17,23 @@ import { NaiError } from './errors';
 import { bindBasicGeneration } from './workspaceBinding';
 
 export class GenerationError extends Error {
+  readonly conflictSceneId?: string;
+
   constructor(
     readonly code: GenerationCode,
     readonly mayHaveReachedServer = false,
     readonly httpStatus?: number,
     readonly projectCode?: ProjectError['code'],
     readonly pendingResult?: true,
+    conflictSceneId?: string,
   ) {
     super(code);
+    if (
+      code === 'QUEUE_INPUT_CHANGED' &&
+      typeof conflictSceneId === 'string' &&
+      /^[A-Za-z0-9_-]{1,100}$/.test(conflictSceneId)
+    )
+      this.conflictSceneId = conflictSceneId;
   }
 }
 interface Prepared {
@@ -46,15 +56,7 @@ interface Pending {
 interface Reservation {
   state: GenerationQueueState;
   tasks: Prepared[];
-  fingerprint: string;
-  revision: string;
 }
-const fingerprint = (project: ProjectContent) =>
-  JSON.stringify({
-    name: project.name,
-    selectedSceneId: project.selectedSceneId,
-    scenes: project.scenes,
-  });
 
 interface Options {
   store: Pick<
@@ -272,7 +274,6 @@ export class WorkspaceGeneration {
         item.imageId = result.imageId;
         delete item.error;
         this.latest = result;
-        this.queue.revision = result.snapshot.revision;
       }
     }
     this.pending = undefined;
@@ -507,8 +508,6 @@ export class WorkspaceGeneration {
           items,
         },
         tasks,
-        fingerprint: fingerprint(snapshot.project),
-        revision,
       };
       const plan = this.approve(reservation);
       this.queue = reservation;
@@ -537,12 +536,10 @@ export class WorkspaceGeneration {
     this.working = true;
     try {
       const current = await this.options.store.generationSnapshot(id, revision);
-      if (fingerprint(current.project) !== q.fingerprint)
-        throw new ProjectError('PROJECT_CONFLICT');
+      WorkspaceGeneration.checkQueuedInputs(q, current.project);
       const count = q.state.items.filter((i) => i.status === 'pending').length;
       if (current.project.images.length + count > 120)
         throw new GenerationError('QUEUE_LIMIT');
-      q.revision = revision;
       return this.approve(q);
     } finally {
       this.working = false;
@@ -573,7 +570,6 @@ export class WorkspaceGeneration {
     q.state.stopped = false;
     const controller = new AbortController();
     this.controller = controller;
-    let initial = true;
     try {
       for (let index = 0; index < q.tasks.length; index += 1) {
         const item = q.state.items[index];
@@ -584,12 +580,7 @@ export class WorkspaceGeneration {
           const current = await this.options.store.readManifest(
             q.state.projectId,
           );
-          if (
-            (initial && current.revision !== q.revision) ||
-            fingerprint(current.project) !== q.fingerprint
-          )
-            throw new ProjectError('PROJECT_CONFLICT');
-          initial = false;
+          WorkspaceGeneration.checkQueuedInputs(q, current.project);
           if (q.state.stopped || controller.signal.aborted) {
             item.status = 'pending';
             break;
@@ -599,11 +590,17 @@ export class WorkspaceGeneration {
           // Response retention/storage is completed even if a stop arrived after the server returned.
           if (q.state.stopped || controller.signal.aborted) break;
         } catch (error) {
-          if (item.status === 'preparing' && controller.signal.aborted)
+          const failure = WorkspaceGeneration.failure(error);
+          if (
+            item.status === 'preparing' &&
+            !failure.mayHaveReachedServer &&
+            !this.pending
+          ) {
             item.status = 'pending';
-          else {
+            item.error = failure; // It was never handed to sendImage. Continuation still requires a new approval.
+          } else {
             item.status = this.pending ? 'result-pending' : 'failed';
-            item.error = WorkspaceGeneration.failure(error);
+            item.error = failure;
           }
           q.state.stopped = true;
           break; // Never retry a failed/ambiguous send or skip forward automatically.
@@ -619,6 +616,25 @@ export class WorkspaceGeneration {
 
   /* eslint-enable no-await-in-loop, no-continue */
 
+  private static checkQueuedInputs(q: Reservation, current: ProjectContent) {
+    q.tasks.forEach((task, index) => {
+      const { status } = q.state.items[index];
+      if (status !== 'pending' && status !== 'preparing') return;
+      const scene = current.scenes.find(
+        (value) => value.id === task.input.sceneId,
+      );
+      if (!scene || !isDeepStrictEqual(scene.draft, task.input.draft))
+        throw new GenerationError(
+          'QUEUE_INPUT_CHANGED',
+          false,
+          undefined,
+          undefined,
+          undefined,
+          task.input.sceneId,
+        );
+    });
+  }
+
   private static failure(error: unknown): GenerationFailure {
     if (error instanceof GenerationError)
       return {
@@ -630,6 +646,9 @@ export class WorkspaceGeneration {
           : {}),
         ...(error.projectCode ? { projectCode: error.projectCode } : {}),
         ...(error.pendingResult ? { pendingResult: true as const } : {}),
+        ...(error.conflictSceneId
+          ? { conflictSceneId: error.conflictSceneId }
+          : {}),
       };
     return {
       ok: false,

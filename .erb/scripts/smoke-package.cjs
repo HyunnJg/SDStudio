@@ -180,7 +180,7 @@ child.on('exit', (code) => {
     (generationMode &&
       (!data.nativeQuitObserved ||
         data.loopbackRequests !== (generationQueueMode ? 13 : 3) ||
-        data.checks?.length !== 6)) ||
+        data.checks?.length !== (generationQueueMode ? 8 : 6))) ||
     !setupInfo?.isPackaged ||
     !data.packageContext.archiveUnchanged ||
     data.externalRequests.length ||
