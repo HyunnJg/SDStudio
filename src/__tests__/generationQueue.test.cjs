@@ -603,6 +603,7 @@ test('pending result saved as a new project leaves the original lock untouched a
   const recovered = await f.service.retrySave(true);
   assert.notEqual(recovered.snapshot.project.id, f.first.project.id);
   assert.equal(recovered.snapshot.project.images.length, 1);
+  assert.equal(f.service.queueStatus().queue, undefined);
   assert.equal(f.count, 1);
   assert.equal(
     fs.readFileSync(

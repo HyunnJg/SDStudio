@@ -573,6 +573,7 @@ export default function ConnectedWorkspace({
             <section role="alert">
               <p>
                 저장하지 못한 결과가 메모리에 있습니다. 창을 닫으면 사라집니다.
+                새 프로젝트에 보관하면 이전 미전송 예약은 종료됩니다.
               </p>
               <button
                 type="button"

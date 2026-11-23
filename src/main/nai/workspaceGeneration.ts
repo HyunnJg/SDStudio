@@ -261,12 +261,19 @@ export class WorkspaceGeneration {
   private saved(result: GeneratedProject) {
     const itemId = this.pending?.queueItemId;
     if (itemId && this.queue) {
-      const item = this.queue.state.items.find((i) => i.id === itemId)!;
-      item.status = 'done';
-      item.imageId = result.imageId;
-      delete item.error;
-      this.latest = result;
-      this.queue.revision = result.snapshot.revision;
+      if (result.snapshot.project.id !== this.queue.state.projectId) {
+        // An explicit result-only new project ends the old reservation. Its image UUID is not a reference in the old manifest.
+        this.queue = undefined;
+        this.queueApproval = undefined;
+        this.latest = undefined;
+      } else {
+        const item = this.queue.state.items.find((i) => i.id === itemId)!;
+        item.status = 'done';
+        item.imageId = result.imageId;
+        delete item.error;
+        this.latest = result;
+        this.queue.revision = result.snapshot.revision;
+      }
     }
     this.pending = undefined;
     return result;
