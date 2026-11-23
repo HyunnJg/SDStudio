@@ -8,6 +8,9 @@
 
 **PR #24 병합 / 이번 중단 원인·충돌 씬 미전송 제외 후속 검토 대기.** [PR24 처리](reviews/2026-11-23-pr24-followup.md), [D-045 검증](validation/2026-11-23-queue-stop-cause.md), [사용](WORKSPACE_QUEUE.md). 과거429가 새 TIMEOUT/저장 실패를 가리지 않게 main stoppedItemId로 현재 원인을 지정한다. 충돌 씬의 미전송 건수는 체크 확인 후에만 제외하고 나머지는 새 실행 확인을 거친다. 준비/실패 메타데이터를 즉시 반영하고 늦은 폴링을 무효화했다. 단위193·보완 관련62, 실제 오류 UI3PID9체크/기존 큐3PID10체크·ASAR7체크 통과, 실계정 호출0. 새 모델/설정·새 UI 실계정·Windows/macOS는 후속이다.
 
+**Windows 개발 시작 후속:** 사용자가 Node26.13.1에서 production main/renderer 빌드 성공을 보고했다. 개발 실행은 DLL 누락 → 자동 postinstall 실패 단계다. DLL 누락 때 전체 postinstall 대신 build:dll만 호출하고 실패 출력을 상속하도록 수정했다. Linux에서 실제 누락 복구·기존 DLL 무실행·실패 전파를 확인했다. Windows 전체 앱 기동은 아직 미확인이다. [복구와 검증](validation/2026-11-23-dev-dll-start.md). PR26의 충돌 오류 정리/실계정 절차는 별도 열린 PR이며 이번 변경에 포함하지 않는다.
+
+
 | 항목 | 상태 | 근거 |
 | --- | --- | --- |
 | GitHub 작업공간 | 생성 완료 | [HyunnJg/SDStudio](https://github.com/HyunnJg/SDStudio), 공개 포크 |

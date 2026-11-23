@@ -397,3 +397,12 @@
 - UI는 충돌 씬 이름·제외될 미전송 건수·현재 입력/PNG 보존을 표시하고 체크 확인을 받은 뒤 제외한다. 다음 실행은 나머지 pending만 새5분/일회용 확인을 받아야 한다. 전부 제외했으면 전송0이며 새 예약이 필요하다. 원본 draft 복원/강제 덮어쓰기나 바뀐 입력을 승인 없이 재바인딩하지 않는다.
 - skipped는 메모리 큐 상태에만 추가되며 manifest v1/v2 형식을 바꾸지 않는다. 큐 비우기/프로세스 종료 뒤 예약은 사라지고 저장된 입력/PNG는 남는다. 기존 active/pending PNG의 close/restart·저장-only 복구 경계는 유지한다.
 - D-044의 입력 비교·전송 전 pending 복귀, running 이후 실패 재전송 금지·오프라인/토큰/원본 PNG 정책은 그대로다. 실제 계정/정확한 MIME·429 빈도·호출 간격·새 모델/설정은 이 작업에 포함하지 않는다. [검증](validation/2026-11-23-queue-stop-cause.md).
+
+
+## D-047 — 개발 DLL 누락은 DLL 빌드만 실행하고 로그를 직접 표시한다
+
+- 결정일: 2026-11-23 (Asia/Seoul), 기준 `e36b94f0d92f983e515a218076f5c6c038a218be`. D-046은 별도 열린 PR26의 결정이다. 이번은 사용자가 보고한 Windows 개발 시작 실패의 독립 후속이다.
+- 사용자 로그에서 production main/renderer 빌드는 종료0이다. 개발 webpack 설정이 DLL 누락 때 postinstall 전체를 실행하고 그 실패 출력을 Buffer로 가린 사실을 확인했다. 실제 하위 실패 원인은 제공 로그에 없으므로 VS/Node/Electron 중 하나로 단정하지 않는다.
+- 누락 복구 명령은 기존 build:dll로 좁힌다. cwd는 저장소 루트로 고정하고 stdio는 inherit으로 직접 표시한다. 네이티브 재빌드·패키지 설치를 시작 단계에서 추가 실행하지 않으며, 필요한 네이티브/Electron 설치를 완료했다고 가정하지도 않는다. DLL 실패는 그대로 throw하여 시작을 멈춘다.
+- 연구 창과 전체 앱의 Electron은 다른 설치 경로다. 이번 npm 로그의 electron26.6.10 postinstall 승인 미적용과 사용자의 수동 ZIP 복구를 구분한다. 전역 스크립트 승인/전체 승인, audit 강제 수정, lock 삭제, 정상 연구 도구 재설치를 해결책으로 제시하지 않는다.
+- Linux에서 실제 DLL 누락 복구·기존 파일 시 무실행·합성 빌드 실패 전파와 파일 복원을 확인했다. Windows 실행·전체 앱 native ABI·Node26 호환·실계정 성공은 미확인이다. [검증](validation/2026-11-23-dev-dll-start.md).

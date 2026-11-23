@@ -322,3 +322,28 @@ npm run smoke:package -- /absolute/linux-unpacked generation-errors
 ```
 
 queue-errors 하네스는429→이어가기 성공/다음 TIMEOUT→다음 이어가기 결과 저장 실패→새 프로젝트 보관→충돌 씬2건 제외/나머지2건 재확인 취소를 확인한다. 상태 폴링 응답을 일부러 보류하고 네트워크90초 timer를 테스트에서만900ms로 줄인다(제품 기한 변경 없음). 실제 계정 요청0이며4회는 loopback HTTP 횟수다. 기존 smoke:generation-queue 모드는 변경 없이 유지한다. [검증/실패 후 보완/한계](validation/2026-11-23-queue-stop-cause.md).
+
+
+## Windows: production 빌드는 성공했는데 npm start가 DLL에서 멈출 때
+
+`build:main`·`build:renderer`가 종료0이어도 개발 실행용 `.erb/dll/renderer.json`은 별도다. 이전 시작 설정은 DLL이 없을 때 `postinstall` 전체를 다시 실행하고 실패 출력을 Buffer로 숨겼다. 자동 복구를 `build:dll` 한 단계와 상속 출력으로 수정했다. 기존 main에서도 다음 수동 명령으로 DLL 단계를 분리할 수 있다.
+
+```powershell
+npm run build:dll
+if ($LASTEXITCODE -eq 0) {
+    npm start
+}
+```
+
+DLL 빌드가 실패하면 먼저 그 오류를 확인하고 앱 시작으로 넘어가지 않는다. `npm run postinstall` 전체를 반복하거나 루트 의존성을 다시 지울 필요는 없다. DLL 성공은 전체 앱의 Electron 실행 파일/네이티브 모듈 준비 완료를 보장하지 않는다.
+
+```powershell
+Test-Path .\node_modules\electron\dist\electron.exe
+Test-Path .\tools\nai-validation\node_modules\electron\dist\electron.exe
+```
+
+첫 번째는 전체 앱, 두 번째는 연구 도구다. 연구 도구의 ZIP 복구가 첫 번째 경로를 복구하지는 않는다. 첫 번째가 False이거나 다음 시작이 실패하면 그 단계만 확인한다. API 토큰은 설치/시작 진단에 필요 없다.
+
+사용자 npm11.21.3 로그는 `electron@26.6.10`의 postinstall이 승인되지 않았다고 명시했다. [npm 공식 설명](https://docs.npmjs.com/cli/v11/commands/npm-install-scripts/)의 `npm install-scripts ls`는 설치 스크립트 정책을 읽기 전용으로 확인한다. 연구 도구만 확인할 때는 `npm --prefix tools/nai-validation install-scripts ls`다. 승인 정책을 검토 없이 전체 허용으로 바꾸지 않는다. 과거 Electron 설치 실패 전부가 이 정책 때문이었다고 소급 단정하지 않는다. 이번 Windows production 빌드 성공도 전체 npm ci·앱 기동·Node26/VS2026 호환 인증으로 확대하지 않는다.
+
+[재현·범위](validation/2026-11-23-dev-dll-start.md).
