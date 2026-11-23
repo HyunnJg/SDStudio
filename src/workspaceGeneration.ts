@@ -41,7 +41,13 @@ export interface GenerationQueueItem {
   repeat: number;
   seed: number;
   status:
-    'pending' | 'preparing' | 'running' | 'done' | 'failed' | 'result-pending';
+    | 'pending'
+    | 'preparing'
+    | 'running'
+    | 'done'
+    | 'failed'
+    | 'result-pending'
+    | 'skipped';
   imageId?: string;
   error?: GenerationFailure;
 }
@@ -61,6 +67,7 @@ export interface GenerationQueueState {
   projectId: string;
   running: boolean;
   stopped: boolean;
+  stoppedItemId?: string;
   items: GenerationQueueItem[];
 }
 export interface GenerationQueueStatus {
@@ -93,6 +100,11 @@ export interface GenerationClient {
   runQueue(
     ticket: string,
     webCostConfirmed: boolean,
+  ): Promise<GenerationReply<GenerationQueueStatus>>;
+  excludePendingScene(
+    queueId: string,
+    sceneId: string,
+    confirmed: boolean,
   ): Promise<GenerationReply<GenerationQueueStatus>>;
   clearQueue(): Promise<GenerationReply<void>>;
   queueStatus(

@@ -11,7 +11,9 @@ fs.mkdirSync(original);
 const reports = [];
 try {
   for (const phase of [
-    process.argv[2] === 'queue' ? 'queue' : 'create',
+    ['queue', 'queue-errors'].includes(process.argv[2])
+      ? process.argv[2]
+      : 'create',
     'reopen',
     'offline',
   ]) {

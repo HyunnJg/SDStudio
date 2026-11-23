@@ -77,7 +77,8 @@
     "smoke:generation": "node .erb/scripts/smoke-generation.cjs",
     "test:project-reads": "node --test -r ts-node/register/transpile-only src/__tests__/projectReads.test.cjs",
     "test:generation-queue": "node --test -r ts-node/register/transpile-only src/__tests__/generationQueue.test.cjs src/__tests__/generationPresentation.test.cjs",
-    "smoke:generation-queue": "node .erb/scripts/smoke-generation.cjs queue"
+    "smoke:generation-queue": "node .erb/scripts/smoke-generation.cjs queue",
+    "smoke:generation-errors": "node .erb/scripts/smoke-generation.cjs queue-errors"
   },
   "browserslist": [],
   "prettier": {

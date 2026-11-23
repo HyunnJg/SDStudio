@@ -3,7 +3,7 @@ const fs = require('node:fs'),
   path = require('node:path'),
   assert = require('node:assert/strict');
 const http = require('node:http');
-const { app, net, session, BrowserWindow } = require('electron');
+const { app, net, session, BrowserWindow, ipcMain } = require('electron');
 const { png } = require('../../src/__tests__/fixtures/nai/png.cjs');
 const JSZip = require('jszip');
 const expectedPNG = png();
@@ -18,6 +18,36 @@ let requests = 0,
   loopback,
   completed = false;
 app.requestSingleInstanceLock = () => true;
+let pauseStatus = false;
+const delayedStatus = [];
+const releaseStatus = () => {
+  pauseStatus = false;
+  delayedStatus.splice(0).forEach((resolve) => resolve());
+};
+if (phase === 'queue-errors') {
+  const realTimeout = global.setTimeout;
+  // Test only: shorten the product90s network deadline without changing production options.
+  global.setTimeout = (callback, delay, ...args) =>
+    realTimeout(
+      callback,
+      delay >= 85000 && delay <= 90000 ? 900 : delay,
+      ...args,
+    );
+  const handle = ipcMain.handle.bind(ipcMain);
+  ipcMain.handle = (channel, listener) =>
+    handle(channel, async (...args) => {
+      const value = await listener(...args);
+      if (
+        pauseStatus &&
+        [
+          'workspace-generation-status',
+          'workspace-generation-queue-status',
+        ].includes(channel)
+      )
+        await new Promise((resolve) => delayedStatus.push(resolve));
+      return value;
+    });
+}
 const archive = new JSZip();
 archive.file('image.png', expectedPNG);
 const payload = archive.generateAsync({
@@ -42,6 +72,27 @@ const server = http.createServer(async (request, response) => {
   const parsed = JSON.parse(body);
   assert.equal(parsed.model, 'nai-diffusion-4-5-full');
   assert.equal(parsed.parameters.n_samples, 1);
+  if (phase === 'queue-errors') {
+    if (number === 1) {
+      response.writeHead(429);
+      response.end('synthetic rate limit');
+      return;
+    }
+    if (number === 3) {
+      pauseStatus = true;
+      return;
+    } // Deliberately stall until the shortened test deadline.
+    if (number === 4) {
+      pauseStatus = true;
+      fs.writeFileSync(lock, 'synthetic interrupted writer');
+    }
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    if (!response.destroyed) {
+      response.writeHead(200, { 'Content-Type': 'binary/octet-stream' });
+      response.end(await payload);
+    }
+    return;
+  }
   if (number === (phase === 'queue' ? 13 : 3))
     fs.writeFileSync(lock, 'synthetic interrupted writer');
   await new Promise((r) =>
@@ -135,7 +186,233 @@ app.on('web-contents-created', (_event, contents) => {
           "!!document.querySelector('[data-testid=connected-workspace]')",
         ),
       );
-      if (phase === 'queue') {
+      if (phase === 'queue-errors') {
+        const set = await evaluate(
+          "window.electron.naiAuth.setToken('synthetic-never-a-real-token',false)",
+        );
+        assert.equal(set.ok, true);
+        await click('[aria-controls=live-queue-details]');
+        await evaluate(
+          "document.querySelectorAll('[data-queue-scene]').forEach(c=>c.click())",
+        );
+        await fill('#live-repeats', '2');
+        const confirm = async () => {
+          await until(() =>
+            evaluate("!!document.querySelector('[data-testid=queue-confirm]')"),
+          );
+          assert.equal(
+            await evaluate(
+              "document.querySelector('[data-testid=send-live-queue]').disabled",
+            ),
+            true,
+          );
+          await click('[data-testid=queue-cost-confirm]');
+          await click('[data-testid=send-live-queue]');
+        };
+        await click('[data-testid=prepare-live-queue]');
+        assert.equal(requests, 0);
+        await confirm();
+        await until(() =>
+          evaluate(
+            "document.querySelector('[data-testid=generation-status]').innerText.includes('요청 한도')",
+          ),
+        );
+        assert.equal(requests, 1);
+        checks.push(
+          'first429 stops the reservation without retrying and exposes the current stop item',
+        );
+        await until(() =>
+          evaluate(
+            "!document.querySelector('[data-testid=resume-live-queue]').matches(':disabled')",
+          ),
+        );
+        await click('[data-testid=resume-live-queue]');
+        await confirm();
+        await until(() =>
+          evaluate(
+            "document.querySelector('[data-testid=generation-status]').innerText.includes('응답 기한')",
+          ),
+        );
+        assert.equal(requests, 3);
+        assert.equal(pauseStatus, true);
+        assert.ok(
+          !(
+            await evaluate(
+              "document.querySelector('[data-testid=generation-status]').innerText",
+            )
+          ).includes('요청 한도'),
+        );
+        checks.push(
+          'while status polling is held, direct runQueue result displays later TIMEOUT rather than historic429',
+        );
+        releaseStatus();
+        const listing = (await evaluate('window.electron.projects.list()'))
+            .value,
+          id = listing[0].id;
+        const manifest = path.join(profile, 'projects-v1', id, 'project.json');
+        lock = path.join(profile, 'projects-v1', id, 'write.lock');
+        await until(() =>
+          evaluate(
+            "!document.querySelector('[data-testid=resume-live-queue]').matches(':disabled')",
+          ),
+        );
+        await click('[data-testid=resume-live-queue]');
+        await confirm();
+        await until(() =>
+          evaluate(
+            "!!document.querySelector('[data-testid=retry-result-save]') && !document.querySelector('[data-testid=retry-result-save]').disabled",
+          ),
+        );
+        assert.equal(pauseStatus, true);
+        assert.equal(requests, 4);
+        assert.ok(
+          (
+            await evaluate(
+              "document.querySelector('[data-testid=generation-status]').innerText",
+            )
+          ).includes('PNG는 받았지만'),
+        );
+        checks.push(
+          'new result-pending and usable save-only recovery appear immediately despite historical429/TIMEOUT and held status polling',
+        );
+        releaseStatus();
+        await click('[data-testid=save-result-new-project]');
+        await until(
+          async () =>
+            (await evaluate('window.electron.projects.list()')).value.length ===
+            2,
+        );
+        await until(() =>
+          evaluate(
+            "!document.querySelector('[data-testid=project-save]').matches(':disabled')",
+          ),
+        );
+        assert.equal(requests, 4);
+        assert.equal(JSON.parse(fs.readFileSync(manifest)).images.length, 1);
+        assert.equal(
+          fs.readFileSync(lock, 'utf8'),
+          'synthetic interrupted writer',
+        );
+        checks.push(
+          'result-only new project storage sends no fifth request and preserves the original lock/PNG',
+        );
+        // Local conflict exclusion: four untransmitted jobs, two are for the changed scene.
+        await click('[aria-controls=live-queue-details]');
+        await evaluate(
+          "document.querySelectorAll('[data-queue-scene]').forEach((c,i)=>{if(c.checked!==(i<2))c.click()})",
+        );
+        await fill('#live-repeats', '2');
+        await click('[data-testid=prepare-live-queue]');
+        await until(() =>
+          evaluate("!!document.querySelector('[data-testid=queue-confirm]')"),
+        );
+        await evaluate(
+          "Array.from(document.querySelectorAll('[data-testid=queue-confirm] button')).find(b=>b.innerText.includes('취소')).click()",
+        );
+        await until(() =>
+          evaluate(
+            "!document.querySelector('#live-scene').matches(':disabled')",
+          ),
+        );
+        await evaluate(
+          "(()=>{const c=document.querySelector('#live-scene');c.value=c.options[1].value;c.dispatchEvent(new Event('change',{bubbles:true}));})()",
+        );
+        await pause();
+        await fill(
+          '[data-testid=live-prompt]',
+          'synthetic changed input for exclusion',
+        );
+        await click('[data-testid=resume-live-queue]');
+        await until(() =>
+          evaluate("!!document.querySelector('[data-testid=queue-conflict]')"),
+        );
+        assert.equal(
+          await evaluate(
+            "document.querySelector('[data-testid=exclude-conflict-scene]').disabled",
+          ),
+          true,
+        );
+        assert.ok(
+          (
+            await evaluate(
+              "document.querySelector('[data-testid=queue-conflict]').innerText",
+            )
+          ).includes('2건'),
+        );
+        assert.equal(requests, 4);
+        await click('[data-testid=exclude-conflict-confirm]');
+        await click('[data-testid=exclude-conflict-scene]');
+        await until(() =>
+          evaluate("!document.querySelector('[data-testid=queue-conflict]')"),
+        );
+        const excluded = (
+          await evaluate('window.electron.generation.queueStatus()')
+        ).value.queue;
+        assert.equal(
+          excluded.items.filter((item) => item.status === 'skipped').length,
+          2,
+        );
+        assert.equal(
+          excluded.items.filter((item) => item.status === 'pending').length,
+          2,
+        );
+        assert.equal(
+          await evaluate(
+            "document.querySelector('[data-testid=live-prompt]').value",
+          ),
+          'synthetic changed input for exclusion',
+        );
+        assert.equal(requests, 4);
+        checks.push(
+          'explicit count2 exclusion removes only conflicting unsent jobs, keeps edited input and PNGs and sends zero requests',
+        );
+        await until(() =>
+          evaluate(
+            "!document.querySelector('[data-testid=resume-live-queue]').matches(':disabled')",
+          ),
+        );
+        await click('[data-testid=resume-live-queue]');
+        await until(() =>
+          evaluate("!!document.querySelector('[data-testid=queue-confirm]')"),
+        );
+        assert.ok(
+          (
+            await evaluate(
+              "document.querySelector('[data-testid=queue-confirm]').innerText",
+            )
+          ).includes('총 2회'),
+        );
+        assert.equal(
+          await evaluate(
+            "document.querySelector('[data-testid=send-live-queue]').disabled",
+          ),
+          true,
+        );
+        assert.equal(requests, 4);
+        await evaluate(
+          "Array.from(document.querySelectorAll('[data-testid=queue-confirm] button')).find(b=>b.innerText.includes('취소')).click()",
+        );
+        await until(() =>
+          evaluate(
+            "!document.querySelector('[data-testid=clear-live-queue]').matches(':disabled')",
+          ),
+        );
+        await click('[data-testid=clear-live-queue]');
+        checks.push(
+          'other unsent jobs require fresh2-request confirmation after exclusion; cancel/clear never transmits',
+        );
+        const window = BrowserWindow.fromWebContents(contents);
+        window.setMinimumSize(360, 500);
+        window.setSize(390, 844);
+        await until(() => evaluate('innerWidth===390'));
+        assert.equal(
+          await evaluate('document.documentElement.scrollWidth<=innerWidth'),
+          true,
+        );
+        checks.push(
+          '390px controls remain within the viewport after failure/recovery/exclusion',
+        );
+      } else if (phase === 'queue') {
         const set = await evaluate(
           "window.electron.naiAuth.setToken('synthetic-never-a-real-token',false)",
         );

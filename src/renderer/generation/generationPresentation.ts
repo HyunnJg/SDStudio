@@ -1,4 +1,7 @@
-import type { GenerationFailure } from '../../workspaceGeneration';
+import type {
+  GenerationFailure,
+  GenerationQueueState,
+} from '../../workspaceGeneration';
 
 export function generationMessage(
   error: unknown,
@@ -37,8 +40,8 @@ export function generationMessage(
   if (e.code === 'QUEUE_INPUT_CHANGED') {
     const name = scenes.find((scene) => scene.id === e.conflictSceneId)?.name;
     text = name
-      ? `예약한 씬 “${name}”의 입력이 바뀌었거나 씬이 삭제됐습니다. 예약 당시 입력을 복원한 뒤 미전송 작업을 다시 확인하거나 새로 예약하세요.`
-      : '예약한 씬의 입력이 바뀌었거나 씬이 삭제됐습니다. 예약 당시 입력을 복원한 뒤 미전송 작업을 다시 확인하거나 새로 예약하세요.';
+      ? `예약한 씬 “${name}”의 입력이 바뀌었거나 씬이 삭제됐습니다. 예약 당시 입력을 복원한 뒤 미전송 작업을 다시 확인하세요. 복원이 어렵다면 그 씬의 미전송 작업만 제외할 수 있습니다.`
+      : '예약한 씬의 입력이 바뀌었거나 씬이 삭제됐습니다. 예약 당시 입력을 복원한 뒤 미전송 작업을 다시 확인하세요. 복원이 어렵다면 그 씬의 미전송 작업만 제외할 수 있습니다.';
   }
   if (e.httpStatus === 401)
     text = '토큰 인증이 거부됐습니다. API 토큰 설정을 확인하세요.';
@@ -58,4 +61,22 @@ export function availableQueueSceneIds(
   return ids.every((id) => valid.has(id))
     ? ids
     : ids.filter((id) => valid.has(id));
+}
+
+export function queueOutcome(queue: GenerationQueueState | undefined) {
+  const item = queue?.items.find((value) => value.id === queue.stoppedItemId);
+  const error =
+    item &&
+    (item.status === 'pending' ||
+      item.status === 'failed' ||
+      item.status === 'result-pending')
+      ? item.error
+      : undefined;
+  return {
+    error,
+    pending: !!queue?.items.some((value) => value.status === 'result-pending'),
+    storageStopped:
+      error?.projectCode === 'PROJECT_SERVICE_STOPPED' ||
+      error?.code === 'PROJECT_SERVICE_STOPPED',
+  };
 }

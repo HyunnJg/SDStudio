@@ -104,6 +104,13 @@ const electronHandler = {
       ),
     runQueue: (ticket, confirmed) =>
       ipcRenderer.invoke('workspace-generation-run-queue', ticket, confirmed),
+    excludePendingScene: (queueId, sceneId, confirmed) =>
+      ipcRenderer.invoke(
+        'workspace-generation-exclude-scene',
+        queueId,
+        sceneId,
+        confirmed,
+      ),
     clearQueue: () => ipcRenderer.invoke('workspace-generation-clear-queue'),
     queueStatus: (revision) =>
       ipcRenderer.invoke('workspace-generation-queue-status', revision),

@@ -19,6 +19,8 @@ interface Props {
   onStop: () => void;
   onResult: (id: string) => void;
   onClear: () => void;
+  conflict: { sceneId: string; name: string; count: number } | undefined;
+  onExclude: () => void;
 }
 const labels = {
   pending: '미전송',
@@ -27,6 +29,7 @@ const labels = {
   done: '저장 완료',
   failed: '실패·자동 재시도 없음',
   'result-pending': '결과 저장 필요',
+  skipped: '제외·미전송',
 };
 export default function ConnectedQueueControls({
   scenes,
@@ -44,7 +47,14 @@ export default function ConnectedQueueControls({
   onStop,
   onResult,
   onClear,
+  conflict,
+  onExclude,
 }: Props) {
+  const [excludeConfirmed, setExcludeConfirmed] = useState(false);
+  useEffect(
+    () => setExcludeConfirmed(false),
+    [queue?.id, conflict?.sceneId, conflict?.count],
+  );
   const [expanded, setExpanded] = useState(false);
   const completed =
     queue?.items.filter((item) => item.status === 'done').length ?? 0;
@@ -83,11 +93,46 @@ export default function ConnectedQueueControls({
         {queue?.items.some(
           (item) => item.status === 'pending' || item.status === 'failed',
         ) && (
-          <button type="button" disabled={disabled} onClick={onClear}>
+          <button
+            type="button"
+            data-testid="clear-live-queue"
+            disabled={disabled}
+            onClick={onClear}
+          >
             미전송 예약 비우기
           </button>
         )}
       </div>
+      {conflict && (
+        <div
+          role="group"
+          aria-label="충돌 씬의 미전송 예약 제외"
+          data-testid="queue-conflict"
+        >
+          <p>
+            “{conflict.name}”의 미전송 {conflict.count}건만 제외합니다. 이미
+            전송한 작업·저장 PNG·현재 입력은 유지됩니다.
+          </p>
+          <label>
+            <input
+              type="checkbox"
+              data-testid="exclude-conflict-confirm"
+              checked={excludeConfirmed}
+              disabled={disabled}
+              onChange={(event) => setExcludeConfirmed(event.target.checked)}
+            />
+            해당 씬의 미전송 작업만 제외하겠습니다.
+          </label>
+          <button
+            type="button"
+            data-testid="exclude-conflict-scene"
+            disabled={disabled || !excludeConfirmed}
+            onClick={onExclude}
+          >
+            미전송 {conflict.count}건 제외 (전송 없음)
+          </button>
+        </div>
+      )}
       <div id="live-queue-details" hidden={!expanded}>
         <fieldset disabled={disabled}>
           <legend>예약할 씬</legend>
