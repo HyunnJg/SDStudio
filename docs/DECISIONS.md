@@ -393,7 +393,16 @@
 - GenerationQueueState의 optional stoppedItemId는 현재 중단/이어가기 준비 실패의 작업 UUID다. runQueue 시작과 성공한 이어가기 준비에서 과거 pointer를 지우며, 각 preparing 진입에서 과거 item.error를 지운다. 새 오류에서만 pointer/error를 기록한다. 이전429/실패 항목은 역사로 남지만 현재 오류로 다시 선택하지 않는다.
 - renderer queueOutcome은 pointer가 가리키는 pending/failed/result-pending 항목의 오류만 사용한다. pointer가 없거나 해소된 상태면 과거 첫 오류로 fallback하지 않는다. 미저장 PNG UI는 items의 result-pending도 직접 확인하므로 오래된 오류 때문에 setPending(false)가 되지 않는다. 성공한 저장-only/명시적 버리기는 해당 pointer를 해제한다.
 - runQueue 직접 응답으로 이번 active 종료/오류/미저장 결과를 반영한다. 폴링은 로컬 작업 시작/끝 세대가 달라졌으면 적용하지 않고, snapshot은 기존 현재 리비전 비교도 유지한다. 준비 직후 및 준비 실패 직후 queueStatus를 직접 읽어 큐 ID·충돌 동선이 다음 폴링을 기다리지 않게 한다.
-- excludePendingScene(queue UUID, scene local ID, confirmed=true)은 main idle이고 현재 pointer의 오류가 QUEUE_INPUT_CHANGED이며 그 conflictSceneId가 일치할 때만 허용한다. 해당 씬의 pending만 skipped로 바꾸고 확인 ticket을 폐기한다. 다른 씬/전송된 failed·done/받은 PNG는 바꾸지 않는다. 실험/전송·파일 쓰기는 전혀 하지 않는 로컬 예약 조작이다.
+- excludePendingScene(queue UUID, scene local ID, confirmed=true)은 main idle이고 현재 pointer의 오류가 QUEUE_INPUT_CHANGED이며 그 conflictSceneId가 일치할 때만 허용한다. 해당 씬의 pending만 skipped로 바꾸고 확인 ticket을 폐기한다. 다른 씬/전송된 failed·done/받은 PNG는 바꾸지 않는다. 실행/전송·파일 쓰기는 전혀 하지 않는 로컬 예약 조작이다.
 - UI는 충돌 씬 이름·제외될 미전송 건수·현재 입력/PNG 보존을 표시하고 체크 확인을 받은 뒤 제외한다. 다음 실행은 나머지 pending만 새5분/일회용 확인을 받아야 한다. 전부 제외했으면 전송0이며 새 예약이 필요하다. 원본 draft 복원/강제 덮어쓰기나 바뀐 입력을 승인 없이 재바인딩하지 않는다.
 - skipped는 메모리 큐 상태에만 추가되며 manifest v1/v2 형식을 바꾸지 않는다. 큐 비우기/프로세스 종료 뒤 예약은 사라지고 저장된 입력/PNG는 남는다. 기존 active/pending PNG의 close/restart·저장-only 복구 경계는 유지한다.
 - D-044의 입력 비교·전송 전 pending 복귀, running 이후 실패 재전송 금지·오프라인/토큰/원본 PNG 정책은 그대로다. 실제 계정/정확한 MIME·429 빈도·호출 간격·새 모델/설정은 이 작업에 포함하지 않는다. [검증](validation/2026-11-23-queue-stop-cause.md).
+
+
+## D-046. 큐 다듬기를 마치고 새 작업실 실계정 확인을 분리한다
+
+- 결정일: 2026-11-23 (Asia/Seoul). PR #25 head `25c4b75`를 `e36b94f0d92f983e515a218076f5c6c038a218be`로 병합했다. [처리](reviews/2026-11-23-pr25-followup.md).
+- runQueue가 다른 씬의 변경을 현재 preparing 항목에서 발견한 경우, 충돌 씬 제외 성공 시 현재 pointer 항목의 같은 충돌 오류도 지운다. 항목 상태/시드/요청은 바꾸지 않는다. 과거 HTTP 실패 기록은 보존하고 D-045의 제외 조건·새 확인·전송/파일 쓰기0회 경계는 유지한다.
+- 이번 범위는 이 메모리 오류 정리와 사용자 로컬 확인 절차다. 새 IPC·모델/해상도·캐릭터·와일드카드·설치 의존성·자동 전송을 추가하지 않는다. 합성 검증과 실제 계정 결과를 계속 구분한다.
+- 다음은 전체 앱 기동 확인 → 사용자 직접 토큰 입력 → 새 작업실 기본1장 저장/다시 열기 → 성공하면 같은 씬2회다. 각 실행 전 기존 화면의 웹 비용/사용 조건 확인을 유지한다. 연구 창 성공을 전체 앱/새 UI 성공으로 대체하지 않는다. [확인 절차](WORKSPACE_LIVE_CHECK.md).
+- 첫 운영 MIME 진단은 이미 존재하는 최초1회 파일의 선택 필드만 확인한다. 없거나 과거 기록이어도 추가 생성/삭제로 진단을 강제하지 않는다. 실제 MIME·429 빈도·Opus 사용량은 관찰 전까지 미확인이다. Windows 전체 앱 설치 성공도 사용자 확인 전까지 미검증이다.

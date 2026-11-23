@@ -115,14 +115,14 @@ P1-01b 작업실에서는 씬별 입력을 편집한 뒤 `전체 씬 예약` →
 
 - `npm run test:nai-main`: 합성 토큰·암호화 공급자/요청기로 보관·복구·취소·오류를 검사한다. 실제 자격증명은 불필요하다.
 - `npm run build:main` 후 `npm run test:nai-main:electron`: Linux X11 DISPLAY가 필요하다. 임시 appData/userData, compiled preload, 불안전 키링 거부와 세션의 네트워크 차단/루프백 응답을 확인한다. `SDSTUDIO_TEST_ELECTRON_ARGS`는 기존 테스트와 같은 JSON 배열이다. 자동으로 sandbox를 해제하지 않는다.
-- UI에서 실제 토큰을 입력/검증하거나 생성하는 기능은 아직 켜지 않았다. [범위·기한·복구](NAI_AUTH_TRANSPORT.md).
+- 이 절은 인증·전송 기반의 합성 검사다. 현재 새 작업실의 토큰 입력·실제 기본1장/반복 생성은 [사용자 로컬 확인](WORKSPACE_LIVE_CHECK.md)을 따른다. [범위·기한·복구](NAI_AUTH_TRANSPORT.md).
 
 
 ## 포크 기본 프로필과 토큰 설정 (P0-03b2 일부)
 
 - 내부 이름/productName: SDStudio-HyunnJg. appId: io.github.hyunnjg.sdstudio. Linux 실행 파일: sdstudio-hyunnjg. 기본 userData: appData/SDStudio-HyunnJg. 이름·경로·ID는 토큰 보관 이후 유지한다.
 - 첫 import에서 이름과 네 경로를 고정한다. 기본 프로필도 개발 격리 규칙을 사용하므로 기본 오프라인이며 config.saveLocation은 무시한다. 원본이나 초기 개발 프로필을 자동 이관하지 않는다. 기존 명시적 SDSTUDIO_USER_DATA_DIR 사용은 유지한다.
-- API 토큰 창은 새/기존 데스크톱 화면에서 열린다. 오프라인/mock에서는 입력·조회가 비활성이다. 일반 포크의 온라인 선택은 아래 연결 모드 화면을 사용한다. 명시적 개발 프로필은 SDSTUDIO_OFFLINE=0을 사용한다. 예: Linux의 `SDSTUDIO_OFFLINE=0 npm run start:isolated`. 새 토큰은 기존 V3 로그인과 별도이고 새 모델 생성은 준비 중이다.
+- API 토큰 창은 새/기존 데스크톱 화면에서 열린다. 오프라인/mock에서는 입력·조회가 비활성이다. 일반 포크의 온라인 선택은 아래 연결 모드 화면을 사용한다. 명시적 개발 프로필은 SDSTUDIO_OFFLINE=0을 사용한다. 예: Linux의 `SDSTUDIO_OFFLINE=0 npm run start:isolated`. 새 토큰은 기존 V3 로그인과 별도이고 새 작업실의 고정 기본1장/반복 생성에 사용한다.
 - `npm run test:identity`, `npm run test:auth-ui`, `npm run test:nai-main`은 합성 단위 검사다. `npm run smoke:auth-ui` / `npm run smoke:auth-ui -- offline`은 Linux X11·빌드된 main/preload/renderer가 필요하다. synthetic appData를 만들고 네트워크 차단 하네스에서 합성 토큰 UI를 조작한다.
 - `npm run smoke:package -- /absolute/linux-unpacked auth`는 실제 패키지의 기본 포크 경로·인증 화면을 같은 폐쇄된 환경에서 검사한다. 기본 mock/real 검사도 유지한다. inspector 주입·잠금 모의 한계는 이전과 같고 앱 아카이브 바이트는 바꾸지 않는다.
 
@@ -157,7 +157,7 @@ npm run smoke:network-mode -- /absolute/linux-unpacked
 
 ## 1회 실호출 검증 도구 (D-032)
 
-실제 요청을 보낼 수 있는 별도 개발 도구다. 일반 앱의 새 작업실 생성 연결은 아직 없다. [전체 실험 계획](NAI_LIVE_VALIDATION.md)을 먼저 읽는다. **실험 창만 실행할 때는 루트 npm install/npm ci가 필요 없다.** tools/nai-validation의 고정된 작은 의존성 묶음만 설치한다. 앱의 C++ 모듈·sharp·electron-builder·서브모듈 빌드를 실행하지 않는다.
+실제 요청을 보낼 수 있는 별도 개발 도구다. 일반 앱의 새 작업실 기본1장/반복 생성 확인은 [별도 절차](WORKSPACE_LIVE_CHECK.md)를 따른다. [전체 실험 계획](NAI_LIVE_VALIDATION.md)을 먼저 읽는다. **실험 창만 실행할 때는 루트 npm install/npm ci가 필요 없다.** tools/nai-validation의 고정된 작은 의존성 묶음만 설치한다. 앱의 C++ 모듈·sharp·electron-builder·서브모듈 빌드를 실행하지 않는다.
 
 저장소 루트에서 Windows PowerShell:
 
@@ -322,3 +322,8 @@ npm run smoke:package -- /absolute/linux-unpacked generation-errors
 ```
 
 queue-errors 하네스는429→이어가기 성공/다음 TIMEOUT→다음 이어가기 결과 저장 실패→새 프로젝트 보관→충돌 씬2건 제외/나머지2건 재확인 취소를 확인한다. 상태 폴링 응답을 일부러 보류하고 네트워크90초 timer를 테스트에서만900ms로 줄인다(제품 기한 변경 없음). 실제 계정 요청0이며4회는 loopback HTTP 횟수다. 기존 smoke:generation-queue 모드는 변경 없이 유지한다. [검증/실패 후 보완/한계](validation/2026-11-23-queue-stop-cause.md).
+
+
+## 새 작업실 실계정 확인 (D-046)
+
+[전체 앱 기동 → 기본1장 저장/재열기 → 같은 씬2회](WORKSPACE_LIVE_CHECK.md) 순서다. 연구 창을 다시 실행하지 않으며 키는 앱 토큰 창에 직접 입력한다. 설치가 막힌 경우에는 이 절차를 중단하고 현재 실패 단계를 확인한다. 이번 오류 정리의 [검증 범위](validation/2026-11-23-workspace-live-check.md)는 관련63건·메인 빌드이며 새 UI/ASAR·Windows·실계정 검증을 수행한 것으로 표시하지 않는다.
