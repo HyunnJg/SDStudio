@@ -309,3 +309,16 @@ smoke:generation-queue는 production 앱의3개 PID로 선택3씬×2회·묶음 
 
 
 D-044 후속: test:generation-queue는 큐25 + presentation3 검사를 함께 실행한다. 미전송 입력 범위·전송 전 실패 복구·named conflict·삭제 ID 정리가 추가됐다. smoke:generation-queue는 기존13회 loopback 시나리오에 “다른 씬 보기/프로젝트 이름 변경 → 예약 입력 변경 거부/원복 → 같은5건 확인”을 포함해3PID10체크다. package의 generation-queue도8체크를 요구한다. 실제 계정 호출 없이 검사하며, [검증](validation/2026-11-23-queue-resume.md)에 한계를 기록했다.
+
+
+### 이번 중단 원인·충돌 제외 검사 (D-045)
+
+```sh
+npm run test:generation-queue
+npm run build
+# Linux X11, synthetic tokens/loopback only
+npm run smoke:generation-errors
+npm run smoke:package -- /absolute/linux-unpacked generation-errors
+```
+
+queue-errors 하네스는429→이어가기 성공/다음 TIMEOUT→다음 이어가기 결과 저장 실패→새 프로젝트 보관→충돌 씬2건 제외/나머지2건 재확인 취소를 확인한다. 상태 폴링 응답을 일부러 보류하고 네트워크90초 timer를 테스트에서만900ms로 줄인다(제품 기한 변경 없음). 실제 계정 요청0이며4회는 loopback HTTP 횟수다. 기존 smoke:generation-queue 모드는 변경 없이 유지한다. [검증/실패 후 보완/한계](validation/2026-11-23-queue-stop-cause.md).

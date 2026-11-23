@@ -58,6 +58,9 @@ export function registerGeneration(
   handle('workspace-generation-run-queue', (ticket, confirmed) =>
     service.runQueue(ticket, confirmed),
   );
+  handle('workspace-generation-exclude-scene', (queueId, sceneId, confirmed) =>
+    service.excludePendingScene(queueId, sceneId, confirmed),
+  );
   handle('workspace-generation-clear-queue', () => service.clearQueue());
   handle('workspace-generation-queue-status', (revision) =>
     service.queueStatus(revision),

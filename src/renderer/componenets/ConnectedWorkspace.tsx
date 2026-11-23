@@ -27,6 +27,7 @@ import ConnectedQueueControls from './ConnectedQueueControls';
 import {
   generationMessage,
   availableQueueSceneIds,
+  queueOutcome,
 } from '../generation/generationPresentation';
 import './PreviewWorkspace.css';
 import './ConnectedWorkspace.css';
@@ -61,6 +62,7 @@ export default function ConnectedWorkspace({
   const { projects }: { projects: ProjectClient } = window.electron;
   const view = useSyncExternalStore(project.subscribe, project.getSnapshot);
   const operation = useRef(false);
+  const generationEpoch = useRef(0);
   const [phase, setPhase] = useState('');
   const [plan, setPlan] = useState<GenerationPlan>();
   const [queuePlan, setQueuePlan] = useState<GenerationQueuePlan>();
@@ -105,11 +107,12 @@ export default function ConnectedWorkspace({
     const refresh = async () => {
       if (refreshing) return;
       refreshing = true;
+      const epoch = generationEpoch.current;
       try {
         const status = unwrap(await client.status());
         const knownRevision = revisionRef.current;
         const queued = unwrap(await client.queueStatus(knownRevision));
-        if (alive) {
+        if (alive && epoch === generationEpoch.current) {
           setQueue(queued.queue);
           const current = project.getSnapshot();
           if (
@@ -121,12 +124,12 @@ export default function ConnectedWorkspace({
             setSelected(queued.latest.imageId);
           }
         }
-        if (alive) {
-          setPending(status.pending);
-          setActive(status.active);
+        if (alive && epoch === generationEpoch.current) {
+          setPending(status.pending || queueOutcome(queued.queue).pending);
+          setActive(status.active || !!queued.queue?.running);
         }
       } catch {
-        if (alive)
+        if (alive && epoch === generationEpoch.current)
           setMessage(
             '생성 상태를 확인하지 못했습니다. 요청을 다시 보내지 말고 앱 상태를 확인하세요.',
           );
@@ -183,6 +186,7 @@ export default function ConnectedWorkspace({
   const prepare = async () => {
     if (operation.current) return;
     operation.current = true;
+    generationEpoch.current += 1;
     setMessage('');
     setPhase('save');
     try {
@@ -198,6 +202,7 @@ export default function ConnectedWorkspace({
       setMessage(generationMessage(error, sceneNames.current));
     } finally {
       operation.current = false;
+      generationEpoch.current += 1;
       setPhase((previous) => (previous === 'confirm' ? previous : ''));
     }
   };
@@ -210,6 +215,7 @@ export default function ConnectedWorkspace({
   const run = async (saveOnly = false, asNewProject = false) => {
     if (operation.current) return;
     operation.current = true;
+    generationEpoch.current += 1;
     setPhase('run');
     setPlan(undefined);
     setMessage('');
@@ -230,6 +236,7 @@ export default function ConnectedWorkspace({
       setPending(!!(error as GenerationFailure).pendingResult);
     } finally {
       operation.current = false;
+      generationEpoch.current += 1;
       setPhase('');
     }
   };
@@ -245,6 +252,7 @@ export default function ConnectedWorkspace({
     }
   };
   const acceptQueue = (value: GenerationQueueStatus) => {
+    setActive(false);
     setQueue(value.queue);
     if (
       value.latest &&
@@ -253,11 +261,12 @@ export default function ConnectedWorkspace({
       project.acceptGenerated(value.latest.snapshot);
       setSelected(value.latest.imageId);
     }
-    const error = value.queue?.items.find((item) => item.error)?.error;
+    const outcome = queueOutcome(value.queue);
+    const { error } = outcome;
+    setPending(outcome.pending);
+    setStorageStopped(outcome.storageStopped);
     if (error) {
       setMessage(generationMessage(error, sceneNames.current));
-      setPending(!!error.pendingResult);
-      setStorageStopped(error.projectCode === 'PROJECT_SERVICE_STOPPED');
     } else
       setMessage(
         value.queue?.stopped
@@ -268,6 +277,7 @@ export default function ConnectedWorkspace({
   const prepareQueue = async (remaining = false) => {
     if (operation.current) return;
     operation.current = true;
+    generationEpoch.current += 1;
     setPhase('save');
     setMessage('');
     setPlan(undefined);
@@ -285,19 +295,34 @@ export default function ConnectedWorkspace({
               Number(repeats),
             )),
       );
+      const current = unwrap(await client.queueStatus(saved.revision));
+      if (current.queue?.id !== prepared.queueId)
+        unwrap({
+          ok: false,
+          code: 'CONFIRMATION_EXPIRED',
+          mayHaveReachedServer: false,
+        });
+      setQueue(current.queue);
       setQueuePlan(prepared);
       setConfirmed(false);
       setPhase('confirm');
     } catch (error) {
+      try {
+        setQueue(unwrap(await client.queueStatus()).queue);
+      } catch {
+        /* Keep the preparation error if metadata refresh fails. */
+      }
       setMessage(generationMessage(error, sceneNames.current));
     } finally {
       operation.current = false;
+      generationEpoch.current += 1;
       setPhase((previous) => (previous === 'confirm' ? previous : ''));
     }
   };
   const runQueue = async () => {
     if (operation.current) return;
     operation.current = true;
+    generationEpoch.current += 1;
     setPhase('queue-run');
     setMessage('');
     const { ticket } = queuePlan!;
@@ -308,6 +333,49 @@ export default function ConnectedWorkspace({
       setMessage(generationMessage(error, sceneNames.current));
     } finally {
       operation.current = false;
+      generationEpoch.current += 1;
+      setPhase('');
+    }
+  };
+  const currentFailure = queueOutcome(queue).error;
+  const conflictSceneId =
+    currentFailure?.code === 'QUEUE_INPUT_CHANGED'
+      ? currentFailure.conflictSceneId
+      : undefined;
+  const excludedCount = conflictSceneId
+    ? (queue?.items.filter(
+        (item) => item.status === 'pending' && item.sceneId === conflictSceneId,
+      ).length ?? 0)
+    : 0;
+  const conflict =
+    conflictSceneId && excludedCount && queue?.projectId === view.id
+      ? {
+          sceneId: conflictSceneId,
+          count: excludedCount,
+          name:
+            sceneNames.current.find((scene) => scene.id === conflictSceneId)
+              ?.name ?? '예약 씬',
+        }
+      : undefined;
+  const excludeConflict = async () => {
+    if (operation.current || !conflict || !queue) return;
+    operation.current = true;
+    generationEpoch.current += 1;
+    setPhase('exclude');
+    try {
+      const value = unwrap(
+        await client.excludePendingScene(queue.id, conflict.sceneId, true),
+      );
+      setQueue(value.queue);
+      setQueuePlan(undefined);
+      setMessage(
+        `“${conflict.name}”의 미전송 ${conflict.count}건을 제외했습니다. 다른 미전송 작업은 새 확인 후 실행합니다.`,
+      );
+    } catch (error) {
+      setMessage(generationMessage(error, sceneNames.current));
+    } finally {
+      operation.current = false;
+      generationEpoch.current += 1;
       setPhase('');
     }
   };
@@ -602,10 +670,16 @@ export default function ConnectedWorkspace({
                 disabled={!!phase || active || !discardConfirmed}
                 onClick={async () => {
                   try {
+                    generationEpoch.current += 1;
                     unwrap(await client.discardPending());
                     setPending(false);
+                    setMessage(
+                      '미저장 결과를 버렸습니다. 자동으로 다시 생성하지 않습니다.',
+                    );
                   } catch (error) {
                     setMessage(generationMessage(error, sceneNames.current));
+                  } finally {
+                    generationEpoch.current += 1;
                   }
                 }}
               >
@@ -683,14 +757,19 @@ export default function ConnectedWorkspace({
         onResume={() => prepareQueue(true)}
         onStop={cancel}
         onClear={async () => {
+          generationEpoch.current += 1;
           try {
             unwrap(await client.clearQueue());
             setQueue(undefined);
             setQueuePlan(undefined);
           } catch (error) {
             setMessage(generationMessage(error, sceneNames.current));
+          } finally {
+            generationEpoch.current += 1;
           }
         }}
+        conflict={conflict}
+        onExclude={excludeConflict}
         onResult={setSelected}
       />
     </div>

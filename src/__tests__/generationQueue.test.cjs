@@ -894,3 +894,288 @@ test('trusted conflict IPC returns only a bounded local scene ID and fixed code;
     undefined,
   );
 });
+test('429 followed by a later TIMEOUT reports the current stopped item, not the historic429', async (t) => {
+  const {
+    queueOutcome,
+  } = require('../renderer/generation/generationPresentation');
+  const f = fixture(t, {
+      send: async ({ number, bytes }) => {
+        if (number === 1) throw new NaiError('HTTP_ERROR', true, 429);
+        if (number === 3) throw new NaiError('TIMEOUT', true);
+        return bytes;
+      },
+    }),
+    p = await f.prepare(1);
+  const first = await f.service.runQueue(p.ticket, true);
+  assert.equal(first.queue.stoppedItemId, p.items[0].id);
+  const next = await f.service.prepareRemaining(
+    p.queueId,
+    f.first.project.id,
+    f.first.revision,
+  );
+  const stopped = await f.service.runQueue(next.ticket, true);
+  assert.equal(stopped.queue.items[0].error.httpStatus, 429);
+  assert.equal(stopped.queue.stoppedItemId, p.items[2].id);
+  assert.equal(queueOutcome(stopped.queue).error.code, 'TIMEOUT');
+  assert.equal(queueOutcome(stopped.queue).pending, false);
+  assert.equal(f.count, 3);
+});
+test('historic429 cannot mask a new result-pending or delay the storage recovery state; save-only success resolves the current cause', async (t) => {
+  const {
+    queueOutcome,
+  } = require('../renderer/generation/generationPresentation');
+  let fail = true;
+  const f = fixture(t, {
+      send: async ({ number, bytes }) => {
+        if (number === 1) throw new NaiError('HTTP_ERROR', true, 429);
+        return bytes;
+      },
+      store: (core) =>
+        proxy(core, {
+          addPNG: (...args) => {
+            if (fail) {
+              fail = false;
+              throw new ProjectError('PROJECT_IO');
+            }
+            return core.addPNG(...args);
+          },
+        }),
+    }),
+    p = await f.prepare(1);
+  await f.service.runQueue(p.ticket, true);
+  const next = await f.service.prepareRemaining(
+    p.queueId,
+    f.first.project.id,
+    f.first.revision,
+  );
+  const stopped = await f.service.runQueue(next.ticket, true),
+    outcome = queueOutcome(stopped.queue);
+  assert.equal(outcome.error.code, 'RESULT_SAVE_FAILED');
+  assert.equal(outcome.pending, true);
+  assert.equal(stopped.queue.stoppedItemId, p.items[1].id);
+  assert.equal(f.count, 2);
+  const saved = await f.service.retrySave();
+  assert.equal(f.count, 2);
+  assert.equal(f.service.queueStatus().queue.stoppedItemId, undefined);
+  assert.equal(queueOutcome(f.service.queueStatus().queue).error, undefined);
+  const remaining = await f.service.prepareRemaining(
+    p.queueId,
+    saved.snapshot.project.id,
+    saved.snapshot.revision,
+  );
+  assert.equal(remaining.total, 1);
+});
+test('fresh execution clears the previous pending error before asynchronous preflight completes', async (t) => {
+  let calls = 0,
+    block = false;
+  const entered = deferred(),
+    release = deferred();
+  const f = fixture(t, {
+      store: (core) =>
+        proxy(core, {
+          generationSnapshot: (...args) => {
+            calls++;
+            if (calls === 3) throw new ProjectError('PROJECT_BUSY');
+            return core.generationSnapshot(...args);
+          },
+          readManifest: async (...args) => {
+            if (block) {
+              block = false;
+              entered.resolve();
+              await release.promise;
+            }
+            return core.readManifest(...args);
+          },
+        }),
+    }),
+    p = await f.prepare(1);
+  const first = await f.service.runQueue(p.ticket, true);
+  assert.equal(first.queue.items[0].error.code, 'PROJECT_BUSY');
+  const next = await f.service.prepareRemaining(
+    p.queueId,
+    f.first.project.id,
+    f.first.revision,
+  );
+  block = true;
+  const running = f.service.runQueue(next.ticket, true);
+  await entered.promise;
+  const status = f.service.queueStatus().queue;
+  assert.equal(status.stoppedItemId, undefined);
+  assert.equal(status.items[0].status, 'preparing');
+  assert.equal(status.items[0].error, undefined);
+  assert.throws(
+    () => f.service.excludePendingScene(p.queueId, f.scenes[0].id, true),
+    { code: 'GENERATION_BUSY' },
+  );
+  release.resolve();
+  await running;
+  assert.equal(f.count, 3);
+});
+test('successful continuation does not redisplay an earlier failure and a stop before the next send has no stale cause', async (t) => {
+  const {
+    queueOutcome,
+  } = require('../renderer/generation/generationPresentation');
+  const f = fixture(t, {
+      send: async ({ number, bytes }) => {
+        if (number === 1) throw new NaiError('HTTP_ERROR', true, 429);
+        return bytes;
+      },
+    }),
+    p = await f.prepare(1);
+  await f.service.runQueue(p.ticket, true);
+  const next = await f.service.prepareRemaining(
+    p.queueId,
+    f.first.project.id,
+    f.first.revision,
+  );
+  const done = await f.service.runQueue(next.ticket, true);
+  assert.equal(done.queue.items[0].error.httpStatus, 429);
+  assert.equal(queueOutcome(done.queue).error, undefined);
+  assert.equal(done.queue.stoppedItemId, undefined);
+});
+test('confirmed exclusion removes only a conflicting scene unsent count, edits no project file and never replays or transmits automatically', async (t) => {
+  const f = fixture(t, {
+      send: async ({ number, bytes }) => {
+        if (number === 1) throw new NaiError('HTTP_ERROR', true, 429);
+        return bytes;
+      },
+    }),
+    p = await f.prepare(2);
+  await f.service.runQueue(p.ticket, true);
+  const edited = f.core.save(
+    f.first.project.id,
+    f.first.revision,
+    editedContent(f.first.project, (c) => {
+      c.scenes[1].draft.prompt = 'new conflicting input';
+    }),
+  );
+  await assert.rejects(
+    f.service.prepareRemaining(p.queueId, edited.project.id, edited.revision),
+    { code: 'QUEUE_INPUT_CHANGED' },
+  );
+  const file = path.join(
+      f.profile,
+      'projects-v1',
+      edited.project.id,
+      'project.json',
+    ),
+    before = fs.readFileSync(file),
+    sceneId = f.scenes[1].id;
+  assert.throws(
+    () => f.service.excludePendingScene(p.queueId, sceneId, false),
+    { code: 'INVALID_INPUT' },
+  );
+  assert.throws(
+    () => f.service.excludePendingScene(crypto.randomUUID(), sceneId, true),
+    { code: 'INVALID_INPUT' },
+  );
+  assert.throws(
+    () => f.service.excludePendingScene(p.queueId, f.scenes[0].id, true),
+    { code: 'INVALID_INPUT' },
+  );
+  const excluded = f.service.excludePendingScene(p.queueId, sceneId, true);
+  assert.equal(
+    excluded.queue.items.filter((i) => i.status === 'skipped').length,
+    2,
+  );
+  assert.ok(
+    excluded.queue.items
+      .filter((i) => i.status === 'skipped')
+      .every((i) => i.sceneId === sceneId),
+  );
+  assert.equal(excluded.queue.items[0].status, 'failed');
+  assert.equal(excluded.queue.stoppedItemId, undefined);
+  assert.equal(f.count, 1);
+  assert.deepEqual(fs.readFileSync(file), before);
+  assert.throws(() => f.service.excludePendingScene(p.queueId, sceneId, true), {
+    code: 'INVALID_INPUT',
+  });
+  await assert.rejects(f.service.runQueue(p.ticket, true), {
+    code: 'CONFIRMATION_EXPIRED',
+  });
+  const next = await f.service.prepareRemaining(
+    p.queueId,
+    edited.project.id,
+    edited.revision,
+  );
+  assert.equal(next.total, 3);
+  assert.ok(next.items.every((i) => i.sceneId !== sceneId));
+  assert.equal(f.count, 1);
+  const done = await f.service.runQueue(next.ticket, true);
+  assert.equal(f.count, 4);
+  assert.equal(done.latest.snapshot.project.images.length, 3);
+  assert.equal(
+    done.latest.snapshot.project.scenes[1].draft.prompt,
+    'new conflicting input',
+  );
+});
+test('deleting and excluding every remaining scene leaves zero requests and requires a new reservation', async (t) => {
+  const f = fixture(t),
+    p = await f.prepare(2, [f.scenes[0].id]);
+  f.core.save(
+    f.first.project.id,
+    f.first.revision,
+    editedContent(f.first.project, (c) => {
+      c.scenes.splice(0, 1);
+      c.selectedSceneId = c.scenes[0].id;
+    }),
+  );
+  await f.service.runQueue(p.ticket, true);
+  const skipped = f.service.excludePendingScene(
+    p.queueId,
+    f.scenes[0].id,
+    true,
+  );
+  assert.ok(skipped.queue.items.every((i) => i.status === 'skipped'));
+  assert.equal(f.count, 0);
+  const current = f.core.readManifest(f.first.project.id);
+  await assert.rejects(
+    f.service.prepareRemaining(p.queueId, current.project.id, current.revision),
+    { code: 'INVALID_INPUT' },
+  );
+  assert.equal(f.count, 0);
+});
+test('a received unsaved PNG and active run cannot be bypassed by excluding a scene; discard resolves its stop cause without replay', async (t) => {
+  const f = fixture(t, {
+      store: (core) =>
+        proxy(core, {
+          addPNG: () => {
+            throw new ProjectError('PROJECT_IO');
+          },
+        }),
+    }),
+    p = await f.prepare(1);
+  const stopped = await f.service.runQueue(p.ticket, true);
+  assert.equal(stopped.queue.items[0].status, 'result-pending');
+  assert.throws(
+    () => f.service.excludePendingScene(p.queueId, f.scenes[0].id, true),
+    { code: 'GENERATION_BUSY' },
+  );
+  assert.equal(f.service.status().pending, true);
+  f.service.discardPending();
+  assert.equal(f.service.queueStatus().queue.stoppedItemId, undefined);
+  assert.equal(f.count, 1);
+});
+test('exclusion IPC uses the existing trust guard and accepts no stale or unrelated scene operation', async (t) => {
+  const { registerGeneration } = require('../main/nai/generationIpc');
+  const f = fixture(t),
+    p = await f.prepare(1),
+    handlers = new Map();
+  registerGeneration(
+    { handle: (name, action) => handlers.set(name, action) },
+    f.service,
+    (e) => e === 'trusted',
+  );
+  const action = handlers.get('workspace-generation-exclude-scene');
+  assert.deepEqual(await action('untrusted', p.queueId, f.scenes[0].id, true), {
+    ok: false,
+    code: 'UNTRUSTED_SENDER',
+    mayHaveReachedServer: false,
+  });
+  assert.deepEqual(await action('trusted', p.queueId, f.scenes[0].id, true), {
+    ok: false,
+    code: 'INVALID_INPUT',
+    mayHaveReachedServer: false,
+  });
+  assert.equal(f.count, 0);
+});

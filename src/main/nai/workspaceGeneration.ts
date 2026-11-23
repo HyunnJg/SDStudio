@@ -273,6 +273,8 @@ export class WorkspaceGeneration {
         item.status = 'done';
         item.imageId = result.imageId;
         delete item.error;
+        if (this.queue.state.stoppedItemId === item.id)
+          delete this.queue.state.stoppedItemId;
         this.latest = result;
       }
     }
@@ -345,6 +347,40 @@ export class WorkspaceGeneration {
     } finally {
       this.working = false;
     }
+  }
+
+  excludePendingScene(
+    queueId: string,
+    sceneId: string,
+    confirmed: boolean,
+  ): GenerationQueueStatus {
+    this.idle();
+    projectId(queueId);
+    const q = this.queue;
+    const stop = q?.state.items.find(
+      (item) => item.id === q.state.stoppedItemId,
+    );
+    if (
+      !q ||
+      q.state.id !== queueId ||
+      confirmed !== true ||
+      stop?.error?.code !== 'QUEUE_INPUT_CHANGED' ||
+      stop.error.conflictSceneId !== sceneId ||
+      !q.state.items.some(
+        (item) => item.sceneId === sceneId && item.status === 'pending',
+      )
+    )
+      throw new GenerationError('INVALID_INPUT');
+    q.state.items.forEach((item) => {
+      if (item.sceneId === sceneId && item.status === 'pending') {
+        item.status = 'skipped';
+        delete item.error;
+      }
+    });
+    this.prepared = undefined;
+    this.queueApproval = undefined;
+    delete q.state.stoppedItemId;
+    return this.queueStatus(); // Local reservation edit only. Never starts a request or edits a project file.
   }
 
   clearQueue() {
@@ -533,6 +569,7 @@ export class WorkspaceGeneration {
     const q = this.queue;
     if (!q || q.state.id !== queueId || q.state.projectId !== id)
       throw new GenerationError('INVALID_INPUT');
+    delete q.state.stoppedItemId;
     this.working = true;
     try {
       const current = await this.options.store.generationSnapshot(id, revision);
@@ -540,7 +577,23 @@ export class WorkspaceGeneration {
       const count = q.state.items.filter((i) => i.status === 'pending').length;
       if (current.project.images.length + count > 120)
         throw new GenerationError('QUEUE_LIMIT');
-      return this.approve(q);
+      const plan = this.approve(q);
+      delete q.state.stoppedItemId;
+      return plan;
+    } catch (error) {
+      const item = q.state.items.find(
+        (value) =>
+          value.status === 'pending' &&
+          (!(error instanceof GenerationError) ||
+            !error.conflictSceneId ||
+            value.sceneId === error.conflictSceneId),
+      );
+      if (item) {
+        item.error = WorkspaceGeneration.failure(error);
+        q.state.stoppedItemId = item.id;
+        q.state.stopped = true;
+      }
+      throw error;
     } finally {
       this.working = false;
     }
@@ -568,6 +621,7 @@ export class WorkspaceGeneration {
     this.working = true;
     q.state.running = true;
     q.state.stopped = false;
+    delete q.state.stoppedItemId;
     const controller = new AbortController();
     this.controller = controller;
     try {
@@ -576,6 +630,7 @@ export class WorkspaceGeneration {
         if (item.status !== 'pending') continue;
         if (q.state.stopped || controller.signal.aborted) break;
         item.status = 'preparing';
+        delete item.error;
         try {
           const current = await this.options.store.readManifest(
             q.state.projectId,
@@ -602,6 +657,7 @@ export class WorkspaceGeneration {
             item.status = this.pending ? 'result-pending' : 'failed';
             item.error = failure;
           }
+          q.state.stoppedItemId = item.id;
           q.state.stopped = true;
           break; // Never retry a failed/ambiguous send or skip forward automatically.
         }
@@ -672,6 +728,8 @@ export class WorkspaceGeneration {
     if (item) {
       item.status = 'failed';
       delete item.error?.pendingResult;
+      if (this.queue?.state.stoppedItemId === item.id)
+        delete this.queue.state.stoppedItemId;
     }
     this.pending = undefined;
   }

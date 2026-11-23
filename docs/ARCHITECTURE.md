@@ -161,3 +161,6 @@ ConnectedWorkspace는 별도 ConnectedQueueControls에서 씬 선택·반복·�
 
 
 D-044에서 큐의 전체 프로젝트 fingerprint를 제거했다. prepareRemaining/runQueue는 pending/preparing task의 scene ID와 draft deep equality만 같은 helper로 검사한다. metadata-only 변경은 최신 리비전으로 실행하되 각 execute/addPNG의 기대 리비전 검사는 유지한다. 전송 전 실패는 pending+고정 오류로 보존하고, sendImage 진입 뒤 실패는 기존 failed/result-pending으로 남긴다. conflictSceneId는 bounded 로컬 ID이며 generationPresentation에서 로컬 씬 이름으로 표시한다. 이 helper는 삭제된 체크 ID도 렌더/prepare 전에 걸러낸다.
+
+
+D-045: main의 stoppedItemId와 renderer의 queueOutcome이 현재 중단 원인을 대응시킨다. 현재 오류와 과거 작업 이력을 분리하고 result-pending은 독립적으로 UI에 반영한다. 로컬 작업 세대가 지난 폴링은 버리며 준비 직후/실패 직후 큐 메타데이터를 즉시 갱신한다. 새 trusted generation-exclude-scene IPC는 현재 충돌 씬의 pending만 체크 확인 뒤 skipped로 바꾸는 메모리 조작이며, model/body/목적지/파일 경로·PNG 쓰기 권한은 받지 않는다. pending이 남으면 새 확인 없이는 실행하지 않는다.

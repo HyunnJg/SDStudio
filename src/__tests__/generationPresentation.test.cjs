@@ -46,3 +46,63 @@ test('transport status mapping and server-processing uncertainty are retained', 
     }).includes('소모됐을 수'),
   );
 });
+test('current stopped item wins over older429; result-pending is immediate even without a matching stop pointer', () => {
+  const {
+    queueOutcome,
+  } = require('../renderer/generation/generationPresentation');
+  const items = [
+    {
+      id: 'old',
+      status: 'failed',
+      error: {
+        ok: false,
+        code: 'HTTP_ERROR',
+        httpStatus: 429,
+        mayHaveReachedServer: true,
+      },
+    },
+    {
+      id: 'now',
+      status: 'failed',
+      error: { ok: false, code: 'TIMEOUT', mayHaveReachedServer: true },
+    },
+  ];
+  assert.equal(
+    queueOutcome({ items, stoppedItemId: 'now' }).error.code,
+    'TIMEOUT',
+  );
+  assert.equal(queueOutcome({ items }).error, undefined);
+  items[1] = {
+    id: 'now',
+    status: 'result-pending',
+    error: {
+      ok: false,
+      code: 'RESULT_SAVE_FAILED',
+      pendingResult: true,
+      projectCode: 'PROJECT_SERVICE_STOPPED',
+      mayHaveReachedServer: true,
+    },
+  };
+  const outcome = queueOutcome({ items, stoppedItemId: 'now' });
+  assert.equal(outcome.error.code, 'RESULT_SAVE_FAILED');
+  assert.equal(outcome.pending, true);
+  assert.equal(outcome.storageStopped, true);
+  assert.equal(queueOutcome({ items, stoppedItemId: 'unknown' }).pending, true);
+  assert.equal(
+    queueOutcome({ items, stoppedItemId: 'unknown' }).error,
+    undefined,
+  );
+});
+test('resolved or skipped items cannot become current errors even if a stale pointer is presented', () => {
+  const {
+    queueOutcome,
+  } = require('../renderer/generation/generationPresentation');
+  for (const status of ['done', 'preparing', 'running', 'skipped'])
+    assert.equal(
+      queueOutcome({
+        items: [{ id: 'old', status, error: { code: 'TIMEOUT' } }],
+        stoppedItemId: 'old',
+      }).error,
+      undefined,
+    );
+});
