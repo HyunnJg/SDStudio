@@ -188,7 +188,7 @@ test('invalid selection/count/unverified scene fail before sending and do not re
   assert.equal(f.count, 0);
   assert.equal(f.service.queueStatus().queue.id, p.queueId);
 });
-test('confirmation is5-minute/single-use and unconfirmed or changed saved revision never sends', async (t) => {
+test('confirmation is5-minute/single-use and unconfirmed or changed queued input never sends', async (t) => {
   const f = fixture(t),
     p = await f.prepare();
   await assert.rejects(f.service.runQueue(p.ticket, false), {
@@ -204,10 +204,17 @@ test('confirmation is5-minute/single-use and unconfirmed or changed saved revisi
   f.core.save(f.first.project.id, f.first.revision, {
     name: 'external edit',
     selectedSceneId: f.first.project.selectedSceneId,
-    scenes: f.first.project.scenes,
+    scenes: f.scenes.map((scene, index) =>
+      index === 0
+        ? {
+            ...scene,
+            draft: { ...scene.draft, prompt: 'changed queued prompt' },
+          }
+        : scene,
+    ),
   });
   const result = await f.service.runQueue(n.ticket, true);
-  assert.equal(result.queue.items[0].error.code, 'PROJECT_CONFLICT');
+  assert.equal(result.queue.items[0].error.code, 'QUEUE_INPUT_CHANGED');
   assert.equal(f.count, 0);
   await assert.rejects(f.service.runQueue(n.ticket, true), {
     code: 'CONFIRMATION_EXPIRED',
@@ -388,13 +395,14 @@ test('ambiguous committed PNG remains pending on corruption and is marked done e
 test('input changed while a response is in flight is preserved by latest-revision append, then the next request stops before sending', async (t) => {
   let edited;
   const f = fixture(t, {
-      send: async ({ core, first, bytes }) => {
+      send: async ({ core, first, bytes, number }) => {
+        if (number > 1) return bytes;
         const content = {
           name: 'externally edited',
           selectedSceneId: first.project.selectedSceneId,
           scenes: structuredClone(first.project.scenes),
         };
-        content.scenes[0].draft.prompt = 'new saved input';
+        content.scenes[1].draft.prompt = 'new saved input';
         edited = core.save(first.project.id, first.revision, content);
         return bytes;
       },
@@ -404,13 +412,29 @@ test('input changed while a response is in flight is preserved by latest-revisio
     saved = f.core.open(f.first.project.id);
   assert.equal(f.count, 1);
   assert.equal(saved.project.name, edited.project.name);
-  assert.equal(saved.project.scenes[0].draft.prompt, 'new saved input');
+  assert.equal(saved.project.scenes[1].draft.prompt, 'new saved input');
   assert.equal(saved.project.images[0].draft.prompt, f.scenes[0].draft.prompt);
-  assert.equal(result.queue.items[1].error.code, 'PROJECT_CONFLICT');
+  assert.equal(result.queue.items[1].error.code, 'QUEUE_INPUT_CHANGED');
+  assert.equal(result.queue.items[1].status, 'pending');
+  assert.equal(result.queue.items[1].error.conflictSceneId, f.scenes[1].id);
   await assert.rejects(
     f.service.prepareRemaining(p.queueId, saved.project.id, saved.revision),
-    { code: 'PROJECT_CONFLICT' },
+    { code: 'QUEUE_INPUT_CHANGED' },
   );
+  const restored = f.core.save(saved.project.id, saved.revision, {
+    name: saved.project.name,
+    selectedSceneId: saved.project.selectedSceneId,
+    scenes: f.scenes,
+  });
+  const remaining = await f.service.prepareRemaining(
+    p.queueId,
+    restored.project.id,
+    restored.revision,
+  );
+  assert.equal(remaining.total, 2);
+  assert.equal(remaining.items[0].id, p.items[1].id);
+  await f.service.runQueue(remaining.ticket, true);
+  assert.equal(f.count, 3);
 });
 test('a race between latest manifest read and atomic append leaves the received PNG pending and never overwrites newer input', async (t) => {
   let once = true;
@@ -624,5 +648,249 @@ test('pending result saved as a new project leaves the original lock untouched a
   assert.equal(
     f.core.open(recovered.snapshot.project.id).project.images.length,
     1,
+  );
+});
+function editedContent(project, mutate) {
+  const content = {
+    name: project.name,
+    selectedSceneId: project.selectedSceneId,
+    scenes: structuredClone(project.scenes),
+  };
+  mutate(content);
+  return content;
+}
+test('429 continuation allows project rename, another selected scene, renamed reserved scene and unreserved draft changes without replaying sent jobs', async (t) => {
+  const f = fixture(t, {
+    send: async ({ number, bytes }) => {
+      if (number === 2) throw new NaiError('HTTP_ERROR', true, 429);
+      return bytes;
+    },
+  });
+  const p = await f.prepare(3, [f.scenes[0].id, f.scenes[1].id]),
+    first = await f.service.runQueue(p.ticket, true);
+  const edited = f.core.save(
+    f.first.project.id,
+    first.latest.snapshot.revision,
+    editedContent(first.latest.snapshot.project, (c) => {
+      c.name = 'renamed project';
+      c.selectedSceneId = c.scenes[2].id;
+      c.scenes[0].name = 'renamed reserved scene';
+      c.scenes[2].draft.prompt = 'unreserved edit';
+    }),
+  );
+  const next = await f.service.prepareRemaining(
+    p.queueId,
+    edited.project.id,
+    edited.revision,
+  );
+  assert.equal(next.total, 4);
+  assert.deepEqual(
+    next.items.map((i) => i.id),
+    p.items.slice(2).map((i) => i.id),
+  );
+  const done = await f.service.runQueue(next.ticket, true);
+  assert.equal(f.count, 6);
+  assert.equal(done.latest.snapshot.project.images.length, 5);
+  assert.equal(done.latest.snapshot.project.name, 'renamed project');
+  assert.equal(done.latest.snapshot.project.selectedSceneId, f.scenes[2].id);
+  assert.equal(
+    done.latest.snapshot.project.scenes[2].draft.prompt,
+    'unreserved edit',
+  );
+  assert.deepEqual(
+    f.bodies.map((b) => JSON.parse(Buffer.from(b)).parameters.seed),
+    p.items.map((i) => i.seed),
+  );
+});
+test('first run checks queued drafts rather than a stale project revision or non-generating scene metadata', async (t) => {
+  const f = fixture(t),
+    p = await f.prepare(2, [f.scenes[0].id]);
+  f.core.save(
+    f.first.project.id,
+    f.first.revision,
+    editedContent(f.first.project, (c) => {
+      c.name = 'metadata only';
+      c.selectedSceneId = c.scenes[1].id;
+      c.scenes = [c.scenes[1], { ...c.scenes[0], name: 'new scene name' }];
+    }),
+  );
+  const result = await f.service.runQueue(p.ticket, true);
+  assert.equal(f.count, 2);
+  assert.equal(result.latest.snapshot.project.images.length, 2);
+});
+test('editing a done-only scene and deleting a failed-only scene does not block the sole remaining unsent scene', async (t) => {
+  const f = fixture(t, {
+      send: async ({ number, bytes }) => {
+        if (number === 2) throw new NaiError('HTTP_ERROR', true, 429);
+        return bytes;
+      },
+    }),
+    p = await f.prepare(1);
+  const first = await f.service.runQueue(p.ticket, true);
+  const edited = f.core.save(
+    f.first.project.id,
+    first.latest.snapshot.revision,
+    editedContent(first.latest.snapshot.project, (c) => {
+      c.scenes[0].draft.prompt = 'edit completed scene';
+      c.scenes.splice(1, 1);
+      c.selectedSceneId = c.scenes[1].id;
+    }),
+  );
+  const next = await f.service.prepareRemaining(
+    p.queueId,
+    edited.project.id,
+    edited.revision,
+  );
+  assert.equal(next.total, 1);
+  assert.equal(next.items[0].sceneId, f.scenes[2].id);
+  await f.service.runQueue(next.ticket, true);
+  assert.equal(f.count, 3);
+});
+test('deleted reserved scene is a named, unsent conflict; restoring it permits the same jobs under fresh confirmation', async (t) => {
+  const f = fixture(t),
+    p = await f.prepare(1, [f.scenes[0].id, f.scenes[1].id]);
+  const edited = f.core.save(
+    f.first.project.id,
+    f.first.revision,
+    editedContent(f.first.project, (c) => {
+      c.scenes.splice(1, 1);
+    }),
+  );
+  const stopped = await f.service.runQueue(p.ticket, true);
+  assert.equal(f.count, 0);
+  assert.equal(stopped.queue.items[0].status, 'pending');
+  assert.equal(stopped.queue.items[0].error.code, 'QUEUE_INPUT_CHANGED');
+  assert.equal(stopped.queue.items[0].error.conflictSceneId, f.scenes[1].id);
+  const restored = f.core.save(edited.project.id, edited.revision, {
+    name: edited.project.name,
+    selectedSceneId: edited.project.selectedSceneId,
+    scenes: f.scenes,
+  });
+  const next = await f.service.prepareRemaining(
+    p.queueId,
+    restored.project.id,
+    restored.revision,
+  );
+  assert.equal(next.total, 2);
+  await f.service.runQueue(next.ticket, true);
+  assert.equal(f.count, 2);
+});
+test('semantically identical draft keys in a different JSON order do not create a false conflict', async (t) => {
+  const f = fixture(t),
+    p = await f.prepare(1, [f.scenes[0].id]);
+  f.core.save(
+    f.first.project.id,
+    f.first.revision,
+    editedContent(f.first.project, (c) => {
+      c.scenes[0].draft = Object.fromEntries(
+        Object.entries(c.scenes[0].draft).reverse(),
+      );
+    }),
+  );
+  await f.service.runQueue(p.ticket, true);
+  assert.equal(f.count, 1);
+});
+test('temporary storage preflight failures preserve unsent work and error code; recovery never sends without fresh confirmation', async (t) => {
+  let reads = 0;
+  const f = fixture(t, {
+      store: (core) =>
+        proxy(core, {
+          generationSnapshot: (...args) => {
+            reads++;
+            if (reads === 3) throw new ProjectError('PROJECT_SERVICE_STOPPED');
+            return core.generationSnapshot(...args);
+          },
+        }),
+    }),
+    p = await f.prepare(1);
+  const stopped = await f.service.runQueue(p.ticket, true);
+  assert.equal(f.count, 0);
+  assert.ok(stopped.queue.items.every((i) => i.status === 'pending'));
+  assert.equal(stopped.queue.items[0].error.code, 'PROJECT_SERVICE_STOPPED');
+  await assert.rejects(f.service.runQueue(p.ticket, true), {
+    code: 'CONFIRMATION_EXPIRED',
+  });
+  const next = await f.service.prepareRemaining(
+    p.queueId,
+    f.first.project.id,
+    f.first.revision,
+  );
+  assert.equal(next.total, 3);
+  assert.equal(f.count, 0);
+  await f.service.runQueue(next.ticket, true);
+  assert.equal(f.count, 3);
+});
+test('a sendImage-stage failure stays failed even when the transport proves it never reached the server', async (t) => {
+  const f = fixture(t, {
+      send: async ({ number, bytes }) => {
+        if (number === 1) throw new NaiError('OFFLINE', false);
+        return bytes;
+      },
+    }),
+    p = await f.prepare(1);
+  const stopped = await f.service.runQueue(p.ticket, true);
+  assert.equal(stopped.queue.items[0].status, 'failed');
+  assert.equal(stopped.queue.items[0].error.mayHaveReachedServer, false);
+  const next = await f.service.prepareRemaining(
+    p.queueId,
+    f.first.project.id,
+    f.first.revision,
+  );
+  assert.equal(next.total, 2);
+  assert.ok(next.items.every((i) => i.id !== p.items[0].id));
+});
+test('trusted conflict IPC returns only a bounded local scene ID and fixed code; untrusted calls still fail first', async (t) => {
+  const { registerGeneration } = require('../main/nai/generationIpc');
+  const { GenerationError } = require('../main/nai/workspaceGeneration');
+  const f = fixture(t),
+    p = await f.prepare(1),
+    handlers = new Map();
+  const saved = f.core.save(
+    f.first.project.id,
+    f.first.revision,
+    editedContent(f.first.project, (c) => {
+      c.scenes[0].draft.negativePrompt = 'changed negative';
+    }),
+  );
+  registerGeneration(
+    { handle: (name, action) => handlers.set(name, action) },
+    f.service,
+    (e) => e === 'trusted',
+  );
+  const action = handlers.get('workspace-generation-prepare-remaining');
+  assert.deepEqual(
+    await action('untrusted', p.queueId, saved.project.id, saved.revision),
+    { ok: false, code: 'UNTRUSTED_SENDER', mayHaveReachedServer: false },
+  );
+  assert.deepEqual(
+    await action('trusted', p.queueId, saved.project.id, saved.revision),
+    {
+      ok: false,
+      code: 'QUEUE_INPUT_CHANGED',
+      mayHaveReachedServer: false,
+      conflictSceneId: f.scenes[0].id,
+    },
+  );
+  assert.equal(
+    new GenerationError(
+      'QUEUE_INPUT_CHANGED',
+      false,
+      undefined,
+      undefined,
+      undefined,
+      '/private/raw/token',
+    ).conflictSceneId,
+    undefined,
+  );
+  assert.equal(
+    new GenerationError(
+      'NETWORK',
+      true,
+      undefined,
+      undefined,
+      undefined,
+      'valid-looking-id',
+    ).conflictSceneId,
+    undefined,
   );
 });

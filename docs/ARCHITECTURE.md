@@ -158,3 +158,6 @@ D-042의 main-only worker readManifest/image는 renderer projects IPC를 늘리�
 WorkspaceGeneration이 main 메모리의 예약 snapshot·확정 시드/body hash·5분 일회용 묶음 ticket·직렬 상태를 소유한다. prepareQueue/prepareRemaining/runQueue/queueStatus/clearQueue의 고정 IPC를 기존 trusted frame 경계 뒤에 추가한다. renderer가 request JSON·모델/목적지·토큰·파일 경로를 넘기지 않는다. run과 runQueue는 공통 execute→sendImage→pending→persist를 사용한다.
 
 ConnectedWorkspace는 별도 ConnectedQueueControls에서 씬 선택·반복·진행/중지·저장 결과 선택을 제공한다. 실행 중 queueStatus의 최신 결과 snapshot은 현재 리비전과 일치할 때만 controller에 반영한다. 멈춘 뒤 과거 snapshot은 상태 폴링으로 다시 보내지 않는다. 준비/확인은 네트워크0, 실행은1건씩·실패 시 중지·자동 재시도 없음이다. 새 PNG worker 저장/단건 읽기는 기존 작업을 사용하며 worker 권한/manifest 형식은 바꾸지 않는다. 입력 보존·충돌·미전송 작업 재확인·close/restart 경계는 [WORKSPACE_QUEUE.md](WORKSPACE_QUEUE.md).
+
+
+D-044에서 큐의 전체 프로젝트 fingerprint를 제거했다. prepareRemaining/runQueue는 pending/preparing task의 scene ID와 draft deep equality만 같은 helper로 검사한다. metadata-only 변경은 최신 리비전으로 실행하되 각 execute/addPNG의 기대 리비전 검사는 유지한다. 전송 전 실패는 pending+고정 오류로 보존하고, sendImage 진입 뒤 실패는 기존 failed/result-pending으로 남긴다. conflictSceneId는 bounded 로컬 ID이며 generationPresentation에서 로컬 씬 이름으로 표시한다. 이 helper는 삭제된 체크 ID도 렌더/prepare 전에 걸러낸다.

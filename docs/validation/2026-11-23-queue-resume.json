@@ -1,0 +1,202 @@
+{
+  "date": "2026-11-23 (Asia/Seoul)",
+  "baseCommit": "2430216b5e4612a16ed3049c0d7359619753c089",
+  "runtimeCommit": "b2d005cb2cec6b119b9e2fd56752046053727d8a",
+  "runtimeTree": "a963d8ec0a7cae274c433578508ec2b2ee47cc15",
+  "environment": {
+    "platform": "Linux x64",
+    "node": "22.4.1",
+    "electron": "26.6.10",
+    "electronNode": "18.16.1",
+    "npm": "11.19.1; unsupported pairing warning, not recommended setup",
+    "builder": "24.13.3",
+    "display": "cookie-authenticated Xorg dummy TCP; loopback client"
+  },
+  "unitTests": {
+    "passed": 183,
+    "failed": 0,
+    "skipped": 0,
+    "queue": 25,
+    "presentation": 3,
+    "generation": 16,
+    "projectReads": 8,
+    "store": 13,
+    "controller": 8,
+    "serviceClose": 10,
+    "naiMain": 36,
+    "response": 19,
+    "offline": 11,
+    "workspace": 14,
+    "contract": 10,
+    "networkMode": 10
+  },
+  "checks": {
+    "scopedStrictTypes": true,
+    "scopedLint": true,
+    "testAndHarnessFormat": true,
+    "mainWorkerRendererBuild": true,
+    "packageBuild": true,
+    "freshNpmCi": false,
+    "nativeRebuild": false
+  },
+  "electron": {
+    "reports": [
+      {
+        "pid": 23,
+        "phase": "queue",
+        "ready": true,
+        "checks": [
+          "selected3 scenes x2 prepare sends0; confirmation shows6 requests, fixed settings and six resolved random seeds",
+          "real session transport/ASAR-compatible worker stores6 original PNG records in repetition-first order with the confirmed seeds",
+          "stop aborts the one in-flight request; five unsent tasks remain and no automatic eighth request starts",
+          "changed reserved draft displays the local scene name, sends0 extra requests and preserves all5 unsent tasks",
+          "restored draft permits5-task reconfirmation despite project rename and a different viewed scene; confirmed seeds stay unchanged",
+          "fresh5-request confirmation resumes only unsent tasks; the cancelled request is not retried and11 PNG records remain",
+          "received PNG survives queue storage failure and saves to a new project with no14th request; original lock/11 PNG records stay intact",
+          "390px queue/confirmation/result layout has no horizontal overflow; normal app minimum size is unchanged"
+        ],
+        "loopbackRequests": 13,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 115,
+        "phase": "reopen",
+        "ready": true,
+        "checks": [
+          "new PID reopens the result-only project and decodes byte-identical PNG with no generation request"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 207,
+        "phase": "offline",
+        "ready": true,
+        "checks": [
+          "offline generation refuses prepare before token/network access while saved v2 PNG remains viewable"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      }
+    ],
+    "actualAccountRequests": 0,
+    "transportDestinationRewrittenToLoopback": true
+  },
+  "package": {
+    "phase": "queue",
+    "ready": true,
+    "checks": [
+      "selected3 scenes x2 prepare sends0; confirmation shows6 requests, fixed settings and six resolved random seeds",
+      "real session transport/ASAR-compatible worker stores6 original PNG records in repetition-first order with the confirmed seeds",
+      "stop aborts the one in-flight request; five unsent tasks remain and no automatic eighth request starts",
+      "changed reserved draft displays the local scene name, sends0 extra requests and preserves all5 unsent tasks",
+      "restored draft permits5-task reconfirmation despite project rename and a different viewed scene; confirmed seeds stay unchanged",
+      "fresh5-request confirmation resumes only unsent tasks; the cancelled request is not retried and11 PNG records remain",
+      "received PNG survives queue storage failure and saves to a new project with no14th request; original lock/11 PNG records stay intact",
+      "390px queue/confirmation/result layout has no horizontal overflow; normal app minimum size is unchanged"
+    ],
+    "loopbackRequests": 13,
+    "actualAccountRequests": 0,
+    "externalRequests": [],
+    "rendererErrors": [],
+    "singleInstanceLockSimulated": true,
+    "nativeQuitObserved": true,
+    "packageContext": {
+      "isPackaged": true,
+      "archiveUnchanged": true,
+      "profileIsolated": true,
+      "inspectorInjectedHarness": true
+    }
+  },
+  "asar": {
+    "sha256": "bf68a4c00558ce6aaac0a806b0db92c8205998af72eaa3c0961319b374aea916",
+    "workerUnpacked": false
+  },
+  "notices": {
+    "requiredResourcesPresent": [
+      "LICENSES/electron-react-boilerplate.txt",
+      "CREDITS.md",
+      "THIRD_PARTY_NOTICES/THIRD_PARTY_NOTICES.txt",
+      "THIRD_PARTY_NOTICES/index.json",
+      "THIRD_PARTY_NOTICES/APP_LICENSE_STATUS.md"
+    ],
+    "noticeCopiesVerified": 250,
+    "bundlePackageOccurrencesIndexed": 143,
+    "copiedRuntimePackagesIndexed": 112,
+    "runtimeIdentityBasis": "name/version/license/author/repository (builder strips scripts and other build metadata)",
+    "unresolvedNoticeFiles": [
+      {
+        "root": "node_modules/@react-dnd/invariant",
+        "name": "@react-dnd/invariant",
+        "version": "4.0.2",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "node_modules/@react-dnd/shallowequal",
+        "name": "@react-dnd/shallowequal",
+        "version": "4.0.2",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "release/app/node_modules/batch-cluster/types/chai-withintoleranceof",
+        "name": "@types/chai-withintoleranceof",
+        "version": "0.0.1",
+        "declaredLicense": null
+      },
+      {
+        "root": "release/app/node_modules/github-from-package/example",
+        "name": "beep-boop",
+        "version": "1.2.3",
+        "declaredLicense": null
+      },
+      {
+        "root": "release/app/node_modules/browserify-zlib",
+        "name": "browserify-zlib",
+        "version": "0.1.4",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "release/app/node_modules/is-gzip",
+        "name": "is-gzip",
+        "version": "1.0.0",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "src/native",
+        "name": "native",
+        "version": "1.0.0",
+        "declaredLicense": "ISC"
+      },
+      {
+        "root": "node_modules/react-dnd-preview",
+        "name": "react-dnd-preview",
+        "version": "8.1.2",
+        "declaredLicense": "MIT"
+      }
+    ],
+    "allIdentifiedPackagesHaveNoticeFiles": false,
+    "completeRedistributionReview": false
+  },
+  "actualAccountRequests": 0,
+  "limitations": [
+    "No real account/keyring/Windows/macOS verification",
+    "No real MIME or429 frequency/spacing measurement",
+    "No full repository tsc; known TS2688 remains",
+    "Reused installed native dependencies; no fresh npm ci",
+    "Singleton/390px/inspector harness substitutions remain",
+    "No worker transfer-copy or256MiB latency benchmark",
+    "Existing8 unresolved notice records remain"
+  ]
+}

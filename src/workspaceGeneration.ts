@@ -8,7 +8,8 @@ export type GenerationCode =
   | 'CONFIRMATION_EXPIRED'
   | 'UNSUPPORTED_DRAFT'
   | 'RESULT_SAVE_FAILED'
-  | 'QUEUE_LIMIT';
+  | 'QUEUE_LIMIT'
+  | 'QUEUE_INPUT_CHANGED';
 export interface GenerationFailure {
   ok: false;
   code: GenerationCode;
@@ -16,6 +17,7 @@ export interface GenerationFailure {
   httpStatus?: number;
   projectCode?: ProjectErrorCode;
   pendingResult?: true;
+  conflictSceneId?: string;
 }
 export type GenerationReply<T> = { ok: true; value: T } | GenerationFailure;
 export interface GenerationPlan {
