@@ -8,6 +8,9 @@
 
 **PR #25 병합 / 큐 다듬기 종료, 새 작업실 실계정 확인 준비.** [PR25 처리](reviews/2026-11-23-pr25-followup.md), [확인 순서](WORKSPACE_LIVE_CHECK.md), [이번 검증](validation/2026-11-23-workspace-live-check.md). 충돌 씬을 제외할 때 다른 preparing 항목에 붙었던 동일 충돌 오류도 정리한다. 관련63건·메인/worker/preload 빌드·범위 타입/린트 통과. 이번 UI/ASAR 재검증·실계정 호출은 미실행이다. 다음은 사용자 PC의 **전체 앱 기동 → 기본1장 → 성공 시 같은 씬2회**이며, 연구 창 성공과 구분한다.
 
+**Windows 개발 시작 후속:** 사용자가 Node26.13.1에서 production main/renderer 빌드 성공을 보고했다. 개발 실행은 DLL 누락 → 자동 postinstall 실패 단계다. DLL 누락 때 전체 postinstall 대신 build:dll만 호출하고 실패 출력을 상속하도록 수정했다. Linux에서 실제 누락 복구·기존 DLL 무실행·실패 전파를 확인했다. Windows 전체 앱 기동은 아직 미확인이다. [복구와 검증](validation/2026-11-23-dev-dll-start.md). PR26의 충돌 오류 정리/실계정 절차는 별도 열린 PR이며 이번 변경에 포함하지 않는다.
+
+
 | 항목 | 상태 | 근거 |
 | --- | --- | --- |
 | GitHub 작업공간 | 생성 완료 | [HyunnJg/SDStudio](https://github.com/HyunnJg/SDStudio), 공개 포크 |
