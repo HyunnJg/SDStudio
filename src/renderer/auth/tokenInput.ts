@@ -37,3 +37,11 @@ export function authErrorMessage(code: NaiErrorCode): string {
     messages[code] ?? '연결 설정을 처리하지 못했습니다. 다시 시도해 주세요.'
   );
 }
+
+// Remember once when secure storage exists; preserve an explicit session-only token.
+export function defaultRememberToken(status: {
+  secureStorageAvailable: boolean;
+  storage: string;
+}): boolean {
+  return status.secureStorageAvailable && status.storage !== 'session';
+}

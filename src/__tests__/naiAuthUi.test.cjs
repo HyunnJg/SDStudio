@@ -44,3 +44,21 @@ test('version/corruption/offline errors give recovery guidance without echoing s
     /synthetic/,
   );
 });
+
+test('remember choice defaults to secure storage when available and preserves explicit session-only use', () => {
+  const { defaultRememberToken } = require('../renderer/auth/tokenInput');
+  for (const storage of ['none', 'encrypted'])
+    assert.equal(
+      defaultRememberToken({ storage, secureStorageAvailable: true }),
+      true,
+    );
+  assert.equal(
+    defaultRememberToken({ storage: 'session', secureStorageAvailable: true }),
+    false,
+  );
+  for (const storage of ['none', 'encrypted', 'session'])
+    assert.equal(
+      defaultRememberToken({ storage, secureStorageAvailable: false }),
+      false,
+    );
+});

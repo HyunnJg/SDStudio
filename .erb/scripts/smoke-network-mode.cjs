@@ -17,6 +17,13 @@ const directory = fs.realpathSync(process.argv[2]),
   appData = path.join(root, 'app-data'),
   journal = path.join(root, 'journey.json');
 fs.mkdirSync(appData);
+// Preserve the user's previously saved offline choice across the new online default.
+const forkProfile = path.join(appData, 'SDStudio-HyunnJg');
+fs.mkdirSync(forkProfile);
+fs.writeFileSync(
+  path.join(forkProfile, 'network-mode.v1.json'),
+  JSON.stringify({ version: 1, mode: 'offline' }),
+);
 const sentinels = [];
 for (const folder of ['SDStudio', 'sdstudio']) {
   const file = path.join(appData, folder, 'TOKEN.txt');

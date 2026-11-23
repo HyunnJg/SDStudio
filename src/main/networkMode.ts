@@ -61,7 +61,7 @@ export class NetworkModeSettings {
       return { mode: value.mode };
     } catch (error) {
       if ((error as { code?: string }).code === 'ENOENT')
-        return { mode: 'offline' };
+        return { mode: 'online' };
       return { mode: 'offline', issue: 'SETTINGS_UNREADABLE' };
     }
   }

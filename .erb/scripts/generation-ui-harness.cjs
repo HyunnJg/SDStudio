@@ -70,7 +70,10 @@ const server = http.createServer(async (request, response) => {
       .update(body)
       .digest('hex');
   const parsed = JSON.parse(body);
-  assert.equal(parsed.model, 'nai-diffusion-4-5-full');
+  assert.equal(parsed.model, 'nai-diffusion-5-full');
+  assert.equal(parsed.parameters.image_format, 'png');
+  assert.equal(parsed.parameters.width, 832);
+  assert.equal(parsed.parameters.height, 1216);
   assert.equal(parsed.parameters.n_samples, 1);
   if (phase === 'queue-errors') {
     if (number === 1) {
@@ -204,9 +207,9 @@ app.on('web-contents-created', (_event, contents) => {
             await evaluate(
               "document.querySelector('[data-testid=send-live-queue]').disabled",
             ),
-            true,
+            false,
           );
-          await click('[data-testid=queue-cost-confirm]');
+
           await click('[data-testid=send-live-queue]');
         };
         await click('[data-testid=prepare-live-queue]');
@@ -386,7 +389,7 @@ app.on('web-contents-created', (_event, contents) => {
           await evaluate(
             "document.querySelector('[data-testid=send-live-queue]').disabled",
           ),
-          true,
+          false,
         );
         assert.equal(requests, 4);
         await evaluate(
@@ -431,7 +434,7 @@ app.on('web-contents-created', (_event, contents) => {
           await evaluate(
             "document.querySelector('[data-testid=send-live-queue]').disabled",
           ),
-          true,
+          false,
         );
         assert.ok(
           (
@@ -448,7 +451,7 @@ app.on('web-contents-created', (_event, contents) => {
         checks.push(
           'selected3 scenes x2 prepare sends0; confirmation shows6 requests, fixed settings and six resolved random seeds',
         );
-        await click('[data-testid=queue-cost-confirm]');
+
         await click('[data-testid=send-live-queue]');
         await until(
           async () =>
@@ -521,7 +524,7 @@ app.on('web-contents-created', (_event, contents) => {
         await until(() =>
           evaluate("!!document.querySelector('[data-testid=queue-confirm]')"),
         );
-        await click('[data-testid=queue-cost-confirm]');
+
         await click('[data-testid=send-live-queue]');
         await until(() => requests === 7);
         await until(() =>
@@ -608,12 +611,12 @@ app.on('web-contents-created', (_event, contents) => {
           await evaluate(
             "document.querySelector('[data-testid=send-live-queue]').disabled",
           ),
-          true,
+          false,
         );
         checks.push(
           'restored draft permits5-task reconfirmation despite project rename and a different viewed scene; confirmed seeds stay unchanged',
         );
-        await click('[data-testid=queue-cost-confirm]');
+
         await click('[data-testid=send-live-queue]');
         await until(
           async () =>
@@ -639,7 +642,7 @@ app.on('web-contents-created', (_event, contents) => {
         await until(() =>
           evaluate("!!document.querySelector('[data-testid=queue-confirm]')"),
         );
-        await click('[data-testid=queue-cost-confirm]');
+
         await click('[data-testid=send-live-queue]');
         await until(() =>
           evaluate(
@@ -715,7 +718,7 @@ app.on('web-contents-created', (_event, contents) => {
           ),
         );
         checks.push(
-          'offline generation refuses prepare before token/network access while saved v2 PNG remains viewable',
+          'offline generation refuses prepare before token/network access while saved v3 PNG remains viewable',
         );
       } else if (phase === 'reopen') {
         const list = await evaluate('window.electron.projects.list()');
@@ -765,32 +768,21 @@ app.on('web-contents-created', (_event, contents) => {
           "(()=>{const s=document.querySelector('#live-seed-mode');s.value='fixed';s.dispatchEvent(new Event('change',{bubbles:true}));})()",
         );
         await fill('#live-seed', '0');
-        const prepare = async () => {
+        const generate = async () => {
           await until(() =>
             evaluate(
               "!document.querySelector('[data-testid=prepare-generation]').matches(':disabled')",
             ),
           );
           await click('[data-testid=prepare-generation]');
-          await until(() =>
-            evaluate(
-              "!!document.querySelector('[data-testid=generation-confirm]')",
-            ),
-          );
           assert.equal(
             await evaluate(
-              "document.querySelector('[data-testid=send-generation]').disabled",
+              "!!document.querySelector('[data-testid=generation-confirm]')",
             ),
-            true,
+            false,
           );
-          await click('[data-testid=generation-cost-confirm]');
         };
-        await prepare();
-        assert.equal(requests, 0);
-        checks.push(
-          'save/prepare and unconfirmed button send zero requests; visible confirmation fixes request seed/settings',
-        );
-        await click('[data-testid=send-generation]');
+        await generate();
         await until(() =>
           evaluate(
             "document.querySelector('[data-testid=generated-png]')?.naturalWidth===2",
@@ -802,9 +794,9 @@ app.on('web-contents-created', (_event, contents) => {
         lock = path.join(profile, 'projects-v1', id, 'write.lock');
         const first = JSON.parse(fs.readFileSync(manifest));
         assert.equal(first.images.length, 1);
-        assert.equal(first.version, 2);
+        assert.equal(first.version, 3);
         assert.deepEqual(first.images[0].binding, {
-          id: 'nai-v45-basic512-v1',
+          id: 'nai-v5-full-v1',
           requestHash: firstRequestHash,
         });
         assert.equal(first.images[0].seed, 0);
@@ -820,11 +812,14 @@ app.on('web-contents-created', (_event, contents) => {
           ),
           expectedPNG,
         );
+        assert.equal(requests, 1);
+        checks.push(
+          'one Generate click saves input and sends exactly one V5 request without a confirmation checkbox',
+        );
         checks.push(
           'actual Electron session transport accepts unknown MIME ZIP, worker persists original alpha/metadata PNG, renderer decodes it',
         );
-        await prepare();
-        await click('[data-testid=send-generation]');
+        await generate();
         await until(() => requests === 2);
         await click('[data-testid=cancel-generation]');
         await until(() =>
@@ -836,8 +831,7 @@ app.on('web-contents-created', (_event, contents) => {
         checks.push(
           'in-flight cancel reports possible server processing, preserves input and prior PNG, no automatic retry',
         );
-        await prepare();
-        await click('[data-testid=send-generation]');
+        await generate();
         await until(() =>
           evaluate(
             "!!document.querySelector('[data-testid=retry-result-save]')",

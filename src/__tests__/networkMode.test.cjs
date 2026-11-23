@@ -7,7 +7,10 @@ const {
   NetworkModeSettings,
   registerNetworkMode,
 } = require('../main/networkMode');
-const { prepareRestart, restartFailureMessage } = require('../renderer/network/restartPreparation');
+const {
+  prepareRestart,
+  restartFailureMessage,
+} = require('../renderer/network/restartPreparation');
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sdstudio-network-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -19,24 +22,24 @@ function fixture(t) {
       new NetworkModeSettings(file, explicit, env),
   };
 }
-test('normal first run is offline without writing; saving applies only to a fresh process', (t) => {
+test('normal first run is online without writing; saved choices apply only to a fresh process', (t) => {
   const f = fixture(t),
     first = f.create();
   assert.deepEqual(first.status(), {
-    current: 'offline',
-    next: 'offline',
+    current: 'online',
+    next: 'online',
     pendingRestart: false,
   });
   assert.equal(fs.existsSync(f.file), false);
-  assert.deepEqual(first.set('online'), {
-    current: 'offline',
-    next: 'online',
+  assert.deepEqual(first.set('offline'), {
+    current: 'online',
+    next: 'offline',
     pendingRestart: true,
   });
   const second = f.create();
-  assert.equal(second.current, 'online');
-  assert.equal(second.set('offline').current, 'online');
-  assert.equal(f.create().current, 'offline');
+  assert.equal(second.current, 'offline');
+  assert.equal(second.set('online').current, 'offline');
+  assert.equal(f.create().current, 'online');
   if (process.platform !== 'win32')
     assert.equal(fs.statSync(f.file).mode & 0o777, 0o600);
 });
@@ -122,7 +125,7 @@ test('restart requires a valid pending change and schedules only once; synchrono
   assert.throws(() => s.restart(() => called++), {
     code: 'NO_RESTART_REQUIRED',
   });
-  s.set('online');
+  s.set('offline');
   assert.throws(
     () =>
       s.restart(() => {
@@ -150,7 +153,7 @@ test('a later corrupt file cannot pass the restart gate', (t) => {
 });
 test('startup IPC rejects foreign senders but supports offline local configuration without secrets', (t) => {
   const f = fixture(t),
-    s = f.create(),
+    s = (f.create().set('offline'), f.create()),
     handlers = new Map();
   let trusted = false,
     restarts = 0;
@@ -162,7 +165,10 @@ test('startup IPC rejects foreign senders but supports offline local configurati
   );
   for (const fn of handlers.values())
     assert.deepEqual(fn({}, 'online'), { ok: false, code: 'UNTRUSTED_SENDER' });
-  assert.equal(fs.existsSync(f.file), false);
+  assert.deepEqual(JSON.parse(fs.readFileSync(f.file)), {
+    version: 1,
+    mode: 'offline',
+  });
   trusted = true;
   assert.equal(
     handlers.get('network-mode-set')({}, 'online').status.current,
