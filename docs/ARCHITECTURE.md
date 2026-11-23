@@ -145,6 +145,9 @@ PR #19 후속(D-040): worker 생성/종료는 PROJECT_SERVICE_STOPPED로 고정�
 
 non-mock Electron은 별도 ConnectedWorkspace를 명시적으로 열며 App의 WorkspaceState/ProjectController를 공유한다. mock PreviewWorkspace/메모리 큐는 유지한다. prepare/run/결과 보관은 main WorkspaceGeneration 단일 경로, body는 workspaceBinding의 고정 V4.5 기본 요청, 전송은 기존 createNaiTransport→sendImage다. 암호 토큰·원문 오류·목적지 선택권을 renderer/worker에 넘기지 않는다.
 
-prepare와 run에서 고정 ProjectService worker의 generationSnapshot으로 저장 상태/참조 PNG/한도를 확인한다. 정상 PNG는 main-only worker addPNG로 append하며 image 조회는 승인 문서·UUID manifest 참조로 제한한다. 저장 실패는 API 재호출 없이 pending PNG를 저장하거나 입력/이번 결과만 새 프로젝트에 보관한다. generation.status는 main의 active/pending만 알리며 정상 native finish/연결 모드 restart도 main 상태로 거부해 UI 통지 지연을 보완한다.
+prepare와 run에서 고정 ProjectService worker의 generationSnapshot으로 저장된 manifest/리비전/잠금/한도를 확인한다. D-042부터 준비/실행은 기존 PNG를 전부 읽지 않고 명시적 open/copy/recover에 전체 검사를 남긴다. 정상 PNG는 main-only worker addPNG로 append하며 image 조회는 승인 문서·UUID manifest 참조로 제한한다. 저장 실패는 API 재호출 없이 pending PNG를 저장하거나 입력/이번 결과만 새 프로젝트에 보관한다. generation.status는 main의 active/pending만 알리며 정상 native finish/연결 모드 restart도 main 상태로 거부해 UI 통지 지연을 보완한다.
 
 새 PNG의 binding/versioned body hash 때문에 manifest v2를 명시적으로 쓴다. v1 읽기/이력 복구는 유지한다. 첫 정제 MIME 진단은 파일 단위의 메인 observer이며, 이번 루프백 검증을 실제 NovelAI MIME 확인으로 기록하지 않는다. [상세](WORKSPACE_GENERATION.md), [검증](validation/2026-11-22-workspace-generation.md).
+
+
+D-042의 main-only worker readManifest/image는 renderer projects IPC를 늘리지 않는다. generation.image는 UUID 참조 검사와 선택 PNG 해시·크기 검사를 worker 안에서 수행한다. ProjectController는 이미 반환된 스냅샷의 imageRecords를 복사해 ConnectedWorkspace에 제공하며 리비전 변경마다 projects.open을 재호출하지 않는다. retrySave가 이미 커밋된 UUID를 발견하면 이 image 경로로 그 파일을 확인한 뒤 pending을 해제한다.

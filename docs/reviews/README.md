@@ -61,3 +61,5 @@ docs/reviews/2026-11-20-initial-request.md의 질문을 독립적으로 검토�
 - [PR #19 비정상 닫기·worker 및 실제 ASAR 검증 후속](2026-11-22-pr19-followup.md)
 
 - [PR #20 의견·기본1장 생성/PNG 연결 후속](2026-11-22-pr20-followup.md)
+
+- [PR #21 의견·작업별 PNG 검사 후속](2026-11-23-pr21-followup.md)

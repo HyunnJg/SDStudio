@@ -1,0 +1,276 @@
+{
+  "date": "2026-11-23 (Asia/Seoul)",
+  "baseCommit": "23d4c6adf7f3bbd9a58bda078fd96a06e15c24fd",
+  "runtimeCommit": "80a2968582c60705e50318baf017ee5bc3e978ae",
+  "runtimeTree": "40220a08c4bb2a0222aad1157cdc0c15d70e33e8",
+  "environment": {
+    "platform": "Linux x64",
+    "node": "22.4.1",
+    "npm": "11.19.1; unsupported pairing warning, not recommended setup",
+    "electron": "26.6.10",
+    "electronNode": "18.16.1",
+    "builder": "24.13.3",
+    "display": "Xorg dummy; cookie-authenticated TCP client on loopback"
+  },
+  "unitTests": {
+    "passed": 155,
+    "failed": 0,
+    "skipped": 0,
+    "projectReads": 8,
+    "projectStore": 13,
+    "projectController": 8,
+    "projectServiceAndClose": 10,
+    "generation": 16,
+    "naiMain": 36,
+    "naiResponse": 19,
+    "offline": 11,
+    "workspace": 14,
+    "naiContract": 10,
+    "networkMode": 10
+  },
+  "checks": {
+    "scopedStrictTypes": true,
+    "scopedLint": true,
+    "testFormatting": true,
+    "mainWorkerRendererBuild": true,
+    "noticeCollection": true,
+    "packageBuild": true,
+    "freshInstall": false,
+    "npmRebuildInPackage": false
+  },
+  "fileOpenCounts": {
+    "syntheticOnly": true,
+    "actualAccountRequests": 0,
+    "note": "Physical-file open counts, not a 256MiB latency benchmark.",
+    "selection": {
+      "physicalPNGFiles": 120,
+      "totalPNGBytes": 3947880,
+      "explicitOpenReads": 120,
+      "previousSelectionReads": 121,
+      "selectedImageReads": 1
+    },
+    "generation": {
+      "existingPhysicalPNGFiles": 119,
+      "externallyMissingAfterOpen": 1,
+      "preparePNGReads": 0,
+      "runOldPNGReads": 0,
+      "selectedNewPNGReads": 1,
+      "syntheticSends": 1,
+      "untouchedMissingReferenceRetained": true
+    },
+    "ambiguousRetry": {
+      "selectedPNGReads": 1,
+      "syntheticSends": 1,
+      "pendingPreservedOnCorruption": true
+    }
+  },
+  "countInterpretation": "Generation fixture initially writes119 unique physical PNGs; explicit open verifies them, then one is removed externally. prepare/run sees119 manifest references and118 physical old PNGs; it reads none of those PNGs. This demonstrates the documented metadata-only preflight policy, not a full-integrity guarantee.",
+  "productionUI": {
+    "reports": [
+      {
+        "pid": 23,
+        "phase": "create",
+        "ready": true,
+        "checks": [
+          "save/prepare and unconfirmed button send zero requests; visible confirmation fixes request seed/settings",
+          "actual Electron session transport accepts unknown MIME ZIP, worker persists original alpha/metadata PNG, renderer decodes it",
+          "in-flight cancel reports possible server processing, preserves input and prior PNG, no automatic retry",
+          "post-response storage fault retains result; explicit new-project save preserves original lock/PNG and adds the received PNG without a fourth request",
+          "first response diagnostic contains only sanitized MIME/state/status/version in private profile",
+          "390px layout probe (test-only window minimum override) has no horizontal overflow"
+        ],
+        "loopbackRequests": 3,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 116,
+        "phase": "reopen",
+        "ready": true,
+        "checks": [
+          "new PID reopens the result-only project and decodes byte-identical PNG with no generation request"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 208,
+        "phase": "offline",
+        "ready": true,
+        "checks": [
+          "offline generation refuses prepare before token/network access while saved v2 PNG remains viewable"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      }
+    ],
+    "actualAccountRequests": 0,
+    "transportDestinationRewrittenToLoopback": true
+  },
+  "mockProjectUI": {
+    "reports": [
+      {
+        "phase": "create",
+        "pid": 23,
+        "projectUI": {
+          "checks": [
+            "explicit UI save preserves the edited selected scene through worker IPC",
+            "new/open dirty guard cancels without losing input and explicit discard restores saved input",
+            "busy save keeps the current input and explicit new copy leaves the original lock untouched",
+            "actual native close waits for unsaved decision; cancel retains the live window",
+            "visible history recovery creates a new copy while the corrupt source stays byte-identical",
+            "390px controls and dialogs stay within the window width"
+          ],
+          "closeWithSave": true
+        },
+        "nativeQuitObserved": true,
+        "ready": true,
+        "project": "오프라인 예제",
+        "offline": true,
+        "mock": true,
+        "singleInstanceLockSimulated": true,
+        "externalRequests": [],
+        "rendererErrors": []
+      },
+      {
+        "phase": "reopen",
+        "pid": 116,
+        "projectUI": {
+          "checks": [
+            "new PID opens saved three-scene input through the project UI"
+          ],
+          "nativeCloseRequested": true
+        },
+        "nativeQuitObserved": true,
+        "ready": true,
+        "project": "오프라인 예제",
+        "offline": true,
+        "mock": true,
+        "singleInstanceLockSimulated": true,
+        "externalRequests": [],
+        "rendererErrors": []
+      }
+    ],
+    "actualAccountRequests": 0,
+    "syntheticOnly": true
+  },
+  "packagedUI": {
+    "phase": "create",
+    "ready": true,
+    "checks": [
+      "save/prepare and unconfirmed button send zero requests; visible confirmation fixes request seed/settings",
+      "actual Electron session transport accepts unknown MIME ZIP, worker persists original alpha/metadata PNG, renderer decodes it",
+      "in-flight cancel reports possible server processing, preserves input and prior PNG, no automatic retry",
+      "post-response storage fault retains result; explicit new-project save preserves original lock/PNG and adds the received PNG without a fourth request",
+      "first response diagnostic contains only sanitized MIME/state/status/version in private profile",
+      "390px layout probe (test-only window minimum override) has no horizontal overflow"
+    ],
+    "loopbackRequests": 3,
+    "actualAccountRequests": 0,
+    "externalRequests": [],
+    "rendererErrors": [],
+    "singleInstanceLockSimulated": true,
+    "nativeQuitObserved": true,
+    "packageContext": {
+      "isPackaged": true,
+      "archiveUnchanged": true,
+      "profileIsolated": true,
+      "inspectorInjectedHarness": true
+    }
+  },
+  "archive": {
+    "workers": [
+      {
+        "path": "dist/main/projectWorker.js",
+        "unpacked": false
+      }
+    ],
+    "archiveSHA256": "d83000d105ab7688d55d6b034926c26a78bc95540e135b0e1c039231dcdff611"
+  },
+  "packageNotices": {
+    "requiredResourcesPresent": [
+      "LICENSES/electron-react-boilerplate.txt",
+      "CREDITS.md",
+      "THIRD_PARTY_NOTICES/THIRD_PARTY_NOTICES.txt",
+      "THIRD_PARTY_NOTICES/index.json",
+      "THIRD_PARTY_NOTICES/APP_LICENSE_STATUS.md"
+    ],
+    "noticeCopiesVerified": 250,
+    "bundlePackageOccurrencesIndexed": 143,
+    "copiedRuntimePackagesIndexed": 112,
+    "runtimeIdentityBasis": "name/version/license/author/repository (builder strips scripts and other build metadata)",
+    "unresolvedNoticeFiles": [
+      {
+        "root": "node_modules/@react-dnd/invariant",
+        "name": "@react-dnd/invariant",
+        "version": "4.0.2",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "node_modules/@react-dnd/shallowequal",
+        "name": "@react-dnd/shallowequal",
+        "version": "4.0.2",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "release/app/node_modules/batch-cluster/types/chai-withintoleranceof",
+        "name": "@types/chai-withintoleranceof",
+        "version": "0.0.1",
+        "declaredLicense": null
+      },
+      {
+        "root": "release/app/node_modules/github-from-package/example",
+        "name": "beep-boop",
+        "version": "1.2.3",
+        "declaredLicense": null
+      },
+      {
+        "root": "release/app/node_modules/browserify-zlib",
+        "name": "browserify-zlib",
+        "version": "0.1.4",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "release/app/node_modules/is-gzip",
+        "name": "is-gzip",
+        "version": "1.0.0",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "src/native",
+        "name": "native",
+        "version": "1.0.0",
+        "declaredLicense": "ISC"
+      },
+      {
+        "root": "node_modules/react-dnd-preview",
+        "name": "react-dnd-preview",
+        "version": "8.1.2",
+        "declaredLicense": "MIT"
+      }
+    ],
+    "allIdentifiedPackagesHaveNoticeFiles": false,
+    "completeRedistributionReview": false
+  },
+  "limitations": [
+    "No actual account requests or real token/keyring tests",
+    "No Windows/macOS or actual singleton lock verification",
+    "File-open counts were measured in synthetic core tests, not instrumented across Electron/ASAR",
+    "No256MiB latency benchmark or event-loop delay measurement",
+    "Full repository tsc retains known TS2688; only scoped strict check passed",
+    "Package smoke uses loopback inspector to inject harness; singleton and390px minimum-size behavior are test substitutions",
+    "No repeated real generation queue, automatic latest-revision append or server cost calculation implemented",
+    "Existing8 unresolved notice records are preserved; notice presence/hash checks do not certify complete redistribution review"
+  ]
+}

@@ -229,6 +229,25 @@ export class ProjectStore {
     );
   }
 
+  // Internal metadata read: validate the manifest, but leave PNG verification to the requested operation.
+  readManifest(id: string): ProjectSnapshot {
+    return io(() =>
+      this.readSnapshot(id, path.join(this.folder(id), 'project.json'), false),
+    );
+  }
+
+  image(id: string, imageId: string): Uint8Array {
+    return io(() => {
+      projectId(imageId);
+      const snapshot = this.readManifest(id);
+      const image = snapshot.project.images.find((item) => item.id === imageId);
+      projectCheck(image, 'PROJECT_NOT_FOUND');
+      const bytes = this.readPNG(id, image.sha256);
+      projectCheck(bytes.length === image.pngBytes, 'PROJECT_CORRUPT');
+      return bytes;
+    });
+  }
+
   private createSnapshot(
     content: ProjectContent,
     images: WorkspaceProject['images'],
@@ -344,7 +363,7 @@ export class ProjectStore {
     revision: string,
     value?: unknown,
   ): ProjectSnapshot {
-    const snapshot = this.open(id);
+    const snapshot = this.readManifest(id);
     projectCheck(snapshot.revision === revision, 'PROJECT_CONFLICT');
     projectCheck(
       !fs.existsSync(path.join(this.folder(id), 'write.lock')),

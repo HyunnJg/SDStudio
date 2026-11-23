@@ -340,3 +340,17 @@
 - 편집 초안의 square가 실제512px을 뜻하지 않으므로, 결과에 binding.id=nai-v45-basic512-v1 및 인증 없는 실제 body SHA-256을 추가한다. 이를 쓰는 명시적 PNG 결과 저장에서만 manifest **v2**로 올린다. v1 읽기·직전 v1 이력 복구를 유지하고 기존 copy/recover가 binding/PNG를 보존한다. v1-only 이전 앱이 v2를 거부하는 차이는 확인창에 알린다. 물리 projects-v1 폴더와 독립된 manifest 버전이다.
 - 첫 응답의 정제 MIME/state·HTTP 상태·진단 버전만 private wx/0600 first-response.v1.json에 best effort로 남긴다. 원시 헤더/본문·토큰·프롬프트를 진단에 넣지 않는다. **실제 NovelAI MIME은 여전히 미확인**이며 이번 테스트의 binary/octet-stream은 합성 루프백 값이다.
 - [검증](validation/2026-11-22-workspace-generation.md): 단위146, 실제 새 UI3PID·8체크/ASAR 패키지6체크, 기존 mock17·프로젝트 UI7·bridge6. 실제 계정 요청0. singleton/전송 목적지·좁은 폭의 테스트 대체와 Windows/macOS·실제 계정/키링·전체 tsc·일반 배포 한계를 구분한다. [사용/오류/버전](WORKSPACE_GENERATION.md).
+
+
+## D-042. 전체 PNG 검사는 열기·복사·복구, 선택과 생성 준비는 작업별 검사
+
+- 결정일: 2026-11-23 (Asia/Seoul). PR #21 검토의 두 읽기 비용 의견을 채택한다. 기준 main `23d4c6a`, [처리](reviews/2026-11-23-pr21-followup.md).
+- 명시적 open/copy/recover는 모든 참조 PNG의 해시·크기를 검사한다. 일반 save는 D-039대로 manifest만 검사한다. main-only readManifest는 기존 schema/version/UUID/JSON 크기·경로 검사를 그대로 거치고 PNG 본문은 읽지 않는다.
+- generationSnapshot은 readManifest로 리비전·남은 잠금·이력/이미지/JSON 한도를 확인한다. 실제 addPNG는 기존 직렬 worker·기대 리비전·배타 잠금·신규 PNG 구조/CRC/크기/해시 검사를 유지한다. prepare/run이 모든 기존 PNG의 현재 무결성을 증명하지는 않는다.
+- image(project UUID, image UUID)는 worker 안에서 manifest 참조를 찾은 뒤 선택된 파일만 읽어 SHA-256·기록 크기를 확인한다. 선택 파일이 없거나 다르거나 경로 검사를 통과하지 못하면 반환하지 않는다. 신규 renderer projects IPC·임의 경로·PNG 쓰기 권한은 추가하지 않는다.
+- 저장 응답이 모호해 retrySave가 동일 UUID의 기존 결과를 찾으면 해당 PNG만 검증한 후 pending을 해제한다. 그 파일이 손상됐으면 메모리 결과를 보존하며 네트워크는 재전송하지 않는다.
+- 화면은 이미 반환된 ProjectSnapshot의 images 복사본을 ProjectController에 보관한다. 리비전마다 전체 open을 추가 호출하지 않는다. 이 메타데이터 보유는 파일 검증 결과의 캐시가 아니다.
+- 외부에서 열어 둔 프로젝트의 다른 PNG를 삭제/손상시켜도 유효한 PNG 선택·manifest 검사·신규 결과 추가는 전체 재검사를 하지 않는다. 손상된 참조는 보존하고, 다음 명시적 open/copy/recover는 여전히 거부한다. 이 변경은 같은 사용자 권한 외부 프로세스에 대한 샌드박스를 추가하지 않는다.
+- 새 씬의 random 기본값은 이미 구현돼 있었다. 스크린샷의 fixed0은 테스트가 선택한 값이며 기존 저장 입력을 바꾸지 않는다.
+- P1-02b는 별도 후속: 확인창 총 요청 수·설정 요약, 예약/설정 변경 시 재확인, 단일 main 실행 경로·중지·실패/pending 복구를 완료 기준에 둔다. 최신 리비전으로 자동 append할지는 입력 보존·충돌/중복 검사와 함께 결정한다. 이번에 반복 큐나 새 비용 계산을 연결하지 않는다.
+- [검증](validation/2026-11-23-project-reads.md): 120개 서로 다른 물리 PNG에서 기존 선택121회→선택1회. 생성 preflight의 기존 PNG 읽기0회. 이는 파일 open 횟수이며 256 MiB 프로젝트의 실시간 지연 측정이 아니다.

@@ -14,7 +14,7 @@ import type {
   GenerationFailure,
   GeneratedProject,
 } from '../../workspaceGeneration';
-import type { ProjectClient, ProjectImage } from '../../workspaceProject';
+import type { ProjectClient } from '../../workspaceProject';
 import { ProjectController } from '../projects/projectController';
 import type { WorkspaceState, WorkspaceDraft } from '../preview/workspaceDraft';
 import { selectWorkspaceScene } from '../preview/workspaceDraft';
@@ -101,7 +101,7 @@ export default function ConnectedWorkspace({
   const [storageStopped, setStorageStopped] = useState(false);
   const [active, setActive] = useState(false);
   const [message, setMessage] = useState('');
-  const [images, setImages] = useState<ProjectImage[]>([]);
+  const images = view.imageRecords;
   const [selected, setSelected] = useState('');
   const [imageURL, setImageURL] = useState('');
   const busy = !!phase || pending || active;
@@ -134,38 +134,12 @@ export default function ConnectedWorkspace({
     };
   }, [client]);
   useEffect(() => {
-    let alive = true;
-    if (!view.id) {
-      setImages([]);
-      setSelected('');
-      return () => {
-        alive = false;
-      };
-    }
-    void projects
-      .open(view.id)
-      .then((reply) => {
-        if (!alive) return undefined;
-        if (reply.ok) {
-          setImages(reply.value.project.images);
-          setSelected((previous) =>
-            reply.value.project.images.some((i) => i.id === previous)
-              ? previous
-              : (reply.value.project.images.at(-1)?.id ?? ''),
-          );
-        } else
-          setMessage(
-            'PNG 기록을 읽지 못했습니다. 프로젝트 열기·복구에서 상태를 확인하세요.',
-          );
-        return undefined;
-      })
-      .catch(() => {
-        if (alive) setMessage('프로젝트 기록을 읽지 못했습니다.');
-      });
-    return () => {
-      alive = false;
-    };
-  }, [projects, view.id, view.revision]);
+    setSelected((previous) =>
+      images.some((image) => image.id === previous)
+        ? previous
+        : (images.at(-1)?.id ?? ''),
+    );
+  }, [images]);
   useEffect(() => {
     let alive = true;
     let url = '';

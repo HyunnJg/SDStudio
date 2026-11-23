@@ -4,6 +4,7 @@ import type {
   ProjectContent,
   ProjectSnapshot,
   ProjectListing,
+  ProjectImage,
   ProjectErrorCode,
   ProjectReply,
 } from '../../workspaceProject';
@@ -41,6 +42,7 @@ export interface ProjectView {
   revision?: string;
   baseline: string;
   images: number;
+  imageRecords: ProjectImage[];
   operation: string;
   message: string;
   error?: ProjectErrorCode;
@@ -71,6 +73,7 @@ export class ProjectController {
       name: '새 프로젝트',
       baseline: '',
       images: 0,
+      imageRecords: [],
       operation: '',
       message: '입력·씬은 명시적으로 저장합니다. 예제 SVG·대기열은 임시입니다.',
       panel: false,
@@ -149,6 +152,7 @@ export class ProjectController {
       id: snapshot.project.id,
       revision: snapshot.revision,
       images: snapshot.project.images.length,
+      imageRecords: structuredClone(snapshot.project.images),
       baseline,
       message:
         '입력·씬 저장됨 · 기존 PNG 기록 유지 · 대기열은 저장하지 않습니다.',
@@ -275,6 +279,7 @@ export class ProjectController {
         revision: undefined,
         name: '새 프로젝트',
         images: 0,
+        imageRecords: [],
         panel: false,
         error: undefined,
         baseline: JSON.stringify({

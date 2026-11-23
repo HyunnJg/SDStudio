@@ -31,7 +31,7 @@ V3 Session.version=1과 새 format/version은 관계없다. 같은 파일의 자
 ## 쓰기·충돌·복구
 
 1. UUID/리비전/내용을 검사하고 `wx` 잠금을 얻는다. 다른 저장이나 남은 잠금이 있으면 PROJECT_BUSY다.
-2. 현재 프로젝트·참조 PNG의 해시/크기를 확인하고 호출자가 읽은 리비전과 비교한다. 다르면 PROJECT_CONFLICT로 거부한다. 목록은 manifest 메타데이터만 검사하며 모든 PNG 무결성은 open 때 검사한다.
+2. 현재 manifest를 검사하고 호출자가 읽은 리비전과 비교한다. 다르면 PROJECT_CONFLICT로 거부한다. D-039/D-042의 일반 save·생성 준비는 기존 PNG 본문을 다시 검사하지 않는다. 목록은 manifest 메타데이터만 검사하며 모든 PNG 무결성은 명시적 open/copy/recover 때 검사한다.
 3. 수정 전 manifest를 history에 동일 바이트로 보존하고 새 manifest를 임시 파일에 `wx`/0600으로 쓴 뒤 fsync·rename한다. 정상 실패 경로는 원본·이력을 유지하고 잠금/임시 파일을 정리한다.
 4. Linux에서 신규 폴더와 이력/이미지/manifest 디렉터리도 fsync한다. Windows는 이 방식의 디렉터리 fsync를 건너뛴다. Windows rename/ACL과 전원 차단 내구성은 실측하지 않았다. rename 뒤 디렉터리 fsync/잠금 정리 등이 실패하면 오류여도 교체됐을 수 있으므로 다시 읽어 리비전을 확인해야 한다.
 5. 손상·미지원 버전·한도 위반이면 읽기/저장을 거부하고 원본을 보존한다. 자동 이력 선택·자동 파일 교체는 없다. `recover(id, revision)`은 사용자가 고른 유효한 이력과 PNG를 검증해 **새 UUID의 복사본**을 만든다. 손상/상위 버전인 원본은 그대로 둔다.
@@ -58,7 +58,7 @@ PNG add/read는 **메인 내부 메서드**뿐이다. 렌더러가 임의 PNG·�
 
 이력 한도·잔류 잠금은 **새 복사본으로 계속**할 수 있다. 이 copy는 현재 편집을 전달하되 기대 리비전과 원본 PNG를 검증해 새 UUID를 만든다. 잠금/이력은 지우지 않는다. PNG 손상/충돌로 복사도 안 되면 현재 편집을 “입력만 새로 저장”할 수 있으며, 원본의 분실 이미지를 복구했다고 주장하지 않는다. 열지 못한 손상 프로젝트에서 입력을 자동 추출하는 기능은 아니다. 이력 목록의 해시 ID는 시간순 표시가 아니다.
 
-운영 앱의 프로젝트 IPC는 ProjectService → 고정 worker entry → 기존 ProjectStore를 호출한다. 디스크/해시 작업은 별도 Node worker에서 직렬 실행하고 메인 이벤트 루프를 점유하지 않는다. worker 큐는16건이며 오류/종료 후 자동 재전송하지 않는다. unit 도구/메인 전용 addPNG는 여전히 동기 코어를 직접 호출할 수 있다. 실제 생성 PNG 쓰기를 붙일 때도 worker 경계를 확장하고 검증해야 한다. 현재 서비스가 그 생성 I/O까지 비동기화한 것은 아니다.
+운영 앱의 프로젝트 IPC는 ProjectService → 고정 worker entry → 기존 ProjectStore를 호출한다. 디스크/해시 작업은 별도 Node worker에서 직렬 실행하고 메인 이벤트 루프를 점유하지 않는다. worker 큐는16건이며 오류/종료 후 자동 재전송하지 않는다. unit 도구/메인 전용 addPNG는 여전히 동기 코어를 직접 호출할 수 있다. 실제 생성 PNG 쓰기를 붙일 때도 worker 경계를 확장하고 검증해야 한다. 이 D-039 시점의 미연결 생성 I/O는 후속 D-041에서 worker addPNG로 연결했다.
 
 공유 프로젝트 대화상자는 V3 화면에서도 표시된다. 다른 프로젝트로 전환할 때나 실제 창 닫기/연결 모드 재시작 전에는 미저장 입력의 저장·저장하지 않기·취소를 묻는다. 프로젝트 작업/예약·실행 중에는 전환하지 않는다. 저장 후 새 편집이 들어왔다면 계속 미저장이다. native close는 V3 saveAll까지 기다린 뒤 신뢰 프레임의 finish가 있어야 진행한다. 사용자 확인을 거친 재시작만 기존 networkMode.restarting 우회를 사용한다.
 
@@ -76,6 +76,20 @@ PR19 기준과 변경 후의 실제 Linux 패키지에서 ASAR 내부 worker가 
 
 실제 생성이 연결된 현재 범위/실패 복구는 [WORKSPACE_GENERATION.md](WORKSPACE_GENERATION.md)에 정리했다. 프로젝트를 읽거나 입력만 저장한다고 v1을 자동 승격하지 않는다. 생성 결과의 `binding={id, requestHash}`를 처음 명시적으로 추가할 때 v2로 쓰며 reader는 v1/v2를 함께 지원한다. 이전 v1-only reader는 v2에 PROJECT_VERSION을 반환한다. 직전 v1 스냅샷은 기존 불변 이력에 남고 새 복사본으로 복구할 수 있다. PNG/메타데이터·binding은 copy/recover에 함께 보존한다. 기존 물리 projects-v1 경로는 바꾸지 않는다.
 
-ProjectService worker는 main-only generationSnapshot/addPNG/readPNG를 추가로 실행한다. generationSnapshot은 참조 PNG·리비전/잠금/이력·이미지/JSON 한도를 전송 전에 검사하고 실제 write 시에도 다시 검사한다. addPNG의 stable image UUID는 저장 응답이 유실/모호해도 동일 결과를 중복 추가하지 않기 위한 것이다. renderer projects IPC에 PNG 쓰기를 열지 않는다. generation image IPC는 manifest 참조 image UUID만 받아 읽고 PNG 바이트를 반환한다. 로컬 PNG 읽기는 오프라인에서도 가능하다.
+ProjectService worker는 main-only generationSnapshot/addPNG/readPNG를 추가로 실행하며 D-042에서 readManifest/image를 확장했다. generationSnapshot은 manifest·리비전/잠금/이력·이미지/JSON 한도를 전송 전에 검사하고 실제 write 시에도 다시 검사한다. 기존 PNG 전체를 읽는 검사는 명시적 open/copy/recover에 유지한다. addPNG의 stable image UUID는 저장 응답이 유실/모호해도 동일 결과를 중복 추가하지 않기 위한 것이다. renderer projects IPC에 PNG 쓰기를 열지 않는다. generation image IPC는 manifest 참조 image UUID만 받아 읽고 PNG 바이트를 반환한다. 로컬 PNG 읽기는 오프라인에서도 가능하다.
 
 새 결과의 draft는 논리 편집 초안이며 실제 픽셀 수의 유일한 근거가 아니다. 고정 binding.id와 body hash 및 전송 seed로512px 요청을 구분한다. PNG 안의 모델·seed 의미를 추출/검증하거나 서버가 요청을 어떻게 해석했는지 증명한 것은 아니다. 메모리 pending 결과는 프로세스 종료를 견디는 journal이 아니므로 저장-only 복구/명시적 새 프로젝트 저장으로 먼저 보관한다.
+
+
+## 작업별 읽기 경계 (D-042)
+
+| 동작 | manifest 검사 | 기존 PNG 본문 검사 |
+| --- | --- | --- |
+| 명시적 open/copy/recover | 전체 schema·버전·경로 | 모든 참조 파일의 해시·크기 |
+| list/save/readManifest | 해당 manifest·필요한 리비전/잠금/한도 | 전체 재검사 없음 |
+| generationSnapshot (prepare/run) | schema·리비전·잠금·이력/이미지/JSON 한도 | 0개 |
+| image(UUID, UUID) | manifest 안의 실제 이미지 참조 | 선택 파일 1개 해시·기록 크기 |
+| addPNG | 기대 리비전·잠금·한도 | 새 PNG 구조/CRC/한도, 같은 해시의 기존 파일이 있으면 동일성 검사 |
+| retrySave의 이미 커밋된 결과 | 최신 manifest·결과 UUID/해시 대응 | 그 결과 파일 1개를 검사한 뒤에만 pending 해제 |
+
+파일을 외부에서 바꿨는지 추적하는 전체 무결성 캐시는 도입하지 않았다. 열어 둔 프로젝트의 다른 PNG가 삭제되면 선택/준비는 계속할 수 있으나 해당 참조를 제거하거나 복구하지 않고, 다음 전체 open/copy/recover에서 오류가 난다. 선택한 파일의 오류는 계속 거부한다. renderer는 기존 스냅샷의 이미지 기록을 복사해 사용하고, 기록 표시 때문에 별도 open을 하지 않는다. [파일 읽기 횟수 검증](validation/2026-11-23-project-reads.md).
