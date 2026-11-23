@@ -87,6 +87,26 @@ const electronHandler = {
       ipcRenderer.invoke('workspace-generation-prepare', id, revision, sceneId),
     run: (ticket, confirmed) =>
       ipcRenderer.invoke('workspace-generation-run', ticket, confirmed),
+    prepareQueue: (id, revision, sceneIds, repeats) =>
+      ipcRenderer.invoke(
+        'workspace-generation-prepare-queue',
+        id,
+        revision,
+        sceneIds,
+        repeats,
+      ),
+    prepareRemaining: (queueId, id, revision) =>
+      ipcRenderer.invoke(
+        'workspace-generation-prepare-remaining',
+        queueId,
+        id,
+        revision,
+      ),
+    runQueue: (ticket, confirmed) =>
+      ipcRenderer.invoke('workspace-generation-run-queue', ticket, confirmed),
+    clearQueue: () => ipcRenderer.invoke('workspace-generation-clear-queue'),
+    queueStatus: (revision) =>
+      ipcRenderer.invoke('workspace-generation-queue-status', revision),
     cancel: () => ipcRenderer.invoke('workspace-generation-cancel'),
     retrySave: (asNewProject) =>
       ipcRenderer.invoke('workspace-generation-retry-save', asNewProject),

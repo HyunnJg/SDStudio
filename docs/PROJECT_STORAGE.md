@@ -93,3 +93,6 @@ ProjectService worker는 main-only generationSnapshot/addPNG/readPNG를 추가�
 | retrySave의 이미 커밋된 결과 | 최신 manifest·결과 UUID/해시 대응 | 그 결과 파일 1개를 검사한 뒤에만 pending 해제 |
 
 파일을 외부에서 바꿨는지 추적하는 전체 무결성 캐시는 도입하지 않았다. 열어 둔 프로젝트의 다른 PNG가 삭제되면 선택/준비는 계속할 수 있으나 해당 참조를 제거하거나 복구하지 않고, 다음 전체 open/copy/recover에서 오류가 난다. 선택한 파일의 오류는 계속 거부한다. renderer는 기존 스냅샷의 이미지 기록을 복사해 사용하고, 기록 표시 때문에 별도 open을 하지 않는다. [파일 읽기 횟수 검증](validation/2026-11-23-project-reads.md).
+
+
+D-043의 실제 반복 큐는 같은 addPNG를 직렬로 호출한다. 유효한 응답은 먼저 메모리 pending에 두며, 큐 결과는 최신 manifest 리비전으로 결과만 append해 최신 입력을 보존한다. 그 읽기~쓰기 사이 충돌이면 RESULT_SAVE_FAILED로 중지해 명시적 저장-only 복구를 제공한다. 다음 요청 전 저장 입력 fingerprint가 달라지면 전송하지 않는다. v2 결과/원본 PNG·내용 해시 이력과 D-042 검사 범위는 유지하며, 큐 자체는 프로젝트 manifest에 저장하지 않는다.

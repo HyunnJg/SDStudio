@@ -13,6 +13,9 @@ import type {
   GenerationReply,
   GenerationFailure,
   GeneratedProject,
+  GenerationQueuePlan,
+  GenerationQueueState,
+  GenerationQueueStatus,
 } from '../../workspaceGeneration';
 import type { ProjectClient } from '../../workspaceProject';
 import { ProjectController } from '../projects/projectController';
@@ -20,6 +23,7 @@ import type { WorkspaceState, WorkspaceDraft } from '../preview/workspaceDraft';
 import { selectWorkspaceScene } from '../preview/workspaceDraft';
 import { runtimeOptions } from '../runtime';
 import WorkspaceProjectControls from './WorkspaceProjectControls';
+import ConnectedQueueControls from './ConnectedQueueControls';
 import './PreviewWorkspace.css';
 import './ConnectedWorkspace.css';
 
@@ -42,6 +46,7 @@ export function generationMessage(error: unknown): string {
       '저장된 토큰 형식을 읽지 못했습니다. API 토큰 설정에서 복구 안내를 확인하세요.',
     CONFIRMATION_EXPIRED:
       '확인이 만료됐거나 이미 사용됐습니다. 입력 저장 후 새 설정을 확인하세요.',
+    QUEUE_LIMIT: '예약 최대60건·프로젝트 이미지120장 한도를 확인하세요.',
     GENERATION_BUSY: '진행 중 요청이나 저장하지 못한 결과를 먼저 처리하세요.',
     CANCELLED: '취소했습니다.',
     TIMEOUT: '응답 기한을 넘었습니다.',
@@ -95,6 +100,12 @@ export default function ConnectedWorkspace({
   const operation = useRef(false);
   const [phase, setPhase] = useState('');
   const [plan, setPlan] = useState<GenerationPlan>();
+  const [queuePlan, setQueuePlan] = useState<GenerationQueuePlan>();
+  const [queue, setQueue] = useState<GenerationQueueState>();
+  const [sceneIds, setSceneIds] = useState<string[]>([]);
+  const [repeats, setRepeats] = useState('2');
+  const revisionRef = useRef(view.revision);
+  revisionRef.current = view.revision;
   const [confirmed, setConfirmed] = useState(false);
   const [discardConfirmed, setDiscardConfirmed] = useState(false);
   const [pending, setPending] = useState(false);
@@ -106,15 +117,35 @@ export default function ConnectedWorkspace({
   const [imageURL, setImageURL] = useState('');
   const busy = !!phase || pending || active;
   const locked = busy || projectLocked;
+  useEffect(() => {
+    setSceneIds([]);
+  }, [view.id]);
   useEffect(() => setDiscardConfirmed(false), [pending]);
   useEffect(() => {
     onBusyChange(busy);
   }, [busy, onBusyChange]);
   useEffect(() => {
     let alive = true;
+    let refreshing = false;
     const refresh = async () => {
+      if (refreshing) return;
+      refreshing = true;
       try {
         const status = unwrap(await client.status());
+        const knownRevision = revisionRef.current;
+        const queued = unwrap(await client.queueStatus(knownRevision));
+        if (alive) {
+          setQueue(queued.queue);
+          const current = project.getSnapshot();
+          if (
+            queued.latest &&
+            current.id === queued.latest.snapshot.project.id &&
+            current.revision === knownRevision
+          ) {
+            project.acceptGenerated(queued.latest.snapshot);
+            setSelected(queued.latest.imageId);
+          }
+        }
         if (alive) {
           setPending(status.pending);
           setActive(status.active);
@@ -124,6 +155,8 @@ export default function ConnectedWorkspace({
           setMessage(
             '생성 상태를 확인하지 못했습니다. 요청을 다시 보내지 말고 앱 상태를 확인하세요.',
           );
+      } finally {
+        refreshing = false;
       }
     };
     void refresh();
@@ -132,7 +165,7 @@ export default function ConnectedWorkspace({
       alive = false;
       clearInterval(timer);
     };
-  }, [client]);
+  }, [client, project]);
   useEffect(() => {
     setSelected((previous) =>
       images.some((image) => image.id === previous)
@@ -166,6 +199,7 @@ export default function ConnectedWorkspace({
   }, [client, view.id, selected]);
   const patch = (value: Partial<WorkspaceDraft>) => {
     setPlan(undefined);
+    setQueuePlan(undefined);
     setState((previous) => ({
       ...previous,
       draft: { ...previous.draft, ...value },
@@ -228,10 +262,78 @@ export default function ConnectedWorkspace({
     try {
       unwrap(await client.cancel());
       setPlan(undefined);
+      setQueuePlan(undefined);
       setConfirmed(false);
       if (phase === 'confirm') setPhase('');
     } catch (error) {
       setMessage(generationMessage(error));
+    }
+  };
+  const acceptQueue = (value: GenerationQueueStatus) => {
+    setQueue(value.queue);
+    if (
+      value.latest &&
+      value.latest.snapshot.project.id === project.getSnapshot().id
+    ) {
+      project.acceptGenerated(value.latest.snapshot);
+      setSelected(value.latest.imageId);
+    }
+    const error = value.queue?.items.find((item) => item.error)?.error;
+    if (error) {
+      setMessage(generationMessage(error));
+      setPending(!!error.pendingResult);
+      setStorageStopped(error.projectCode === 'PROJECT_SERVICE_STOPPED');
+    } else
+      setMessage(
+        value.queue?.stopped
+          ? '중지했습니다. 미전송 작업은 새 확인 후에만 계속합니다.'
+          : '예약 결과를 PNG 원본과 함께 저장했습니다.',
+      );
+  };
+  const prepareQueue = async (remaining = false) => {
+    if (operation.current) return;
+    operation.current = true;
+    setPhase('save');
+    setMessage('');
+    setPlan(undefined);
+    setQueuePlan(undefined);
+    try {
+      if (!(await project.save())) return;
+      const saved = project.getSnapshot();
+      const prepared = unwrap(
+        await (remaining
+          ? client.prepareRemaining(queue!.id, saved.id!, saved.revision!)
+          : client.prepareQueue(
+              saved.id!,
+              saved.revision!,
+              sceneIds,
+              Number(repeats),
+            )),
+      );
+      setQueuePlan(prepared);
+      setConfirmed(false);
+      setPhase('confirm');
+    } catch (error) {
+      setMessage(generationMessage(error));
+    } finally {
+      operation.current = false;
+      setPhase((previous) => (previous === 'confirm' ? previous : ''));
+    }
+  };
+  const runQueue = async () => {
+    if (operation.current) return;
+    operation.current = true;
+    setPhase('queue-run');
+    setMessage('');
+    const { ticket } = queuePlan!;
+    setQueuePlan(undefined);
+    try {
+      acceptQueue(unwrap(await client.runQueue(ticket, confirmed)));
+    } catch (error) {
+      setMessage(generationMessage(error));
+    } finally {
+      operation.current = false;
+      setPhase('');
     }
   };
   const result = images.find((i) => i.id === selected);
@@ -243,7 +345,7 @@ export default function ConnectedWorkspace({
       <header className="pw-header">
         <div className="pw-brand">
           <strong>SDStudio</strong>
-          <span>V4.5 Full · 기본 1장</span>
+          <span>V4.5 Full · 씬·대기열</span>
         </div>
         <nav>
           <button type="button" onClick={onOpenAuth}>
@@ -329,7 +431,7 @@ export default function ConnectedWorkspace({
             <p>512×512 · 28스텝 · 가이던스5 · Euler ancestral / Karras · 1장</p>
             <p>
               기본 요청 1장 실측을 바탕으로 연결한 범위입니다.
-              캐릭터·V5·와일드카드·반복 예약은 아직 연결하지 않았습니다.
+              캐릭터·V5·와일드카드는 아직 연결하지 않았습니다.
             </p>
             {(state.draft.family !== 'v4.5' ||
               state.draft.characters.some((c) => c.enabled) ||
@@ -405,7 +507,60 @@ export default function ConnectedWorkspace({
               </button>
             </section>
           )}
-          {phase === 'run' && (
+          {queuePlan && (
+            <section
+              className="connected-confirm"
+              aria-label="대기열 실행 전 확인"
+              data-testid="queue-confirm"
+            >
+              <h3>
+                총 {queuePlan.total}회 요청 · 이미지 {queuePlan.total}장
+              </h3>
+              <p>
+                {queuePlan.model} · {queuePlan.width}×{queuePlan.height} ·{' '}
+                {queuePlan.steps}스텝 · 가이던스 {queuePlan.scale} · Euler
+                ancestral / Karras
+              </p>
+              <p>
+                씬·반복·확정 시드는 아래 예약 목록과 같습니다. 입력·예약을
+                바꾸려면 취소 후 새로 확인하세요. 확인은5분·1회용입니다.
+              </p>
+              <p>
+                앱은 비용·무료 여부·Opus 할당량을 계산하지 않습니다. NovelAI
+                웹에서 같은 설정과 총 요청 수의 사용 조건을 확인하세요. 저장
+                공간이 부족하면 실행 중에도 중지될 수 있습니다. PNG 저장 시 v2로
+                기록되어 v1 전용 앱에서는 열 수 없습니다.
+              </p>
+              <ol>
+                {queuePlan.items.map((item) => (
+                  <li key={item.id}>
+                    {item.sceneName} · {item.repeat}회 · 시드 {item.seed}
+                  </li>
+                ))}
+              </ol>
+              <label>
+                <input
+                  type="checkbox"
+                  data-testid="queue-cost-confirm"
+                  checked={confirmed}
+                  onChange={(event) => setConfirmed(event.target.checked)}
+                />
+                총 요청 수와 같은 설정의 웹 비용·사용 조건을 확인했습니다.
+              </label>
+              <button
+                type="button"
+                data-testid="send-live-queue"
+                disabled={!confirmed}
+                onClick={runQueue}
+              >
+                확인한 {queuePlan.total}회 실행
+              </button>
+              <button type="button" onClick={cancel}>
+                취소·예약 변경
+              </button>
+            </section>
+          )}
+          {(phase === 'run' || phase === 'queue-run') && (
             <button
               type="button"
               data-testid="cancel-generation"
@@ -418,6 +573,7 @@ export default function ConnectedWorkspace({
             <section role="alert">
               <p>
                 저장하지 못한 결과가 메모리에 있습니다. 창을 닫으면 사라집니다.
+                새 프로젝트에 보관하면 이전 미전송 예약은 종료됩니다.
               </p>
               <button
                 type="button"
@@ -483,7 +639,9 @@ export default function ConnectedWorkspace({
             </section>
           )}
           <p role="status" data-testid="generation-status">
-            {phase === 'run' ? '전송·응답 검증·저장 중' : message}
+            {phase === 'run' || phase === 'queue-run'
+              ? '전송·응답 검증·저장 중'
+              : message}
           </p>
         </section>
         <section className="connected-results" aria-label="프로젝트 PNG 결과">
@@ -526,6 +684,40 @@ export default function ConnectedWorkspace({
           </div>
         </section>
       </main>
+      <ConnectedQueueControls
+        scenes={state.scenes}
+        selected={sceneIds}
+        repeats={repeats}
+        queue={queue?.projectId === view.id ? queue : undefined}
+        disabled={locked}
+        canPrepare={!runtimeOptions.offline}
+        running={!!queue?.running}
+        canResume={
+          queue?.projectId === view.id &&
+          !!queue?.items.some((item) => item.status === 'pending')
+        }
+        onSelection={(ids) => {
+          setSceneIds(ids);
+          setQueuePlan(undefined);
+        }}
+        onRepeats={(value) => {
+          setRepeats(value);
+          setQueuePlan(undefined);
+        }}
+        onPrepare={() => prepareQueue()}
+        onResume={() => prepareQueue(true)}
+        onStop={cancel}
+        onClear={async () => {
+          try {
+            unwrap(await client.clearQueue());
+            setQueue(undefined);
+            setQueuePlan(undefined);
+          } catch (error) {
+            setMessage(generationMessage(error));
+          }
+        }}
+        onResult={setSelected}
+      />
     </div>
   );
 }

@@ -6,6 +6,10 @@ import type {
   GenerationPlan,
   GenerationCode,
   GeneratedProject,
+  GenerationQueuePlan,
+  GenerationQueueState,
+  GenerationQueueStatus,
+  GenerationFailure,
 } from '../../workspaceGeneration';
 import type { ProjectService } from '../projects/projectService';
 import { NaiError } from './errors';
@@ -37,7 +41,21 @@ interface Pending {
   revision: string;
   input: ProjectImageInput;
   bytes: Uint8Array;
+  queueItemId?: string;
 }
+interface Reservation {
+  state: GenerationQueueState;
+  tasks: Prepared[];
+  fingerprint: string;
+  revision: string;
+}
+const fingerprint = (project: ProjectContent) =>
+  JSON.stringify({
+    name: project.name,
+    selectedSceneId: project.selectedSceneId,
+    scenes: project.scenes,
+  });
+
 interface Options {
   store: Pick<
     ProjectService,
@@ -51,6 +69,16 @@ export class WorkspaceGeneration {
   private prepared?: Prepared;
 
   private pending?: Pending;
+
+  private queue?: Reservation;
+
+  private queueApproval?: {
+    plan: GenerationQueuePlan;
+    reservation: Reservation;
+    expires: number;
+  };
+
+  private latest?: GeneratedProject;
 
   private controller?: AbortController;
 
@@ -86,6 +114,8 @@ export class WorkspaceGeneration {
     this.online();
     this.idle();
     this.prepared = undefined;
+    this.queueApproval = undefined;
+    this.latest = undefined;
     projectId(id);
     projectHash(revision);
     this.working = true;
@@ -154,6 +184,20 @@ export class WorkspaceGeneration {
     this.working = true;
     const controller = new AbortController();
     this.controller = controller;
+    try {
+      return await this.execute(p, controller);
+    } finally {
+      this.controller = undefined;
+      this.working = false;
+    }
+  }
+
+  // Single and repeated generation share the same preflight, transport, pending and persistence path.
+  private async execute(
+    p: Prepared,
+    controller: AbortController,
+    queueItemId?: string,
+  ): Promise<GeneratedProject> {
     let transportStarted = false;
     try {
       const current = await this.options.store.generationSnapshot(
@@ -165,9 +209,12 @@ export class WorkspaceGeneration {
         throw new ProjectError('PROJECT_CONFLICT');
       this.online();
       if (controller.signal.aborted) throw new GenerationError('CANCELLED');
+      if (queueItemId)
+        this.queue!.state.items.find(
+          (item) => item.id === queueItemId,
+        )!.status = 'running';
       transportStarted = true;
       const bytes = await this.options.sendImage(p.body, controller.signal);
-      // A valid completed response is retained even if cancel arrives during persistence.
       this.pending = {
         content: {
           name: current.project.name,
@@ -179,9 +226,22 @@ export class WorkspaceGeneration {
         revision: p.revision,
         input: p.input,
         bytes: Uint8Array.from(bytes),
+        queueItemId,
       };
-      return await this.persist(p.revision);
+      // Queue results append to the latest manifest without replacing its input. A race still fails closed into pending.
+      const revision = queueItemId
+        ? (await this.options.store.readManifest(p.id)).revision
+        : p.revision;
+      return await this.persist(revision);
     } catch (error) {
+      if (this.pending && !(error instanceof GenerationError))
+        throw new GenerationError(
+          'RESULT_SAVE_FAILED',
+          true,
+          undefined,
+          error instanceof ProjectError ? error.code : 'PROJECT_IO',
+          true,
+        );
       if (error instanceof NaiError)
         throw new GenerationError(
           error.code,
@@ -195,10 +255,28 @@ export class WorkspaceGeneration {
       )
         throw new GenerationError('NETWORK', true);
       throw error;
-    } finally {
-      this.controller = undefined;
-      this.working = false;
     }
+  }
+
+  private saved(result: GeneratedProject) {
+    const itemId = this.pending?.queueItemId;
+    if (itemId && this.queue) {
+      if (result.snapshot.project.id !== this.queue.state.projectId) {
+        // An explicit result-only new project ends the old reservation. Its image UUID is not a reference in the old manifest.
+        this.queue = undefined;
+        this.queueApproval = undefined;
+        this.latest = undefined;
+      } else {
+        const item = this.queue.state.items.find((i) => i.id === itemId)!;
+        item.status = 'done';
+        item.imageId = result.imageId;
+        delete item.error;
+        this.latest = result;
+        this.queue.revision = result.snapshot.revision;
+      }
+    }
+    this.pending = undefined;
+    return result;
   }
 
   private async persist(revision: string): Promise<GeneratedProject> {
@@ -213,8 +291,7 @@ export class WorkspaceGeneration {
       );
       const imageId =
         snapshot.project.images[snapshot.project.images.length - 1].id;
-      this.pending = undefined;
-      return { snapshot, imageId };
+      return this.saved({ snapshot, imageId });
     } catch (error) {
       throw new GenerationError(
         'RESULT_SAVE_FAILED',
@@ -252,8 +329,7 @@ export class WorkspaceGeneration {
         )
           throw new ProjectError('PROJECT_CORRUPT');
         await this.options.store.image(this.pending.id, existing.id); // Validate only this already-committed result before releasing the retained PNG.
-        this.pending = undefined;
-        return { snapshot, imageId: existing.id };
+        return this.saved({ snapshot, imageId: existing.id });
       }
       return await this.persist(snapshot.revision);
     } catch (error) {
@@ -270,13 +346,314 @@ export class WorkspaceGeneration {
     }
   }
 
+  clearQueue() {
+    this.idle();
+    this.queueApproval = undefined;
+    this.queue = undefined;
+    this.latest = undefined;
+  }
+
+  queueStatus(
+    knownRevision?: string,
+    includeFinished = false,
+  ): GenerationQueueStatus {
+    if (knownRevision !== undefined) projectHash(knownRevision);
+    return {
+      ...(this.queue ? { queue: structuredClone(this.queue.state) } : {}),
+      ...(this.latest &&
+      (this.queue?.state.running || includeFinished) &&
+      this.latest.snapshot.revision !== knownRevision
+        ? { latest: structuredClone(this.latest) }
+        : {}),
+    };
+  }
+
+  private approve(reservation: Reservation): GenerationQueuePlan {
+    const items = reservation.state.items.filter(
+      (item) => item.status === 'pending',
+    );
+    if (!items.length) throw new GenerationError('INVALID_INPUT');
+    const plan: GenerationQueuePlan = {
+      ticket: randomUUID(),
+      queueId: reservation.state.id,
+      total: items.length,
+      items: structuredClone(items),
+      model: 'nai-diffusion-4-5-full',
+      width: 512,
+      height: 512,
+      steps: 28,
+      scale: 5,
+    };
+    this.queueApproval = {
+      plan,
+      reservation,
+      expires: Date.now() + 5 * 60 * 1000,
+    };
+    return structuredClone(plan);
+  }
+
+  async prepareQueue(
+    id: string,
+    revision: string,
+    sceneIds: string[],
+    repeats: number,
+  ): Promise<GenerationQueuePlan> {
+    this.online();
+    this.idle();
+    this.prepared = undefined;
+    this.queueApproval = undefined;
+    projectId(id);
+    projectHash(revision);
+    if (
+      !Array.isArray(sceneIds) ||
+      !sceneIds.length ||
+      sceneIds.length > 60 ||
+      new Set(sceneIds).size !== sceneIds.length ||
+      !Number.isInteger(repeats) ||
+      repeats < 1
+    )
+      throw new GenerationError('INVALID_INPUT');
+    if (repeats > 60 || sceneIds.length * repeats > 60)
+      throw new GenerationError('QUEUE_LIMIT');
+    if (
+      sceneIds.some(
+        (sceneId) => typeof sceneId !== 'string' || sceneId.length > 128,
+      )
+    )
+      throw new GenerationError('INVALID_INPUT');
+    this.working = true;
+    try {
+      const snapshot = await this.options.store.generationSnapshot(
+        id,
+        revision,
+      );
+      const scenes = snapshot.project.scenes.filter((scene) =>
+        sceneIds.includes(scene.id),
+      );
+      if (scenes.length !== sceneIds.length)
+        throw new GenerationError('INVALID_INPUT');
+      if (snapshot.project.images.length + scenes.length * repeats > 120)
+        throw new GenerationError('QUEUE_LIMIT');
+      const tasks: Prepared[] = [];
+      const items: GenerationQueueState['items'] = [];
+      const seeds = new Set<number>();
+      let bodyBytes = 0;
+      for (let repeat = 1; repeat <= repeats; repeat += 1) {
+        for (let sceneIndex = 0; sceneIndex < scenes.length; sceneIndex += 1) {
+          const scene = scenes[sceneIndex];
+          let bound;
+          try {
+            bound = bindBasicGeneration(scene);
+          } catch (error) {
+            throw new GenerationError(
+              error instanceof Error && error.message === 'INVALID_INPUT'
+                ? 'INVALID_INPUT'
+                : 'UNSUPPORTED_DRAFT',
+            );
+          }
+          let { seed } = bound.input;
+          if (scene.draft.seedMode === 'random') {
+            while (seeds.has(seed)) seed = (seed + 1) % 4294967296;
+            seeds.add(seed);
+            bound.input.seed = seed;
+            bound.request.parameters.seed = seed;
+          }
+          const body = Uint8Array.from(
+            Buffer.from(JSON.stringify(bound.request)),
+          );
+          bodyBytes += body.byteLength;
+          if (bodyBytes > 8 * 1024 * 1024)
+            throw new GenerationError('QUEUE_LIMIT');
+          bound.input.binding = {
+            id: 'nai-v45-basic512-v1',
+            requestHash: createHash('sha256').update(body).digest('hex'),
+          };
+          const task = {
+            id,
+            revision,
+            input: bound.input,
+            body,
+            expires: 0,
+            plan: {
+              ticket: randomUUID(),
+              model: bound.request.model,
+              seed,
+              width: 512 as const,
+              height: 512 as const,
+              steps: 28 as const,
+              scale: 5 as const,
+              samples: 1 as const,
+            },
+          };
+          tasks.push(task);
+          items.push({
+            id: task.plan.ticket,
+            sceneId: scene.id,
+            sceneName: scene.name,
+            repeat,
+            seed,
+            status: 'pending',
+          });
+        }
+      }
+      // Bind all scenes before making the new reservation visible. The final preflight rechecks the saved revision.
+      await this.options.store.generationSnapshot(id, revision, tasks[0].input);
+      const reservation: Reservation = {
+        state: {
+          id: randomUUID(),
+          projectId: id,
+          running: false,
+          stopped: false,
+          items,
+        },
+        tasks,
+        fingerprint: fingerprint(snapshot.project),
+        revision,
+      };
+      const plan = this.approve(reservation);
+      this.queue = reservation;
+      this.latest = undefined;
+      return plan;
+    } finally {
+      this.working = false;
+    }
+  }
+
+  async prepareRemaining(
+    queueId: string,
+    id: string,
+    revision: string,
+  ): Promise<GenerationQueuePlan> {
+    this.online();
+    this.idle();
+    this.prepared = undefined;
+    this.queueApproval = undefined;
+    projectId(queueId);
+    projectId(id);
+    projectHash(revision);
+    const q = this.queue;
+    if (!q || q.state.id !== queueId || q.state.projectId !== id)
+      throw new GenerationError('INVALID_INPUT');
+    this.working = true;
+    try {
+      const current = await this.options.store.generationSnapshot(id, revision);
+      if (fingerprint(current.project) !== q.fingerprint)
+        throw new ProjectError('PROJECT_CONFLICT');
+      const count = q.state.items.filter((i) => i.status === 'pending').length;
+      if (current.project.images.length + count > 120)
+        throw new GenerationError('QUEUE_LIMIT');
+      q.revision = revision;
+      return this.approve(q);
+    } finally {
+      this.working = false;
+    }
+  }
+
+  /* eslint-disable no-await-in-loop, no-continue -- Billed requests run serially and skip only tasks already resolved. */
+  async runQueue(
+    ticket: string,
+    confirmed: boolean,
+  ): Promise<GenerationQueueStatus> {
+    this.online();
+    this.idle();
+    const a = this.queueApproval;
+    if (
+      !a ||
+      a.plan.ticket !== ticket ||
+      confirmed !== true ||
+      Date.now() > a.expires
+    )
+      throw new GenerationError('CONFIRMATION_EXPIRED');
+    this.queueApproval = undefined;
+    this.prepared = undefined; // Claim the whole approval before the first await.
+    const q = a.reservation;
+    this.queue = q;
+    this.working = true;
+    q.state.running = true;
+    q.state.stopped = false;
+    const controller = new AbortController();
+    this.controller = controller;
+    let initial = true;
+    try {
+      for (let index = 0; index < q.tasks.length; index += 1) {
+        const item = q.state.items[index];
+        if (item.status !== 'pending') continue;
+        if (q.state.stopped || controller.signal.aborted) break;
+        item.status = 'preparing';
+        try {
+          const current = await this.options.store.readManifest(
+            q.state.projectId,
+          );
+          if (
+            (initial && current.revision !== q.revision) ||
+            fingerprint(current.project) !== q.fingerprint
+          )
+            throw new ProjectError('PROJECT_CONFLICT');
+          initial = false;
+          if (q.state.stopped || controller.signal.aborted) {
+            item.status = 'pending';
+            break;
+          }
+          const task = { ...q.tasks[index], revision: current.revision };
+          await this.execute(task, controller, item.id);
+          // Response retention/storage is completed even if a stop arrived after the server returned.
+          if (q.state.stopped || controller.signal.aborted) break;
+        } catch (error) {
+          if (item.status === 'preparing' && controller.signal.aborted)
+            item.status = 'pending';
+          else {
+            item.status = this.pending ? 'result-pending' : 'failed';
+            item.error = WorkspaceGeneration.failure(error);
+          }
+          q.state.stopped = true;
+          break; // Never retry a failed/ambiguous send or skip forward automatically.
+        }
+      }
+    } finally {
+      q.state.running = false;
+      this.working = false;
+      this.controller = undefined;
+    }
+    return this.queueStatus(undefined, true);
+  }
+
+  /* eslint-enable no-await-in-loop, no-continue */
+
+  private static failure(error: unknown): GenerationFailure {
+    if (error instanceof GenerationError)
+      return {
+        ok: false,
+        code: error.code,
+        mayHaveReachedServer: error.mayHaveReachedServer,
+        ...(error.httpStatus !== undefined
+          ? { httpStatus: error.httpStatus }
+          : {}),
+        ...(error.projectCode ? { projectCode: error.projectCode } : {}),
+        ...(error.pendingResult ? { pendingResult: true as const } : {}),
+      };
+    return {
+      ok: false,
+      code: error instanceof ProjectError ? error.code : 'INVALID_INPUT',
+      mayHaveReachedServer: false,
+    };
+  }
+
   cancel() {
     this.prepared = undefined;
+    this.queueApproval = undefined;
+    if (this.queue?.state.running) this.queue.state.stopped = true;
     this.controller?.abort();
   }
 
   discardPending() {
     if (this.working) throw new GenerationError('GENERATION_BUSY');
+    const item = this.queue?.state.items.find(
+      (i) => i.id === this.pending?.queueItemId,
+    );
+    if (item) {
+      item.status = 'failed';
+      delete item.error?.pendingResult;
+    }
     this.pending = undefined;
   }
 

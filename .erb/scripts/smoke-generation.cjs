@@ -10,7 +10,11 @@ const original = path.join(root, 'original');
 fs.mkdirSync(original);
 const reports = [];
 try {
-  for (const phase of ['create', 'reopen', 'offline']) {
+  for (const phase of [
+    process.argv[2] === 'queue' ? 'queue' : 'create',
+    'reopen',
+    'offline',
+  ]) {
     const report = path.join(root, phase + '.json');
     const run = spawnSync(
       process.execPath,
