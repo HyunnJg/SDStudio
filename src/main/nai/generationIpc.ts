@@ -44,6 +44,21 @@ export function registerGeneration(
   handle('workspace-generation-run', (ticket, confirmed) =>
     service.run(ticket, confirmed),
   );
+  handle(
+    'workspace-generation-prepare-queue',
+    (id, revision, sceneIds, repeats) =>
+      service.prepareQueue(id, revision, sceneIds, repeats),
+  );
+  handle('workspace-generation-prepare-remaining', (queueId, id, revision) =>
+    service.prepareRemaining(queueId, id, revision),
+  );
+  handle('workspace-generation-run-queue', (ticket, confirmed) =>
+    service.runQueue(ticket, confirmed),
+  );
+  handle('workspace-generation-clear-queue', () => service.clearQueue());
+  handle('workspace-generation-queue-status', (revision) =>
+    service.queueStatus(revision),
+  );
   handle('workspace-generation-cancel', () => service.cancel());
   handle('workspace-generation-retry-save', (asNewProject) =>
     service.retrySave(asNewProject),

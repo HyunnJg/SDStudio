@@ -27,6 +27,7 @@ const payload = archive.generateAsync({
 });
 const server = http.createServer(async (request, response) => {
   requests++;
+  const number = requests;
   assert.equal(
     request.headers.authorization,
     'Bearer synthetic-never-a-real-token',
@@ -41,8 +42,11 @@ const server = http.createServer(async (request, response) => {
   const parsed = JSON.parse(body);
   assert.equal(parsed.model, 'nai-diffusion-4-5-full');
   assert.equal(parsed.parameters.n_samples, 1);
-  if (requests === 3) fs.writeFileSync(lock, 'synthetic interrupted writer');
-  await new Promise((r) => setTimeout(r, requests === 2 ? 1200 : 150));
+  if (number === (phase === 'queue' ? 13 : 3))
+    fs.writeFileSync(lock, 'synthetic interrupted writer');
+  await new Promise((r) =>
+    setTimeout(r, number === (phase === 'queue' ? 7 : 2) ? 1200 : 150),
+  );
   if (response.destroyed) return;
   response.writeHead(200, { 'Content-Type': 'binary/octet-stream' });
   response.end(await payload);
@@ -131,7 +135,237 @@ app.on('web-contents-created', (_event, contents) => {
           "!!document.querySelector('[data-testid=connected-workspace]')",
         ),
       );
-      if (phase === 'offline') {
+      if (phase === 'queue') {
+        const set = await evaluate(
+          "window.electron.naiAuth.setToken('synthetic-never-a-real-token',false)",
+        );
+        assert.equal(set.ok, true);
+        await click('[aria-controls=live-queue-details]');
+        await evaluate(
+          "document.querySelectorAll('[data-queue-scene]').forEach(c=>c.click())",
+        );
+        await fill('#live-repeats', '2');
+        await click('[data-testid=prepare-live-queue]');
+        await until(() =>
+          evaluate("!!document.querySelector('[data-testid=queue-confirm]')"),
+        );
+        assert.equal(requests, 0);
+        assert.equal(
+          await evaluate(
+            "document.querySelector('[data-testid=send-live-queue]').disabled",
+          ),
+          true,
+        );
+        assert.ok(
+          (
+            await evaluate(
+              "document.querySelector('[data-testid=queue-confirm]').innerText",
+            )
+          ).includes('총 6회'),
+        );
+        const reserved = (
+          await evaluate('window.electron.generation.queueStatus()')
+        ).value.queue;
+        assert.equal(reserved.items.length, 6);
+        assert.equal(new Set(reserved.items.map((i) => i.seed)).size, 6);
+        checks.push(
+          'selected3 scenes x2 prepare sends0; confirmation shows6 requests, fixed settings and six resolved random seeds',
+        );
+        await click('[data-testid=queue-cost-confirm]');
+        await click('[data-testid=send-live-queue]');
+        await until(
+          async () =>
+            requests === 6 &&
+            !(await evaluate('window.electron.generation.status()')).value
+              .active,
+        );
+        await until(() =>
+          evaluate(
+            "!document.querySelector('[data-testid=prepare-generation]').matches(':disabled')",
+          ),
+        );
+        const listing = (await evaluate('window.electron.projects.list()'))
+          .value;
+        const id = listing[0].id,
+          manifest = path.join(profile, 'projects-v1', id, 'project.json');
+        lock = path.join(profile, 'projects-v1', id, 'write.lock');
+        const saved = JSON.parse(fs.readFileSync(manifest));
+        assert.equal(saved.images.length, 6);
+        assert.deepEqual(
+          saved.images.map((i) => i.sceneId),
+          reserved.items.map((i) => i.sceneId),
+        );
+        assert.deepEqual(
+          saved.images.map((i) => i.seed),
+          reserved.items.map((i) => i.seed),
+        );
+        saved.images.forEach((i) =>
+          assert.deepEqual(
+            fs.readFileSync(
+              path.join(
+                profile,
+                'projects-v1',
+                id,
+                'images',
+                i.sha256 + '.png',
+              ),
+            ),
+            expectedPNG,
+          ),
+        );
+        await until(() =>
+          evaluate(
+            "document.querySelector('[data-testid=generated-png]')?.naturalWidth===2",
+          ),
+        );
+        checks.push(
+          'real session transport/ASAR-compatible worker stores6 original PNG records in repetition-first order with the confirmed seeds',
+        );
+        const window = BrowserWindow.fromWebContents(contents);
+        window.setSize(1280, 800);
+        await until(() => evaluate('innerWidth===1280'));
+        if (process.env.SDSTUDIO_GENERATION_SCREENSHOT)
+          fs.writeFileSync(
+            process.env.SDSTUDIO_GENERATION_SCREENSHOT + '.desktop.png',
+            (await contents.capturePage()).toPNG(),
+          );
+        await click('[aria-controls=live-queue-details]');
+        await until(() =>
+          evaluate("!document.querySelector('#live-queue-details').hidden"),
+        );
+        const firstCheckboxes = await evaluate(
+          "Array.from(document.querySelectorAll('[data-queue-scene]')).map(c=>c.checked)",
+        );
+        if (!firstCheckboxes.every(Boolean))
+          await evaluate(
+            "document.querySelectorAll('[data-queue-scene]').forEach(c=>{if(!c.checked)c.click()})",
+          );
+        await click('[data-testid=prepare-live-queue]');
+        await until(() =>
+          evaluate("!!document.querySelector('[data-testid=queue-confirm]')"),
+        );
+        await click('[data-testid=queue-cost-confirm]');
+        await click('[data-testid=send-live-queue]');
+        await until(() => requests === 7);
+        await until(() =>
+          evaluate("!!document.querySelector('[data-testid=stop-live-queue]')"),
+        );
+        await click('[data-testid=stop-live-queue]');
+        await until(
+          async () =>
+            !(await evaluate('window.electron.generation.status()')).value
+              .active,
+        );
+        await until(() =>
+          evaluate(
+            "!document.querySelector('[data-testid=resume-live-queue]').matches(':disabled')",
+          ),
+        );
+        const stopped = (
+          await evaluate('window.electron.generation.queueStatus()')
+        ).value.queue;
+        assert.equal(stopped.items[0].status, 'failed');
+        assert.equal(stopped.items[0].error.mayHaveReachedServer, true);
+        assert.equal(
+          stopped.items.filter((i) => i.status === 'pending').length,
+          5,
+        );
+        assert.equal(requests, 7);
+        checks.push(
+          'stop aborts the one in-flight request; five unsent tasks remain and no automatic eighth request starts',
+        );
+        await click('[data-testid=resume-live-queue]');
+        await until(() =>
+          evaluate("!!document.querySelector('[data-testid=queue-confirm]')"),
+        );
+        assert.ok(
+          (
+            await evaluate(
+              "document.querySelector('[data-testid=queue-confirm]').innerText",
+            )
+          ).includes('총 5회'),
+        );
+        assert.equal(requests, 7);
+        assert.equal(
+          await evaluate(
+            "document.querySelector('[data-testid=send-live-queue]').disabled",
+          ),
+          true,
+        );
+        await click('[data-testid=queue-cost-confirm]');
+        await click('[data-testid=send-live-queue]');
+        await until(
+          async () =>
+            requests === 12 &&
+            !(await evaluate('window.electron.generation.status()')).value
+              .active,
+        );
+        assert.equal(JSON.parse(fs.readFileSync(manifest)).images.length, 11);
+        await until(() =>
+          evaluate(
+            "!document.querySelector('[data-testid=prepare-live-queue]').matches(':disabled')",
+          ),
+        );
+        checks.push(
+          'fresh5-request confirmation resumes only unsent tasks; the cancelled request is not retried and11 PNG records remain',
+        );
+        // Prepare one task; the test server leaves a synthetic lock after request13 reaches it.
+        await evaluate(
+          "document.querySelectorAll('[data-queue-scene]').forEach((c,i)=>{if(c.checked!==(i===0))c.click()})",
+        );
+        await fill('#live-repeats', '1');
+        await click('[data-testid=prepare-live-queue]');
+        await until(() =>
+          evaluate("!!document.querySelector('[data-testid=queue-confirm]')"),
+        );
+        await click('[data-testid=queue-cost-confirm]');
+        await click('[data-testid=send-live-queue]');
+        await until(() =>
+          evaluate(
+            "!!document.querySelector('[data-testid=retry-result-save]') && !document.querySelector('[data-testid=retry-result-save]').disabled",
+          ),
+        );
+        assert.equal(requests, 13);
+        assert.equal(
+          (await evaluate('window.electron.generation.status()')).value.pending,
+          true,
+        );
+        await click('[data-testid=save-result-new-project]');
+        await until(
+          async () =>
+            (await evaluate('window.electron.projects.list()')).value.length ===
+            2,
+        );
+        await until(() =>
+          evaluate(
+            "!document.querySelector('[data-testid=project-save]').matches(':disabled')",
+          ),
+        );
+        assert.equal(requests, 13);
+        assert.equal(JSON.parse(fs.readFileSync(manifest)).images.length, 11);
+        assert.equal(
+          fs.readFileSync(lock, 'utf8'),
+          'synthetic interrupted writer',
+        );
+        checks.push(
+          'received PNG survives queue storage failure and saves to a new project with no14th request; original lock/11 PNG records stay intact',
+        );
+        window.setMinimumSize(360, 500);
+        window.setSize(390, 844);
+        await until(() => evaluate('innerWidth===390'));
+        assert.equal(
+          await evaluate('document.documentElement.scrollWidth<=innerWidth'),
+          true,
+        );
+        if (process.env.SDSTUDIO_GENERATION_SCREENSHOT)
+          fs.writeFileSync(
+            process.env.SDSTUDIO_GENERATION_SCREENSHOT,
+            (await contents.capturePage()).toPNG(),
+          );
+        checks.push(
+          '390px queue/confirmation/result layout has no horizontal overflow; normal app minimum size is unchanged',
+        );
+      } else if (phase === 'offline') {
         assert.equal(
           await evaluate(
             "document.querySelector('[data-testid=prepare-generation]').disabled",

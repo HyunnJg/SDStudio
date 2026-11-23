@@ -123,3 +123,12 @@
     padding: 12px;
   }
 }
+
+.connected-queue { padding: 12px 20px; border-top: 1px solid var(--pw-line); background: var(--pw-panel); max-height: 34vh; overflow: auto; }
+.connected-queue-summary, .connected-queue-selection { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.connected-queue fieldset { border:0; padding:10px 0; }
+.connected-queue label { display:inline-flex; align-items:center; gap:8px; margin:8px 12px 8px 0; }
+.connected-queue input[type='number'] { width:72px; background:var(--pw-input); color:var(--pw-text); border:1px solid var(--pw-line); padding:8px; }
+.connected-queue-items, .connected-confirm ol { max-height:160px; overflow:auto; overflow-wrap:anywhere; padding-left:24px; }
+.connected-queue-items li { margin:8px 0; }
+.connected-queue-items button { margin-left:8px; }
