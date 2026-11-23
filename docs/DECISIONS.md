@@ -385,3 +385,15 @@
 - sendImage 진입은 여전히 running 전환 경계다. 이 단계 이후 실패는 mayHaveReachedServer=false라고 해도 pending으로 바꾸지 않는다. 수신한 PNG의 저장 실패는 기존 result-pending/저장-only 복구이며 API를 다시 보내지 않는다. 취소·오류 후 기존 확인은 재사용할 수 없다.
 - renderer의 체크 목록은 렌더/prepare 호출 직전에 현재 scenes로 필터링하고 effect에서도 정리한다. 미선택·삭제 ID를 보이지 않는 체크로 전송하지 않는다.
 - 고정 호출 간격·자동 재시도·모델/해상도·저장 형식·오프라인/토큰 경계는 이번에 바꾸지 않는다. 실제 계정1장/소량 반복·429 빈도·정확한 MIME은 후속 실측이다. [검증](validation/2026-11-23-queue-resume.md).
+
+
+## D-045. 이번 중단 원인을 명시하고 충돌 씬의 미전송 작업만 확인 후 제외한다
+
+- 결정일: 2026-11-23 (Asia/Seoul), 기준 main `d688762`. PR #24의 현재 오류 선택·복원 동선 의견을 채택한다. [처리](reviews/2026-11-23-pr24-followup.md).
+- GenerationQueueState의 optional stoppedItemId는 현재 중단/이어가기 준비 실패의 작업 UUID다. runQueue 시작과 성공한 이어가기 준비에서 과거 pointer를 지우며, 각 preparing 진입에서 과거 item.error를 지운다. 새 오류에서만 pointer/error를 기록한다. 이전429/실패 항목은 역사로 남지만 현재 오류로 다시 선택하지 않는다.
+- renderer queueOutcome은 pointer가 가리키는 pending/failed/result-pending 항목의 오류만 사용한다. pointer가 없거나 해소된 상태면 과거 첫 오류로 fallback하지 않는다. 미저장 PNG UI는 items의 result-pending도 직접 확인하므로 오래된 오류 때문에 setPending(false)가 되지 않는다. 성공한 저장-only/명시적 버리기는 해당 pointer를 해제한다.
+- runQueue 직접 응답으로 이번 active 종료/오류/미저장 결과를 반영한다. 폴링은 로컬 작업 시작/끝 세대가 달라졌으면 적용하지 않고, snapshot은 기존 현재 리비전 비교도 유지한다. 준비 직후 및 준비 실패 직후 queueStatus를 직접 읽어 큐 ID·충돌 동선이 다음 폴링을 기다리지 않게 한다.
+- excludePendingScene(queue UUID, scene local ID, confirmed=true)은 main idle이고 현재 pointer의 오류가 QUEUE_INPUT_CHANGED이며 그 conflictSceneId가 일치할 때만 허용한다. 해당 씬의 pending만 skipped로 바꾸고 확인 ticket을 폐기한다. 다른 씬/전송된 failed·done/받은 PNG는 바꾸지 않는다. 실험/전송·파일 쓰기는 전혀 하지 않는 로컬 예약 조작이다.
+- UI는 충돌 씬 이름·제외될 미전송 건수·현재 입력/PNG 보존을 표시하고 체크 확인을 받은 뒤 제외한다. 다음 실행은 나머지 pending만 새5분/일회용 확인을 받아야 한다. 전부 제외했으면 전송0이며 새 예약이 필요하다. 원본 draft 복원/강제 덮어쓰기나 바뀐 입력을 승인 없이 재바인딩하지 않는다.
+- skipped는 메모리 큐 상태에만 추가되며 manifest v1/v2 형식을 바꾸지 않는다. 큐 비우기/프로세스 종료 뒤 예약은 사라지고 저장된 입력/PNG는 남는다. 기존 active/pending PNG의 close/restart·저장-only 복구 경계는 유지한다.
+- D-044의 입력 비교·전송 전 pending 복귀, running 이후 실패 재전송 금지·오프라인/토큰/원본 PNG 정책은 그대로다. 실제 계정/정확한 MIME·429 빈도·호출 간격·새 모델/설정은 이 작업에 포함하지 않는다. [검증](validation/2026-11-23-queue-stop-cause.md).

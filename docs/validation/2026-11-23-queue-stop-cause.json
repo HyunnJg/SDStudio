@@ -1,0 +1,277 @@
+{
+  "date": "2026-11-23 (Asia/Seoul)",
+  "baseCommit": "d6887629ef8640b8442af382142696b3baf39b76",
+  "runtimeCommit": "1de38f73c924bdc9f3de6afc967aea4e3d22408c",
+  "runtimeTree": "e0179e39aeb7e3d5c3ec549bb98b7013658ee78e",
+  "environment": {
+    "platform": "Linux x64",
+    "node": "22.4.1",
+    "electron": "26.6.10",
+    "electronNode": "18.16.1",
+    "builder": "24.13.3",
+    "npm": "11.19.1; unsupported pairing warning, not recommended setup",
+    "display": "Xorg dummy with cookie auth TCP; loopback client"
+  },
+  "unitTests": {
+    "passed": 193,
+    "failed": 0,
+    "skipped": 0,
+    "queue": 33,
+    "presentation": 5,
+    "generation": 16,
+    "projectReads": 8,
+    "store": 13,
+    "controller": 8,
+    "serviceClose": 10,
+    "mainAuthTransport": 36,
+    "response": 19,
+    "offline": 11,
+    "workspace": 14,
+    "contract": 10,
+    "networkMode": 10
+  },
+  "finalTargetedRecheck": {
+    "passed": 62,
+    "failed": 0,
+    "scope": "queue33 + presentation5 + generation16 + projectReads8"
+  },
+  "checks": {
+    "scopedStrictTypes": true,
+    "scopedLint": true,
+    "testAndHarnessFormat": true,
+    "mainWorkerRendererBuild": true,
+    "finalRendererRebuild": true,
+    "packageBuild": true,
+    "freshNpmCi": false,
+    "nativeRebuild": false
+  },
+  "errorUI": {
+    "reports": [
+      {
+        "pid": 23,
+        "phase": "queue-errors",
+        "ready": true,
+        "checks": [
+          "first429 stops the reservation without retrying and exposes the current stop item",
+          "while status polling is held, direct runQueue result displays later TIMEOUT rather than historic429",
+          "new result-pending and usable save-only recovery appear immediately despite historical429/TIMEOUT and held status polling",
+          "result-only new project storage sends no fifth request and preserves the original lock/PNG",
+          "explicit count2 exclusion removes only conflicting unsent jobs, keeps edited input and PNGs and sends zero requests",
+          "other unsent jobs require fresh2-request confirmation after exclusion; cancel/clear never transmits",
+          "390px controls remain within the viewport after failure/recovery/exclusion"
+        ],
+        "loopbackRequests": 4,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 115,
+        "phase": "reopen",
+        "ready": true,
+        "checks": [
+          "new PID reopens the result-only project and decodes byte-identical PNG with no generation request"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 207,
+        "phase": "offline",
+        "ready": true,
+        "checks": [
+          "offline generation refuses prepare before token/network access while saved v2 PNG remains viewable"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      }
+    ],
+    "actualAccountRequests": 0,
+    "transportDestinationRewrittenToLoopback": true
+  },
+  "queueRegression": {
+    "reports": [
+      {
+        "pid": 23,
+        "phase": "queue",
+        "ready": true,
+        "checks": [
+          "selected3 scenes x2 prepare sends0; confirmation shows6 requests, fixed settings and six resolved random seeds",
+          "real session transport/ASAR-compatible worker stores6 original PNG records in repetition-first order with the confirmed seeds",
+          "stop aborts the one in-flight request; five unsent tasks remain and no automatic eighth request starts",
+          "changed reserved draft displays the local scene name, sends0 extra requests and preserves all5 unsent tasks",
+          "restored draft permits5-task reconfirmation despite project rename and a different viewed scene; confirmed seeds stay unchanged",
+          "fresh5-request confirmation resumes only unsent tasks; the cancelled request is not retried and11 PNG records remain",
+          "received PNG survives queue storage failure and saves to a new project with no14th request; original lock/11 PNG records stay intact",
+          "390px queue/confirmation/result layout has no horizontal overflow; normal app minimum size is unchanged"
+        ],
+        "loopbackRequests": 13,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 115,
+        "phase": "reopen",
+        "ready": true,
+        "checks": [
+          "new PID reopens the result-only project and decodes byte-identical PNG with no generation request"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 207,
+        "phase": "offline",
+        "ready": true,
+        "checks": [
+          "offline generation refuses prepare before token/network access while saved v2 PNG remains viewable"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      }
+    ],
+    "actualAccountRequests": 0,
+    "transportDestinationRewrittenToLoopback": true
+  },
+  "package": {
+    "phase": "queue-errors",
+    "ready": true,
+    "checks": [
+      "first429 stops the reservation without retrying and exposes the current stop item",
+      "while status polling is held, direct runQueue result displays later TIMEOUT rather than historic429",
+      "new result-pending and usable save-only recovery appear immediately despite historical429/TIMEOUT and held status polling",
+      "result-only new project storage sends no fifth request and preserves the original lock/PNG",
+      "explicit count2 exclusion removes only conflicting unsent jobs, keeps edited input and PNGs and sends zero requests",
+      "other unsent jobs require fresh2-request confirmation after exclusion; cancel/clear never transmits",
+      "390px controls remain within the viewport after failure/recovery/exclusion"
+    ],
+    "loopbackRequests": 4,
+    "actualAccountRequests": 0,
+    "externalRequests": [],
+    "rendererErrors": [],
+    "singleInstanceLockSimulated": true,
+    "nativeQuitObserved": true,
+    "packageContext": {
+      "isPackaged": true,
+      "archiveUnchanged": true,
+      "profileIsolated": true,
+      "inspectorInjectedHarness": true
+    }
+  },
+  "asar": {
+    "sha256": "19ad6fcddc33885c5f3fcd1ac038a8eba83880281eb919f79e79963a290e1bd1",
+    "workerUnpacked": false
+  },
+  "notices": {
+    "requiredResourcesPresent": [
+      "LICENSES/electron-react-boilerplate.txt",
+      "CREDITS.md",
+      "THIRD_PARTY_NOTICES/THIRD_PARTY_NOTICES.txt",
+      "THIRD_PARTY_NOTICES/index.json",
+      "THIRD_PARTY_NOTICES/APP_LICENSE_STATUS.md"
+    ],
+    "noticeCopiesVerified": 250,
+    "bundlePackageOccurrencesIndexed": 143,
+    "copiedRuntimePackagesIndexed": 112,
+    "runtimeIdentityBasis": "name/version/license/author/repository (builder strips scripts and other build metadata)",
+    "unresolvedNoticeFiles": [
+      {
+        "root": "node_modules/@react-dnd/invariant",
+        "name": "@react-dnd/invariant",
+        "version": "4.0.2",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "node_modules/@react-dnd/shallowequal",
+        "name": "@react-dnd/shallowequal",
+        "version": "4.0.2",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "release/app/node_modules/batch-cluster/types/chai-withintoleranceof",
+        "name": "@types/chai-withintoleranceof",
+        "version": "0.0.1",
+        "declaredLicense": null
+      },
+      {
+        "root": "release/app/node_modules/github-from-package/example",
+        "name": "beep-boop",
+        "version": "1.2.3",
+        "declaredLicense": null
+      },
+      {
+        "root": "release/app/node_modules/browserify-zlib",
+        "name": "browserify-zlib",
+        "version": "0.1.4",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "release/app/node_modules/is-gzip",
+        "name": "is-gzip",
+        "version": "1.0.0",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "src/native",
+        "name": "native",
+        "version": "1.0.0",
+        "declaredLicense": "ISC"
+      },
+      {
+        "root": "node_modules/react-dnd-preview",
+        "name": "react-dnd-preview",
+        "version": "8.1.2",
+        "declaredLicense": "MIT"
+      }
+    ],
+    "allIdentifiedPackagesHaveNoticeFiles": false,
+    "completeRedistributionReview": false
+  },
+  "actualAccountRequests": 0,
+  "harnessOnly": {
+    "networkDeadlineTimerClampedToMs": 900,
+    "productionDeadlineMs": 90000,
+    "statusRepliesHeldDuringTimeoutAndSaveFailure": true,
+    "requestDestination": "loopback only",
+    "singletonSimulated": true,
+    "windowMinimumOverriddenFor390px": true,
+    "packageInspectorInjected": true
+  },
+  "initialUIFailure": {
+    "afterChecksPassed": 4,
+    "code": "WAITING_FOR_CONFLICT_CONTROLS",
+    "cause": "New reservation queue ID in renderer waited for the500ms status poll",
+    "resolution": "Read queue metadata directly after successful preparation and after failed preparation; preserve product checks"
+  },
+  "limitations": [
+    "No actual account1-image/repeat verification, actual MIME or429 frequency measurement",
+    "No Windows/macOS or normal OS keyring tests",
+    "No256MiB/event-loop or worker transfer benchmark",
+    "No new model/resolution/character/wildcard binding",
+    "Stopped reservations remain process-memory only",
+    "Known full-repository TS2688 remains; only scoped strict tsc passed",
+    "Existing dependency tree reused; no fresh npm ci/native rebuild",
+    "Existing8 unresolved notice records remain"
+  ]
+}
