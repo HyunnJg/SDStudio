@@ -25,7 +25,7 @@ function deferred() {
 function fixture(t, options = {}) {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'sdstudio-batch-'));
   t.after(() => fs.rmSync(profile, { recursive: true, force: true }));
-  const state = createConnectedWorkspaceState();
+  const state = createConnectedWorkspaceState('v4.5');
   const scenes = snapshotWorkspaceScenes(state).map((s, i) => ({
     ...s,
     name: `Scene${i + 1}`,
@@ -174,7 +174,7 @@ test('invalid selection/count/unverified scene fail before sending and do not re
     selectedSceneId: f.first.project.selectedSceneId,
     scenes: structuredClone(f.scenes),
   };
-  content.scenes[2].draft.family = 'v5';
+  content.scenes[2].draft.steps = '29';
   const next = f.core.save(f.first.project.id, f.first.revision, content);
   await assert.rejects(
     f.service.prepareQueue(
@@ -530,7 +530,7 @@ test('selected subset follows saved scene order, preserves fixed0 repeats, and d
     };
   content.scenes[0].draft.seedMode = 'fixed';
   content.scenes[0].draft.seed = '0';
-  content.scenes[2].draft.family = 'v5';
+  content.scenes[2].draft.steps = '29';
   const saved = f.core.save(f.first.project.id, f.first.revision, content);
   const p = await f.service.prepareQueue(
     saved.project.id,

@@ -1,58 +1,109 @@
 /* eslint import/prefer-default-export: off */
 import { randomInt } from 'crypto';
 import type { WorkspaceScene } from '../../renderer/preview/workspaceDraft';
-import type { ProjectImageInput } from '../../workspaceProject';
+import type { ProjectImageInput, ImageBinding } from '../../workspaceProject';
+import {
+  V5_QUALITY_TAGS,
+  V5_UC_PRESETS,
+  V5_SIZES,
+} from '../../workspaceGenerationSettings';
 
-// Observed once for the fixed basic request; character/model variations remain unverified.
 export function bindBasicGeneration(
   scene: WorkspaceScene,
   random = () => randomInt(4294967296),
 ) {
   const d = scene.draft;
+  const v5 = d.family === 'v5';
+  const steps = Number(d.steps);
+  const scale = Number(d.guidance);
   if (
-    d.family !== 'v4.5' ||
+    !['v4.5', 'v5'].includes(d.family) ||
     d.characters.some((c) => c.enabled) ||
-    d.resolution !== 'square' ||
-    d.steps !== '28' ||
-    d.guidance !== '5' ||
     !d.prompt.trim() ||
     [d.prompt, d.negativePrompt].some(
       (p) => p.includes('|') || /<[^>]*\.[^>]*>/.test(p),
-    )
+    ) ||
+    (v5
+      ? !Object.hasOwn(V5_SIZES, d.resolution) ||
+        !/^\d+$/.test(d.steps) ||
+        !Number.isInteger(steps) ||
+        steps < 1 ||
+        steps > 50 ||
+        !d.guidance.trim() ||
+        !Number.isFinite(scale) ||
+        scale <= 0 ||
+        scale > 10
+      : d.resolution !== 'square' ||
+        d.steps !== '28' ||
+        d.guidance !== '5' ||
+        (d.qualityTags !== undefined && d.qualityTags !== 'none') ||
+        (d.ucPreset !== undefined && d.ucPreset !== 'none'))
   )
     throw new Error('UNSUPPORTED_DRAFT');
+  if (d.seedMode !== 'random' && d.seedMode !== 'fixed')
+    throw new Error('INVALID_INPUT');
   if (
     d.seedMode === 'fixed' &&
     (!/^\d+$/.test(d.seed) || Number(d.seed) > 4294967295)
   )
     throw new Error('INVALID_INPUT');
   const seed = d.seedMode === 'fixed' ? Number(d.seed) : random();
-  const condition = (negative: boolean) => ({
-    caption: {
-      base_caption: negative ? d.negativePrompt : d.prompt,
-      char_captions: [],
-    },
+  const quality = d.qualityTags ?? 'none';
+  const uc = d.ucPreset ?? 'none';
+  if (
+    !Object.hasOwn(V5_QUALITY_TAGS, quality) ||
+    !Object.hasOwn(V5_UC_PRESETS, uc)
+  )
+    throw new Error('INVALID_INPUT');
+  const join = (a: string, b: string) => [a, b].filter(Boolean).join(', ');
+  const prompt = v5 ? join(d.prompt, V5_QUALITY_TAGS[quality]) : d.prompt;
+  const negative = v5
+    ? join(V5_UC_PRESETS[uc], d.negativePrompt)
+    : d.negativePrompt;
+  const size = v5 ? V5_SIZES[d.resolution] : { width: 512, height: 512 };
+  const condition = (text: string) => ({
+    caption: { base_caption: text, char_captions: [] },
     use_coords: false,
     use_order: true,
   });
   const request = {
-    input: d.prompt,
-    model: 'nai-diffusion-4-5-full' as const,
+    input: prompt,
+    model: v5
+      ? ('nai-diffusion-5-full' as const)
+      : ('nai-diffusion-4-5-full' as const),
     action: 'generate',
     parameters: {
-      params_version: 3,
-      width: 512 as const,
-      height: 512 as const,
-      steps: 28 as const,
-      scale: 5 as const,
+      params_version: v5 ? 4 : 3,
+      ...size,
+      steps,
+      scale,
       seed,
       n_samples: 1,
       sampler: 'k_euler_ancestral',
       noise_schedule: 'karras',
       cfg_rescale: 0,
-      negative_prompt: d.negativePrompt,
-      v4_prompt: condition(false),
-      v4_negative_prompt: condition(true),
+      negative_prompt: negative,
+      v4_prompt: condition(prompt),
+      v4_negative_prompt: v5
+        ? {
+            caption: { base_caption: negative, char_captions: [] },
+            legacy_uc: false,
+          }
+        : condition(negative),
+      ...(v5
+        ? {
+            image_format: 'png',
+            use_coords: false,
+            legacy_uc: false,
+            legacy: false,
+            legacy_v3_extend: false,
+            dynamic_thresholding: false,
+            skip_cfg_above_sigma: null,
+            deliberate_euler_ancestral_bug: false,
+            prefer_brownian: true,
+            extra_noise_seed: seed - 1,
+          }
+        : {}),
     },
   };
   const input: ProjectImageInput = {
@@ -63,5 +114,8 @@ export function bindBasicGeneration(
     seed,
     draft: structuredClone(d),
   };
-  return { request, input };
+  const bindingId: ImageBinding['id'] = v5
+    ? 'nai-v5-full-v1'
+    : 'nai-v45-basic512-v1';
+  return { request, input, bindingId };
 }
