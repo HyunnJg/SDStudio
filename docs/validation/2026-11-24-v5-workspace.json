@@ -1,0 +1,433 @@
+{
+  "date": "2026-11-24",
+  "timezone": "Asia/Seoul",
+  "baseMain": "e36b94f0d92f983e515a218076f5c6c038a218be",
+  "runtimeCommit": "088932fa3d085260d20d8ca125e92b544ac43b61",
+  "runtimeTree": "1781faa71c5c54bd3352f993f2c7c712ba0c7e3e",
+  "includesPendingPRs": [
+    26,
+    27
+  ],
+  "environment": {
+    "platform": "linux-x64",
+    "hostNode": "22.4.1",
+    "npm": "11.19.1",
+    "electron": "26.6.10",
+    "electronNode": "18.16.1",
+    "builder": "24.13.3",
+    "dependenciesReused": true,
+    "npmCiPerformed": false,
+    "nativeRebuildPerformed": false,
+    "x11": "Xorg dummy display with test-only no-sandbox"
+  },
+  "unit": {
+    "passed": 176,
+    "failed": 0,
+    "skipped": 0,
+    "newV5Tests": 7
+  },
+  "scopedStrictTypecheck": "passed",
+  "changedTSLint": {
+    "files": 14,
+    "result": "passed"
+  },
+  "productionBuild": "passed main/preload/worker/renderer; final renderer rebuilt after presentation changes",
+  "packageBuild": {
+    "kind": "linux directory",
+    "publish": false,
+    "npmRebuild": false,
+    "workerInAsar": true,
+    "archiveSha256": "2a3422634bc8eb877c05d2e9df437f10748cd2560c4a3035e0b1a4b73e7eeb8a"
+  },
+  "ui": {
+    "single": {
+      "reports": [
+        {
+          "pid": 17,
+          "phase": "create",
+          "ready": true,
+          "checks": [
+            "one Generate click saves input and sends exactly one V5 request without a confirmation checkbox",
+            "actual Electron session transport accepts unknown MIME ZIP, worker persists original alpha/metadata PNG, renderer decodes it",
+            "in-flight cancel reports possible server processing, preserves input and prior PNG, no automatic retry",
+            "post-response storage fault retains result; explicit new-project save preserves original lock/PNG and adds the received PNG without a fourth request",
+            "first response diagnostic contains only sanitized MIME/state/status/version in private profile",
+            "390px layout probe (test-only window minimum override) has no horizontal overflow"
+          ],
+          "loopbackRequests": 3,
+          "actualAccountRequests": 0,
+          "externalRequests": [],
+          "rendererErrors": [],
+          "singleInstanceLockSimulated": true,
+          "nativeQuitObserved": true
+        },
+        {
+          "pid": 105,
+          "phase": "reopen",
+          "ready": true,
+          "checks": [
+            "new PID reopens the result-only project and decodes byte-identical PNG with no generation request"
+          ],
+          "loopbackRequests": 0,
+          "actualAccountRequests": 0,
+          "externalRequests": [],
+          "rendererErrors": [],
+          "singleInstanceLockSimulated": true,
+          "nativeQuitObserved": true
+        },
+        {
+          "pid": 193,
+          "phase": "offline",
+          "ready": true,
+          "checks": [
+            "offline generation refuses prepare before token/network access while saved v3 PNG remains viewable"
+          ],
+          "loopbackRequests": 0,
+          "actualAccountRequests": 0,
+          "externalRequests": [],
+          "rendererErrors": [],
+          "singleInstanceLockSimulated": true,
+          "nativeQuitObserved": true
+        }
+      ],
+      "actualAccountRequests": 0,
+      "transportDestinationRewrittenToLoopback": true
+    },
+    "queue": {
+      "reports": [
+        {
+          "pid": 18,
+          "phase": "queue",
+          "ready": true,
+          "checks": [
+            "selected3 scenes x2 prepare sends0; confirmation shows6 requests, fixed settings and six resolved random seeds",
+            "real session transport/ASAR-compatible worker stores6 original PNG records in repetition-first order with the confirmed seeds",
+            "stop aborts the one in-flight request; five unsent tasks remain and no automatic eighth request starts",
+            "changed reserved draft displays the local scene name, sends0 extra requests and preserves all5 unsent tasks",
+            "restored draft permits5-task reconfirmation despite project rename and a different viewed scene; confirmed seeds stay unchanged",
+            "fresh5-request confirmation resumes only unsent tasks; the cancelled request is not retried and11 PNG records remain",
+            "received PNG survives queue storage failure and saves to a new project with no14th request; original lock/11 PNG records stay intact",
+            "390px queue/confirmation/result layout has no horizontal overflow; normal app minimum size is unchanged"
+          ],
+          "loopbackRequests": 13,
+          "actualAccountRequests": 0,
+          "externalRequests": [],
+          "rendererErrors": [],
+          "singleInstanceLockSimulated": true,
+          "nativeQuitObserved": true
+        },
+        {
+          "pid": 107,
+          "phase": "reopen",
+          "ready": true,
+          "checks": [
+            "new PID reopens the result-only project and decodes byte-identical PNG with no generation request"
+          ],
+          "loopbackRequests": 0,
+          "actualAccountRequests": 0,
+          "externalRequests": [],
+          "rendererErrors": [],
+          "singleInstanceLockSimulated": true,
+          "nativeQuitObserved": true
+        },
+        {
+          "pid": 195,
+          "phase": "offline",
+          "ready": true,
+          "checks": [
+            "offline generation refuses prepare before token/network access while saved v3 PNG remains viewable"
+          ],
+          "loopbackRequests": 0,
+          "actualAccountRequests": 0,
+          "externalRequests": [],
+          "rendererErrors": [],
+          "singleInstanceLockSimulated": true,
+          "nativeQuitObserved": true
+        }
+      ],
+      "actualAccountRequests": 0,
+      "transportDestinationRewrittenToLoopback": true
+    },
+    "errors": {
+      "reports": [
+        {
+          "pid": 18,
+          "phase": "queue-errors",
+          "ready": true,
+          "checks": [
+            "first429 stops the reservation without retrying and exposes the current stop item",
+            "while status polling is held, direct runQueue result displays later TIMEOUT rather than historic429",
+            "new result-pending and usable save-only recovery appear immediately despite historical429/TIMEOUT and held status polling",
+            "result-only new project storage sends no fifth request and preserves the original lock/PNG",
+            "explicit count2 exclusion removes only conflicting unsent jobs, keeps edited input and PNGs and sends zero requests",
+            "other unsent jobs require fresh2-request confirmation after exclusion; cancel/clear never transmits",
+            "390px controls remain within the viewport after failure/recovery/exclusion"
+          ],
+          "loopbackRequests": 4,
+          "actualAccountRequests": 0,
+          "externalRequests": [],
+          "rendererErrors": [],
+          "singleInstanceLockSimulated": true,
+          "nativeQuitObserved": true
+        },
+        {
+          "pid": 106,
+          "phase": "reopen",
+          "ready": true,
+          "checks": [
+            "new PID reopens the result-only project and decodes byte-identical PNG with no generation request"
+          ],
+          "loopbackRequests": 0,
+          "actualAccountRequests": 0,
+          "externalRequests": [],
+          "rendererErrors": [],
+          "singleInstanceLockSimulated": true,
+          "nativeQuitObserved": true
+        },
+        {
+          "pid": 193,
+          "phase": "offline",
+          "ready": true,
+          "checks": [
+            "offline generation refuses prepare before token/network access while saved v3 PNG remains viewable"
+          ],
+          "loopbackRequests": 0,
+          "actualAccountRequests": 0,
+          "externalRequests": [],
+          "rendererErrors": [],
+          "singleInstanceLockSimulated": true,
+          "nativeQuitObserved": true
+        }
+      ],
+      "actualAccountRequests": 0,
+      "transportDestinationRewrittenToLoopback": true
+    }
+  },
+  "packaged": {
+    "generation": {
+      "phase": "create",
+      "ready": true,
+      "checks": [
+        "one Generate click saves input and sends exactly one V5 request without a confirmation checkbox",
+        "actual Electron session transport accepts unknown MIME ZIP, worker persists original alpha/metadata PNG, renderer decodes it",
+        "in-flight cancel reports possible server processing, preserves input and prior PNG, no automatic retry",
+        "post-response storage fault retains result; explicit new-project save preserves original lock/PNG and adds the received PNG without a fourth request",
+        "first response diagnostic contains only sanitized MIME/state/status/version in private profile",
+        "390px layout probe (test-only window minimum override) has no horizontal overflow"
+      ],
+      "loopbackRequests": 3,
+      "actualAccountRequests": 0,
+      "externalRequests": [],
+      "rendererErrors": [],
+      "singleInstanceLockSimulated": true,
+      "nativeQuitObserved": true,
+      "packageContext": {
+        "isPackaged": true,
+        "archiveUnchanged": true,
+        "profileIsolated": true,
+        "inspectorInjectedHarness": true
+      }
+    },
+    "queue": {
+      "phase": "queue",
+      "ready": true,
+      "checks": [
+        "selected3 scenes x2 prepare sends0; confirmation shows6 requests, fixed settings and six resolved random seeds",
+        "real session transport/ASAR-compatible worker stores6 original PNG records in repetition-first order with the confirmed seeds",
+        "stop aborts the one in-flight request; five unsent tasks remain and no automatic eighth request starts",
+        "changed reserved draft displays the local scene name, sends0 extra requests and preserves all5 unsent tasks",
+        "restored draft permits5-task reconfirmation despite project rename and a different viewed scene; confirmed seeds stay unchanged",
+        "fresh5-request confirmation resumes only unsent tasks; the cancelled request is not retried and11 PNG records remain",
+        "received PNG survives queue storage failure and saves to a new project with no14th request; original lock/11 PNG records stay intact",
+        "390px queue/confirmation/result layout has no horizontal overflow; normal app minimum size is unchanged"
+      ],
+      "loopbackRequests": 13,
+      "actualAccountRequests": 0,
+      "externalRequests": [],
+      "rendererErrors": [],
+      "singleInstanceLockSimulated": true,
+      "nativeQuitObserved": true,
+      "packageContext": {
+        "isPackaged": true,
+        "archiveUnchanged": true,
+        "profileIsolated": true,
+        "inspectorInjectedHarness": true
+      }
+    },
+    "errors": {
+      "phase": "queue-errors",
+      "ready": true,
+      "checks": [
+        "first429 stops the reservation without retrying and exposes the current stop item",
+        "while status polling is held, direct runQueue result displays later TIMEOUT rather than historic429",
+        "new result-pending and usable save-only recovery appear immediately despite historical429/TIMEOUT and held status polling",
+        "result-only new project storage sends no fifth request and preserves the original lock/PNG",
+        "explicit count2 exclusion removes only conflicting unsent jobs, keeps edited input and PNGs and sends zero requests",
+        "other unsent jobs require fresh2-request confirmation after exclusion; cancel/clear never transmits",
+        "390px controls remain within the viewport after failure/recovery/exclusion"
+      ],
+      "loopbackRequests": 4,
+      "actualAccountRequests": 0,
+      "externalRequests": [],
+      "rendererErrors": [],
+      "singleInstanceLockSimulated": true,
+      "nativeQuitObserved": true,
+      "packageContext": {
+        "isPackaged": true,
+        "archiveUnchanged": true,
+        "profileIsolated": true,
+        "inspectorInjectedHarness": true
+      }
+    },
+    "auth": {
+      "ready": true,
+      "offline": false,
+      "mock": false,
+      "authUI": {
+        "checks": [
+          "new API token does not claim V3 login or prompt a password login",
+          "paste trimming is disclosed; token is cleared from input and never written in session mode",
+          "local readability check succeeds without claiming server authentication",
+          "cancelling deletion preserves session token",
+          "future-version file is preserved by read and session-mode replacement; recovery guidance is visible",
+          "only confirmed deletion removes unsupported ciphertext",
+          "invalid input is rejected before storage",
+          "390px modal has no horizontal overflow",
+          "close clears unsaved input; modal traps focus and Escape restores the opener",
+          "legacy V3 login clearly discloses password use and plaintext token storage"
+        ],
+        "offline": false,
+        "width": 390,
+        "realCredentialsUsed": false
+      },
+      "singleInstanceLockSimulated": true,
+      "externalRequests": [],
+      "rendererErrors": [],
+      "packageContext": {
+        "isPackaged": true,
+        "archiveUnchanged": true,
+        "profileIsolated": true,
+        "inspectorInjectedHarness": true
+      }
+    }
+  },
+  "nativeModeJourney": {
+    "phase": 2,
+    "pids": [
+      293,
+      374,
+      455
+    ],
+    "checks": [
+      "environment-free launch preserves saved offline choice and settings are editable",
+      "future network settings require confirmed settings-only reset",
+      "saving online does not unlock current offline IPC or requests",
+      "cancelled restart leaves the process and running mode unchanged",
+      "V3 save failure blocks relaunch without discarding the selected next mode",
+      "stopped and cleared asynchronous V3 run blocks restart until its promise completes",
+      "native relaunch requested only after V3 fixture save",
+      "actual native child reads saved online mode without a mode environment variable",
+      "token input and local check work after restart, with no authentication/generation request",
+      "native relaunch requested only after V3 fixture save",
+      "second native restart restores offline auth and all five dangerous IPC guards",
+      "V3 fixture survives both native restarts"
+    ],
+    "relaunchCalls": 2,
+    "externalRequests": [],
+    "rendererErrors": [],
+    "packaged": true,
+    "done": true,
+    "packageContext": {
+      "isPackaged": true,
+      "archiveUnchanged": true,
+      "nativeRestarts": 2,
+      "inspectorInjectedHarness": true,
+      "singleInstanceLockSimulated": true,
+      "originalFixtureUnchanged": true
+    }
+  },
+  "notices": {
+    "requiredResourcesPresent": [
+      "LICENSES/electron-react-boilerplate.txt",
+      "CREDITS.md",
+      "THIRD_PARTY_NOTICES/THIRD_PARTY_NOTICES.txt",
+      "THIRD_PARTY_NOTICES/index.json",
+      "THIRD_PARTY_NOTICES/APP_LICENSE_STATUS.md"
+    ],
+    "noticeCopiesVerified": 250,
+    "bundlePackageOccurrencesIndexed": 143,
+    "copiedRuntimePackagesIndexed": 112,
+    "runtimeIdentityBasis": "name/version/license/author/repository (builder strips scripts and other build metadata)",
+    "unresolvedNoticeFiles": [
+      {
+        "root": "node_modules/@react-dnd/invariant",
+        "name": "@react-dnd/invariant",
+        "version": "4.0.2",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "node_modules/@react-dnd/shallowequal",
+        "name": "@react-dnd/shallowequal",
+        "version": "4.0.2",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "release/app/node_modules/batch-cluster/types/chai-withintoleranceof",
+        "name": "@types/chai-withintoleranceof",
+        "version": "0.0.1",
+        "declaredLicense": null
+      },
+      {
+        "root": "release/app/node_modules/github-from-package/example",
+        "name": "beep-boop",
+        "version": "1.2.3",
+        "declaredLicense": null
+      },
+      {
+        "root": "release/app/node_modules/browserify-zlib",
+        "name": "browserify-zlib",
+        "version": "0.1.4",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "release/app/node_modules/is-gzip",
+        "name": "is-gzip",
+        "version": "1.0.0",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "src/native",
+        "name": "native",
+        "version": "1.0.0",
+        "declaredLicense": "ISC"
+      },
+      {
+        "root": "node_modules/react-dnd-preview",
+        "name": "react-dnd-preview",
+        "version": "8.1.2",
+        "declaredLicense": "MIT"
+      }
+    ],
+    "allIdentifiedPackagesHaveNoticeFiles": false,
+    "completeRedistributionReview": false
+  },
+  "actualAccountRequests": 0,
+  "realCredentialsUsed": false,
+  "verificationTiming": "Final 176 units, single UI3PID, ASAR generation/queue/errors/auth and native restart journey ran after runtime changes. Unpackaged queue3PID/errors3PID ran before the last button placement, two explicit false V5 flags and text-only changes; those paths were rechecked in final ASAR modes.",
+  "notVerified": [
+    "V5 server acceptance including image_format=png",
+    "V5 output quality or equality with web",
+    "actual response MIME",
+    "normal OS keyring encryption success",
+    "Windows/macOS",
+    "Node/Electron modernization",
+    "full repository tsc existing TS2688",
+    "public redistribution clearance"
+  ],
+  "sourceEvidence": {
+    "publicBuild": "52e2e6f-production",
+    "implementationCopied": false,
+    "rawBundlesCommitted": false,
+    "sourceDocument": "../NAI_V5_BINDING.md"
+  }
+}

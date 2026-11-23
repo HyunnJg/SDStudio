@@ -121,7 +121,7 @@ P1-01b 작업실에서는 씬별 입력을 편집한 뒤 `전체 씬 예약` →
 ## 포크 기본 프로필과 토큰 설정 (P0-03b2 일부)
 
 - 내부 이름/productName: SDStudio-HyunnJg. appId: io.github.hyunnjg.sdstudio. Linux 실행 파일: sdstudio-hyunnjg. 기본 userData: appData/SDStudio-HyunnJg. 이름·경로·ID는 토큰 보관 이후 유지한다.
-- 첫 import에서 이름과 네 경로를 고정한다. 기본 프로필도 개발 격리 규칙을 사용하므로 기본 오프라인이며 config.saveLocation은 무시한다. 원본이나 초기 개발 프로필을 자동 이관하지 않는다. 기존 명시적 SDSTUDIO_USER_DATA_DIR 사용은 유지한다.
+- 첫 import에서 이름과 네 경로를 고정한다. 기본 프로필도 경로 격리 규칙을 사용하며 config.saveLocation은 무시한다. D-048 이후 설정이 없는 일반 포크는 온라인이고 명시적 개발 프로필은 기본 오프라인이다. 원본이나 초기 개발 프로필을 자동 이관하지 않는다. 기존 명시적 SDSTUDIO_USER_DATA_DIR 사용은 유지한다.
 - API 토큰 창은 새/기존 데스크톱 화면에서 열린다. 오프라인/mock에서는 입력·조회가 비활성이다. 일반 포크의 온라인 선택은 아래 연결 모드 화면을 사용한다. 명시적 개발 프로필은 SDSTUDIO_OFFLINE=0을 사용한다. 예: Linux의 `SDSTUDIO_OFFLINE=0 npm run start:isolated`. 새 토큰은 기존 V3 로그인과 별도이고 새 작업실의 고정 기본1장/반복 생성에 사용한다.
 - `npm run test:identity`, `npm run test:auth-ui`, `npm run test:nai-main`은 합성 단위 검사다. `npm run smoke:auth-ui` / `npm run smoke:auth-ui -- offline`은 Linux X11·빌드된 main/preload/renderer가 필요하다. synthetic appData를 만들고 네트워크 차단 하네스에서 합성 토큰 UI를 조작한다.
 - `npm run smoke:package -- /absolute/linux-unpacked auth`는 실제 패키지의 기본 포크 경로·인증 화면을 같은 폐쇄된 환경에서 검사한다. 기본 mock/real 검사도 유지한다. inspector 주입·잠금 모의 한계는 이전과 같고 앱 아카이브 바이트는 바꾸지 않는다.
@@ -351,3 +351,12 @@ Test-Path .\tools\nai-validation\node_modules\electron\dist\electron.exe
 사용자 npm11.21.3 로그는 `electron@26.6.10`의 postinstall이 승인되지 않았다고 명시했다. [npm 공식 설명](https://docs.npmjs.com/cli/v11/commands/npm-install-scripts/)의 `npm install-scripts ls`는 설치 스크립트 정책을 읽기 전용으로 확인한다. 연구 도구만 확인할 때는 `npm --prefix tools/nai-validation install-scripts ls`다. 승인 정책을 검토 없이 전체 허용으로 바꾸지 않는다. 과거 Electron 설치 실패 전부가 이 정책 때문이었다고 소급 단정하지 않는다. 이번 Windows production 빌드 성공도 전체 npm ci·앱 기동·Node26/VS2026 호환 인증으로 확대하지 않는다.
 
 [재현·범위](validation/2026-11-23-dev-dll-start.md).
+
+
+## V5 설정·간단한 생성 (D-048)
+
+새 작업실은 V5 Full portrait를 기본으로 한다. npm run test:generation-v5는 실제 계정 없이 binding/body hash/혼합 큐·v3 저장과 v1 복구·저장-only 복구를 확인한다. npm run build는 production main/preload/worker/renderer와 고지를 만든다. 이번 변경은 Electron26/Node22.4.1 재현 기준을 갱신하지 않는다. 사용자의 Node26 로컬 기동 보고와 이 Linux 검증을 구분한다.
+
+일반 새 프로필은 online으로 시작한다. 기존 saved offline은 유지하고 API 토큰 창에서 변경/재시작할 수 있다. npm run start:isolated와 mock·SDSTUDIO_OFFLINE 지정은 기존 우선순위를 유지한다. 새 native 재시작 검사는 저장된 offline fixture로 시작해 사용자 선택 유지→online→offline을 검사한다.
+
+Node/Electron 현대화 후속은 지원 중인 Electron/내장 Node와 개발 호스트 Node를 함께 정하고, electron-rebuild/node-gyp/sharp/sdsnative ABI·Windows VS 탐지·npm 설치 스크립트 정책·개발 DLL/worker·production 패키지·프로필/암호화 저장 회귀를 별도 검증한다. 특정 새 조합을 검증 없이 지원 버전으로 선언하거나 정상 로컬 설치를 지우지 않는다.
