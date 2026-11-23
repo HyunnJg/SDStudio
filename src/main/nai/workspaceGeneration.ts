@@ -377,6 +377,9 @@ export class WorkspaceGeneration {
         delete item.error;
       }
     });
+    // The current preflight may have detected a different scene's changed input.
+    // Excluding that scene resolves this stop without altering the current job.
+    delete stop.error;
     this.prepared = undefined;
     this.queueApproval = undefined;
     delete q.state.stoppedItemId;

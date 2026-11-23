@@ -320,7 +320,12 @@ test('first MIME observation is private, bounded, sanitized and never overwritte
     httpStatus: 200,
   });
   const file = path.join(f.profile, 'nai-diagnostics/first-response.v1.json');
-  for (let i = 0; i < 50 && !fs.existsSync(file); i++)
+  // Async writeFile creates the file before writing its JSON bytes.
+  for (
+    let i = 0;
+    i < 50 && (!fs.existsSync(file) || fs.statSync(file).size === 0);
+    i++
+  )
     await new Promise((r) => setTimeout(r, 10));
   const saved = fs.readFileSync(file, 'utf8');
   assert.deepEqual(JSON.parse(saved), {

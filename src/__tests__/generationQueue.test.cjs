@@ -1109,6 +1109,60 @@ test('confirmed exclusion removes only a conflicting scene unsent count, edits n
     'new conflicting input',
   );
 });
+test('excluding a later conflicting scene clears the current job stop error and preserves the other unsent jobs', async (t) => {
+  const f = fixture(t, {
+    send: async ({ number, core, first, bytes }) => {
+      if (number === 1)
+        core.save(
+          first.project.id,
+          first.revision,
+          editedContent(first.project, (c) => {
+            c.scenes[2].draft.prompt = 'changed later scene';
+          }),
+        );
+      return bytes;
+    },
+  });
+  const plan = await f.prepare(2);
+  const stopped = await f.service.runQueue(plan.ticket, true);
+  const current = stopped.queue.items[1];
+  assert.equal(current.sceneId, f.scenes[1].id);
+  assert.equal(current.status, 'pending');
+  assert.equal(current.error.conflictSceneId, f.scenes[2].id);
+  assert.equal(stopped.queue.stoppedItemId, current.id);
+  const before = f.core.readManifest(f.first.project.id);
+  const excluded = f.service.excludePendingScene(
+    plan.queueId,
+    f.scenes[2].id,
+    true,
+  );
+  assert.equal(excluded.queue.stoppedItemId, undefined);
+  assert.ok(excluded.queue.items.every((item) => item.error === undefined));
+  assert.equal(excluded.queue.items[1].status, 'pending');
+  assert.equal(
+    excluded.queue.items.filter((i) => i.status === 'skipped').length,
+    2,
+  );
+  assert.equal(f.count, 1);
+  assert.deepEqual(f.core.readManifest(f.first.project.id), before);
+  await assert.rejects(f.service.runQueue(plan.ticket, true), {
+    code: 'CONFIRMATION_EXPIRED',
+  });
+  const remaining = await f.service.prepareRemaining(
+    plan.queueId,
+    before.project.id,
+    before.revision,
+  );
+  assert.deepEqual(
+    remaining.items.map((i) => i.sceneId),
+    [f.scenes[1].id, f.scenes[0].id, f.scenes[1].id],
+  );
+  assert.equal(f.count, 1);
+  const done = await f.service.runQueue(remaining.ticket, true);
+  assert.equal(f.count, 4);
+  assert.equal(done.latest.snapshot.project.images.length, 4);
+  assert.ok(done.queue.items.every((item) => item.error === undefined));
+});
 test('deleting and excluding every remaining scene leaves zero requests and requires a new reservation', async (t) => {
   const f = fixture(t),
     p = await f.prepare(2, [f.scenes[0].id]);
