@@ -358,6 +358,8 @@
 
 ## D-043. 기본 V4.5 바인딩의 선택 씬·반복 큐를 메인 공통 실행기에 연결한다
 
+입력 비교 범위·초기 큐 리비전 조건·전송 전 실패의 상태는 후속 D-044로 대체한다. 나머지 전송/저장 경계는 유지한다.
+
 - 결정일: 2026-11-23 (Asia/Seoul), 기준 main `ea7a979`. PR #22 의견을 반영한 [처리](reviews/2026-11-23-pr22-followup.md). 범위는 D-041 고정512px/28/5/캐릭터 없음 바인딩뿐이며 모델·해상도·와일드카드 의미를 넓히지 않는다.
 - prepareQueue는 저장된 프로젝트/리비전과 선택 scene ID·반복 횟수만 받는다. scene ID는 기존 저장 형식의 로컬 ID이고 파일 경로로 사용하지 않는다. 선택 순서는 저장된 씬 순서, 반복은 반복 우선(A·B·C→A·B·C)으로 고정한다. 저장된 선택 씬 전부의 바인딩이 유효해야 새 예약을 공개하며 잘못된 예약은 기존 큐를 바꾸지 않는다. 이전 확인은 새 준비/취소로 무효화한다.
 - 예약은 최대60건·프로젝트 잔여120기록 이내, 요청 body 합계8 MiB다. 시드는 예약 준비 때 메인 crypto에서 요청마다 확정하고 랜덤끼리 충돌하면1씩 이동한다. 고정0과 같은 시드 반복은 유지한다. 요청별 실제 JSON body hash/binding·당시 draft/sceneId/seed를 기존 v2 결과 기록에 남긴다. 사용자 화면은 총 요청 수·고정 설정·씬/반복/시드를 확인한다.
@@ -370,3 +372,16 @@
 - 큐/확인은 메인 메모리 상태이며 재시작 복원·백그라운드 스케줄러가 아니다. 중지된 미전송 예약은 입력/PNG 저장물이 아니며 close/restart의 main hasWork는 실제 실행/미저장 PNG만 막는다. 미전송 예약 비우기는 파일/PNG를 삭제하지 않는다. pending PNG를 버리려면 기존 별도 명시 확인이 필요하다.
 - queueStatus는 입력/PNG 본문 없는 상태와 실행 중의 신규 저장 snapshot만 반환하고, 멈춘 뒤 과거 snapshot을 폴링으로 재적용하지 않는다. 정상 runQueue 응답은 마지막 저장 snapshot을 함께 반환한다. UI는 현재 리비전과 일치하는 폴링 응답만 반영해 늦은 응답의 되돌림을 피한다.
 - 대기열은 별도 ConnectedQueueControls로 분리하고 기본/완료 시 접힌 한 줄 요약을 사용한다. 실행 중 접어도 중지 접근은 유지한다. 기존 ProjectController snapshot·PNG1개 조회 경계는 유지한다. [사용](WORKSPACE_QUEUE.md), [검증](validation/2026-11-23-connected-queue.md).
+
+
+## D-044. 이어가기는 미전송 씬의 draft만 비교하고 전송 전 실패는 pending에 남긴다
+
+- 결정일: 2026-11-23 (Asia/Seoul), 기준 main `2430216`. PR #23의 재현된 이어가기 충돌과 미전송 작업 유실 의견을 채택한다. [처리](reviews/2026-11-23-pr23-followup.md).
+- prepareRemaining과 각 runQueue 전송 전 같은 checkQueuedInputs를 사용한다. pending/preparing 작업의 scene ID가 존재하고 **저장된 draft 전체**가 예약 당시 task.input.draft와 deep strict equal이어야 한다. 객체 key 순서는 의미가 없어 다르게 저장돼도 허용한다. 현재 작업뿐 아니라 아직 전송하지 않은 모든 대상 입력을 확인한다.
+- 프로젝트 이름·selectedSceneId·씬 이름·씬 순서·예약 밖 씬과 전송 완료/실패 작업만 참조하는 씬은 비교하지 않는다. 예약 draft가 바뀌거나 대상 씬이 삭제됐으면 QUEUE_INPUT_CHANGED로 중지한다. 단순히 씬을 보거나 다른 씬을 수정한 것을 생성 입력 변경으로 취급하지 않는다.
+- 큐 run은 오래된 전체 프로젝트 리비전과의 일치만으로 거부하지 않는다. 승인한 pending 입력이 같으면 최신 readManifest 리비전으로 기존 execute/preflight를 호출한다. 읽기~preflight/쓰기 사이 변경은 기존 기대 리비전 검사가 계속 거부한다. prepare/prepareRemaining의 호출자 리비전 검사는 유지하고, 단일1장 run은 기존 확인 리비전 정책을 유지한다.
+- 오류의 conflictSceneId는 QUEUE_INPUT_CHANGED에서만 저장된 local ID 형식([A-Za-z0-9_-],1~100자)을 허용한다. IPC/큐 상태는 고정 code와 이 ID만 추가로 전달한다. renderer는 현재 씬 이름→예약 기록 이름→일반 안내 순서로 표시하며 서버 본문·입력 프롬프트·OS 예외 원문을 합성하지 않는다.
+- runQueue의 preparing 단계에서 전송 전 오류(mayHaveReachedServer=false)가 나고 pending PNG가 없으면 작업을 pending으로 되돌리고 오류를 보존한다. 큐는 즉시 멈추며 자동 전송/재시도는 없다. 원인을 해결한 뒤 fresh5분/일회용 확인으로 해당 작업을 포함해 이어간다.
+- sendImage 진입은 여전히 running 전환 경계다. 이 단계 이후 실패는 mayHaveReachedServer=false라고 해도 pending으로 바꾸지 않는다. 수신한 PNG의 저장 실패는 기존 result-pending/저장-only 복구이며 API를 다시 보내지 않는다. 취소·오류 후 기존 확인은 재사용할 수 없다.
+- renderer의 체크 목록은 렌더/prepare 호출 직전에 현재 scenes로 필터링하고 effect에서도 정리한다. 미선택·삭제 ID를 보이지 않는 체크로 전송하지 않는다.
+- 고정 호출 간격·자동 재시도·모델/해상도·저장 형식·오프라인/토큰 경계는 이번에 바꾸지 않는다. 실제 계정1장/소량 반복·429 빈도·정확한 MIME은 후속 실측이다. [검증](validation/2026-11-23-queue-resume.md).

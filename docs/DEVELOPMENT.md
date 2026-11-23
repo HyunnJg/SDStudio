@@ -306,3 +306,6 @@ npm run smoke:package -- /absolute/linux-unpacked generation-queue
 ```
 
 smoke:generation-queue는 production 앱의3개 PID로 선택3씬×2회·묶음 확인·중지 후5건 재확인·저장 실패 결과의 새 프로젝트 보관·재열기/오프라인 표시를 확인한다.13회는 하네스의 loopback HTTP 횟수이고 계정 API 호출은0이다. 정상 단일 생성은 기존 smoke:generation으로 계속 검사한다. 선택 SDSTUDIO_GENERATION_REPORT/SDSTUDIO_GENERATION_SCREENSHOT는 합성 검증 JSON/화면만 로컬 경로에 남긴다. 패키지의 generation-queue 모드도 inspector 하네스·singleton/좁은 폭 대체 조건을 사용한다. [검증/한계](validation/2026-11-23-connected-queue.md).
+
+
+D-044 후속: test:generation-queue는 큐25 + presentation3 검사를 함께 실행한다. 미전송 입력 범위·전송 전 실패 복구·named conflict·삭제 ID 정리가 추가됐다. smoke:generation-queue는 기존13회 loopback 시나리오에 “다른 씬 보기/프로젝트 이름 변경 → 예약 입력 변경 거부/원복 → 같은5건 확인”을 포함해3PID10체크다. package의 generation-queue도8체크를 요구한다. 실제 계정 호출 없이 검사하며, [검증](validation/2026-11-23-queue-resume.md)에 한계를 기록했다.
