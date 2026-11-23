@@ -151,3 +151,10 @@ prepare와 run에서 고정 ProjectService worker의 generationSnapshot으로 �
 
 
 D-042의 main-only worker readManifest/image는 renderer projects IPC를 늘리지 않는다. generation.image는 UUID 참조 검사와 선택 PNG 해시·크기 검사를 worker 안에서 수행한다. ProjectController는 이미 반환된 스냅샷의 imageRecords를 복사해 ConnectedWorkspace에 제공하며 리비전 변경마다 projects.open을 재호출하지 않는다. retrySave가 이미 커밋된 UUID를 발견하면 이 image 경로로 그 파일을 확인한 뒤 pending을 해제한다.
+
+
+## 선택 씬·반복 기본 생성 (D-043)
+
+WorkspaceGeneration이 main 메모리의 예약 snapshot·확정 시드/body hash·5분 일회용 묶음 ticket·직렬 상태를 소유한다. prepareQueue/prepareRemaining/runQueue/queueStatus/clearQueue의 고정 IPC를 기존 trusted frame 경계 뒤에 추가한다. renderer가 request JSON·모델/목적지·토큰·파일 경로를 넘기지 않는다. run과 runQueue는 공통 execute→sendImage→pending→persist를 사용한다.
+
+ConnectedWorkspace는 별도 ConnectedQueueControls에서 씬 선택·반복·진행/중지·저장 결과 선택을 제공한다. 실행 중 queueStatus의 최신 결과 snapshot은 현재 리비전과 일치할 때만 controller에 반영한다. 멈춘 뒤 과거 snapshot은 상태 폴링으로 다시 보내지 않는다. 준비/확인은 네트워크0, 실행은1건씩·실패 시 중지·자동 재시도 없음이다. 새 PNG worker 저장/단건 읽기는 기존 작업을 사용하며 worker 권한/manifest 형식은 바꾸지 않는다. 입력 보존·충돌·미전송 작업 재확인·close/restart 경계는 [WORKSPACE_QUEUE.md](WORKSPACE_QUEUE.md).

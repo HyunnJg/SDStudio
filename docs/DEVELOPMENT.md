@@ -293,3 +293,16 @@ SDSTUDIO_PROJECT_READ_REPORT=/tmp/project-reads.json npm run test:project-reads
 ```
 
 PowerShell에서는 `$env:SDSTUDIO_PROJECT_READ_REPORT`에 임시 결과 경로를 먼저 지정하고 같은 npm 스크립트를 실행한다. 테스트가 임시 프로필·120개 서로 다른 합성 PNG를 만들고 정리한다. 선택 이미지의 참조/해시/크기, 생성 준비의 리비전/잠금/한도, 저장-only 재시도와 실제 TS worker 경계를 검사한다. 파일 open 횟수 측정이며 256 MiB 지연 benchmark가 아니다. 실제 키·계정 호출은 필요 없다. [실행 기록](validation/2026-11-23-project-reads.md).
+
+
+### 실제 기본 씬·반복 큐 합성 검증 (D-043)
+
+```sh
+npm run test:generation-queue
+npm run build
+# Linux X11 / 실제 계정 호출 없이 합성 토큰·loopback 응답
+npm run smoke:generation-queue
+npm run smoke:package -- /absolute/linux-unpacked generation-queue
+```
+
+smoke:generation-queue는 production 앱의3개 PID로 선택3씬×2회·묶음 확인·중지 후5건 재확인·저장 실패 결과의 새 프로젝트 보관·재열기/오프라인 표시를 확인한다.13회는 하네스의 loopback HTTP 횟수이고 계정 API 호출은0이다. 정상 단일 생성은 기존 smoke:generation으로 계속 검사한다. 선택 SDSTUDIO_GENERATION_REPORT/SDSTUDIO_GENERATION_SCREENSHOT는 합성 검증 JSON/화면만 로컬 경로에 남긴다. 패키지의 generation-queue 모드도 inspector 하네스·singleton/좁은 폭 대체 조건을 사용한다. [검증/한계](validation/2026-11-23-connected-queue.md).

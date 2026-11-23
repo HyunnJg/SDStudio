@@ -1,0 +1,277 @@
+{
+  "date": "2026-11-23 (Asia/Seoul)",
+  "baseCommit": "ea7a979a4178f1f7a5d2b1afaa68f27d645304df",
+  "runtimeCommits": [
+    "6c1beb5f59fa2429ad5661398f73c46ce423c490",
+    "9e717e4eabd5c101dca9151d0f69a73491a38bb9"
+  ],
+  "runtimeTree": "e4328f97aea43f728a4437778f4428ba56ce428f",
+  "environment": {
+    "platform": "Linux x64",
+    "node": "22.4.1",
+    "npm": "11.19.1; unsupported pairing warning, not recommended setup",
+    "electron": "26.6.10",
+    "electronNode": "18.16.1",
+    "builder": "24.13.3",
+    "display": "Xorg dummy with cookie-authenticated TCP; loopback client"
+  },
+  "unitTests": {
+    "baselinePassed": 172,
+    "baselineFailed": 0,
+    "baselineSkipped": 0,
+    "queue": 17,
+    "generation": 16,
+    "projectReads": 8,
+    "projectStore": 13,
+    "projectController": 8,
+    "projectServiceAndClose": 10,
+    "naiMain": 36,
+    "naiResponse": 19,
+    "offline": 11,
+    "workspace": 14,
+    "naiContract": 10,
+    "networkMode": 10,
+    "followupFix": {
+      "runtimeCommit": "9e717e4eabd5c101dca9151d0f69a73491a38bb9",
+      "relatedPassed": 41,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "generationQueue17 + generation16 + projectReads8; validates ending old queue after result-only new project save"
+    }
+  },
+  "checks": {
+    "scopedStrictTypes": true,
+    "scopedLint": true,
+    "testAndHarnessFormat": true,
+    "mainWorkerRendererBuild": true,
+    "noticeCollection": true,
+    "packageBuild": true,
+    "freshNpmCi": false,
+    "nativeRebuild": false
+  },
+  "queueUI": {
+    "reports": [
+      {
+        "pid": 20,
+        "phase": "queue",
+        "ready": true,
+        "checks": [
+          "selected3 scenes x2 prepare sends0; confirmation shows6 requests, fixed settings and six resolved random seeds",
+          "real session transport/ASAR-compatible worker stores6 original PNG records in repetition-first order with the confirmed seeds",
+          "stop aborts the one in-flight request; five unsent tasks remain and no automatic eighth request starts",
+          "fresh5-request confirmation resumes only unsent tasks; the cancelled request is not retried and11 PNG records remain",
+          "received PNG survives queue storage failure and saves to a new project with no14th request; original lock/11 PNG records stay intact",
+          "390px queue/confirmation/result layout has no horizontal overflow; normal app minimum size is unchanged"
+        ],
+        "loopbackRequests": 13,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 114,
+        "phase": "reopen",
+        "ready": true,
+        "checks": [
+          "new PID reopens the result-only project and decodes byte-identical PNG with no generation request"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 205,
+        "phase": "offline",
+        "ready": true,
+        "checks": [
+          "offline generation refuses prepare before token/network access while saved v2 PNG remains viewable"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      }
+    ],
+    "actualAccountRequests": 0,
+    "transportDestinationRewrittenToLoopback": true
+  },
+  "packagedQueue": {
+    "phase": "queue",
+    "ready": true,
+    "checks": [
+      "selected3 scenes x2 prepare sends0; confirmation shows6 requests, fixed settings and six resolved random seeds",
+      "real session transport/ASAR-compatible worker stores6 original PNG records in repetition-first order with the confirmed seeds",
+      "stop aborts the one in-flight request; five unsent tasks remain and no automatic eighth request starts",
+      "fresh5-request confirmation resumes only unsent tasks; the cancelled request is not retried and11 PNG records remain",
+      "received PNG survives queue storage failure and saves to a new project with no14th request; original lock/11 PNG records stay intact",
+      "390px queue/confirmation/result layout has no horizontal overflow; normal app minimum size is unchanged"
+    ],
+    "loopbackRequests": 13,
+    "actualAccountRequests": 0,
+    "externalRequests": [],
+    "rendererErrors": [],
+    "singleInstanceLockSimulated": true,
+    "nativeQuitObserved": true,
+    "packageContext": {
+      "isPackaged": true,
+      "archiveUnchanged": true,
+      "profileIsolated": true,
+      "inspectorInjectedHarness": true
+    }
+  },
+  "archive": {
+    "worker": {
+      "path": "dist/main/projectWorker.js",
+      "unpacked": false
+    },
+    "archiveSHA256": "395dd186f3263fcda0e9ec4ac88bdfdd9e342cba9f86727ebb600cc03db095da"
+  },
+  "packageNotices": {
+    "requiredResourcesPresent": [
+      "LICENSES/electron-react-boilerplate.txt",
+      "CREDITS.md",
+      "THIRD_PARTY_NOTICES/THIRD_PARTY_NOTICES.txt",
+      "THIRD_PARTY_NOTICES/index.json",
+      "THIRD_PARTY_NOTICES/APP_LICENSE_STATUS.md"
+    ],
+    "noticeCopiesVerified": 250,
+    "bundlePackageOccurrencesIndexed": 143,
+    "copiedRuntimePackagesIndexed": 112,
+    "runtimeIdentityBasis": "name/version/license/author/repository (builder strips scripts and other build metadata)",
+    "unresolvedNoticeFiles": [
+      {
+        "root": "node_modules/@react-dnd/invariant",
+        "name": "@react-dnd/invariant",
+        "version": "4.0.2",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "node_modules/@react-dnd/shallowequal",
+        "name": "@react-dnd/shallowequal",
+        "version": "4.0.2",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "release/app/node_modules/batch-cluster/types/chai-withintoleranceof",
+        "name": "@types/chai-withintoleranceof",
+        "version": "0.0.1",
+        "declaredLicense": null
+      },
+      {
+        "root": "release/app/node_modules/github-from-package/example",
+        "name": "beep-boop",
+        "version": "1.2.3",
+        "declaredLicense": null
+      },
+      {
+        "root": "release/app/node_modules/browserify-zlib",
+        "name": "browserify-zlib",
+        "version": "0.1.4",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "release/app/node_modules/is-gzip",
+        "name": "is-gzip",
+        "version": "1.0.0",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "src/native",
+        "name": "native",
+        "version": "1.0.0",
+        "declaredLicense": "ISC"
+      },
+      {
+        "root": "node_modules/react-dnd-preview",
+        "name": "react-dnd-preview",
+        "version": "8.1.2",
+        "declaredLicense": "MIT"
+      }
+    ],
+    "allIdentifiedPackagesHaveNoticeFiles": false,
+    "completeRedistributionReview": false
+  },
+  "screenshots": [
+    {
+      "path": "docs/validation/connected-queue-desktop.png",
+      "sha256": "26593fa04f197ee1bbe69fd0be61619cbb382494dfd02d92bfebc708f8ec094d",
+      "syntheticOnly": true
+    },
+    {
+      "path": "docs/validation/connected-queue-narrow.png",
+      "sha256": "92707455cb8118ceba918978de544c48d10c4942e1155c122a9413422b00e380",
+      "syntheticOnly": true
+    }
+  ],
+  "actualAccountRequests": 0,
+  "limitations": [
+    "No actual NovelAI/keyring/Windows/macOS requests or tests",
+    "Exact NovelAI MIME remains unverified; binary/octet-stream is a loopback fixture",
+    "No wildcard expansion, character/resolution binding or persistent queue",
+    "Stopped unsent reservations do not block main close/restart; active operations and memory PNG do",
+    "No256MiB latency/worker transfer-copy benchmark or worker ArrayBuffer transfer change",
+    "No fresh npm ci/native rebuild; known global TS2688 remains",
+    "Inspector-injected package harness, singleton lock and390px minimum-size overrides are test substitutions",
+    "Existing8 unresolved notice records remain; no complete redistribution review claimed"
+  ],
+  "singleUI": {
+    "reports": [
+      {
+        "pid": 23,
+        "phase": "create",
+        "ready": true,
+        "checks": [
+          "save/prepare and unconfirmed button send zero requests; visible confirmation fixes request seed/settings",
+          "actual Electron session transport accepts unknown MIME ZIP, worker persists original alpha/metadata PNG, renderer decodes it",
+          "in-flight cancel reports possible server processing, preserves input and prior PNG, no automatic retry",
+          "post-response storage fault retains result; explicit new-project save preserves original lock/PNG and adds the received PNG without a fourth request",
+          "first response diagnostic contains only sanitized MIME/state/status/version in private profile",
+          "390px layout probe (test-only window minimum override) has no horizontal overflow"
+        ],
+        "loopbackRequests": 3,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 115,
+        "phase": "reopen",
+        "ready": true,
+        "checks": [
+          "new PID reopens the result-only project and decodes byte-identical PNG with no generation request"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 207,
+        "phase": "offline",
+        "ready": true,
+        "checks": [
+          "offline generation refuses prepare before token/network access while saved v2 PNG remains viewable"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      }
+    ],
+    "actualAccountRequests": 0,
+    "transportDestinationRewrittenToLoopback": true
+  }
+}

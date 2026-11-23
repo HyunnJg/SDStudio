@@ -63,3 +63,5 @@ docs/reviews/2026-11-20-initial-request.md의 질문을 독립적으로 검토�
 - [PR #20 의견·기본1장 생성/PNG 연결 후속](2026-11-22-pr20-followup.md)
 
 - [PR #21 의견·작업별 PNG 검사 후속](2026-11-23-pr21-followup.md)
+
+- [PR #22 의견·기본 선택 씬/반복 대기열 후속](2026-11-23-pr22-followup.md)
