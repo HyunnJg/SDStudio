@@ -21,3 +21,7 @@ Windows CI는 실제 OS 보안 저장의 호환·재시작·왕복을 모두 요
 이 검사가 실계정 토큰이나 사용자의 기존 암호문을 받는 절차는 아니다. 사용자의 실제 키링/Windows10 GUI 확인은 대신하지 않는다.
 
 공식 근거(2026-11-24 확인): [safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage), [고정 Electron45.4.1 구현](https://github.com/electron/electron/blob/v45.4.1/shell/browser/api/electron_api_safe_storage.cc). API/호환 설명을 확인했으며 upstream 구현을 복사하지 않았다.
+
+## 실행 결과
+
+[Windows/Linux CI run45395949082](https://github.com/HyunnJg/SDStudio/actions/runs/45395949082), 코드9719178에서 두 job 성공. Windows의 실제 암호문 재시작 읽기·비동기 왕복·기존 파일 불변을 확인했다. Linux basic 분기와 기존245건·양쪽 production/패키지/고지 검사도 성공했다. [상세 기록](validation/2026-11-24-async-storage.md). 이 결과는 운영 store 전환이나 사용자 키링 이전을 완료했다는 뜻이 아니다.

@@ -1,0 +1,57 @@
+{
+  "date": "2026-11-24",
+  "timezone": "Asia/Seoul",
+  "baseCommit": "c48814a3e57d21529499d71c93b134e0b287de49",
+  "testedCodeCommit": "97191788d0841037773da1cc49ab6c271cf10465",
+  "workflowRun": 45395949082,
+  "windows": {
+    "asyncStorageCompatibility": [
+      {
+        "phase": "write",
+        "electron": "45.4.1",
+        "node": "24.22.3",
+        "platform": "win32",
+        "syntheticOnly": true,
+        "networkAttempts": 0,
+        "asyncMethodsPresent": true,
+        "backend": "win32",
+        "availabilityQueried": true,
+        "asyncAvailable": true,
+        "result": "legacy-v1-written",
+        "ok": true,
+        "stage": "complete"
+      },
+      {
+        "phase": "read",
+        "electron": "45.4.1",
+        "node": "24.22.3",
+        "platform": "win32",
+        "syntheticOnly": true,
+        "networkAttempts": 0,
+        "asyncMethodsPresent": true,
+        "backend": "win32",
+        "availabilityQueried": true,
+        "asyncAvailable": true,
+        "legacyReadableAfterRestart": true,
+        "rotationRequested": false,
+        "asyncRoundTrip": true,
+        "legacyFileUnchanged": true,
+        "result": "legacy-and-async-compatible",
+        "ok": true,
+        "stage": "complete"
+      }
+    ],
+    "actualAccountRequests": 0
+  },
+  "linux": {
+    "result": "insecure-provider-not-tested",
+    "availabilityQueried": false,
+    "actualKeyringCompatibilityVerified": false
+  },
+  "unitTestsPerOS": 245,
+  "windowsAndLinuxPipelineSuccess": true,
+  "productionTokenStoreMigrated": false,
+  "electron46UpgradeBlocked": true,
+  "actualAccountRequests": 0
+}
+
