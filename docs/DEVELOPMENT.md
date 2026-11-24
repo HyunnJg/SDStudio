@@ -360,3 +360,8 @@ Test-Path .\tools\nai-validation\node_modules\electron\dist\electron.exe
 일반 새 프로필은 online으로 시작한다. 기존 saved offline은 유지하고 API 토큰 창에서 변경/재시작할 수 있다. npm run start:isolated와 mock·SDSTUDIO_OFFLINE 지정은 기존 우선순위를 유지한다. 새 native 재시작 검사는 저장된 offline fixture로 시작해 사용자 선택 유지→online→offline을 검사한다.
 
 Node/Electron 현대화 후속은 지원 중인 Electron/내장 Node와 개발 호스트 Node를 함께 정하고, electron-rebuild/node-gyp/sharp/sdsnative ABI·Windows VS 탐지·npm 설치 스크립트 정책·개발 DLL/worker·production 패키지·프로필/암호화 저장 회귀를 별도 검증한다. 특정 새 조합을 검증 없이 지원 버전으로 선언하거나 정상 로컬 설치를 지우지 않는다.
+
+
+## Windows 로컬 기동 보고와 역할 구분 (D-049)
+
+사용자가 전달한 Codex 결과는 [별도 기록](validation/2026-11-24-windows-local-start.md)에 보존했다. 앱 개발 실행은 전용 Node22.4.1/npm10.8.1, native 빌드 도구는 Node26/node-gyp12.1.0, 대상은 Electron26.6.10이며 VS2026/Python3.14.3 경로로 성공했다고 보고했다. 이는 기존 자동 재빌드나 루트 clean npm ci·Windows 패키징 성공이 아니다. 정상 로컬 활성화 스크립트/런타임/lock 변경을 지우거나 VS2022 설치를 다시 요구하지 않는다. main 업데이트 전 git status로 로컬 변경을 확인하고 별도 브랜치에 보존한다.
