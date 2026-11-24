@@ -37,6 +37,11 @@ jobs:
         run: npm ci --include=optional --no-audit --no-fund
       - name: Verify the actual Electron/native runtime
         run: npm run verify:desktop
+      - name: Configure the Linux Electron sandbox helper
+        if: runner.os == 'Linux'
+        run: |
+          sudo chown root:root node_modules/electron/dist/chrome-sandbox
+          sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
       - name: Development entry and isolated profile
         run: npm run profile:check -- "${{ runner.temp }}/sdstudio-runtime-check" --ozone-platform=headless --disable-gpu
       - name: Unit regressions

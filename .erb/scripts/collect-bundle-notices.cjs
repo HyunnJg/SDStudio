@@ -179,7 +179,10 @@ function collectNotices() {
   if (fs.existsSync(imgRoot))
     for (const name of fs
       .readdirSync(imgRoot)
-      .filter((name) => name.startsWith('sharp-libvips-'))
+      .filter(
+        (name) =>
+          name.startsWith('sharp-libvips-') || name.startsWith('sharp-win32-'),
+      )
       .sort())
       for (const filename of ['README.md', 'versions.json'])
         vendorFiles.push(`release/app/node_modules/@img/${name}/${filename}`);

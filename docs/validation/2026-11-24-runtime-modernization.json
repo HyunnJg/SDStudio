@@ -183,5 +183,18 @@
   },
   "actualAccountRequests": 0,
   "windowsLocallyExecuted": false,
-  "macOSLocallyExecuted": false
+  "macOSLocallyExecuted": false,
+  "windowsCI": {
+    "initialRun": 45343250393,
+    "cleanInstallAndNativeRuntimePassed": true,
+    "developmentEntryPassed": true,
+    "visualStudio": "2026 Enterprise 18.12.12405.243",
+    "pythonSelectedByGyp": "3.15.2",
+    "initialUnit": {
+      "passed": 238,
+      "failed": 5
+    },
+    "platformFixtureFixesApplied": true,
+    "fullPipelineResultPending": true
+  }
 }

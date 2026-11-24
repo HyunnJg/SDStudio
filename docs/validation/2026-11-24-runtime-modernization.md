@@ -43,3 +43,11 @@
 - Linux sharp/전역 GLib 경고 및 한 차례 GLib critical, 동기 safeStorage deprecated 경고는 남았다. 처리한 합성 PNG/GUI는 통과했지만 모든 포맷/환경을 보증하지 않는다. 경고를 숨기거나 token file 정책을 바꾸지 않았다.
 - 기존 libsodium 타입 stub, 레거시 로컬 AI/ExifTool/다른 전이 의존성의 deprecation·취약점 정리는 별도다. 공개 배포 전 원문 고지8건·앱/DB/자산 출처·LGPL 조건·fuse는 남는다.
 - NAI 실제 계정/키 입력·V5 출력/품질·모델 확장 실험0회. 사용자 Windows 환경의 정상 활성화 스크립트/lock/이미지/토큰에는 접근하지 않았다.
+
+## PR29 초기 CI 보완
+
+Linux CI는 clean 설치/실제 native 검증까지 성공한 뒤, archive에서 설치된 chrome-sandbox가 root 소유4755가 아니어서 profile:check 단계에서 중지됐다. CI의 Linux 전용 helper 소유권/모드 구성으로 고치며 --no-sandbox를 제품 기본값에 넣지 않는다. Windows job은 별도로 계속 확인한다.
+
+Windows sharp의 고지는 Linux와 경로가 다르다. lock에 고정된 @img/sharp-win32-x64@0.35.5 공식 npm archive를 integrity 대조 후 읽었고, 이 패키지는 Apache-2.0 AND LGPL-3.0-or-later를 선언하며 libvips DLL·README/versions를 함께 담는다. 따라서 sharp-libvips-* 외에 sharp-win32-*의 README/versions도 vendor 수집 대상으로 추가하고 두 레이아웃을 합성 검사한다. 다운로드한 바이너리는 실행하거나 저장소에 넣지 않는다.
+
+Windows 첫 CI(run45343250393)는 root clean 설치, VS2026 Enterprise18.12.12405.243/Python3.15.2 탐지, Electron45 native 검색/sharp PNG 왕복, CJS profile check까지 성공했다. setup-python은3.14를 설치했지만 node-gyp 자동 탐지가 실제 선택한 것은3.15.2였으므로 그 값을 기록한다. 단위는238/243이었다. 실패5건은 fixture의 드라이브 없는 경로, 대소문자 폴더의 중복mkdir, 두 import mock의 POSIX 구분자 가정, NTFS에서 POSIX0600 비교였다. 경로/fixture/mock만 플랫폼에 맞추고 내용/전송0/불변 검사 의미는 유지한다. POSIX 모드 검사는 Windows에서 ACL 검사로 가장하지 않는다. 후속 Windows 패키징 결과는 별도 확인한다.

@@ -4,7 +4,7 @@
 
 ## 현재 단계
 
-**현재 우선순위는 생성 실험을 보류하고 데스크톱 런타임 현대화를 검증하는 것이다(D-050).** Node26.13.1/npm11.21.3·Electron45.4.1로 설치/재빌드를 통일했다. Linux clean 설치·기존 단위243건과 새 클립보드·단일/반복 UI가 통과했다. Windows 신규 설치/패키지는 실제 CI/로컬 결과 전까지 미확인이다. [변경 범위](RUNTIME_MODERNIZATION.md), [검증](validation/2026-11-24-runtime-modernization.md).
+**현재 우선순위는 생성 실험을 보류하고 데스크톱 런타임 현대화를 검증하는 것이다(D-050).** Node26.13.1/npm11.21.3·Electron45.4.1로 설치/재빌드를 통일했다. Linux clean 설치·기존 단위243건과 새 클립보드·단일/반복 UI가 통과했다. Windows 첫 CI에서 Node26 clean 설치·VS2026 native/PNG·개발 엔트리가 성공했다. 단위 플랫폼 전제 보완 후 전체 빌드/패키지 결과를 확인 중이다. [변경 범위](RUNTIME_MODERNIZATION.md), [검증](validation/2026-11-24-runtime-modernization.md).
 
 **V5 Full·832×1216과 생성 버튼 한 번의 작업 흐름으로 확장했다(D-048).** 새 입력 기본값은 무작위 시드·23스텝·가이던스7·Euler ancestral/Karras·품질 Standard·부정 Heavy다. V5의 세로/가로/정사각형, 품질/부정 프리셋과 스텝/가이던스를 선택한다. 기존 V4.5 기본512px 요청과 v1/v2 읽기·이력 복구는 유지하고 새 선택은 manifest v3로 구분한다. [근거와 미확인 범위](NAI_V5_BINDING.md), [검증](validation/2026-11-24-v5-workspace.md).
 

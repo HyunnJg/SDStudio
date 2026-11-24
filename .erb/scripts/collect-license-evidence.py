@@ -150,7 +150,8 @@ def main():
         img_root = ROOT / 'release/app/node_modules/@img'
         if img_root.is_dir():
             targets += [(str(base.relative_to(ROOT)), ['README.md', 'versions.json'])
-                        for base in sorted(img_root.glob('sharp-libvips-*')) if base.is_dir()]
+                        for base in sorted(img_root.iterdir()) if base.is_dir()
+                        and base.name.startswith(('sharp-libvips-', 'sharp-win32-'))]
         observations = []
         for relative, files in targets:
             base = ROOT / relative

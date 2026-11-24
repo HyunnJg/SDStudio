@@ -34,7 +34,7 @@ Electron45 내부 Node24의 default app loader가 main.ts를 native ESM으로 im
 
 Electron44 이후 이미지 클립보드는 비동기 clipboard.write/ClipboardItem API를 사용한다. 실제 IPC 복사 → clipboard.read → PNG 복호화로 확인한다. sandbox preload는 이미 Electron IPC/웹 API만 사용하므로 Node shim 제거를 이유로 sandbox를 해제하지 않았다. 하네스 console-message의 새 details 객체를 사용해 렌더러 오류 포착을 유지한다.
 
-sharp의 @img 플랫폼 패키지와 libvips를 ASAR 밖에 유지하고, 해당 README/versions.json을 고지 증거에 포함한다. README의 라이선스 표를 허가 전문으로 꾸미지 않는다. 앱/자산/DB 출처 및 미확인 고지8건은 공개 배포 전 과제다. 개수는 같지만 구성은 바뀌었다. 새 @img/sharp-libvips-linux-x64는 전문 미확인이고 이전 beep-boop 예제 metadata는 이번 패키지에 없다.
+sharp의 @img 플랫폼 패키지와 libvips를 ASAR 밖에 유지하고, 해당 README/versions.json을 고지 증거에 포함한다. Windows의 @img/sharp-win32-*는 libvips를 같은 패키지에 담으므로 그 README/versions도 포함한다. README의 라이선스 표를 허가 전문으로 꾸미지 않는다. 앱/자산/DB 출처 및 미확인 고지8건은 공개 배포 전 과제다. 개수는 같지만 구성은 바뀌었다. 새 @img/sharp-libvips-linux-x64는 전문 미확인이고 이전 beep-boop 예제 metadata는 이번 패키지에 없다.
 
 ## 검증과 남은 범위
 
