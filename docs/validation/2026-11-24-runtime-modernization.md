@@ -51,3 +51,9 @@ Linux CI는 clean 설치/실제 native 검증까지 성공한 뒤, archive에서
 Windows sharp의 고지는 Linux와 경로가 다르다. lock에 고정된 @img/sharp-win32-x64@0.35.5 공식 npm archive를 integrity 대조 후 읽었고, 이 패키지는 Apache-2.0 AND LGPL-3.0-or-later를 선언하며 libvips DLL·README/versions를 함께 담는다. 따라서 sharp-libvips-* 외에 sharp-win32-*의 README/versions도 vendor 수집 대상으로 추가하고 두 레이아웃을 합성 검사한다. 다운로드한 바이너리는 실행하거나 저장소에 넣지 않는다.
 
 Windows 첫 CI(run45343250393)는 root clean 설치, VS2026 Enterprise18.12.12405.243/Python3.15.2 탐지, Electron45 native 검색/sharp PNG 왕복, CJS profile check까지 성공했다. setup-python은3.14를 설치했지만 node-gyp 자동 탐지가 실제 선택한 것은3.15.2였으므로 그 값을 기록한다. 단위는238/243이었다. 실패5건은 fixture의 드라이브 없는 경로, 대소문자 폴더의 중복mkdir, 두 import mock의 POSIX 구분자 가정, NTFS에서 POSIX0600 비교였다. 경로/fixture/mock만 플랫폼에 맞추고 내용/전송0/불변 검사 의미는 유지한다. POSIX 모드 검사는 Windows에서 ACL 검사로 가장하지 않는다. 후속 Windows 패키징 결과는 별도 확인한다.
+
+## ASAR의 Windows 경로 검사 보완
+
+@electron/asar가 listPackage에서 호스트 경로 구분자를 반환하고 extractFile도 호스트 경로를 요구함을 설치 소스에서 확인했다. 검사기의 portable inventory 경로를 추출 시 path.normalize하고, 목록은 비교 전 슬래시로 통일했다. 복사 runtime metadata0건을 정상 검사로 세지 않도록 거부한다. 실제 소형 ASAR을 만들고 원래 목록/Windows형 목록 모두3개 metadata 검사 성공, 인덱스에 없는 package 추가 시 거부하는 회귀를 추가했다. 새 bundle 고지 검사5/5와 전체 단위244/244가 통과했다. 제품 바인딩/PNG/프로젝트 경로는 변경하지 않는다.
+
+후속 CI(run45343988270) Linux 전체 설치→프로필→단위→production→기본 재빌드/패키지→고지 검사 성공을 확인했다. Windows의 최종 패키지 검사는 위 ASAR 경로 보완을 포함한 다음 head에서 재확인한다.

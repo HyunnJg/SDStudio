@@ -23,13 +23,15 @@
     "includesElectronDownloadNativeBuildVerificationAndDLL": true
   },
   "unit": {
-    "passed": 243,
+    "passed": 244,
     "failed": 0,
     "skipped": 0,
     "concurrency": 4,
-    "consecutivePasses": 2,
+    "consecutivePasses": 1,
     "priorUnboundedV8FailureObserved": true,
-    "standaloneProfileRepeatPasses": 5
+    "standaloneProfileRepeatPasses": 5,
+    "previousPassed": 243,
+    "previousConsecutivePasses": 2
   },
   "electron": {
     "initialPassed": 15,
@@ -196,5 +198,16 @@
     },
     "platformFixtureFixesApplied": true,
     "fullPipelineResultPending": true
+  },
+  "packageChecker": {
+    "actualASARFixture": true,
+    "nativeAndWindowsListingShapes": true,
+    "runtimePackagesInFixture": 3,
+    "unindexedRuntimeRejected": true,
+    "zeroRuntimeInspectionRejected": true
+  },
+  "linuxCI": {
+    "run": 45343988270,
+    "conclusion": "success"
   }
 }

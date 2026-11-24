@@ -223,3 +223,55 @@ test('modern split-libvips and Windows combined sharp README and versions are pr
     }
   }
 });
+
+test('real ASAR runtime metadata is checked with either path separator and unindexed packages are rejected', async (t) => {
+  const { root, put, run } = await fixture(t);
+  assert.equal(run().status, 0);
+  const asar = require('@electron/asar');
+  const resources = path.join(root, 'package/resources');
+  fs.mkdirSync(resources, { recursive: true });
+  const notices = path.join(root, '.erb/generated/notices');
+  fs.cpSync(notices, path.join(resources, 'THIRD_PARTY_NOTICES'), {
+    recursive: true,
+  });
+  const index = JSON.parse(fs.readFileSync(path.join(notices, 'index.json')));
+  for (const doc of index.applicationDocuments.filter((d) => d.source)) {
+    const target = path.join(resources, doc.resourcePath);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(path.join(root, doc.source), target);
+  }
+  const archive = path.join(resources, 'app.asar');
+  const pack = () =>
+    asar.createPackage(path.join(root, 'release/app'), archive);
+  await pack();
+  const checker = path.resolve(
+    __dirname,
+    '../../.erb/scripts/check-package-notices.cjs',
+  );
+  const windowsList = path.join(root, 'windows-list.cjs');
+  fs.writeFileSync(
+    windowsList,
+    `const asar=require(${JSON.stringify(require.resolve('@electron/asar'))});const list=asar.listPackage;asar.listPackage=(...args)=>list(...args).map(p=>p.replaceAll('/',String.fromCharCode(92)));require(${JSON.stringify(checker)});`,
+  );
+  for (const entry of [checker, windowsList]) {
+    const result = spawnSync(
+      process.execPath,
+      [entry, path.dirname(resources)],
+      { encoding: 'utf8' },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).copiedRuntimePackagesIndexed, 3);
+  }
+  put(
+    'release/app/node_modules/unindexed/package.json',
+    JSON.stringify({ name: 'unindexed', version: '1.0.0' }),
+  );
+  await pack();
+  const rejected = spawnSync(
+    process.execPath,
+    [windowsList, path.dirname(resources)],
+    { encoding: 'utf8' },
+  );
+  assert.notEqual(rejected.status, 0);
+  assert.match(rejected.stderr, /Unindexed copied runtime package/);
+});
