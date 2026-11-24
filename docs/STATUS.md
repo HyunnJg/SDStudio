@@ -4,6 +4,8 @@
 
 ## 현재 단계
 
+**PR34는 Windows/Linux CI 성공 확인 후 main `525c0fc`로 병합했다. 다음은 사용자 승인한 작업실 배치(D-055)다.** 왼쪽 프롬프트/캐릭터·접힌 설정·고정 생성/중지, 중앙 원본 PNG, 오른쪽 결과/씬·대기열로 재배치한다. 실제 요청·생성 기본값·프로젝트 버전은 유지한다. 단위275·Linux 창12PID/57체크·ASAR15+8체크·빌드/변경 lint가 통과했다. Windows/macOS UI·실계정은 미실행이다. 전체 lint/tsc의 기존 영역 실패는 검증 기록에 구분한다. [설계와 후속](WORKSPACE_LAYOUT.md), [PR34 처리](reviews/2026-11-25-pr34-followup.md), [검증](validation/2026-11-25-workspace-layout.md).
+
 **PR33은 검토 승인과 Windows/Linux CI 2/2 확인 후 main `f7aa35e`로 병합했다.** P0-01e 토큰 보관 전환은 Windows/E26→E45·263단위·동시 읽기 보완까지 완료로 두고 실제 Linux keyring/macOS 미검증과 Electron45.4.1 고정은 유지한다. [검토 처리](reviews/2026-11-25-pr33-followup.md).
 
 **사용자 선택에 따라 V5 캐릭터 프롬프트를 자동 배치부터 연결한다(D-054).** 개별 긍정/부정·활성/순서·삭제 복원과 단일/반복 생성의 공통 경로를 연결하고, 새 바인딩 결과는 manifest v4로 보관한다. 기존 V5 무캐릭터 본문/설정·v1~v3 읽기/이력 복구는 유지한다. 단위272건과 실제 창 검증을 진행했으며 [최종 검증](validation/2026-11-25-v5-characters.md)에 범위/결과를 기록한다. 캐릭터 실계정 호출은0회다. [지원·근거](V5_CHARACTERS.md).

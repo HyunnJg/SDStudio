@@ -32,20 +32,36 @@ export default function ConnectedCharacters({ draft, onChange }: Props) {
       data-testid="live-characters"
     >
       <h3>
-        캐릭터 · {active}/{V5_CHARACTER_LIMIT} 활성
+        캐릭터 프롬프트{' '}
+        <small>
+          {active}/{V5_CHARACTER_LIMIT}
+        </small>
       </h3>
       <p>
         기본 프롬프트에는 인원수·배경·화풍을, 아래에는 각 캐릭터의 특징을
         적으세요. 배치는 위에서 아래로 적힌 순서를 참고합니다.
       </p>
-      {v5 && (
-        <p>
-          캐릭터 결과가 저장된 프로젝트는 이전 앱에서 열 수 없습니다. 전환 전
-          저장본은 이력에 남습니다.
-        </p>
-      )}
+
       {!v5 && (
-        <p>캐릭터 생성은 V5 Full에서 지원합니다. 기존 입력은 보존됩니다.</p>
+        <div role="status">
+          <p>
+            이 앱의 V4.5 생성 경로에서는 캐릭터 조건을 지원하지 않습니다. V5
+            Full로 바꾸거나 조건을 꺼 주세요. 입력은 보존됩니다.
+          </p>
+          {active > 0 && (
+            <button
+              type="button"
+              data-testid="disable-live-characters"
+              onClick={() =>
+                onChange({
+                  characters: characters.map((c) => ({ ...c, enabled: false })),
+                })
+              }
+            >
+              캐릭터 조건 끄기
+            </button>
+          )}
+        </div>
       )}
       {v5 && draft.placement === 'manual' && (
         <div role="status">
@@ -141,16 +157,23 @@ export default function ConnectedCharacters({ draft, onChange }: Props) {
                 data-character-prompt={c.id}
                 onChange={(e) => update(c.id, { prompt: e.target.value })}
               />
-              <label htmlFor={negativeId}>캐릭터 부정 프롬프트</label>
-              <textarea
-                id={negativeId}
-                rows={2}
-                value={c.negativePrompt}
-                data-character-negative={c.id}
-                onChange={(e) =>
-                  update(c.id, { negativePrompt: e.target.value })
-                }
-              />
+              <details className="connected-character-negative">
+                <summary>
+                  부정 프롬프트{c.negativePrompt ? ' · 입력됨' : ''}
+                </summary>
+                <label className="connected-sr-only" htmlFor={negativeId}>
+                  캐릭터 부정 프롬프트
+                </label>
+                <textarea
+                  id={negativeId}
+                  rows={2}
+                  value={c.negativePrompt}
+                  data-character-negative={c.id}
+                  onChange={(e) =>
+                    update(c.id, { negativePrompt: e.target.value })
+                  }
+                />
+              </details>
               {!c.enabled && (
                 <span className="connected-character-muted">
                   비활성 · 입력은 보관하고 생성에는 사용하지 않습니다.

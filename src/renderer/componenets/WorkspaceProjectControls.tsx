@@ -33,6 +33,40 @@ export default function WorkspaceProjectControls({
     if (!state.confirm && confirm.current?.open) confirm.current.close();
   }, [state.confirm]);
   const unavailable = !controller.available();
+  const extraActions = (
+    <>
+      <button
+        type="button"
+        data-testid="project-new"
+        onClick={() => {
+          controller.newProject();
+        }}
+        disabled={locked}
+      >
+        새 입력
+      </button>
+      <button
+        type="button"
+        data-testid="project-copy"
+        onClick={() => {
+          controller.copy();
+        }}
+        disabled={locked || unavailable}
+      >
+        새 복사본으로 계속
+      </button>
+      <button
+        type="button"
+        data-testid="project-input-copy"
+        onClick={() => {
+          controller.copy(true);
+        }}
+        disabled={locked || unavailable}
+      >
+        입력만 새로 저장
+      </button>
+    </>
+  );
   return (
     <>
       {mode !== 'dialogs' && (
@@ -77,36 +111,14 @@ export default function WorkspaceProjectControls({
           >
             열기·복구
           </button>
-          <button
-            type="button"
-            data-testid="project-new"
-            onClick={() => {
-              controller.newProject();
-            }}
-            disabled={locked}
-          >
-            새 입력
-          </button>
-          <button
-            type="button"
-            data-testid="project-copy"
-            onClick={() => {
-              controller.copy();
-            }}
-            disabled={locked || unavailable}
-          >
-            새 복사본으로 계속
-          </button>
-          <button
-            type="button"
-            data-testid="project-input-copy"
-            onClick={() => {
-              controller.copy(true);
-            }}
-            disabled={locked || unavailable}
-          >
-            입력만 새로 저장
-          </button>
+          {connected ? (
+            <details className="connected-menu connected-project-menu">
+              <summary>프로젝트 작업</summary>
+              <div>{extraActions}</div>
+            </details>
+          ) : (
+            extraActions
+          )}
           {state.error === 'PROJECT_SERVICE_STOPPED' && (
             <button
               type="button"
@@ -124,7 +136,7 @@ export default function WorkspaceProjectControls({
               ? '프로젝트 저장은 Electron 데스크톱에서 사용할 수 있습니다.'
               : state.operation || state.message}
           </p>
-          {state.images > 0 && (
+          {!connected && state.images > 0 && (
             <small>
               원본 PNG {state.images}장 보관 ·{' '}
               {connected

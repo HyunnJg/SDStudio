@@ -25,6 +25,7 @@ import { runtimeOptions } from '../runtime';
 import WorkspaceProjectControls from './WorkspaceProjectControls';
 import ConnectedQueueControls from './ConnectedQueueControls';
 import ConnectedCharacters from './ConnectedCharacters';
+import ConnectedImageHistory from './ConnectedImageHistory';
 import {
   generationMessage,
   availableQueueSceneIds,
@@ -32,7 +33,6 @@ import {
   ANLAS_STEP_WARNING,
   requiresAnlasWarning,
 } from '../generation/generationPresentation';
-import { V5_SIZES } from '../../workspaceGenerationSettings';
 import './PreviewWorkspace.css';
 import './ConnectedWorkspace.css';
 
@@ -93,6 +93,25 @@ export default function ConnectedWorkspace({
   const images = view.imageRecords;
   const [selected, setSelected] = useState('');
   const [imageURL, setImageURL] = useState('');
+  const [promptTab, setPromptTab] = useState<'prompt' | 'negative'>('prompt');
+  const [sidebarTab, setSidebarTab] = useState<'results' | 'queue'>('results');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobilePane, setMobilePane] = useState<'input' | 'result'>('input');
+  const queueConfirmation = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (queuePlan) {
+      setMobilePane('result');
+      setSidebarOpen(false);
+      queueConfirmation.current?.scrollIntoView({ block: 'nearest' });
+      queueConfirmation.current?.focus();
+    }
+  }, [queuePlan, mobilePane]);
+  useEffect(() => {
+    if (singlePlan || pending) {
+      setMobilePane('result');
+      setSidebarOpen(false);
+    }
+  }, [singlePlan, pending]);
   const busy = !!phase || pending || active;
   const locked = busy || projectLocked;
   useEffect(() => {
@@ -100,7 +119,7 @@ export default function ConnectedWorkspace({
       singleConfirmation.current?.scrollIntoView({ block: 'nearest' });
       singleConfirmation.current?.focus();
     }
-  }, [singlePlan]);
+  }, [singlePlan, mobilePane]);
   useEffect(() => {
     setSceneIds([]);
   }, [view.id]);
@@ -196,6 +215,7 @@ export default function ConnectedWorkspace({
   const accept = (value: GeneratedProject, asNewProject = false) => {
     project.acceptGenerated(value.snapshot, asNewProject);
     setSelected(value.imageId);
+    setMobilePane('result');
     setPending(false);
     setMessage('PNG 원본과 실제 사용 시드를 프로젝트에 저장했습니다.');
   };
@@ -410,37 +430,72 @@ export default function ConnectedWorkspace({
     }
   };
   const result = images.find((i) => i.id === selected);
+  const currentScene = state.scenes.find(
+    (scene) => scene.id === state.selectedSceneId,
+  );
+  const showResult = (id: string) => {
+    setSelected(id);
+    setMobilePane('result');
+    setSidebarOpen(false);
+  };
+  let generateLabel = '이미지 생성';
+  if (phase === 'save') generateLabel = '입력 저장 중…';
+  else if (phase === 'run' || phase === 'queue-run') generateLabel = '생성 중…';
+  else if (pending) generateLabel = '결과 저장 필요';
+  else if (singlePlan || queuePlan) generateLabel = '실행 확인 대기';
   return (
     <div
       className={`preview-workspace connected-workspace ${darkMode ? '' : 'pw-light'}`}
       data-testid="connected-workspace"
+      data-mobile-pane={mobilePane}
     >
       <header className="pw-header">
         <div className="pw-brand">
           <strong>SDStudio</strong>
-          <span>씬·이미지 작업실</span>
+          <span>이미지 작업실</span>
         </div>
-        <nav>
-          <button type="button" onClick={onOpenAuth}>
-            API 토큰·연결 모드
-          </button>
-          <button type="button" onClick={onToggleTheme}>
-            테마 전환
+        <span className="connected-connection">
+          {runtimeOptions.offline ? '오프라인' : '온라인'}
+        </span>
+        <nav aria-label="작업실 화면">
+          <button
+            type="button"
+            className="connected-mobile-switch"
+            onClick={() =>
+              setMobilePane(mobilePane === 'input' ? 'result' : 'input')
+            }
+          >
+            {mobilePane === 'input' ? '이미지 보기' : '입력 편집'}
           </button>
           <button
             type="button"
-            onClick={onOpenLegacy}
-            disabled={locked}
-            data-testid="open-legacy"
+            className="connected-sidebar-toggle"
+            aria-expanded={sidebarOpen}
+            aria-controls="connected-sidebar"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
           >
-            기존 V3 화면
+            결과·씬
           </button>
+          <details className="connected-menu">
+            <summary>메뉴</summary>
+            <div>
+              <button type="button" onClick={onOpenAuth}>
+                API 토큰·연결 모드
+              </button>
+              <button type="button" onClick={onToggleTheme}>
+                테마 전환
+              </button>
+              <button
+                type="button"
+                onClick={onOpenLegacy}
+                disabled={locked}
+                data-testid="open-legacy"
+              >
+                기존 V3 화면
+              </button>
+            </div>
+          </details>
         </nav>
-        <span>
-          {runtimeOptions.offline
-            ? '오프라인 · 생성 차단'
-            : '온라인 · 생성 연결'}
-        </span>
       </header>
       <WorkspaceProjectControls
         controller={project}
@@ -449,440 +504,557 @@ export default function ConnectedWorkspace({
         connected
       />
       <main className="connected-body">
-        <section className="connected-input">
-          <h2>현재 씬</h2>
-          <fieldset disabled={locked}>
-            <label htmlFor="live-scene">씬 선택</label>
-            <select
-              id="live-scene"
-              value={state.selectedSceneId}
-              onChange={(e) =>
-                setState((previous) =>
-                  selectWorkspaceScene(previous, e.target.value),
-                )
-              }
-            >
-              {state.scenes.map((scene) => (
-                <option key={scene.id} value={scene.id}>
-                  {scene.name}
-                </option>
-              ))}
-            </select>
-            <label htmlFor="live-prompt">프롬프트</label>
-            <textarea
-              id="live-prompt"
-              data-testid="live-prompt"
-              rows={7}
-              value={state.draft.prompt}
-              onChange={(e) => patch({ prompt: e.target.value })}
-            />
-            <label htmlFor="live-negative">부정 프롬프트</label>
-            <textarea
-              id="live-negative"
-              rows={3}
-              value={state.draft.negativePrompt}
-              onChange={(e) => patch({ negativePrompt: e.target.value })}
-            />
-            <ConnectedCharacters
-              key={`${view.id ?? 'draft'}:${state.selectedSceneId}`}
-              draft={state.draft}
-              onChange={patch}
-            />
-            <p>
-              {state.draft.family === 'v5'
-                ? `${V5_SIZES[state.draft.resolution].width}×${V5_SIZES[state.draft.resolution].height}`
-                : '512×512'}{' '}
-              · {state.draft.steps}스텝 · 가이던스 {state.draft.guidance} ·
-              Euler ancestral / Karras
-            </p>
-            <p>
-              생성 시 입력을 저장하고 1회 전송합니다. 비용·Opus 사용량은 NovelAI
-              설정에 따라 달라집니다. V5 설정을 저장하면 이전 버전 앱에서는 열
-              수 없습니다. 변경 전 저장본은 이력에 남습니다.
-            </p>
-            <button
-              type="button"
-              className="pw-generate"
-              data-testid="prepare-generation"
-              disabled={runtimeOptions.offline}
-              onClick={prepare}
-            >
-              생성
-            </button>
-            <label htmlFor="live-seed-mode">시드 방식</label>
-            <select
-              id="live-seed-mode"
-              value={state.draft.seedMode}
-              onChange={(e) =>
-                patch({ seedMode: e.target.value as 'random' | 'fixed' })
-              }
-            >
-              <option value="random">매번 무작위</option>
-              <option value="fixed">고정</option>
-            </select>
-            <label htmlFor="live-seed">고정 시드</label>
-            <input
-              id="live-seed"
-              disabled={state.draft.seedMode !== 'fixed'}
-              value={state.draft.seed}
-              onChange={(e) => patch({ seed: e.target.value })}
-            />
-            <label htmlFor="live-model">모델</label>
-            <select
-              id="live-model"
-              value={state.draft.family}
-              onChange={(e) =>
-                patch({
-                  family: e.target.value as 'v4.5' | 'v5',
-                  resolution: e.target.value === 'v5' ? 'portrait' : 'square',
-                  steps: e.target.value === 'v5' ? '23' : '28',
-                  guidance: e.target.value === 'v5' ? '7' : '5',
-                  qualityTags: e.target.value === 'v5' ? 'standard' : 'none',
-                  ucPreset: e.target.value === 'v5' ? 'heavy' : 'none',
-                })
-              }
-            >
-              <option value="v5">V5 Full</option>
-              <option value="v4.5">V4.5 Full · 기존 512px 설정</option>
-            </select>
-            {state.draft.family === 'v5' && (
-              <>
-                <label htmlFor="live-size">크기</label>
+        <section className="connected-input" aria-label="생성 입력">
+          <div className="connected-input-scroll" data-testid="input-scroll">
+            <fieldset disabled={locked}>
+              <div className="connected-model-settings">
+                <label htmlFor="live-model">모델</label>
                 <select
-                  id="live-size"
-                  value={state.draft.resolution}
+                  id="live-model"
+                  value={state.draft.family}
                   onChange={(e) =>
                     patch({
-                      resolution: e.target
-                        .value as WorkspaceDraft['resolution'],
+                      family: e.target.value as 'v4.5' | 'v5',
+                      resolution:
+                        e.target.value === 'v5' ? 'portrait' : 'square',
+                      steps: e.target.value === 'v5' ? '23' : '28',
+                      guidance: e.target.value === 'v5' ? '7' : '5',
+                      qualityTags:
+                        e.target.value === 'v5' ? 'standard' : 'none',
+                      ucPreset: e.target.value === 'v5' ? 'heavy' : 'none',
                     })
                   }
                 >
-                  <option value="portrait">832 × 1216 · 세로</option>
-                  <option value="landscape">1216 × 832 · 가로</option>
-                  <option value="square">1024 × 1024 · 정사각형</option>
+                  <option value="v5">V5 Full</option>
+                  <option value="v4.5">V4.5 Full · 기존 512px 설정</option>
                 </select>
-                <label htmlFor="live-steps">스텝</label>
-                <input
-                  id="live-steps"
-                  type="number"
-                  min="1"
-                  max="50"
-                  value={state.draft.steps}
-                  onChange={(e) => patch({ steps: e.target.value })}
-                />
-                <label htmlFor="live-guidance">가이던스</label>
-                <input
-                  id="live-guidance"
-                  type="number"
-                  min="0.1"
-                  max="10"
-                  step="0.1"
-                  value={state.draft.guidance}
-                  onChange={(e) => patch({ guidance: e.target.value })}
-                />
-                <label htmlFor="live-quality">품질 태그</label>
-                <select
-                  id="live-quality"
-                  value={state.draft.qualityTags ?? 'none'}
-                  onChange={(e) =>
-                    patch({
-                      qualityTags: e.target
-                        .value as WorkspaceDraft['qualityTags'],
-                    })
-                  }
-                >
-                  <option value="none">추가 안 함</option>
-                  <option value="light">Light</option>
-                  <option value="standard">Standard</option>
-                </select>
-                <label htmlFor="live-uc-preset">부정 프롬프트 프리셋</label>
-                <select
-                  id="live-uc-preset"
-                  value={state.draft.ucPreset ?? 'none'}
-                  onChange={(e) =>
-                    patch({
-                      ucPreset: e.target.value as WorkspaceDraft['ucPreset'],
-                    })
-                  }
-                >
-                  <option value="none">추가 안 함</option>
-                  <option value="light">Light</option>
-                  <option value="heavy">Heavy</option>
-                  <option value="human">Human focus</option>
-                  <option value="furry">Furry focus</option>
-                </select>
-                <p>
-                  품질 태그는 프롬프트 뒤에, 부정 프리셋은 부정 프롬프트 앞에
-                  추가합니다. 직접 같은 태그를 쓰셨다면 ‘추가 안 함’을
-                  선택하세요.
-                </p>
-              </>
-            )}
-            {state.draft.characters.some((c) => c.enabled) && (
-              <button
-                type="button"
-                onClick={() =>
-                  patch({
-                    characters: state.draft.characters.map((c) => ({
-                      ...c,
-                      enabled: false,
-                    })),
-                  })
-                }
+                {state.draft.family === 'v5' && (
+                  <>
+                    <label htmlFor="live-size">크기</label>
+                    <select
+                      id="live-size"
+                      value={state.draft.resolution}
+                      onChange={(e) =>
+                        patch({
+                          resolution: e.target
+                            .value as WorkspaceDraft['resolution'],
+                        })
+                      }
+                    >
+                      <option value="portrait">832 × 1216 · 세로</option>
+                      <option value="landscape">1216 × 832 · 가로</option>
+                      <option value="square">1024 × 1024 · 정사각형</option>
+                    </select>
+                  </>
+                )}
+              </div>
+              <div className="connected-editor-heading">
+                <span>현재 씬</span>
+                <strong>{currentScene?.name}</strong>
+              </div>
+              <div
+                className="connected-prompt-tabs"
+                role="group"
+                aria-label="기본 프롬프트 선택"
               >
-                캐릭터 조건 끄기
-              </button>
-            )}
-          </fieldset>
-          {singlePlan && (
-            <section
-              ref={singleConfirmation}
-              tabIndex={-1}
-              className="connected-confirm"
-              aria-label="높은 스텝 생성 확인"
-              data-testid="high-steps-confirm"
-            >
-              <h3>생성 설정 확인</h3>
-              <p>{ANLAS_STEP_WARNING}</p>
-              <p>
-                {singlePlan.model} · {singlePlan.width}×{singlePlan.height} ·{' '}
-                {singlePlan.steps}스텝 · 가이던스 {singlePlan.scale} · 시드{' '}
-                {singlePlan.seed}
-                {!!singlePlan.characters &&
-                  ` · 캐릭터 ${singlePlan.characters}명 · 자동 배치`}
-              </p>
-              <button
-                type="button"
-                data-testid="send-high-steps"
-                onClick={confirmHighSteps}
-              >
-                Anlas 사용 가능성 확인 · 1회 생성
-              </button>
-              <button
-                type="button"
-                data-testid="cancel-high-steps"
-                onClick={cancel}
-              >
-                취소·설정 변경
-              </button>
-            </section>
-          )}
-          {queuePlan && (
-            <section
-              className="connected-confirm"
-              aria-label="대기열 실행 전 확인"
-              data-testid="queue-confirm"
-            >
-              <h3>
-                총 {queuePlan.total}회 요청 · 이미지 {queuePlan.total}장
-              </h3>
-              {queuePlan.settings.map((settings) => (
-                <p key={JSON.stringify(settings)}>
-                  {settings.model} · {settings.width}×{settings.height} ·{' '}
-                  {settings.steps}스텝 · 가이던스 {settings.scale}
-                  {!!settings.characters &&
-                    ` · 캐릭터 ${settings.characters}명 · 자동 배치`}
-                </p>
-              ))}
-              {queuePlan.settings.some(requiresAnlasWarning) && (
-                <p data-testid="queue-anlas-warning">{ANLAS_STEP_WARNING}</p>
-              )}
-              <p>
-                아래 씬과 시드로 실행합니다. 비용·Opus 사용량은 설정에 따라
-                달라집니다. 저장 결과는 새 앱에서 읽을 수 있는 형식으로
-                보관합니다.
-              </p>
-              <ol>
-                {queuePlan.items.map((item) => (
-                  <li key={item.id}>
-                    {item.sceneName} · {item.repeat}회 · 시드 {item.seed}
-                    {!!item.settings?.characters &&
-                      ` · 캐릭터 ${item.settings.characters}명`}
-                  </li>
-                ))}
-              </ol>
-              <button
-                type="button"
-                data-testid="send-live-queue"
-                onClick={runQueue}
-              >
-                확인한 {queuePlan.total}회 실행
-              </button>
-              <button type="button" onClick={cancel}>
-                취소·예약 변경
-              </button>
-            </section>
-          )}
-          {(phase === 'run' || phase === 'queue-run') && (
-            <button
-              type="button"
-              data-testid="cancel-generation"
-              onClick={cancel}
-            >
-              요청 취소 (서버 처리 여부는 불확실)
-            </button>
-          )}
-          {pending && (
-            <section role="alert">
-              <p>
-                저장하지 못한 결과가 메모리에 있습니다. 창을 닫으면 사라집니다.
-                새 프로젝트에 보관하면 이전 미전송 예약은 종료됩니다.
-              </p>
-              <button
-                type="button"
-                data-testid="retry-result-save"
-                disabled={!!phase || active}
-                onClick={() => retryResult()}
-              >
-                결과만 다시 저장 (API 재호출 없음)
-              </button>
-              <button
-                type="button"
-                data-testid="save-result-new-project"
-                disabled={!!phase || active}
-                onClick={() => retryResult(true)}
-              >
-                입력·이번 결과만 새 프로젝트로 저장 (이전 PNG 제외)
-              </button>
-              {storageStopped && (
                 <button
                   type="button"
+                  aria-pressed={promptTab === 'prompt'}
+                  onClick={() => setPromptTab('prompt')}
+                >
+                  기본 프롬프트
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={promptTab === 'negative'}
+                  onClick={() => setPromptTab('negative')}
+                >
+                  부정 프롬프트
+                </button>
+              </div>
+              <label className="connected-sr-only" htmlFor="live-prompt">
+                기본 프롬프트
+              </label>
+              <textarea
+                id="live-prompt"
+                data-testid="live-prompt"
+                rows={11}
+                hidden={promptTab !== 'prompt'}
+                value={state.draft.prompt}
+                onChange={(e) => patch({ prompt: e.target.value })}
+              />
+              <label className="connected-sr-only" htmlFor="live-negative">
+                부정 프롬프트
+              </label>
+              <textarea
+                id="live-negative"
+                rows={11}
+                hidden={promptTab !== 'negative'}
+                value={state.draft.negativePrompt}
+                onChange={(e) => patch({ negativePrompt: e.target.value })}
+              />
+              <ConnectedCharacters
+                key={`${view.id ?? 'draft'}:${state.selectedSceneId}`}
+                draft={state.draft}
+                onChange={patch}
+              />
+              <details
+                className="connected-ai-settings"
+                data-testid="ai-settings"
+              >
+                <summary>
+                  <strong>AI 설정</strong>
+                  <span>
+                    {state.draft.steps} 스텝 · 가이던스 {state.draft.guidance} ·{' '}
+                    {state.draft.seedMode === 'random'
+                      ? '무작위 시드'
+                      : `시드 ${state.draft.seed}`}
+                  </span>
+                </summary>
+                <div className="connected-settings-fields">
+                  <label htmlFor="live-seed-mode">시드 방식</label>
+                  <select
+                    id="live-seed-mode"
+                    value={state.draft.seedMode}
+                    onChange={(e) =>
+                      patch({ seedMode: e.target.value as 'random' | 'fixed' })
+                    }
+                  >
+                    <option value="random">매번 무작위</option>
+                    <option value="fixed">고정</option>
+                  </select>
+                  <label htmlFor="live-seed">고정 시드</label>
+                  <input
+                    id="live-seed"
+                    disabled={state.draft.seedMode !== 'fixed'}
+                    value={state.draft.seed}
+                    onChange={(e) => patch({ seed: e.target.value })}
+                  />
+                  {state.draft.family === 'v5' && (
+                    <>
+                      <label htmlFor="live-steps">스텝</label>
+                      <input
+                        id="live-steps"
+                        type="number"
+                        min="1"
+                        max="50"
+                        value={state.draft.steps}
+                        onChange={(e) => patch({ steps: e.target.value })}
+                      />
+                      <label htmlFor="live-guidance">가이던스</label>
+                      <input
+                        id="live-guidance"
+                        type="number"
+                        min="0.1"
+                        max="10"
+                        step="0.1"
+                        value={state.draft.guidance}
+                        onChange={(e) => patch({ guidance: e.target.value })}
+                      />
+                      <label htmlFor="live-quality">품질 태그</label>
+                      <select
+                        id="live-quality"
+                        value={state.draft.qualityTags ?? 'none'}
+                        onChange={(e) =>
+                          patch({
+                            qualityTags: e.target
+                              .value as WorkspaceDraft['qualityTags'],
+                          })
+                        }
+                      >
+                        <option value="none">추가 안 함</option>
+                        <option value="light">Light</option>
+                        <option value="standard">Standard</option>
+                      </select>
+                      <label htmlFor="live-uc-preset">
+                        부정 프롬프트 프리셋
+                      </label>
+                      <select
+                        id="live-uc-preset"
+                        value={state.draft.ucPreset ?? 'none'}
+                        onChange={(e) =>
+                          patch({
+                            ucPreset: e.target
+                              .value as WorkspaceDraft['ucPreset'],
+                          })
+                        }
+                      >
+                        <option value="none">추가 안 함</option>
+                        <option value="light">Light</option>
+                        <option value="heavy">Heavy</option>
+                        <option value="human">Human focus</option>
+                        <option value="furry">Furry focus</option>
+                      </select>
+                      <p>
+                        품질 태그는 프롬프트 뒤에, 부정 프리셋은 부정 프롬프트
+                        앞에 추가합니다. 직접 같은 태그를 쓰셨다면 ‘추가 안
+                        함’을 선택하세요.
+                      </p>
+                    </>
+                  )}
+                  <p>샘플러 Euler ancestral · 스케줄 Karras</p>
+                </div>
+              </details>
+              <details className="connected-help">
+                <summary>저장·사용량 안내</summary>
+                <p>
+                  생성 시 입력을 저장하고 1회 전송합니다. 비용·Opus 사용량은
+                  NovelAI 설정에 따라 달라집니다. V5·캐릭터 결과를 저장한
+                  프로젝트는 이전 앱에서 열 수 없습니다. 변경 전 저장본은 이력에
+                  남습니다.
+                </p>
+              </details>
+            </fieldset>
+          </div>
+        </section>
+        <section className="connected-results" aria-label="프로젝트 PNG 결과">
+          <header className="connected-canvas-heading">
+            <span>{result ? '저장된 원본 PNG' : '미리보기'}</span>
+            <small>{images.length}장 보관</small>
+          </header>
+          <div className="connected-feedback">
+            {singlePlan && (
+              <section
+                ref={singleConfirmation}
+                tabIndex={-1}
+                className="connected-confirm"
+                aria-label="높은 스텝 생성 확인"
+                data-testid="high-steps-confirm"
+              >
+                <h3>생성 설정 확인</h3>
+                <p>{ANLAS_STEP_WARNING}</p>
+                <p>
+                  {singlePlan.model} · {singlePlan.width}×{singlePlan.height} ·{' '}
+                  {singlePlan.steps}스텝 · 가이던스 {singlePlan.scale} · 시드{' '}
+                  {singlePlan.seed}
+                  {!!singlePlan.characters &&
+                    ` · 캐릭터 ${singlePlan.characters}명 · 자동 배치`}
+                </p>
+                <button
+                  type="button"
+                  data-testid="send-high-steps"
+                  onClick={confirmHighSteps}
+                >
+                  Anlas 사용 가능성 확인 · 1회 생성
+                </button>
+                <button
+                  type="button"
+                  data-testid="cancel-high-steps"
+                  onClick={cancel}
+                >
+                  취소·설정 변경
+                </button>
+              </section>
+            )}
+            {queuePlan && (
+              <section
+                ref={queueConfirmation}
+                tabIndex={-1}
+                className="connected-confirm"
+                aria-label="대기열 실행 전 확인"
+                data-testid="queue-confirm"
+              >
+                <h3>
+                  총 {queuePlan.total}회 요청 · 이미지 {queuePlan.total}장
+                </h3>
+                {queuePlan.settings.map((settings) => (
+                  <p key={JSON.stringify(settings)}>
+                    {settings.model} · {settings.width}×{settings.height} ·{' '}
+                    {settings.steps}스텝 · 가이던스 {settings.scale}
+                    {!!settings.characters &&
+                      ` · 캐릭터 ${settings.characters}명 · 자동 배치`}
+                  </p>
+                ))}
+                {queuePlan.settings.some(requiresAnlasWarning) && (
+                  <p data-testid="queue-anlas-warning">{ANLAS_STEP_WARNING}</p>
+                )}
+                <p>
+                  아래 씬과 시드로 실행합니다. 비용·Opus 사용량은 설정에 따라
+                  달라집니다. 저장 결과는 새 앱에서 읽을 수 있는 형식으로
+                  보관합니다.
+                </p>
+                <ol>
+                  {queuePlan.items.map((item) => (
+                    <li key={item.id}>
+                      {item.sceneName} · {item.repeat}회 · 시드 {item.seed}
+                      {!!item.settings?.characters &&
+                        ` · 캐릭터 ${item.settings.characters}명`}
+                    </li>
+                  ))}
+                </ol>
+                <button
+                  type="button"
+                  data-testid="send-live-queue"
+                  onClick={runQueue}
+                >
+                  확인한 {queuePlan.total}회 실행
+                </button>
+                <button type="button" onClick={cancel}>
+                  취소·예약 변경
+                </button>
+              </section>
+            )}
+            {pending && (
+              <section role="alert">
+                <p>
+                  저장하지 못한 결과가 메모리에 있습니다. 창을 닫으면
+                  사라집니다. 새 프로젝트에 보관하면 이전 미전송 예약은
+                  종료됩니다.
+                </p>
+                <button
+                  type="button"
+                  data-testid="retry-result-save"
                   disabled={!!phase || active}
+                  onClick={() => retryResult()}
+                >
+                  결과만 다시 저장 (API 재호출 없음)
+                </button>
+                <button
+                  type="button"
+                  data-testid="save-result-new-project"
+                  disabled={!!phase || active}
+                  onClick={() => retryResult(true)}
+                >
+                  입력·이번 결과만 새 프로젝트로 저장 (이전 PNG 제외)
+                </button>
+                {storageStopped && (
+                  <button
+                    type="button"
+                    disabled={!!phase || active}
+                    onClick={async () => {
+                      try {
+                        const restarted = await projects.restartStorage();
+                        if (!restarted.ok) throw restarted;
+                        setStorageStopped(false);
+                        setMessage(
+                          '저장 기능을 다시 시작했습니다. 결과 저장은 별도로 선택하세요.',
+                        );
+                      } catch {
+                        setMessage(
+                          '저장 기능을 복구하지 못했습니다. PNG는 아직 메모리에 있습니다.',
+                        );
+                      }
+                    }}
+                  >
+                    저장 기능 다시 시작
+                  </button>
+                )}
+                <label htmlFor="discard-pending-result">
+                  <input
+                    id="discard-pending-result"
+                    type="checkbox"
+                    checked={discardConfirmed}
+                    onChange={(e) => setDiscardConfirmed(e.target.checked)}
+                  />
+                  메모리에 남은 PNG를 버리겠습니다. 사용량은 되돌릴 수 없습니다.
+                </label>
+                <button
+                  type="button"
+                  disabled={!!phase || active || !discardConfirmed}
                   onClick={async () => {
                     try {
-                      const restarted = await projects.restartStorage();
-                      if (!restarted.ok) throw restarted;
-                      setStorageStopped(false);
+                      generationEpoch.current += 1;
+                      unwrap(await client.discardPending());
+                      setPending(false);
                       setMessage(
-                        '저장 기능을 다시 시작했습니다. 결과 저장은 별도로 선택하세요.',
+                        '미저장 결과를 버렸습니다. 자동으로 다시 생성하지 않습니다.',
                       );
-                    } catch {
-                      setMessage(
-                        '저장 기능을 복구하지 못했습니다. PNG는 아직 메모리에 있습니다.',
-                      );
+                    } catch (error) {
+                      setMessage(generationMessage(error, sceneNames.current));
+                    } finally {
+                      generationEpoch.current += 1;
                     }
                   }}
                 >
-                  저장 기능 다시 시작
+                  미저장 결과 버리기
                 </button>
-              )}
-              <label htmlFor="discard-pending-result">
-                <input
-                  id="discard-pending-result"
-                  type="checkbox"
-                  checked={discardConfirmed}
-                  onChange={(e) => setDiscardConfirmed(e.target.checked)}
-                />
-                메모리에 남은 PNG를 버리겠습니다. 사용량은 되돌릴 수 없습니다.
-              </label>
-              <button
-                type="button"
-                disabled={!!phase || active || !discardConfirmed}
-                onClick={async () => {
-                  try {
-                    generationEpoch.current += 1;
-                    unwrap(await client.discardPending());
-                    setPending(false);
-                    setMessage(
-                      '미저장 결과를 버렸습니다. 자동으로 다시 생성하지 않습니다.',
-                    );
-                  } catch (error) {
-                    setMessage(generationMessage(error, sceneNames.current));
-                  } finally {
-                    generationEpoch.current += 1;
-                  }
-                }}
-              >
-                미저장 결과 버리기
-              </button>
-            </section>
-          )}
-          <p role="status" data-testid="generation-status">
-            {phase === 'run' || phase === 'queue-run'
-              ? '전송·응답 검증·저장 중'
-              : message}
-          </p>
-        </section>
-        <section className="connected-results" aria-label="프로젝트 PNG 결과">
-          <h2>저장된 PNG · {images.length}장</h2>
-          {imageURL ? (
-            <img
-              className="connected-image"
-              data-testid="generated-png"
-              src={imageURL}
-              alt="프로젝트에 저장된 NovelAI 생성 결과"
-              onError={() =>
-                setMessage(
-                  '원본 PNG는 보관됐지만 화면에서 해석하지 못했습니다. 자동으로 다시 생성하지 않습니다.',
-                )
-              }
-            />
-          ) : (
-            <div className="connected-empty">
-              저장된 결과를 선택하면 원본 PNG를 표시합니다.
-            </div>
-          )}
+              </section>
+            )}
+          </div>
+          <div className="connected-canvas">
+            {imageURL ? (
+              <img
+                className="connected-image"
+                data-testid="generated-png"
+                src={imageURL}
+                alt="프로젝트에 저장된 NovelAI 생성 결과"
+                onError={() =>
+                  setMessage(
+                    '원본 PNG는 보관됐지만 화면에서 해석하지 못했습니다. 자동으로 다시 생성하지 않습니다.',
+                  )
+                }
+              />
+            ) : (
+              <div className="connected-empty">
+                <strong>다음 장면을 만들어 보세요</strong>
+                <span>
+                  왼쪽에서 프롬프트를 쓰고 생성하세요.
+                  <br />
+                  저장된 이미지는 오른쪽 결과에서 다시 볼 수 있습니다.
+                </span>
+              </div>
+            )}
+          </div>
           {result && (
-            <p data-testid="generated-seed">
+            <p className="connected-image-caption" data-testid="generated-seed">
               {result.model} · 실제 사용 시드 {result.seed} ·{' '}
               {result.pngBytes.toLocaleString()} bytes
             </p>
           )}
-          <div className="connected-history">
-            {images.map((image, index) => (
-              <button
-                type="button"
-                key={image.id}
-                aria-pressed={image.id === selected}
-                data-image-id={image.id}
-                onClick={() => setSelected(image.id)}
-              >
-                결과 {index + 1} · 시드 {image.seed}
-              </button>
-            ))}
-          </div>
         </section>
+        <aside
+          id="connected-sidebar"
+          className={`connected-sidebar ${sidebarOpen ? 'is-open' : ''}`}
+          aria-label="결과와 씬·대기열"
+        >
+          <div
+            className="connected-sidebar-tabs"
+            role="group"
+            aria-label="오른쪽 패널 선택"
+          >
+            <button
+              type="button"
+              aria-pressed={sidebarTab === 'results'}
+              onClick={() => setSidebarTab('results')}
+            >
+              결과 {images.length}
+            </button>
+            <button
+              type="button"
+              aria-pressed={sidebarTab === 'queue'}
+              onClick={() => setSidebarTab('queue')}
+            >
+              씬·대기열
+            </button>
+            <button
+              type="button"
+              className="connected-sidebar-toggle"
+              aria-label="결과·씬 패널 닫기"
+              onClick={() => setSidebarOpen(false)}
+            >
+              닫기
+            </button>
+          </div>
+          <div
+            className="connected-sidebar-panel"
+            hidden={sidebarTab !== 'results'}
+          >
+            <ConnectedImageHistory
+              key={view.id ?? 'draft'}
+              client={client}
+              projectId={view.id}
+              images={images}
+              selected={selected}
+              selectedURL={imageURL}
+              onSelect={showResult}
+            />
+          </div>
+          <div
+            className="connected-sidebar-panel"
+            hidden={sidebarTab !== 'queue'}
+          >
+            <div className="connected-scene-select">
+              <label htmlFor="live-scene">편집할 씬</label>
+              <select
+                id="live-scene"
+                disabled={locked}
+                value={state.selectedSceneId}
+                onChange={(e) => {
+                  setState((previous) =>
+                    selectWorkspaceScene(previous, e.target.value),
+                  );
+                  setMobilePane('input');
+                  setSidebarOpen(false);
+                }}
+              >
+                {state.scenes.map((scene) => (
+                  <option key={scene.id} value={scene.id}>
+                    {scene.name}
+                  </option>
+                ))}
+              </select>
+              <p>
+                씬 입력과 예약을 함께 관리합니다. 실행 준비 시 현재 입력을 먼저
+                저장합니다.
+              </p>
+            </div>
+            <ConnectedQueueControls
+              scenes={state.scenes}
+              selected={availableSceneIds}
+              repeats={repeats}
+              queue={queue?.projectId === view.id ? queue : undefined}
+              disabled={locked}
+              canPrepare={!runtimeOptions.offline}
+              running={!!queue?.running}
+              canResume={
+                queue?.projectId === view.id &&
+                !!queue?.items.some((item) => item.status === 'pending')
+              }
+              onSelection={(ids) => {
+                setSceneIds(ids);
+                setQueuePlan(undefined);
+              }}
+              onRepeats={(value) => {
+                setRepeats(value);
+                setQueuePlan(undefined);
+              }}
+              onPrepare={() => prepareQueue()}
+              onResume={() => prepareQueue(true)}
+              onStop={cancel}
+              onClear={async () => {
+                generationEpoch.current += 1;
+                try {
+                  unwrap(await client.clearQueue());
+                  setQueue(undefined);
+                  setQueuePlan(undefined);
+                } catch (error) {
+                  setMessage(generationMessage(error, sceneNames.current));
+                } finally {
+                  generationEpoch.current += 1;
+                }
+              }}
+              conflict={conflict}
+              onExclude={excludeConflict}
+              onResult={(id) => {
+                setSelected(id);
+                setMobilePane('result');
+                setSidebarOpen(false);
+              }}
+            />
+          </div>
+        </aside>
       </main>
-      <ConnectedQueueControls
-        scenes={state.scenes}
-        selected={availableSceneIds}
-        repeats={repeats}
-        queue={queue?.projectId === view.id ? queue : undefined}
-        disabled={locked}
-        canPrepare={!runtimeOptions.offline}
-        running={!!queue?.running}
-        canResume={
-          queue?.projectId === view.id &&
-          !!queue?.items.some((item) => item.status === 'pending')
-        }
-        onSelection={(ids) => {
-          setSceneIds(ids);
-          setQueuePlan(undefined);
-        }}
-        onRepeats={(value) => {
-          setRepeats(value);
-          setQueuePlan(undefined);
-        }}
-        onPrepare={() => prepareQueue()}
-        onResume={() => prepareQueue(true)}
-        onStop={cancel}
-        onClear={async () => {
-          generationEpoch.current += 1;
-          try {
-            unwrap(await client.clearQueue());
-            setQueue(undefined);
-            setQueuePlan(undefined);
-          } catch (error) {
-            setMessage(generationMessage(error, sceneNames.current));
-          } finally {
-            generationEpoch.current += 1;
-          }
-        }}
-        conflict={conflict}
-        onExclude={excludeConflict}
-        onResult={setSelected}
-      />
+      <footer className="connected-action-dock" data-testid="generation-dock">
+        <p role="status" data-testid="generation-status">
+          {phase === 'run' || phase === 'queue-run'
+            ? '전송·응답 검증·저장 중'
+            : message}
+        </p>
+        {(phase === 'run' || phase === 'queue-run') && (
+          <button
+            type="button"
+            className="connected-stop"
+            data-testid="cancel-generation"
+            onClick={cancel}
+          >
+            중지 · 현재 요청 취소
+          </button>
+        )}
+        <button
+          type="button"
+          className="pw-generate"
+          data-testid="prepare-generation"
+          disabled={locked || runtimeOptions.offline}
+          onClick={prepare}
+        >
+          {generateLabel}
+        </button>
+        <small>
+          {phase === 'run' || phase === 'queue-run'
+            ? '취소 후에도 서버 처리·사용량 소모가 있을 수 있습니다.'
+            : '현재 씬 · 1장 생성'}
+        </small>
+      </footer>
     </div>
   );
 }

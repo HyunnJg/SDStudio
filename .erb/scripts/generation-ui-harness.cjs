@@ -215,6 +215,7 @@ app.on('web-contents-created', (_event, contents) => {
           "!!document.querySelector('[data-testid=connected-workspace]')",
         ),
       );
+      await require('./workspace-layout-probe.cjs').checkEditor({ contents, evaluate, click, fill, until, checks });
       if (process.env.SDSTUDIO_RUNTIME_REPORT && phase === 'create')
         await require('./runtime-ui-probe.cjs')(contents, profile);
       if (phase === 'queue-errors') {
@@ -740,6 +741,7 @@ app.on('web-contents-created', (_event, contents) => {
         );
         assert.equal(ids.length, 2);
         await fill(`[data-character-prompt="${ids[0]}"]`, 'person, red coat');
+        await click(`[data-character-id="${ids[0]}"] .connected-character-negative summary`);
         await fill(`[data-character-negative="${ids[0]}"]`, 'hat');
         await fill(`[data-character-prompt="${ids[1]}"]`, 'person, blue coat');
         await click(`[data-character-delete="${ids[1]}"]`);
@@ -755,6 +757,15 @@ app.on('web-contents-created', (_event, contents) => {
         checks.push(
           'character text survives deletion undo/reorder; disabling keeps the stored input',
         );
+        await evaluate("(()=>{const s=document.querySelector('#live-model');s.value='v4.5';s.dispatchEvent(new Event('change',{bubbles:true}))})()");
+        await until(()=>evaluate("!!document.querySelector('[data-testid=disable-live-characters]')"));
+        assert.equal(await evaluate("document.querySelector('[data-testid=disable-live-characters]').matches(':disabled')"),false);
+        await click('[data-testid=disable-live-characters]');
+        assert.equal(await evaluate("[...document.querySelectorAll('[data-character-enabled]')].every(c=>!c.checked)"),true);
+        assert.equal(await evaluate(`document.querySelector('[data-character-prompt="${ids[1]}"]').value`),'person, blue coat');
+        await evaluate("(()=>{const s=document.querySelector('#live-model');s.value='v5';s.dispatchEvent(new Event('change',{bubbles:true}))})()");
+        await click(`[data-character-enabled="${ids[1]}"]`);
+        checks.push('V4.5 path offers a nearby disable-character action that preserves text; switching back to V5 restores editing');
         await click('[data-testid=prepare-generation]');
         await until(() =>
           evaluate(
@@ -1014,8 +1025,8 @@ app.on('web-contents-created', (_event, contents) => {
             assert.deepEqual(
               colors,
               {
-                background: light ? 'rgb(8, 123, 108)' : 'rgb(23, 33, 43)',
-                color: light ? 'rgb(255, 255, 255)' : 'rgb(230, 237, 241)',
+                background: light ? 'rgb(8, 123, 108)' : 'rgb(141, 216, 205)',
+                color: light ? 'rgb(255, 255, 255)' : 'rgb(18, 53, 47)',
                 disabled,
               },
               `Generate colors, light=${light}, disabled=${disabled}`,
@@ -1241,6 +1252,7 @@ app.on('web-contents-created', (_event, contents) => {
         checks.push(
           'first response diagnostic contains only sanitized MIME/state/status/version in private profile',
         );
+        await require('./workspace-layout-probe.cjs').checkGallery({ contents, evaluate, click, until, checks, profile, sourceProjectId: preparedQueue.projectId });
         const window = BrowserWindow.fromWebContents(contents);
         if (process.env.SDSTUDIO_GENERATION_SCREENSHOT)
           fs.writeFileSync(
