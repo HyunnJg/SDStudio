@@ -1,27 +1,35 @@
-# 비동기 토큰 보관 전환 준비 — P0-01e-a
+# 비동기 토큰 보관 — P0-01e
 
-기준 main `c48814a` (PR29 병합), 2026-11-24. Electron45의 동기 safeStorage가46에서 제거 예정이므로 먼저 **기존 v1 암호문 읽기 호환**을 별도 검사한다. 이번 PR은 테스트 진입점/CI만 추가하며 운영 토큰 저장소·IPC·계정 요청을 비동기로 전환한 것이 아니다.46 설치 차단은 유지한다.
+2026-11-24. PR30은 main `c6ceb01`로 병합했다. P0-01e-b는 그 커밋에서 운영 store·인증 IPC·연구 창 ready를 비동기로 전환한다. Electron은 **45.4.1 고정**이며46 업그레이드는 별도 검토다. 토큰 파일의 경로와 v1 envelope는 유지한다.
 
-## 이번 검사
+## 운영 계약
 
-`npm run test:async-storage:electron`은 스스로 만든 임시 프로필에서 실제 Electron 프로세스2개를 순서대로 실행한다. 첫 프로세스는 고정된 **기존 동기 encryptString**과 v1 envelope로 합성 토큰을 저장하고 정상 quit으로 종료한다. 두 번째 프로세스는 같은 테스트 프로필에서 decryptStringAsync로 그 암호문을 읽고, 새 비동기 encrypt/decrypt도 왕복한다. 읽기/rotation hint가 기존 v1 파일을 바꾸지 않았는지 바이트 비교한다.
+- `status/read/set/clear`는 Promise다. IPC·전송 token supplier·연구 창은 결과를 기다린다. 상태 조회는 복호화나 네트워크 인증을 하지 않는다. `lock`은 즉시 진행 중 작업을 무효화한다.
+- 유효한 교체·삭제·lock은 세대를 올린다. OS 가용성/암호화/복호화가 늦게 완료되면 세대를 확인해 `CANCELLED`로 버린다. 삭제는 멈춘 OS 작업을 기다리지 않으며, 이전 토큰이 파일이나 반환값으로 되살아나지 않는다. 읽기는 현재 진행 중인 저장을 기다린다.
+- 영구 교체는 OS await 전후의 기존 envelope 바이트를 대조한다. 외부 변경·손상·상위 버전 파일은 덮어쓰지 않는다. 기존 파일/메모리는 암호화·쓰기 실패 때 보존한다. 명시적 clear만 삭제를 허용한다.
+- `decryptStringAsync`의 `shouldReEncrypt`는 힌트만 읽는다. read가 기존 파일을 재암호화/승격하지 않는다. 일시적 공급자 오류는 `SECURE_STORAGE_UNAVAILABLE`, 그 밖의 복호화 실패는 `STORE_UNREADABLE`이며 파일을 보존한다.
+- Linux의 기존 보안 provider 허용 목록은 유지한다. basic_text/unknown에서 비동기 API의 true를 보안 저장 가능으로 해석하지 않고 가용성 질의도 하지 않는다. 보안 저장이 없으면 세션 보관을 선택할 수 있고 평문 파일 대체는 없다.
+- OS 작업 자체를 취소한다는 보장은 없다. 완료 결과를 무효화하고, 전송기는 await 전후의 취소·오프라인·전체 기한을 확인한다. IPC도 await 전후 신뢰 프레임과 오프라인을 검사한다. 토큰·OS 예외 원문을 돌려주지 않는다.
 
-보고서는 OS/런타임 버전·고정 provider 구분·성공 여부/고정 단계·rotation boolean·Electron 세션 네트워크 시도 수뿐이다. 토큰·암호문·키·경로·OS 예외 원문은 보고서에 싣지 않는다. 계정 API는 import하거나 호출하지 않는다. 임시 프로필/암호문은 검사 후 정리하며 일반 앱 프로필과 TOKEN.txt를 읽지 않는다.
+## 실제 OS 호환 검사
 
-Windows CI는 실제 OS 보안 저장의 호환·재시작·왕복을 모두 요구한다. Linux CI는 password-store=basic을 명시한다. 이 경우 API 존재와 **안전하지 않은 provider를 알고 암호문 검사를 하지 않는 분기**만 검증하고 `insecure-provider-not-tested`를 기록한다. Linux test가 성공했다고 실제 keyring 호환을 통과했다고 표시하지 않는다. macOS·실제 Linux keyring은 별도다.
+`npm run test:async-storage:electron`은 임시 프로필에서 write 프로세스를 종료한 뒤 새 read 프로세스를 시작한다. PR30의 fixture 생산자는 **Electron45 동기 API**였다. 그 결과가 Electron26 생성 암호문까지 검증했다는 뜻은 아니다.
 
-## 다음 통합의 완료 조건
+이번 Windows CI는 두 경로를 요구한다.
 
-- 운영 store의 상태/읽기/쓰기·IPC/연구 창 ready·전송 token supplier를 비동기 계약으로 함께 전환한다. Promise를 기다리지 않아 준비/전송이 먼저 진행되는 경로가 없어야 한다.
-- OS 암호화 대기 중 토큰 교체·삭제·lock이 들어오면 늦은 평문 반환/이전 토큰 부활/이전 쓰기를 막는다. 최신 변경과 실패 보존을 테스트한다.
-- 기존 v1 암호문은 읽을 수 있어야 하고, 손상/상위 버전/일시적 사용 불가에서 원본 바이트를 유지한다. read와 key rotation hint만으로 파일을 자동 덮어쓰지 않는다.
-- secure provider가 없으면 평문으로 떨어지지 않고 세션 보관을 유지한다. 토큰·OS 예외 원문은 IPC/로그로 보내지 않는다. 프레임/오프라인 거부·전송 전 취소/기한 검사는 유지한다.
-- 이 호환 probe와 통합 회귀가 완료된 뒤에만 Electron46 업그레이드 차단을 별도 검토한다. 현재 실제 버전은45.4.1이다.
+1. Electron45 동기 v1 생산 → 종료 → Electron45 비동기/운영 store 읽기.
+2. **Electron26.6.10 동기 v1 생산 → 종료 → Electron45 비동기/운영 store 읽기.**
 
-이 검사가 실계정 토큰이나 사용자의 기존 암호문을 받는 절차는 아니다. 사용자의 실제 키링/Windows10 GUI 확인은 대신하지 않는다.
+각 read 단계는 원본 v1 파일의 바이트 불변, async API 왕복, 별도 파일을 쓴 운영 store의 저장/재열기/삭제도 검사한다. 동기 생산자는 운영 writer와 독립된 고정 v1 fixture다. 새 비동기 writer로 fixture까지 바꾸면 과거 암호문 검사가 사라지므로 의도적으로 분리한다.
 
-공식 근거(2026-11-24 확인): [safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage), [고정 Electron45.4.1 구현](https://github.com/electron/electron/blob/v45.4.1/shell/browser/api/electron_api_safe_storage.cc). API/호환 설명을 확인했으며 upstream 구현을 복사하지 않았다.
+구버전은 Windows CI 임시 폴더에만 내려받고 앱 의존성/PATH를 바꾸지 않는다. [공식26.6.10 ZIP](https://github.com/electron/electron/releases/download/v26.6.10/electron-v26.6.10-win32-x64.zip)을 [공식 SHASUMS256.txt](https://github.com/electron/electron/releases/download/v26.6.10/SHASUMS256.txt)의 SHA-256 `60ae3be784ef8a44b6ac7d0611944696c43c5b88c943a15f1732058b07c331c7`로 검증한다. 구버전은 합성 암호문 생산만 하며 창·웹 콘텐츠·사용자 프로필을 열지 않는다. E45로 연 프로필을 E26으로 다시 열지 않는다.
 
-## 실행 결과
+보고서는 OS/버전·고정 provider·단계·boolean·네트워크 시도 수뿐이다. 토큰·암호문·키·경로·OS 예외 원문을 싣지 않는다. 모든 세션 네트워크를 차단하고 시도0을 단언한다. Linux CI의 basic provider는 API 존재와 거부 분기만 검사하고 **insecure-provider-not-tested**로 남긴다. 실제 Linux keyring·macOS는 미검증이다. 사용자 Windows10 프로필 이전을 대신하지 않는다.
 
-[Windows/Linux CI run45395949082](https://github.com/HyunnJg/SDStudio/actions/runs/45395949082), 코드9719178에서 두 job 성공. Windows의 실제 암호문 재시작 읽기·비동기 왕복·기존 파일 불변을 확인했다. Linux basic 분기와 기존245건·양쪽 production/패키지/고지 검사도 성공했다. [상세 기록](validation/2026-11-24-async-storage.md). 이 결과는 운영 store 전환이나 사용자 키링 이전을 완료했다는 뜻이 아니다.
+## 검증과 다음 업그레이드
+
+[이번 전환 기록](validation/2026-11-24-async-token-store.md). PR30의 [기존 CI](https://github.com/HyunnJg/SDStudio/actions/runs/45397025513)는 E45 동일 버전 검사이고 [당시 기록](validation/2026-11-24-async-storage.md)을 소급 변경하지 않는다.
+
+운영 전환/교차 버전 회귀를 완료해도46을 자동으로 설치하지 않는다. 정확한45 pin/설치 gate를 유지하고 다음 메이저의 변경점·설치·창·패키지는 별도 PR에서 확인한다.
+
+공식 근거(2026-11-24 확인): [safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage), [고정45.4.1 구현](https://github.com/electron/electron/blob/v45.4.1/shell/browser/api/electron_api_safe_storage.cc). 구현 코드를 복사하지 않았다.

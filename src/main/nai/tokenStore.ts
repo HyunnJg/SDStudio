@@ -1,4 +1,4 @@
-/* eslint import/prefer-default-export: off */
+/* eslint import/prefer-default-export: off, no-useless-constructor: off, no-empty-function: off */
 import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
@@ -8,62 +8,81 @@ import { NaiError, validateToken } from './errors';
 
 type Encryption = Pick<
   SafeStorage,
-  | 'isEncryptionAvailable'
+  | 'isAsyncEncryptionAvailable'
   | 'getSelectedStorageBackend'
-  | 'encryptString'
-  | 'decryptString'
+  | 'encryptStringAsync'
+  | 'decryptStringAsync'
 >;
 
 export class NaiTokenStore {
   private memory?: string;
 
-  private readonly file: string;
+  private generation = 0;
 
-  private readonly encryption: Encryption;
+  private pending?: Promise<NaiTokenStatus>;
 
-  private readonly platform: typeof process.platform;
+  private lastAvailable = false;
 
   constructor(
-    file: string,
-    encryption: Encryption,
-    platform = process.platform,
-  ) {
-    this.file = file;
-    this.encryption = encryption;
-    this.platform = platform;
+    private readonly file: string,
+    private readonly encryption: Encryption,
+    private readonly platform = process.platform,
+  ) {}
+
+  private guard(generation: number): void {
+    if (generation !== this.generation) throw new NaiError('CANCELLED');
   }
 
-  private available(): boolean {
+  private supportedBackend(): boolean {
+    return (
+      this.platform !== 'linux' ||
+      ['gnome_libsecret', 'kwallet', 'kwallet5', 'kwallet6'].includes(
+        this.encryption.getSelectedStorageBackend(),
+      )
+    );
+  }
+
+  private async available(): Promise<boolean> {
+    const { generation } = this;
+    let available = false;
     try {
-      if (!this.encryption.isEncryptionAvailable()) return false;
-      return (
-        this.platform !== 'linux' ||
-        ['gnome_libsecret', 'kwallet', 'kwallet5', 'kwallet6'].includes(
-          this.encryption.getSelectedStorageBackend(),
-        )
-      );
+      // Do not initialize a known insecure fallback even if its async API returns true.
+      available =
+        this.supportedBackend() &&
+        (await this.encryption.isAsyncEncryptionAvailable()) &&
+        this.supportedBackend();
     } catch {
-      return false;
+      /* No raw provider exceptions cross this boundary. */
     }
+    if (generation === this.generation) this.lastAvailable = available;
+    return available;
   }
 
-  status(): NaiTokenStatus {
-    // No decryption or TOKEN.txt migration on startup/status.
+  private describe(
+    secureStorageAvailable = this.lastAvailable,
+  ): NaiTokenStatus {
     let storage: NaiTokenStatus['storage'] = 'none';
     if (this.memory !== undefined) storage = 'session';
     else if (fs.existsSync(this.file)) storage = 'encrypted';
-    return {
-      configured: storage !== 'none',
-      storage,
-      secureStorageAvailable: this.available(),
-    };
+    return { configured: storage !== 'none', storage, secureStorageAvailable };
   }
 
-  private envelope(): { version: 1; ciphertext: string } {
+  async status(): Promise<NaiTokenStatus> {
+    const { generation } = this;
+    const available = await this.available();
+    // Status never decrypts. Describe current state if a concurrent mutation finished.
+    return this.describe(
+      generation === this.generation ? available : this.lastAvailable,
+    );
+  }
+
+  private envelope(): { ciphertext: string; bytes: Buffer } {
     try {
       if (fs.statSync(this.file).size > 16384)
         throw new NaiError('STORE_UNREADABLE');
-      const value = JSON.parse(fs.readFileSync(this.file, 'utf8'));
+      const bytes = fs.readFileSync(this.file);
+      if (bytes.length > 16384) throw new NaiError('STORE_UNREADABLE');
+      const value = JSON.parse(bytes.toString('utf8'));
       if (value.version !== 1) throw new NaiError('STORE_VERSION');
       if (
         value.format !== 'sdstudio-nai-token' ||
@@ -71,54 +90,124 @@ export class NaiTokenStore {
         !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
           value.ciphertext,
         ) ||
-        value.ciphertext.length === 0
+        !value.ciphertext.length
       )
         throw new NaiError('STORE_UNREADABLE');
-      return value;
+      return { ciphertext: value.ciphertext, bytes };
     } catch (error) {
       if (error instanceof NaiError) throw error;
       throw new NaiError('STORE_UNREADABLE');
     }
   }
 
-  read(): string {
+  async read(): Promise<string> {
+    const { generation } = this;
+    const { pending } = this;
+    if (pending) {
+      try {
+        await pending;
+      } catch (error) {
+        this.guard(generation);
+        throw error;
+      }
+    }
+    this.guard(generation);
     if (this.memory !== undefined) return this.memory;
     if (!fs.existsSync(this.file)) throw new NaiError('TOKEN_MISSING');
     const saved = this.envelope();
-    if (!this.available()) throw new NaiError('SECURE_STORAGE_UNAVAILABLE');
+    const available = await this.available();
+    this.guard(generation);
+    if (!available) throw new NaiError('SECURE_STORAGE_UNAVAILABLE');
+    let result;
     try {
-      return validateToken(
-        this.encryption.decryptString(Buffer.from(saved.ciphertext, 'base64')),
+      result = await this.encryption.decryptStringAsync(
+        Buffer.from(saved.ciphertext, 'base64'),
       );
+    } catch (error) {
+      this.guard(generation);
+      if (
+        (error as { isTemporarilyUnavailable?: boolean })
+          ?.isTemporarilyUnavailable === true
+      )
+        throw new NaiError('SECURE_STORAGE_UNAVAILABLE');
+      throw new NaiError('STORE_UNREADABLE');
+    }
+    this.guard(generation);
+    try {
+      if (typeof result.shouldReEncrypt !== 'boolean')
+        throw new Error('Invalid provider result');
+      // A rotation hint does not authorize rewriting an existing ciphertext on read.
+      return validateToken(result.result);
     } catch {
-      // Keep the ciphertext unchanged; clear/re-enter is an explicit user action.
       throw new NaiError('STORE_UNREADABLE');
     }
   }
 
-  set(value: unknown, remember: unknown): NaiTokenStatus {
+  async set(value: unknown, remember: unknown): Promise<NaiTokenStatus> {
     const token = validateToken(value);
     if (typeof remember !== 'boolean') throw new NaiError('INVALID_INPUT');
+    this.generation += 1;
+    const { generation } = this;
+    const operation = this.applySet(token, remember, generation).then(() =>
+      this.describe(),
+    );
+    this.pending = operation;
+    const finished = () => {
+      if (this.pending === operation) this.pending = undefined;
+    };
+    // Attach both handlers without retaining a rejected bookkeeping promise.
+    // Both branches are handled; bookkeeping cannot reject.
+    // eslint-disable-next-line promise/catch-or-return
+    operation.then(finished, finished);
+    return operation;
+  }
+
+  private async applySet(
+    token: string,
+    remember: boolean,
+    generation: number,
+  ): Promise<void> {
+    this.guard(generation);
+    const previous = fs.existsSync(this.file)
+      ? this.envelope().bytes
+      : undefined;
     if (!remember) {
-      if (fs.existsSync(this.file)) this.envelope();
-      this.removeFile(); // Do not resurrect an old persistent token next launch.
+      this.removeFile();
       this.memory = token;
-      return this.status();
+      return;
     }
-    if (!this.available()) throw new NaiError('SECURE_STORAGE_UNAVAILABLE');
-    if (fs.existsSync(this.file)) this.envelope(); // Preserve unsupported/corrupt records.
+    const available = await this.available();
+    this.guard(generation);
+    if (!available) throw new NaiError('SECURE_STORAGE_UNAVAILABLE');
+    let encrypted: Buffer;
+    try {
+      encrypted = await this.encryption.encryptStringAsync(token);
+    } catch {
+      this.guard(generation);
+      throw new NaiError('STORE_WRITE_FAILED');
+    }
+    this.guard(generation);
+    // An external replacement during the OS await is not ours to overwrite.
+    const current = fs.existsSync(this.file)
+      ? this.envelope().bytes
+      : undefined;
+    if (previous ? !current?.equals(previous) : current !== undefined)
+      throw new NaiError('CANCELLED');
     const temporary = `${this.file}.${randomUUID()}.tmp`;
     try {
-      const ciphertext = this.encryption
-        .encryptString(token)
-        .toString('base64');
+      if (
+        !Buffer.isBuffer(encrypted) ||
+        encrypted.length === 0 ||
+        encrypted.length > 12000
+      )
+        throw new Error('Invalid encrypted result');
       fs.mkdirSync(path.dirname(this.file), { recursive: true, mode: 0o700 });
       fs.writeFileSync(
         temporary,
         JSON.stringify({
           format: 'sdstudio-nai-token',
           version: 1,
-          ciphertext,
+          ciphertext: encrypted.toString('base64'),
         }),
         { mode: 0o600, flag: 'wx' },
       );
@@ -130,10 +219,9 @@ export class NaiTokenStore {
       try {
         fs.rmSync(temporary, { force: true });
       } catch {
-        // Best effort: a failed cleanup can leave only an encrypted temporary file.
+        /* Encrypted temp only. */
       }
     }
-    return this.status();
   }
 
   private removeFile(): void {
@@ -144,14 +232,18 @@ export class NaiTokenStore {
     }
   }
 
-  clear(): NaiTokenStatus {
+  async clear(): Promise<NaiTokenStatus> {
+    this.generation += 1;
+    this.pending = undefined;
     this.removeFile();
-    this.lock();
-    return this.status();
+    this.memory = undefined;
+    return this.describe();
   }
 
   lock(): void {
-    // JS strings cannot be guaranteed to be zeroed; drop our live reference.
+    this.generation += 1;
+    this.pending = undefined;
+    // JS strings cannot be guaranteed to be zeroed; drop the live reference.
     this.memory = undefined;
   }
 }

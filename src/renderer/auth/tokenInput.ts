@@ -23,6 +23,8 @@ export function authErrorMessage(code: NaiErrorCode): string {
     OFFLINE: '오프라인 모드에서는 토큰을 확인하거나 변경할 수 없습니다.',
     UNTRUSTED_SENDER:
       '이 창에서는 연결 설정을 사용할 수 없습니다. 앱을 다시 열어 주세요.',
+    CANCELLED:
+      '토큰 설정이 바뀌어 이전 작업을 중단했습니다. 현재 설정을 확인해 주세요.',
     TOKEN_MISSING: '보관된 토큰이 없습니다. 토큰을 입력해 주세요.',
     SECURE_STORAGE_UNAVAILABLE:
       '이 기기의 보안 저장을 사용할 수 없습니다. 이번 실행에만 보관을 선택해 주세요.',

@@ -59,7 +59,7 @@ app
         report.storageBackend === 'basic_text' ||
         report.storageBackend === 'unknown'
       ) {
-        assert.throws(() => store.set('synthetic-never-a-real-token', true), {
+        await assert.rejects(store.set('synthetic-never-a-real-token', true), {
           code: 'SECURE_STORAGE_UNAVAILABLE',
         });
         report.checks.push('insecure OS backend refuses persistent storage');
@@ -98,12 +98,12 @@ app
         status: {
           configured: true,
           storage: 'session',
-          secureStorageAvailable: store.status().secureStorageAvailable,
+          secureStorageAvailable: (await store.status()).secureStorageAvailable,
         },
       },
     );
     assert.equal(fs.existsSync(file), false);
-    assert.equal(store.read(), 'synthetic-never-a-real-token');
+    assert.equal(await store.read(), 'synthetic-never-a-real-token');
     const status = await call('window.electron.naiAuth.status()');
     assert.equal(JSON.stringify(status).includes('synthetic-never'), false);
     report.checks.push(
@@ -120,7 +120,7 @@ app
       ok: false,
       code: 'OFFLINE',
     });
-    assert.equal(store.read(), 'synthetic-never-a-real-token');
+    assert.equal(await store.read(), 'synthetic-never-a-real-token');
     report.checks.push('offline IPC rejects before accessing token storage');
     offline = false;
     assert.equal(

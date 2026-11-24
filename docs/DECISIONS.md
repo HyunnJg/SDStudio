@@ -463,3 +463,13 @@
 - 2026-11-24, PR29 병합c48814a를 기준으로 다음 작업 P0-01e-a를 시작한다. 기존 v1 암호문을 고정된 동기 producer로 만들고, 새 프로세스에서 비동기 읽기/왕복·기존 파일 불변을 확인한다.
 - 임시 프로필/합성 문자열만 사용하고 결과는 고정 단계·boolean·버전으로 제한한다. Windows CI에서는 실제 OS 암호화 성공을 요구하고 Linux basic provider에서는 미검증을 명시한다. 운영 토큰/사용자 파일/계정 API를 받지 않는다.
 - 이 단계는 운영 store/IPC의 비동기 전환 완료가 아니다. 대기 중 삭제/교체/lock·실패 보존·모든 caller await 통합이 뒤따라야 하며 그 전에는46 차단을 유지한다. [계약과 다음 완료 조건](ASYNC_TOKEN_STORAGE.md).
+
+
+## D-052. 운영 토큰 보관을 비동기로 전환하고 늦은 결과를 무효화한다
+
+- 2026-11-24, 기준 PR30 병합 `c6ceb01`. 사용자가 Windows 일반 명령 설치/빌드/lint/start와 V5 생성 성공을 보고했다. 실제 checkout SHA·정확한 MIME·비용·키링 보관 여부는 제공되지 않았으므로 추가 검증으로 추정하지 않는다. 이번 작업의 계정 호출은0회다.
+- `isAsyncEncryptionAvailable/encryptStringAsync/decryptStringAsync`로 운영 store와 모든 caller를 함께 전환한다. 유효한 set/clear/lock마다 세대를 바꾸고 OS await 이후 검사한다. clear/lock은 이전 OS 작업을 기다리지 않으며 늦은 쓰기·평문 반환은 CANCELLED로 버린다. 새 read는 진행 중인 최신 저장을 기다린다.
+- v1 파일/경로는 유지한다. 손상/상위 버전/OS 일시 오류는 보존하고 rotation hint만으로 읽기 중 파일을 고치지 않는다. Linux provider 제한·세션 선택·평문 대체 금지·전송 전 guard와 자동 재시도 금지는 유지한다.
+- PR30은 E45 동기 fixture→E45 비동기만 검증했다. Windows CI에 공식 해시 고정 E26 producer→E45 reader와 운영 store 읽기/왕복을 추가한다. 구버전은 CI 전용 합성 producer이며 사용자 설치나 앱 런타임을 되돌리지 않는다. 고정 legacy writer는 운영 async writer와 분리한다.
+- Electron45 정확한 pin과46 설치 gate는 유지한다. 다음 major 설치/패키지 검토는 별도다. [계약](ASYNC_TOKEN_STORAGE.md), [PR30 처리](reviews/2026-11-24-pr30-followup.md).
+- 밝은 테마의 생성 버튼 백색화는 별도 UI 결함으로 기록하고 작은 수정으로 분리한다. 전반 UI 의견은 추후 받으며 현재 생성/바인딩을 바꾸지 않는다.

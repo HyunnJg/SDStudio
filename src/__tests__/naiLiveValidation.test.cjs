@@ -353,3 +353,26 @@ test('persisted MIME diagnostics are sanitized again at the private result bound
       assert.equal(result.mediaType, 'application/x-synthetic');
   }
 });
+
+test('async local readiness is awaited; cancellation makes no durable attempt or network request', async (t) => {
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const f = fixture(t, { ready: () => gate }),
+    controller = new AbortController();
+  const pending = assert.rejects(f.runner.run(f.evidence, controller.signal), {
+    code: 'CANCELLED',
+  });
+  await assert.rejects(f.runner.run(f.evidence), { code: 'ALREADY_USED' });
+  assert.equal(f.sends(), 0);
+  assert.equal(f.runner.status().used, false);
+  controller.abort();
+  release();
+  await pending;
+  assert.equal(
+    fs.existsSync(path.join(f.root, 'live-validation/attempt.json')),
+    false,
+  );
+  assert.equal(f.runner.status().used, false);
+});

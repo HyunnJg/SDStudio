@@ -55,17 +55,14 @@ app
         callback({ cancel: true });
       },
     );
-    require('ts-node/register/transpile-only');
-    const { NaiTokenStore } = require('../../src/main/nai/tokenStore');
     const file = path.join(root, 'profile/auth/novelai-token.v1.json');
     stage = 'api-and-provider';
-    for (const method of [
+    report.asyncMethodsPresent = [
       'isAsyncEncryptionAvailable',
       'encryptStringAsync',
       'decryptStringAsync',
-    ])
-      assert.equal(typeof safeStorage[method], 'function');
-    report.asyncMethodsPresent = true;
+    ].every((method) => typeof safeStorage[method] === 'function');
+    if (phase === 'read') assert.equal(report.asyncMethodsPresent, true);
     const backend =
       process.platform === 'linux'
         ? safeStorage.getSelectedStorageBackend()
@@ -92,10 +89,6 @@ app
       stage = 'complete';
       return finish(0);
     }
-    stage = 'async-availability';
-    report.availabilityQueried = true;
-    report.asyncAvailable = await safeStorage.isAsyncEncryptionAvailable();
-    assert.equal(report.asyncAvailable, true);
     if (phase === 'write') {
       stage = 'legacy-producer';
       // Frozen legacy producer, independent of the future async production writer.
@@ -117,6 +110,10 @@ app
       assert.equal(bytes.includes('synthetic-async-storage-token'), false);
       report.result = 'legacy-v1-written';
     } else {
+      stage = 'async-availability';
+      report.availabilityQueried = true;
+      report.asyncAvailable = await safeStorage.isAsyncEncryptionAvailable();
+      assert.equal(report.asyncAvailable, true);
       stage = 'legacy-read-after-restart';
       const before = fs.readFileSync(file);
       const saved = JSON.parse(before);
@@ -127,6 +124,14 @@ app
       );
       assert.equal(legacy.result, 'synthetic-async-storage-token');
       assert.equal(typeof legacy.shouldReEncrypt, 'boolean');
+      require('ts-node/register/transpile-only');
+      const { NaiTokenStore } = require('../../src/main/nai/tokenStore');
+      const productionReader = new NaiTokenStore(file, safeStorage);
+      assert.equal(
+        await productionReader.read(),
+        'synthetic-async-storage-token',
+      );
+      report.productionStoreRead = true;
       report.legacyReadableAfterRestart = true;
       report.rotationRequested = legacy.shouldReEncrypt;
       stage = 'async-roundtrip';
@@ -141,6 +146,16 @@ app
       // Reading and a rotation hint must not silently replace the old v1 file.
       assert.deepEqual(fs.readFileSync(file), before);
       report.legacyFileUnchanged = true;
+      stage = 'production-roundtrip';
+      const modernFile = path.join(root, 'profile/auth/async-token.v1.json');
+      const modern = new NaiTokenStore(modernFile, safeStorage);
+      await modern.set('synthetic-production-async-token', true);
+      assert.equal(await modern.read(), 'synthetic-production-async-token');
+      const reopened = new NaiTokenStore(modernFile, safeStorage);
+      assert.equal(await reopened.read(), 'synthetic-production-async-token');
+      await modern.clear();
+      assert.equal(fs.existsSync(modernFile), false);
+      report.productionStoreRoundTrip = true;
       report.result = 'legacy-and-async-compatible';
     }
     assert.equal(report.networkAttempts, 0);
