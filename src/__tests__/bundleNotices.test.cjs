@@ -189,3 +189,35 @@ test('a changed dependency package is rejected instead of using mismatched notic
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Bundled package changed/);
 });
+
+test('modern sharp libvips README and versions are preserved as vendor evidence without pretending they are MIT notices', async (t) => {
+  const { root, put, run } = await fixture(t);
+  const relative = 'release/app/node_modules/@img/sharp-libvips-synthetic';
+  put(
+    `${relative}/package.json`,
+    JSON.stringify({
+      name: '@img/sharp-libvips-synthetic',
+      version: '1.0.0',
+      license: 'LGPL-3.0-or-later',
+    }),
+  );
+  put(
+    `${relative}/README.md`,
+    'Synthetic vendor license table\r\nLGPL test evidence, no permission inference.\r\n',
+  );
+  put(`${relative}/versions.json`, '{"synthetic-library":"1.0.0"}\n');
+  assert.equal(run().status, 0);
+  const folder = path.join(root, '.erb/generated/notices');
+  const index = JSON.parse(fs.readFileSync(path.join(folder, 'index.json')));
+  const vendor = index.vendors.filter((item) =>
+    item.source.startsWith(relative),
+  );
+  assert.equal(vendor.length, 2);
+  for (const item of vendor) {
+    assert.equal(item.available, true);
+    assert.deepEqual(
+      fs.readFileSync(path.join(folder, item.copy)),
+      fs.readFileSync(path.join(root, item.source)),
+    );
+  }
+});

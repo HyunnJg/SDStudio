@@ -1,6 +1,6 @@
 name: Build Local AI
 
-on: [push, pull_request]
+on: workflow_dispatch
 
 jobs:
   build-localai-windows:
@@ -17,7 +17,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '22'
+          node-version-file: .nvmrc
 
       - name: Build local AI
         run: |
@@ -62,7 +62,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '22'
+          node-version-file: .nvmrc
 
       - name: Build local AI
         run: |
@@ -106,7 +106,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '22'
+          node-version-file: .nvmrc
 
       - name: Build local AI
         run: |

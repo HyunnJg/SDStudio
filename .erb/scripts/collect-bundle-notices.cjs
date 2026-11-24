@@ -175,6 +175,14 @@ function collectNotices() {
     'release/app/node_modules/exiftool-vendored.pl/bin/LICENSE',
     'release/app/node_modules/exiftool-vendored.pl/bin/README',
   ];
+  const imgRoot = path.join(root, 'release/app/node_modules/@img');
+  if (fs.existsSync(imgRoot))
+    for (const name of fs
+      .readdirSync(imgRoot)
+      .filter((name) => name.startsWith('sharp-libvips-'))
+      .sort())
+      for (const filename of ['README.md', 'versions.json'])
+        vendorFiles.push(`release/app/node_modules/@img/${name}/${filename}`);
   const vendors = [];
   for (const file of vendorFiles) {
     if (!fs.existsSync(path.join(root, file))) {

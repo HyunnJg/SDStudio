@@ -438,3 +438,13 @@
 - 근거: https://docs.novelai.net/en/faq/ (2026-11-24 확인). 일반 해상도·28이하 조건과 초과 설정의 Anlas 사용을 구분한다. V5 Opus 사용량은 지속 충전이며 월 약7,000장은23스텝·기준 해상도 추정량이지 고정 월 reset 한도가 아니다. 앱은 계정 할당량/잔액을 읽거나 무료 여부를 보증하지 않는다.
 - V5 seed0/extra_noise_seed=-1은 관찰한seed-1 규칙을 유지한다. PNG 응답/음수 추가 시드의 실제 서버 수용·출력 품질은 이번에 실측하지 않았다. API/저장 형식·목적지·메인 권한을 변경하지 않는다.
 - [Windows 사용자 보고](validation/2026-11-24-windows-local-start.md)는 main e36b94f에서 Node22 앱/Node26 빌드 도구·새 node-gyp/VS2026으로 기동한 기록이다. 전체 앱 Node26 지원·깨끗한 설치/패키징·V5 실계정 성공으로 확대하지 않는다. 정상 로컬 환경과 변경된 lock은 보존한다.
+
+
+## D-050. 생성 실험을 멈추고 Node/Electron 설치 경로를 먼저 현대화한다
+
+- 결정일: 2026-11-24 (Asia/Seoul), 기준 main fd42ea3. 사용자가 Node/Electron을 최대 병목으로 지목하고 실험보다 먼저 끝내도록 요청했다. 정상 로컬 폴더와 사용자 데이터는 보존한다.
+- 개발 호스트 Node26.13.1/npm11.21.3, Electron45.4.1(내부 Node24.22.3), builder26.18.0, rebuild4.2.1/node-gyp12.2.0, 제품 sharp0.35.5를 고정한다. Node22 앱/Node26 빌드 도구 이원 우회와 오래된 중복 rebuild·루트 npm 의존성을 제거한다.
+- 설치는 루트 setup-desktop 하나가 자식 lock·공식 Electron 다운로드·Electron 헤더 native 빌드·실제 바이너리 검사·DLL을 순서대로 책임진다. npm11 설치 스크립트 차단은 검토한 allowScripts와 명시적 installer로 처리한다. 전역 gyp나 blanket allow에 기대지 않는다.
+- 개발 main.ts의 native ESM 자동 해석 실패는 루트 CommonJS 부트스트랩에서 ts-node 등록 후 require하는 방식으로 고친다. production 엔트리는 유지한다. Electron 이미지 클립보드 변경과 console-message 하네스를 대응하고, 새 @img/libvips의 ASAR 경로와 고지 증거를 보존한다. 생성 바인딩·프로젝트 형식·시드/원본 PNG·암호화/프로필 정책은 바꾸지 않는다.
+- CI는 Windows/Linux clean 설치·단위·빌드·패키지 고지 검사를 구성한다. 자동 릴리스/Pages/Local AI 작업은 수동으로 분리해 이번 검증이 공개 배포를 일으키지 않게 한다. Windows 성공은 실제 실행 로그가 있어야 표시한다.
+- [설계/공식 근거](RUNTIME_MODERNIZATION.md), [실측과 한계](validation/2026-11-24-runtime-modernization.md). 실계정/키 입력/생성 실험은 이번0회이며 현대화가 정리된 다음 재개한다. Linux sharp/GLib 경고와 Windows/macOS 미검증은 숨기지 않는다.

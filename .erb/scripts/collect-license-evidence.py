@@ -147,6 +147,10 @@ def main():
             ('release/app/node_modules/exiftool-vendored', ['LICENSE']),
             ('release/app/node_modules/exiftool-vendored.pl', ['LICENSE', 'bin/LICENSE', 'bin/README']),
         ]
+        img_root = ROOT / 'release/app/node_modules/@img'
+        if img_root.is_dir():
+            targets += [(str(base.relative_to(ROOT)), ['README.md', 'versions.json'])
+                        for base in sorted(img_root.glob('sharp-libvips-*')) if base.is_dir()]
         observations = []
         for relative, files in targets:
             base = ROOT / relative

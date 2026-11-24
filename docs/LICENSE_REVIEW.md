@@ -63,3 +63,6 @@ P0-04b는 원본/네이티브/배경 모듈/보일러플레이트의 정확한 �
 [생성·범위·검사](licenses/BUNDLE_NOTICES.md)를 추가했다. 컴파일 모듈(결합 자식 포함)과 설치된 복사 런타임/내장 metadata에서 244레코드를 수집하고 원문 사본 250개를 보존했다. resources/LICENSE와 THIRD_PARTY_NOTICES 묶음의 실제 포함 및 해시·번들 대응을 확인했다. webpack 주석 파일만으로 전수 고지를 대신하지 않는다.
 
 LICENSE는 초기 ERB MIT 원문 복원이며 Sunho Kim의 새 저작권 문구를 작성한 것이 아니다. APP_LICENSE_STATUS와 index에 그 한계 및 원문 누락 8건을 남겼다. 원문 필수 검사는 현재 실패하며 이 결과를 완료로 표시하지 않는다. compiler-generated 코드의 추가 귀속, native ISC 전문·앱 고유 표기, 자산/DB·vendor 조건과 다른 플랫폼은 여전히 남는다.
+
+
+2026-11-24 D-050: 제품 sharp0.35.5/libvips8.18.7로 갱신했다. @img/sharp-libvips 플랫폼 패키지의 README.md 라이선스 표와 versions.json을 고지 증거에 추가하고 실제 패키지 사본 해시를 확인한다. 이전 sharp/vendor 경로는 해당 과거 설치에 대한 증거이며 새 버전에 소급 적용하지 않는다. Linux/Windows 플랫폼별 패키지의 실제 설치/산출물 기준으로 수집하며 전이 라이선스 조건 이행을 완료했다고 주장하지 않는다. [범위](RUNTIME_MODERNIZATION.md).

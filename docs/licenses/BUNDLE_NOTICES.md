@@ -1,5 +1,7 @@
 # P0-04b2 번들·복사 런타임 고지 묶음
 
+현재 런타임 갱신(D-050)은 sharp0.35.5/libvips8.18.7과 @img 패키지 구성을 쓴다. [이번 수집·검증](../validation/2026-11-24-runtime-modernization.md)은215레코드/219사본/원문 미확인8건이다. 아래0.32.6/vendor8.14.5 및244/250 수치는 PR7~9 당시 이력으로 보존하며 현재 설치에 소급하지 않는다. 누락8건에는 새 @img/sharp-libvips-linux-x64 원문 미확인이 포함되고 이전 beep-boop metadata는 현재 산출물에 없다. README의 라이선스 표/versions 증거 보존과 전문 충족 판정은 구분한다.
+
 2026-11-21 / 기준: PR #8 보완·병합 `58a6f4af05fbbb83c232bc2b4563aa654e64b057`.
 구현·증거 조사: `b260ffefbc715f0f81ce5f0848a4f8786ebc37c0`.
 

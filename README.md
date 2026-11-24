@@ -4,6 +4,8 @@
 
 **새 작업실은 V5 Full·832×1216을 기본으로 지원합니다.** 일반 새 프로필은 온라인으로 시작하며, 저장된 오프라인 선택은 유지합니다. API 토큰 입력 후 **생성** 한 번으로 저장·요청합니다. V5의 실제 서버 출력은 이번 자동 검증에서 호출하지 않았습니다. [사용 흐름](docs/WORKSPACE_GENERATION.md)과 [확인 범위](docs/NAI_V5_BINDING.md)를 참고하세요.
 
+**데스크톱 개발 기준을 Node26.13.1/npm11.21.3/Electron45.4.1로 갱신했습니다.** 루트 `npm ci`가 Electron 다운로드·C++ 빌드·DLL 준비를 순서대로 수행합니다. 기존 정상 폴더는 보존하고 [새 설치 절차](docs/DEVELOPMENT.md)를 따르세요. Windows 신규 설치 결과는 [검증 범위](docs/validation/2026-11-24-runtime-modernization.md)와 구분합니다.
+
 | 문서 | 용도 |
 | --- | --- |
 | [현재 상태](docs/STATUS.md) | 완료·미완료, 확인한 사실, 바로 다음 작업 |

@@ -1,4 +1,15 @@
-# Windows의 Electron 부분 설치 복구
+# Windows 연구 도구 설치
+
+현재 기준은 Node26.13.1/npm11.21.3/Electron45.4.1이다. 전체 앱의 C++ 도구는 필요 없다.
+
+```powershell
+npm --prefix tools/nai-validation ci
+npm --prefix tools/nai-validation start -- "$env:LOCALAPPDATA\SDStudio-Live-Test"
+```
+
+start가 새 공식 `install-electron --no` 명령으로 바이너리를 확인/다운로드한 뒤 창을 연다. 설치 스크립트 전체 허용이나 수동 ZIP/해시 교체를 요구하지 않는다. 기존 실험 프로필과 1회 기록은 보존한다. 아래 Electron26용 파일을 현재 node_modules에 덮어쓰지 않는다.
+
+## 과거 Electron26 부분 설치 복구 기록 (현재 절차 아님)
 
 2026-11-22 사용자 보고: Node26.13.1/npm11.21.3에서 npm ci는89패키지를 설치했지만 Electron dist에는 locales만 남고 path.txt/실행 파일이 없었다. 직접 install.js를 실행해도 종료됐다. install.js3122바이트와 SHA-256 fe3968b51f44b08b4943f4055c0c53c8725028b218ce093e96703deb4fbb301c는 원본과 같았고 win32/x64, 강제 platform/override/NODE_OPTIONS는 없었다. 다운로드 생략 변수 제거로도 해결되지 않았다. **설치 중단의 정확한 원인은 미확정**이며 Node26 버그나 보안 프로그램 탓으로 단정하지 않는다.
 
