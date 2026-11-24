@@ -473,3 +473,12 @@
 - PR30은 E45 동기 fixture→E45 비동기만 검증했다. Windows CI에 공식 해시 고정 E26 producer→E45 reader와 운영 store 읽기/왕복을 추가한다. 구버전은 CI 전용 합성 producer이며 사용자 설치나 앱 런타임을 되돌리지 않는다. 고정 legacy writer는 운영 async writer와 분리한다.
 - Electron45 정확한 pin과46 설치 gate는 유지한다. 다음 major 설치/패키지 검토는 별도다. [계약](ASYNC_TOKEN_STORAGE.md), [PR30 처리](reviews/2026-11-24-pr30-followup.md).
 - 밝은 테마의 생성 버튼 백색화는 별도 UI 결함으로 기록하고 작은 수정으로 분리한다. 전반 UI 의견은 추후 받으며 현재 생성/바인딩을 바꾸지 않는다.
+
+
+## D-053. 실패한 토큰 교체와 기존 토큰 읽기를 구분한다
+
+- 2026-11-24, 기준 PR31/32 병합 main `dcdae0b`(31 merge `3b23bf4`). 두 head의 Windows/Linux CI 성공을 확인하고 사용자 승인에 따라 병합했다. 충돌 없이 통합됐다.
+- 동시 `read`는 진행 중 `set` 완료를 기다리되 저장 실패 자체를 읽기 오류로 전파하지 않는다. 세대가 같으면 현재 보존 상태를 새로 읽고 검증한다. 저장 요청자는 기존 고정 오류를 받는다. 그 사이 교체/삭제/lock이 들어왔으면 세대 guard의 CANCELLED를 유지한다.
+- 기존 토큰 없음·손상·상위 버전·복호화 오류는 각 읽기 검사에서 거부한다. 이전 토큰을 새로 캐시하거나 OS 암호화/생성을 재시도하지 않는다. v1 파일·화면/IPC 계약·생성 설정 변경은 없다.
+- PR30 import 처리 기록은 구현자의 확인 오류로 정정했다. dcf0433/c6ceb01의 probe 59행에 미사용 import가 있었으며 PR31에서 실제 reader로 사용했다. [PR31/32 처리](reviews/2026-11-24-pr31-32-followup.md).
+- Linux 초기 unknown 가용성은 실제 keyring 증거가 없어 이번에 거부 조건을 완화하지 않는다. GNOME/KDE와 async fallback 동작 확인을 후속으로 명시한다. 어두운 테마 panel색은 기존 동작 유지이며 전체 UI 작업에서 디자인을 정한다. Electron46 업그레이드는 별도다.

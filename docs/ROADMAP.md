@@ -10,9 +10,9 @@ Gemini·Claude 초기 검토를 반영한 작업 계획이다. [처리 결과](r
 | P0-01a | 개발용 데이터 경로 격리 | P0-00 | `DEFAULT_APP_DIR` 상수 평가 전에 개발 프로필 선택. `saveLocation` 우회 확인. 원본 경로 중첩·링크 거부 및 드라이런 검증 | Linux 구현·검증 완료 |
 | P0-01b | 데스크톱 의존성 설치·빌드 (앱 미실행) | P0-00 | 원본 CI Node `22.4.1` 기준 결과·실패 원인 기록. 필요한 lock 추적 및 깨끗한 체크아웃의 `npm ci` 재현 | Linux 검증 완료 (전체 타입검사 별도 실패) |
 | P0-01d | Node/Electron 데스크톱 현대화 | P0-01b, D-050 | 지원 조합 고정·루트 clean 설치·실제 native/개발/DLL/worker/패키지 회귀·Windows 설치 결과 구분 | PR29 병합c48814a: Node26.13.1/Electron45.4.1, 검토 보완/Windows·Linux CI245·패키지 통과. 사용자 Win10 일반 명령/창·V5 성공 보고 수령. macOS 후속 |
-| P0-01e | 비동기 safeStorage와 기존 암호문 호환 | P0-01d, D-050 | 비동기 보관·기존 v1 암호문 읽기·대기 중 변경/잠금·예외/파일 보존·실제 Electron 회귀. 완료 전 Electron46+ 차단 | e-a 병합c6ceb01 / e-b 운영 async 전환·세대 무효화·E26 교차검사 추가.45 pin/46 설치 gate 유지 |
+| P0-01e | 비동기 safeStorage와 기존 암호문 호환 | P0-01d, D-050 | 비동기 보관·기존 v1 암호문 읽기·대기 중 변경/잠금·예외/파일 보존·실제 Electron 회귀. 완료 전 Electron46+ 차단 | e-a 병합c6ceb01 / e-b 병합3b23bf4 / 동시 읽기 실패 분리 후속.45 pin/46 설치 gate 유지 |
 | P0-01e-a | 이전 암호문/비동기 OS 호환 probe | P0-01d | 임시 프로필의 기존 v1 생성→새 PID 비동기 읽기·왕복·파일 불변. Windows 실측/Linux basic 미검증 구분 | PR30 병합c6ceb01: E45 sync→async Windows/양쪽 CI 성공. E26 producer는 e-b에서 추가 |
-| P0-01e-b | 운영 비동기 토큰 보관 | P0-01e-a | caller await·삭제/교체/lock 중 늦은 결과 무효화·v1 원본 보존·Windows E26→E45 실기 | PR31 검토 대기: 양쪽 CI clean 설치·255·빌드·패키지/고지 성공, Windows E26→E45 OS 읽기 확인. 로컬 Electron10·생성 UI11 |
+| P0-01e-b | 운영 비동기 토큰 보관 | P0-01e-a | caller await·삭제/교체/lock 중 늦은 결과 무효화·v1 원본 보존·Windows E26→E45 실기 | PR31 병합3b23bf4: 양쪽 CI clean 설치·255·빌드·패키지/고지 성공, Windows E26→E45 OS 읽기 확인. 로컬 Electron10·생성 UI11 |
 | P0-01c | 데스크톱 첫 전체 기동 | P0-01a, P0-01b, P0-02 | 빈 격리 프로필, 원본 데이터 불변 및 네트워크 확인 | Linux 화면·2백엔드 확인 / 잠금만 모의 |
 | P0-02 | 외부 요청·가짜 백엔드 경로 정리 | P0-01a, P0-01b | 데스크톱 IP 확인 제거, 업데이트 중복 시작 해소·기본 비활성, 로컬 AI 시작·다운로드 격리. 가짜 백엔드로 데스크톱 UI 실행, 외부 요청 0건 | Electron 검증 완료 / 독립 브라우저 미검증 |
 | P0-03a | 공식 모델/API 조사·입력 및 호환 설계 | P0-00 | 공식 근거·확인 날짜, 입력·인증·응답 표와 기존 씬 보존 경계. 합성 요청·PNG 응답 검증 | 설계·오프라인 투영 10건 통과 |
@@ -74,3 +74,5 @@ D-048 이후 첫 일반 프로필은 온라인이고 단일 생성은 버튼 한
 Electron46+로 올리기 전 P0-01e를 완료하고 기존 암호문 읽기 회귀를 확인한다. 자동 의존성 갱신에도 이 major 차단을 유지한다. 공개 릴리스/서명을 다시 켤 때는 GitHub Actions를 검증한 commit SHA로 고정한다.
 
 2026-11-24 사용자 보고: Windows에서 일반 명령 설치/빌드/lint/start와 V5 생성이 정상이다. 추가 키/재실행 요청 없이 성공 관찰로 기록하며 서버 MIME·반복 생성·저장 키링·정확한 checkout은 추정하지 않는다. 밝은 테마 생성 버튼 색 유지 결함은 독립 UI 수정 대상이다.
+
+D-053: 실패한 교체 저장과 기존 토큰 동시 읽기를 분리한다. Linux 실제 GNOME/KDE의 async 초기화 전후 provider·저장/재시작·fallback 거부는 지원 검증 전까지 미확인으로 유지한다. PR32 밝은 테마 수정은 main dcdae0b로 병합했으며 어두운 테마 주 행동 색은 전체 UI 때 결정한다.
