@@ -197,7 +197,19 @@
       "failed": 5
     },
     "platformFixtureFixesApplied": true,
-    "fullPipelineResultPending": true
+    "fullPipelineResultPending": false,
+    "finalRun": 45344459034,
+    "testedCodeCommit": "0afe0c6cb3888a8e131a067b0d919c91459d025f",
+    "conclusion": "success",
+    "unitPassed": 244,
+    "productionAndDirectoryPackagePassed": true,
+    "notices": {
+      "packages": 214,
+      "copiesVerified": 217,
+      "bundleOccurrences": 143,
+      "runtimeMetadata": 73,
+      "unresolved": 7
+    }
   },
   "packageChecker": {
     "actualASARFixture": true,
@@ -207,7 +219,9 @@
     "zeroRuntimeInspectionRejected": true
   },
   "linuxCI": {
-    "run": 45343988270,
-    "conclusion": "success"
+    "run": 45344459034,
+    "testedCodeCommit": "0afe0c6cb3888a8e131a067b0d919c91459d025f",
+    "conclusion": "success",
+    "unitPassed": 244
   }
 }

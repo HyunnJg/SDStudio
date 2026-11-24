@@ -38,7 +38,7 @@ sharp의 @img 플랫폼 패키지와 libvips를 ASAR 밖에 유지하고, 해당
 
 ## 검증과 남은 범위
 
-[실행 기록](validation/2026-11-24-runtime-modernization.md)을 따른다. Linux의 깨끗한 npm ci·실제 개발 실행·디렉터리 패키지·worker/프로필/저장·전송 합성 회귀를 확인한다. Windows CI는 같은 명령을 windows-2025와 ubuntu-24.04에 구성했다. CI 구성과 실제 성공 기록은 구분한다. macOS/서명/설치 프로그램/실제 OS 키링/NAI 계정 실험은 이번 범위 밖이다.
+[실행 기록](validation/2026-11-24-runtime-modernization.md)을 따른다. Linux의 깨끗한 npm ci·실제 개발 실행·디렉터리 패키지·worker/프로필/저장·전송 합성 회귀를 확인한다. Windows CI는 같은 명령을 windows-2025와 ubuntu-24.04에 구성했고, [두 job 모두 성공](https://github.com/HyunnJg/SDStudio/actions/runs/45344459034)했다. CI의 Windows Server2025와 사용자의 Windows10 실제 GUI를 구분한다. macOS/서명/설치 프로그램/실제 OS 키링/NAI 계정 실험은 이번 범위 밖이다.
 
 Linux sharp는 upstream이 문서화한 Electron/전역 GLib 충돌 경고와 GLib critical을 출력했다. 합성 PNG/알파 처리와 GUI 확인이 통과한 사실만 기록하며, 경고를 숨기거나 Linux의 모든 이미지 포맷이 안전하다고 일반화하지 않는다. 원격서비스와 무관한 로컬 런타임 한계다. 동기 safeStorage API도45에서 deprecated 경고가 남지만 아직 동작한다. 암호화 파일/복구 정책을 바꾸는 비동기 전환은 이번에 섞지 않았으며 제거되는 버전으로 올리기 전에 별도 회귀가 필요하다.
 

@@ -7,7 +7,7 @@ Node **26.13.1**, npm **11.21.3**, Electron **45.4.1**로 갱신했다. 개발 �
 이미 실행되는 로컬 체크아웃은 그대로 보존하고 다른 폴더에 새 체크아웃을 만든다. 사용자 프로필·토큰·프로젝트·`.sdstudio-runtime`·기존 lock을 지울 필요가 없다. 새 체크아웃을 설치하는 동안 기존 앱은 닫아 둔다.
 
 ```powershell
-git clone https://github.com/HyunnJg/SDStudio.git SDStudio-modern
+git clone --branch work/node-electron-modernization https://github.com/HyunnJg/SDStudio.git SDStudio-modern
 cd SDStudio-modern
 git submodule update --init externals/capacitor-background-mode
 node --version
@@ -18,7 +18,7 @@ npm run build
 npm start
 ```
 
-이 명령은 변경 병합 이후 main 기준이다. 검토 브랜치에서는 해당 PR 브랜치를 먼저 선택한다. Node/npm 버전이 다르면 먼저 선택한 설치의 PATH를 확인한다. npm만 맞출 때는 `npm install --global npm@11.21.3 --ignore-scripts`를 사용한다. Windows에는 Python과 Visual Studio C++ 데스크톱 워크로드/Windows SDK가 필요하다. 기존 VS2026/Python 설치를 그대로 사용하고, 필요하면 해당 셸에서 `$env:npm_config_python = 'C:\실제경로\python.exe'`로 Python을 지정한다. 새 node-gyp12.2는 VS2026 탐지 구현을 포함하지만 이 Linux 환경에서 사용자 Windows 설치 성공까지 확인한 것은 아니다.
+위 명령은 PR29 검토 브랜치를 직접 받는다. 병합된 뒤에는 --branch main으로 바꿔 받는다. 이전 main은 같은 런타임 구성이 아니므로 검토 중에는 브랜치를 생략하지 않는다. Node/npm 버전이 다르면 먼저 선택한 설치의 PATH를 확인한다. npm만 맞출 때는 `npm install --global npm@11.21.3 --ignore-scripts`를 사용한다. Windows에는 Python과 Visual Studio C++ 데스크톱 워크로드/Windows SDK가 필요하다. 기존 VS2026/Python 설치를 그대로 사용하고, 필요하면 해당 셸에서 `$env:npm_config_python = 'C:\실제경로\python.exe'`로 Python을 지정한다. 새 node-gyp12.2는 Windows CI에서 실제 VS2026 Enterprise/Python3.15.2 탐지·빌드에 성공했다. 사용자 Windows10/Community 설치와 실제 GUI 확인까지 대신한 것은 아니다.
 
 `npm ci`의 루트 postinstall이 자식 lock 설치 → 명시적 Electron 다운로드 → Electron 헤더 대상 native 빌드 → 실제 바이너리 확인 → 개발 DLL 빌드를 순서대로 수행한다. npm11의 외부 설치 스크립트 기본 차단에 기대지 않는다. 자세한 허용 목록은 package.json의 allowScripts와 변경 문서를 참고한다. 루트 `--ignore-scripts` 설치만으로 앱이 준비됐다고 보지 않는다. 의도적으로 설치 스크립트를 생략했다면 이후 `npm run setup:desktop`을 실행한다. 재빌드만 필요하면 `npm run rebuild`다. 설치 실패와 앱 실행을 연달아 진행하지 않고 실패 단계부터 해결한다.
 

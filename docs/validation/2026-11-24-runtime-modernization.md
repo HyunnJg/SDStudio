@@ -12,7 +12,7 @@
 | 빈 worktree 최초 설치 | root npm ci 성공. 자식 lock 설치·공식 Electron45 다운로드·Electron 대상 C++ 빌드·DLL 완료 |
 | 최종 setup 재설치 | root npm ci --include=optional 재실행0. 외부 스크립트 미승인 경고 없이1929패키지 설치·자식6/67·native·검사·DLL 완료. dependency deprecation 경고는 남음 |
 | 실제 native/PNG | verify:desktop0. Electron 내부에서 native DB 검색과 sharp2×2 RGBA PNG/알파 왕복 성공 |
-| CJS 단위 | npm run test:unit,243/243·skip0. 병렬도4에서 연속2회 통과 |
+| CJS 단위 | 기존243/243 연속2회와 ASAR 회귀 추가 뒤244/244·skip0 통과. Windows/Linux 최종 CI도 각각244/244 |
 | 라이선스 수집기 | Python5/5, --installed 실제 수집 성공. @img README/versions 증거2개 포함 |
 | Electron/독립 도구 | 16건 중15건 최초 통과. 시작 실패1건은 컨테이너 singleton socket 거부. 기존 하네스의 명시적 singleton 모의를 켠 단독 재검사1/1 통과. 즉16개 시나리오를 확인했지만 한 번의16/16 실행은 아님 |
 | 개발 엔트리 | profile:check 실제CJS 부트스트랩0. npm start → webpack 개발 서버 → Electron45 창/renderer/preload bridge 정상·렌더러 오류0 |
@@ -39,7 +39,7 @@
 
 ## 남은 범위
 
-- Windows clean 설치/VS2026 실제 빌드·Windows/macOS 패키지·설치 프로그램·서명·실제 정상 키링은 이 Linux 실행에서 미검증이다. Windows-2025/Linux CI는 같은 설치/프로필/단위/빌드/패키지/고지 명령을 구성했으며 실제 실행 결과는 PR 체크에서 따로 확인한다.
+- 아래 최종 Windows/Linux CI에서 clean 설치/VS2026 빌드·디렉터리 패키지를 확인했다. 사용자 Windows10 실제 창·OS 키링, macOS·설치 프로그램·서명은 별도 미검증이다.
 - Linux sharp/전역 GLib 경고 및 한 차례 GLib critical, 동기 safeStorage deprecated 경고는 남았다. 처리한 합성 PNG/GUI는 통과했지만 모든 포맷/환경을 보증하지 않는다. 경고를 숨기거나 token file 정책을 바꾸지 않았다.
 - 기존 libsodium 타입 stub, 레거시 로컬 AI/ExifTool/다른 전이 의존성의 deprecation·취약점 정리는 별도다. 공개 배포 전 원문 고지8건·앱/DB/자산 출처·LGPL 조건·fuse는 남는다.
 - NAI 실제 계정/키 입력·V5 출력/품질·모델 확장 실험0회. 사용자 Windows 환경의 정상 활성화 스크립트/lock/이미지/토큰에는 접근하지 않았다.
@@ -57,3 +57,11 @@ Windows 첫 CI(run45343250393)는 root clean 설치, VS2026 Enterprise18.12.1240
 @electron/asar가 listPackage에서 호스트 경로 구분자를 반환하고 extractFile도 호스트 경로를 요구함을 설치 소스에서 확인했다. 검사기의 portable inventory 경로를 추출 시 path.normalize하고, 목록은 비교 전 슬래시로 통일했다. 복사 runtime metadata0건을 정상 검사로 세지 않도록 거부한다. 실제 소형 ASAR을 만들고 원래 목록/Windows형 목록 모두3개 metadata 검사 성공, 인덱스에 없는 package 추가 시 거부하는 회귀를 추가했다. 새 bundle 고지 검사5/5와 전체 단위244/244가 통과했다. 제품 바인딩/PNG/프로젝트 경로는 변경하지 않는다.
 
 후속 CI(run45343988270) Linux 전체 설치→프로필→단위→production→기본 재빌드/패키지→고지 검사 성공을 확인했다. Windows의 최종 패키지 검사는 위 ASAR 경로 보완을 포함한 다음 head에서 재확인한다.
+
+## 최종 CI 결과
+
+- 검증한 코드 head: `0afe0c6cb3888a8e131a067b0d919c91459d025f`, [run45344459034](https://github.com/HyunnJg/SDStudio/actions/runs/45344459034). Windows-2025 job138275568964와 Ubuntu24.04 job138275569227 **모두 success**. 아래 후속 문서 변경은 이 결과를 기록하며 제품 코드를 바꾸지 않는다.
+- 양쪽 root clean 설치 → 실제 Electron native/sharp → 개발 CJS profile check → 단위244/244 → production → 기본 rebuild의 directory package → 실제 ASAR 고지 검사까지 성공. 계정 호출0, 서명/공개 배포 없음.
+- Windows는 VS2026 Enterprise18.12.12405.243/Python3.15.2를 자동 선택했다. Electron45.4.1/내부 Node24.22.3/ABI150, sharp0.35.5/libvips8.18.7의 검색·PNG 왕복 성공을 로그로 확인했다. Windows10/Community의 사용자 PC에서 실행한 것은 아니다.
+- 최종 Windows 고지214레코드/217사본·번들 출현143·복사 runtime metadata73. 원문 미확인7건. Linux는215/219·143/74·미확인8건이다. 플랫폼 패키지 차이이며 미확인을 숨기거나 자동으로 재배포 허용 판정하지 않는다.
+- 앞선 run1의 Linux helper/Windows fixture5건, run2의 Windows ASAR 추출 경로 실패도 보존한다. run3에서 실제 ASAR metadata73건을 검사하므로 누락 검사를0건으로 통과한 결과가 아니다.
