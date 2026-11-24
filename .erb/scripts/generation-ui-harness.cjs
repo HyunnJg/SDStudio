@@ -778,6 +778,33 @@ app.on('web-contents-created', (_event, contents) => {
           "(()=>{const s=document.querySelector('#live-seed-mode');s.value='fixed';s.dispatchEvent(new Event('change',{bubbles:true}));})()",
         );
         await fill('#live-seed', '0');
+        const checkGenerateColors = async (disabled) => {
+          contents.sendInputEvent({ type: 'mouseMove', x: 1, y: 1 });
+          for (const light of [true, false]) {
+            if (
+              (await evaluate(
+                "document.querySelector('[data-testid=connected-workspace]').classList.contains('pw-light')",
+              )) !== light
+            )
+              await evaluate(
+                "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='테마 전환').click()",
+              );
+            await pause();
+            const colors = await evaluate(
+              `(()=>{const b=document.querySelector('[data-testid=prepare-generation]');const s=getComputedStyle(b);return {background:s.backgroundColor,color:s.color,disabled:b.matches(':disabled')};})()`,
+            );
+            assert.deepEqual(
+              colors,
+              {
+                background: light ? 'rgb(8, 123, 108)' : 'rgb(23, 33, 43)',
+                color: light ? 'rgb(255, 255, 255)' : 'rgb(230, 237, 241)',
+                disabled,
+              },
+              `Generate colors, light=${light}, disabled=${disabled}`,
+            );
+          }
+        };
+        await checkGenerateColors(false);
         const generate = async () => {
           await until(() =>
             evaluate(
@@ -797,6 +824,15 @@ app.on('web-contents-created', (_event, contents) => {
           evaluate(
             "document.querySelector('[data-testid=generated-png]')?.naturalWidth===2",
           ),
+        );
+        await until(() =>
+          evaluate(
+            "!document.querySelector('[data-testid=prepare-generation]').matches(':disabled')",
+          ),
+        );
+        await checkGenerateColors(false);
+        checks.push(
+          'dark/light Generate colors survive completion without relying on hover',
         );
         const list = await evaluate('window.electron.projects.list()');
         const id = list.value[0].id;
@@ -867,6 +903,7 @@ app.on('web-contents-created', (_event, contents) => {
         await fill('#live-steps', '28');
         await generate();
         await until(() => requests === 2);
+        await checkGenerateColors(true);
         await click('[data-testid=cancel-generation]');
         await until(() =>
           evaluate(
@@ -881,6 +918,10 @@ app.on('web-contents-created', (_event, contents) => {
           evaluate(
             "!document.querySelector('#live-steps').matches(':disabled')",
           ),
+        );
+        await checkGenerateColors(false);
+        checks.push(
+          'dark/light Generate colors survive busy/disabled and cancellation with no additional request',
         );
         await fill('#live-steps', '29');
         await click('[data-testid=prepare-generation]');

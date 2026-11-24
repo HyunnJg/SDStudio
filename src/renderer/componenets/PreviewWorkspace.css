@@ -803,7 +803,8 @@
 .pw-light .pw-position-grid button[aria-pressed='true'] {
   background: #bcded5;
 }
-.pw-light .pw-generate {
+.preview-workspace.pw-light .pw-generate {
+  background: var(--pw-accent);
   color: #ffffff;
 }
 .pw-light .pw-canvas-welcome {
