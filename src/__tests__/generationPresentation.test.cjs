@@ -3,7 +3,21 @@ const assert = require('node:assert/strict');
 const {
   generationMessage,
   availableQueueSceneIds,
+  requiresAnlasWarning,
+  ANLAS_STEP_WARNING,
 } = require('../renderer/generation/generationPresentation');
+test('only settings above28 require the extra Anlas warning, including a mixed queue', () => {
+  for (const steps of [1, 23, 28])
+    assert.equal(requiresAnlasWarning({ steps }), false);
+  for (const steps of [29, 50])
+    assert.equal(requiresAnlasWarning({ steps }), true);
+  assert.equal([{ steps: 28 }, { steps: 29 }].some(requiresAnlasWarning), true);
+  assert.equal(
+    [{ steps: 23 }, { steps: 28 }].some(requiresAnlasWarning),
+    false,
+  );
+  assert.match(ANLAS_STEP_WARNING, /Anlas/);
+});
 test('changed/deleted queue input names the locally known scene while no server body or prompt is used', () => {
   const error = {
     ok: false,

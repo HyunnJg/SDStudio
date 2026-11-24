@@ -9,6 +9,7 @@ import {
   authErrorMessage,
   prepareTokenInput,
   tokenStatusLabel,
+  defaultRememberToken,
 } from '../auth/tokenInput';
 import './NaiAuthSettings.css';
 import NetworkModeSettings from './NetworkModeSettings';
@@ -33,6 +34,7 @@ export default function NaiAuthSettings({
   const input = useRef<HTMLInputElement>(null);
   const alive = useRef(true);
   const pending = useRef(false);
+  const storageChoiceSet = useRef(false);
   const [status, setStatus] = useState<NaiTokenStatus>();
   const [busy, setBusy] = useState(false);
   const [remember, setRemember] = useState(false);
@@ -53,6 +55,10 @@ export default function NaiAuthSettings({
       if (!alive.current) return;
       if (result.ok) {
         setStatus(result.status);
+        if (!storageChoiceSet.current) {
+          setRemember(defaultRememberToken(result.status));
+          storageChoiceSet.current = true;
+        }
         setNotice(message);
       } else setError(authErrorMessage(result.code));
     } catch {

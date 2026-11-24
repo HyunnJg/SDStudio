@@ -24,6 +24,8 @@ export interface WorkspaceDraft {
   seed: string;
   steps: string;
   guidance: string;
+  qualityTags?: 'none' | 'light' | 'standard';
+  ucPreset?: 'none' | 'light' | 'heavy' | 'human' | 'furry';
 }
 
 export type PreviewRequest = ReturnType<typeof buildPreviewImageRequest>;

@@ -1,7 +1,17 @@
 import type {
   GenerationFailure,
   GenerationQueueState,
+  GenerationSettings,
 } from '../../workspaceGeneration';
+
+export const ANLAS_STEP_WARNING =
+  '28스텝 초과는 Opus도 Anlas를 사용할 수 있습니다.';
+
+export function requiresAnlasWarning(
+  settings: Pick<GenerationSettings, 'steps'>,
+) {
+  return settings.steps > 28;
+}
 
 export function generationMessage(
   error: unknown,
@@ -12,7 +22,7 @@ export function generationMessage(
     OFFLINE:
       '오프라인입니다. API 토큰 설정에서 연결 모드를 변경하고 재시작하세요.',
     UNSUPPORTED_DRAFT:
-      '이번 연결은 V4.5 Full·512×512·28스텝·가이던스5·캐릭터 없음만 지원합니다. | 문법과 프롬프트 조각 전개는 아직 지원하지 않습니다.',
+      'V5 Full 또는 기존 V4.5 기본 설정을 확인하세요. 활성 캐릭터·| 문법·프롬프트 조각 전개는 아직 지원하지 않습니다.',
     INVALID_INPUT: '프롬프트와 고정 시드(0~4294967295)를 확인하세요.',
     TOKEN_MISSING: 'API 토큰 설정에서 Persistent API Token을 입력하세요.',
     STORE_UNREADABLE:

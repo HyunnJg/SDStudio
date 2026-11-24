@@ -96,3 +96,10 @@ ProjectService worker는 main-only generationSnapshot/addPNG/readPNG를 추가�
 
 
 D-043의 실제 반복 큐는 같은 addPNG를 직렬로 호출한다. 유효한 응답은 먼저 메모리 pending에 두며, 큐 결과는 최신 manifest 리비전으로 결과만 append해 최신 입력을 보존한다. 그 읽기~쓰기 사이 충돌이면 RESULT_SAVE_FAILED로 중지해 명시적 저장-only 복구를 제공한다. 다음 요청 전 저장 입력 fingerprint가 달라지면 전송하지 않는다. v2 결과/원본 PNG·내용 해시 이력과 D-042 검사 범위는 유지하며, 큐 자체는 프로젝트 manifest에 저장하지 않는다.
+
+
+## V5 설정과 manifest v3 (D-048)
+
+현재 reader는 v1/v2/v3다. v3는 draft의 optional qualityTags/ucPreset(없을 때 요청에 추가 안 함) 또는 nai-v5-full-v1 binding을 보관한다. 새 입력은 기본 선택을 명시해 생성 전 입력 저장부터 v3다. 기존 v1/v2 입력은 자동 전환하지 않으며 새 선택을 명시적으로 저장할 때만 올린다. 저장된 프로젝트 버전은 일반 저장에서 내려가지 않는다. v3 필드를 v1/v2로 표기한 manifest는 거부해 구버전 reader가 해석하지 못하는 필드를 조용히 지우는 일을 막는다.
+
+create/save/addPNG/copy/recover의 최소 필요 버전 계산을 공통화했고, 현재 씬에서 옵션을 지웠더라도 과거 결과 draft/binding이 필요하면 v3를 유지한다. 이전 v1/v2 reader는 v3를 PROJECT_VERSION으로 거부하고 원본은 보존한다. 변경 직전 manifest 이력은 그대로 남아 새 UUID로 복사 복구할 수 있다. 물리 projects-v1 경로·전체 열기/복사/복구 PNG 검사·단건 선택/생성 준비의 읽기 경계는 그대로다.

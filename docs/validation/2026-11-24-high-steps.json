@@ -1,0 +1,252 @@
+{
+  "date": "2026-11-24",
+  "timezone": "Asia/Seoul",
+  "basePR": 28,
+  "baseHead": "c41da9e85811c998413445511af8d18d63e652f5",
+  "runtimeCommit": "61a89ae23f4ad47755bcd0ebebbeb5e91e67c37d",
+  "runtimeTree": "ac4671d97a6f69f5e9862ec8cd3f8830ed3cde52",
+  "unit": {
+    "counts": {
+      "v5": 7,
+      "queue": 40,
+      "generation": 16,
+      "project-ui": 18,
+      "network": 10,
+      "auth": 4
+    },
+    "passed": 95,
+    "failed": 0,
+    "skipped": 0
+  },
+  "scopedStrictTypecheck": "passed",
+  "changedTSLint": "passed",
+  "rendererProductionBuild": "passed",
+  "backendRequestAndStorageChanged": false,
+  "ui": {
+    "reports": [
+      {
+        "pid": 17,
+        "phase": "create",
+        "ready": true,
+        "checks": [
+          "one Generate click saves input and sends exactly one V5 request without a confirmation checkbox",
+          "actual Electron session transport accepts unknown MIME ZIP, worker persists original alpha/metadata PNG, renderer decodes it",
+          "29-step preparation and explicit cancel send0 additional requests and unlock settings",
+          "in-flight cancel reports possible server processing, preserves input and prior PNG, no automatic retry",
+          "23/28 steps remain single-click; 29-step confirmation double-click sends exactly one approved request",
+          "post-response storage fault retains result; explicit new-project save preserves original lock/PNG and adds the received PNG without a fourth request",
+          "mixed23/29-step queue displays the Anlas warning in its existing confirmation and cancel sends0",
+          "first response diagnostic contains only sanitized MIME/state/status/version in private profile",
+          "390px layout probe (test-only window minimum override) has no horizontal overflow"
+        ],
+        "loopbackRequests": 3,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 105,
+        "phase": "reopen",
+        "ready": true,
+        "checks": [
+          "new PID reopens the result-only project and decodes byte-identical PNG with no generation request"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 191,
+        "phase": "offline",
+        "ready": true,
+        "checks": [
+          "offline generation refuses prepare before token/network access while saved v3 PNG remains viewable"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      }
+    ],
+    "actualAccountRequests": 0,
+    "transportDestinationRewrittenToLoopback": true
+  },
+  "queueUI": {
+    "reports": [
+      {
+        "pid": 290,
+        "phase": "queue",
+        "ready": true,
+        "checks": [
+          "selected3 scenes x2 prepare sends0; confirmation shows6 requests, fixed settings and six resolved random seeds",
+          "real session transport/ASAR-compatible worker stores6 original PNG records in repetition-first order with the confirmed seeds",
+          "stop aborts the one in-flight request; five unsent tasks remain and no automatic eighth request starts",
+          "changed reserved draft displays the local scene name, sends0 extra requests and preserves all5 unsent tasks",
+          "restored draft permits5-task reconfirmation despite project rename and a different viewed scene; confirmed seeds stay unchanged",
+          "fresh5-request confirmation resumes only unsent tasks; the cancelled request is not retried and11 PNG records remain",
+          "received PNG survives queue storage failure and saves to a new project with no14th request; original lock/11 PNG records stay intact",
+          "390px queue/confirmation/result layout has no horizontal overflow; normal app minimum size is unchanged"
+        ],
+        "loopbackRequests": 13,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 378,
+        "phase": "reopen",
+        "ready": true,
+        "checks": [
+          "new PID reopens the result-only project and decodes byte-identical PNG with no generation request"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      },
+      {
+        "pid": 466,
+        "phase": "offline",
+        "ready": true,
+        "checks": [
+          "offline generation refuses prepare before token/network access while saved v3 PNG remains viewable"
+        ],
+        "loopbackRequests": 0,
+        "actualAccountRequests": 0,
+        "externalRequests": [],
+        "rendererErrors": [],
+        "singleInstanceLockSimulated": true,
+        "nativeQuitObserved": true
+      }
+    ],
+    "actualAccountRequests": 0,
+    "transportDestinationRewrittenToLoopback": true
+  },
+  "packagedGeneration": {
+    "phase": "create",
+    "ready": true,
+    "checks": [
+      "one Generate click saves input and sends exactly one V5 request without a confirmation checkbox",
+      "actual Electron session transport accepts unknown MIME ZIP, worker persists original alpha/metadata PNG, renderer decodes it",
+      "29-step preparation and explicit cancel send0 additional requests and unlock settings",
+      "in-flight cancel reports possible server processing, preserves input and prior PNG, no automatic retry",
+      "23/28 steps remain single-click; 29-step confirmation double-click sends exactly one approved request",
+      "post-response storage fault retains result; explicit new-project save preserves original lock/PNG and adds the received PNG without a fourth request",
+      "mixed23/29-step queue displays the Anlas warning in its existing confirmation and cancel sends0",
+      "first response diagnostic contains only sanitized MIME/state/status/version in private profile",
+      "390px layout probe (test-only window minimum override) has no horizontal overflow"
+    ],
+    "loopbackRequests": 3,
+    "actualAccountRequests": 0,
+    "externalRequests": [],
+    "rendererErrors": [],
+    "singleInstanceLockSimulated": true,
+    "nativeQuitObserved": true,
+    "packageContext": {
+      "isPackaged": true,
+      "archiveUnchanged": true,
+      "profileIsolated": true,
+      "inspectorInjectedHarness": true
+    }
+  },
+  "archiveSha256": "9cb3289deb23c12a20b48926e80bb8faf882cec2473f02bbdd42f79115e9b90d",
+  "noticeCheck": {
+    "requiredResourcesPresent": [
+      "LICENSES/electron-react-boilerplate.txt",
+      "CREDITS.md",
+      "THIRD_PARTY_NOTICES/THIRD_PARTY_NOTICES.txt",
+      "THIRD_PARTY_NOTICES/index.json",
+      "THIRD_PARTY_NOTICES/APP_LICENSE_STATUS.md"
+    ],
+    "noticeCopiesVerified": 250,
+    "bundlePackageOccurrencesIndexed": 143,
+    "copiedRuntimePackagesIndexed": 112,
+    "runtimeIdentityBasis": "name/version/license/author/repository (builder strips scripts and other build metadata)",
+    "unresolvedNoticeFiles": [
+      {
+        "root": "node_modules/@react-dnd/invariant",
+        "name": "@react-dnd/invariant",
+        "version": "4.0.2",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "node_modules/@react-dnd/shallowequal",
+        "name": "@react-dnd/shallowequal",
+        "version": "4.0.2",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "release/app/node_modules/batch-cluster/types/chai-withintoleranceof",
+        "name": "@types/chai-withintoleranceof",
+        "version": "0.0.1",
+        "declaredLicense": null
+      },
+      {
+        "root": "release/app/node_modules/github-from-package/example",
+        "name": "beep-boop",
+        "version": "1.2.3",
+        "declaredLicense": null
+      },
+      {
+        "root": "release/app/node_modules/browserify-zlib",
+        "name": "browserify-zlib",
+        "version": "0.1.4",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "release/app/node_modules/is-gzip",
+        "name": "is-gzip",
+        "version": "1.0.0",
+        "declaredLicense": "MIT"
+      },
+      {
+        "root": "src/native",
+        "name": "native",
+        "version": "1.0.0",
+        "declaredLicense": "ISC"
+      },
+      {
+        "root": "node_modules/react-dnd-preview",
+        "name": "react-dnd-preview",
+        "version": "8.1.2",
+        "declaredLicense": "MIT"
+      }
+    ],
+    "allIdentifiedPackagesHaveNoticeFiles": false,
+    "completeRedistributionReview": false
+  },
+  "environment": {
+    "platform": "linux-x64",
+    "hostNode": "22.4.1",
+    "electron": "26.6.10",
+    "npm": "11.19.1",
+    "dependenciesReused": true,
+    "npmCiPerformed": false,
+    "nativeRebuildPerformed": false,
+    "x11": "Xorg dummy; test-only no-sandbox and singleton override"
+  },
+  "actualAccountRequests": 0,
+  "realCredentialsUsed": false,
+  "timing": "The final packaged generation scenario was run after the focus/scroll addition and final renderer build. Earlier unpackaged single/queue reports are supplemental; the final package covers the added confirmation/cancel/double-click/mixed-queue cases.",
+  "initialPackageRunnerFailure": "All9 product checks passed, but the package wrapper still expected6. Updated the expected count to9 and reran successfully; request count remains3.",
+  "notVerified": [
+    "V5 image_format=png server acceptance",
+    "V5 fixed0/extra_noise_seed-1 server acceptance",
+    "V5 image quality",
+    "Windows/macOS rerun here",
+    "clean install or runtime modernization",
+    "real keyring encryption success"
+  ],
+  "windowsLocalReport": "2026-11-24-windows-local-start.md (user-provided, not rerun here)"
+}

@@ -36,7 +36,7 @@ export interface ProjectContent {
   scenes: WorkspaceScene[];
 }
 export interface ImageBinding {
-  id: 'nai-v45-basic512-v1';
+  id: 'nai-v45-basic512-v1' | 'nai-v5-full-v1';
   requestHash: string;
 }
 export interface ProjectImage {
@@ -57,7 +57,7 @@ export type ProjectImageInput = Omit<
 >;
 export interface WorkspaceProject extends ProjectContent {
   format: typeof PROJECT_FORMAT;
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   id: string;
   images: ProjectImage[];
 }
@@ -133,7 +133,11 @@ function localId(value: unknown): asserts value is string {
   );
 }
 function draft(value: unknown): number {
+  const optional = ['qualityTags', 'ucPreset'].filter(
+    (key) => !!value && typeof value === 'object' && Object.hasOwn(value, key),
+  );
   const d = record(value, [
+    ...optional,
     'family',
     'prompt',
     'negativePrompt',
@@ -146,6 +150,10 @@ function draft(value: unknown): number {
     'guidance',
   ]);
   choice(d.family, ['v4.5', 'v5']);
+  if (optional.includes('qualityTags'))
+    choice(d.qualityTags, ['none', 'light', 'standard']);
+  if (optional.includes('ucPreset'))
+    choice(d.ucPreset, ['none', 'light', 'heavy', 'human', 'furry']);
   choice(d.placement, ['auto', 'manual']);
   choice(d.resolution, ['portrait', 'landscape', 'square']);
   choice(d.seedMode, ['random', 'fixed']);
@@ -230,11 +238,30 @@ export function validateImageInput(value: unknown): ProjectImageInput {
   );
   if (hasBinding) {
     const binding = record(r.binding, ['id', 'requestHash']);
-    projectCheck(binding.id === 'nai-v45-basic512-v1');
+    projectCheck(
+      ['nai-v45-basic512-v1', 'nai-v5-full-v1'].includes(String(binding.id)),
+    );
     projectHash(binding.requestHash);
   }
   draft(r.draft);
   return structuredClone(value as ProjectImageInput);
+}
+export function requiredProjectVersion(
+  content: ProjectContent,
+  images: readonly ProjectImageInput[] = [],
+): 1 | 2 | 3 {
+  const drafts = [
+    ...content.scenes.map((s) => s.draft),
+    ...images.map((i) => i.draft),
+  ];
+  if (
+    drafts.some(
+      (d) => Object.hasOwn(d, 'qualityTags') || Object.hasOwn(d, 'ucPreset'),
+    ) ||
+    images.some((i) => i.binding?.id === 'nai-v5-full-v1')
+  )
+    return 3;
+  return images.some((i) => i.binding) ? 2 : 1;
 }
 export function validateWorkspaceProject(value: unknown): WorkspaceProject {
   projectCheck(value && typeof value === 'object', 'PROJECT_CORRUPT');
@@ -244,7 +271,10 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
     Number.isInteger(v.version) && Number(v.version) > 0,
     'PROJECT_CORRUPT',
   );
-  projectCheck(v.version === 1 || v.version === 2, 'PROJECT_VERSION');
+  projectCheck(
+    v.version === 1 || v.version === 2 || v.version === 3,
+    'PROJECT_VERSION',
+  );
   try {
     const p = record(value, [
       'format',
@@ -268,7 +298,7 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
     for (const image of p.images) {
       const hasBinding =
         !!image && typeof image === 'object' && Object.hasOwn(image, 'binding');
-      projectCheck(!hasBinding || p.version === 2);
+      projectCheck(!hasBinding || Number(p.version) >= 2);
       const i = record(image, [
         ...(hasBinding ? ['binding'] : []),
         'id',
@@ -304,6 +334,13 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
       total += Number(pngBytes);
     }
     projectCheck(total <= PROJECT_LIMITS.totalPNGBytes, 'PROJECT_LIMIT');
+    projectCheck(
+      Number(p.version) >=
+        requiredProjectVersion(
+          value as WorkspaceProject,
+          (value as WorkspaceProject).images,
+        ),
+    );
     return structuredClone(value as WorkspaceProject);
   } catch (error) {
     throw new ProjectError(

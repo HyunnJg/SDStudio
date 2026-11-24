@@ -26,7 +26,7 @@ function fixture(t, options = {}) {
     path.join(os.tmpdir(), 'workspace-generation-'),
   );
   t.after(() => fs.rmSync(profile, { recursive: true, force: true }));
-  const state = createConnectedWorkspaceState();
+  const state = createConnectedWorkspaceState('v4.5');
   state.draft.seedMode = 'fixed';
   state.draft.seed = '0';
   state.draft.prompt = 'a quiet lake, watercolor landscape';
@@ -83,11 +83,10 @@ test('basic binding matches the successful research candidate exactly, keeps see
   random.draft.seedMode = 'random';
   assert.equal(bindBasicGeneration(random, () => 12345).input.seed, 12345);
 });
-test('unverified character/V5/settings and inline/wildcard/empty prompt are refused before transmission', (t) => {
+test('unverified character/legacy settings and inline/wildcard/empty prompt are refused before transmission', (t) => {
   const f = fixture(t),
     scene = f.first.project.scenes[0];
   for (const patch of [
-    { family: 'v5' },
     { resolution: 'portrait' },
     { steps: '29' },
     { guidance: '6' },
@@ -320,7 +319,12 @@ test('first MIME observation is private, bounded, sanitized and never overwritte
     httpStatus: 200,
   });
   const file = path.join(f.profile, 'nai-diagnostics/first-response.v1.json');
-  for (let i = 0; i < 50 && !fs.existsSync(file); i++)
+  // Async writeFile creates the file before writing its JSON bytes.
+  for (
+    let i = 0;
+    i < 50 && (!fs.existsSync(file) || fs.statSync(file).size === 0);
+    i++
+  )
     await new Promise((r) => setTimeout(r, 10));
   const saved = fs.readFileSync(file, 'utf8');
   assert.deepEqual(JSON.parse(saved), {
@@ -419,7 +423,7 @@ test('binding metadata is accepted only in v2 with exact allowlisted shape; unkn
     { code: 'PROJECT_CORRUPT' },
   );
   assert.throws(
-    () => validateWorkspaceProject({ ...result.snapshot.project, version: 3 }),
+    () => validateWorkspaceProject({ ...result.snapshot.project, version: 4 }),
     { code: 'PROJECT_VERSION' },
   );
   assert.throws(

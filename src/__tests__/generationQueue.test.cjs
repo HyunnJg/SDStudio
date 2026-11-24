@@ -25,7 +25,7 @@ function deferred() {
 function fixture(t, options = {}) {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'sdstudio-batch-'));
   t.after(() => fs.rmSync(profile, { recursive: true, force: true }));
-  const state = createConnectedWorkspaceState();
+  const state = createConnectedWorkspaceState('v4.5');
   const scenes = snapshotWorkspaceScenes(state).map((s, i) => ({
     ...s,
     name: `Scene${i + 1}`,
@@ -174,7 +174,7 @@ test('invalid selection/count/unverified scene fail before sending and do not re
     selectedSceneId: f.first.project.selectedSceneId,
     scenes: structuredClone(f.scenes),
   };
-  content.scenes[2].draft.family = 'v5';
+  content.scenes[2].draft.steps = '29';
   const next = f.core.save(f.first.project.id, f.first.revision, content);
   await assert.rejects(
     f.service.prepareQueue(
@@ -530,7 +530,7 @@ test('selected subset follows saved scene order, preserves fixed0 repeats, and d
     };
   content.scenes[0].draft.seedMode = 'fixed';
   content.scenes[0].draft.seed = '0';
-  content.scenes[2].draft.family = 'v5';
+  content.scenes[2].draft.steps = '29';
   const saved = f.core.save(f.first.project.id, f.first.revision, content);
   const p = await f.service.prepareQueue(
     saved.project.id,
@@ -1108,6 +1108,60 @@ test('confirmed exclusion removes only a conflicting scene unsent count, edits n
     done.latest.snapshot.project.scenes[1].draft.prompt,
     'new conflicting input',
   );
+});
+test('excluding a later conflicting scene clears the current job stop error and preserves the other unsent jobs', async (t) => {
+  const f = fixture(t, {
+    send: async ({ number, core, first, bytes }) => {
+      if (number === 1)
+        core.save(
+          first.project.id,
+          first.revision,
+          editedContent(first.project, (c) => {
+            c.scenes[2].draft.prompt = 'changed later scene';
+          }),
+        );
+      return bytes;
+    },
+  });
+  const plan = await f.prepare(2);
+  const stopped = await f.service.runQueue(plan.ticket, true);
+  const current = stopped.queue.items[1];
+  assert.equal(current.sceneId, f.scenes[1].id);
+  assert.equal(current.status, 'pending');
+  assert.equal(current.error.conflictSceneId, f.scenes[2].id);
+  assert.equal(stopped.queue.stoppedItemId, current.id);
+  const before = f.core.readManifest(f.first.project.id);
+  const excluded = f.service.excludePendingScene(
+    plan.queueId,
+    f.scenes[2].id,
+    true,
+  );
+  assert.equal(excluded.queue.stoppedItemId, undefined);
+  assert.ok(excluded.queue.items.every((item) => item.error === undefined));
+  assert.equal(excluded.queue.items[1].status, 'pending');
+  assert.equal(
+    excluded.queue.items.filter((i) => i.status === 'skipped').length,
+    2,
+  );
+  assert.equal(f.count, 1);
+  assert.deepEqual(f.core.readManifest(f.first.project.id), before);
+  await assert.rejects(f.service.runQueue(plan.ticket, true), {
+    code: 'CONFIRMATION_EXPIRED',
+  });
+  const remaining = await f.service.prepareRemaining(
+    plan.queueId,
+    before.project.id,
+    before.revision,
+  );
+  assert.deepEqual(
+    remaining.items.map((i) => i.sceneId),
+    [f.scenes[1].id, f.scenes[0].id, f.scenes[1].id],
+  );
+  assert.equal(f.count, 1);
+  const done = await f.service.runQueue(remaining.ticket, true);
+  assert.equal(f.count, 4);
+  assert.equal(done.latest.snapshot.project.images.length, 4);
+  assert.ok(done.queue.items.every((item) => item.error === undefined));
 });
 test('deleting and excluding every remaining scene leaves zero requests and requires a new reservation', async (t) => {
   const f = fixture(t),

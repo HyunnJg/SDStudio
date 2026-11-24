@@ -48,6 +48,7 @@ app.relaunch = (options) => {
       '--ozone-platform=x11',
       '--disable-gpu',
       '--password-store=basic',
+      ...(process.argv.includes('--no-sandbox') ? ['--no-sandbox'] : []),
     ],
   });
 };
@@ -123,9 +124,9 @@ app.on('web-contents-created', (_event, contents) => {
       assert.equal(current.status.lockedReason, undefined);
       if (phase === 0) {
         assert.equal(current.status.current, 'offline');
-        assert.equal(fs.existsSync(pref), false);
+        assert.equal(JSON.parse(fs.readFileSync(pref)).mode, 'offline');
         state.checks.push(
-          'environment-free first package launch is offline and settings are editable',
+          'environment-free launch preserves saved offline choice and settings are editable',
         );
         // Unsupported settings are kept until the dedicated confirmation path.
         const future = '{"version":99,"mode":"online"}';
@@ -202,7 +203,7 @@ app.on('web-contents-created', (_event, contents) => {
         await click('[data-testid=network-mode-restart]');
         await click('[data-testid=network-mode-confirm]');
         await until(
-          `document.querySelector('[data-testid=network-mode-error]')?.textContent.includes('0이어도')`,
+          `document.querySelector('[data-testid=network-mode-error]')?.textContent.includes('저장·복사 또는 취소')`,
         );
         assert.equal(state.relaunchCalls, 0);
         await evaluate(

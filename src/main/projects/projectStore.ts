@@ -12,6 +12,7 @@ import {
   validateProjectContent,
   validateWorkspaceProject,
   validateImageInput,
+  requiredProjectVersion,
 } from '../../workspaceProject';
 import type {
   ProjectContent,
@@ -262,7 +263,7 @@ export class ProjectStore {
     const id = randomUUID();
     const project: WorkspaceProject = {
       format: PROJECT_FORMAT,
-      version: images.some((image) => image.binding) ? 2 : 1,
+      version: requiredProjectVersion(content, images),
       id,
       ...content,
       images,
@@ -355,6 +356,10 @@ export class ProjectStore {
     return this.update(id, revision, (current) => ({
       ...current,
       ...validated,
+      version: Math.max(
+        current.version,
+        requiredProjectVersion(validated, current.images),
+      ) as WorkspaceProject['version'],
     }));
   }
 
@@ -381,7 +386,13 @@ export class ProjectStore {
       const input = validateImageInput(value);
       encode({
         ...snapshot.project,
-        version: input.binding ? 2 : snapshot.project.version,
+        version: Math.max(
+          snapshot.project.version,
+          requiredProjectVersion(snapshot.project, [
+            ...snapshot.project.images,
+            input,
+          ]),
+        ) as WorkspaceProject['version'],
         images: [
           ...snapshot.project.images,
           {
@@ -419,7 +430,10 @@ export class ProjectStore {
       const image = { ...info, id: imageId, sha256, pngBytes: png.length };
       const next = {
         ...current,
-        version: info.binding ? (2 as const) : current.version,
+        version: Math.max(
+          current.version,
+          requiredProjectVersion(current, [...current.images, image]),
+        ) as WorkspaceProject['version'],
         images: [...current.images, image],
       };
       encode(next); // Validate count/total/JSON bounds before any image write.

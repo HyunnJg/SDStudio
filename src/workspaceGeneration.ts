@@ -20,14 +20,16 @@ export interface GenerationFailure {
   conflictSceneId?: string;
 }
 export type GenerationReply<T> = { ok: true; value: T } | GenerationFailure;
-export interface GenerationPlan {
+export interface GenerationSettings {
+  model: 'nai-diffusion-4-5-full' | 'nai-diffusion-5-full';
+  width: number;
+  height: number;
+  steps: number;
+  scale: number;
+}
+export interface GenerationPlan extends GenerationSettings {
   ticket: string;
-  model: 'nai-diffusion-4-5-full';
   seed: number;
-  width: 512;
-  height: 512;
-  steps: 28;
-  scale: 5;
   samples: 1;
 }
 export interface GeneratedProject {
@@ -50,17 +52,19 @@ export interface GenerationQueueItem {
     | 'skipped';
   imageId?: string;
   error?: GenerationFailure;
+  settings?: GenerationSettings;
 }
 export interface GenerationQueuePlan {
   ticket: string;
   queueId: string;
   total: number;
   items: GenerationQueueItem[];
-  model: 'nai-diffusion-4-5-full';
-  width: 512;
-  height: 512;
-  steps: 28;
-  scale: 5;
+  model: GenerationSettings['model'];
+  width: number;
+  height: number;
+  steps: number;
+  scale: number;
+  settings: GenerationSettings[];
 }
 export interface GenerationQueueState {
   id: string;
@@ -84,7 +88,7 @@ export interface GenerationClient {
   ): Promise<GenerationReply<GenerationPlan>>;
   run(
     ticket: string,
-    webCostConfirmed: boolean,
+    executionConfirmed: boolean,
   ): Promise<GenerationReply<GeneratedProject>>;
   prepareQueue(
     id: string,
@@ -99,7 +103,7 @@ export interface GenerationClient {
   ): Promise<GenerationReply<GenerationQueuePlan>>;
   runQueue(
     ticket: string,
-    webCostConfirmed: boolean,
+    executionConfirmed: boolean,
   ): Promise<GenerationReply<GenerationQueueStatus>>;
   excludePendingScene(
     queueId: string,

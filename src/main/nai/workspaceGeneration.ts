@@ -143,7 +143,7 @@ export class WorkspaceGeneration {
       const { request, input } = bound;
       const body = Uint8Array.from(Buffer.from(JSON.stringify(request)));
       input.binding = {
-        id: 'nai-v45-basic512-v1',
+        id: bound.bindingId,
         requestHash: createHash('sha256').update(body).digest('hex'),
       };
       await this.options.store.generationSnapshot(id, revision, input);
@@ -151,10 +151,10 @@ export class WorkspaceGeneration {
         ticket: randomUUID(),
         model: request.model,
         seed: request.parameters.seed,
-        width: 512,
-        height: 512,
-        steps: 28,
-        scale: 5,
+        width: request.parameters.width,
+        height: request.parameters.height,
+        steps: request.parameters.steps,
+        scale: request.parameters.scale,
         samples: 1,
       };
       this.prepared = {
@@ -377,6 +377,9 @@ export class WorkspaceGeneration {
         delete item.error;
       }
     });
+    // The current preflight may have detected a different scene's changed input.
+    // Excluding that scene resolves this stop without altering the current job.
+    delete stop.error;
     this.prepared = undefined;
     this.queueApproval = undefined;
     delete q.state.stoppedItemId;
@@ -410,16 +413,24 @@ export class WorkspaceGeneration {
       (item) => item.status === 'pending',
     );
     if (!items.length) throw new GenerationError('INVALID_INPUT');
+    const first = reservation.tasks.find(
+      (task) => task.plan.ticket === items[0].id,
+    )!.plan;
     const plan: GenerationQueuePlan = {
       ticket: randomUUID(),
       queueId: reservation.state.id,
       total: items.length,
       items: structuredClone(items),
-      model: 'nai-diffusion-4-5-full',
-      width: 512,
-      height: 512,
-      steps: 28,
-      scale: 5,
+      model: first.model,
+      width: first.width,
+      height: first.height,
+      steps: first.steps,
+      scale: first.scale,
+      settings: [
+        ...new Map(
+          items.map((item) => [JSON.stringify(item.settings), item.settings!]),
+        ).values(),
+      ],
     };
     this.queueApproval = {
       plan,
@@ -502,7 +513,7 @@ export class WorkspaceGeneration {
           if (bodyBytes > 8 * 1024 * 1024)
             throw new GenerationError('QUEUE_LIMIT');
           bound.input.binding = {
-            id: 'nai-v45-basic512-v1',
+            id: bound.bindingId,
             requestHash: createHash('sha256').update(body).digest('hex'),
           };
           const task = {
@@ -515,16 +526,23 @@ export class WorkspaceGeneration {
               ticket: randomUUID(),
               model: bound.request.model,
               seed,
-              width: 512 as const,
-              height: 512 as const,
-              steps: 28 as const,
-              scale: 5 as const,
+              width: bound.request.parameters.width,
+              height: bound.request.parameters.height,
+              steps: bound.request.parameters.steps,
+              scale: bound.request.parameters.scale,
               samples: 1 as const,
             },
           };
           tasks.push(task);
           items.push({
             id: task.plan.ticket,
+            settings: {
+              model: task.plan.model,
+              width: task.plan.width,
+              height: task.plan.height,
+              steps: task.plan.steps,
+              scale: task.plan.scale,
+            },
             sceneId: scene.id,
             sceneName: scene.name,
             repeat,

@@ -28,7 +28,10 @@ import {
   generationMessage,
   availableQueueSceneIds,
   queueOutcome,
+  ANLAS_STEP_WARNING,
+  requiresAnlasWarning,
 } from '../generation/generationPresentation';
+import { V5_SIZES } from '../../workspaceGenerationSettings';
 import './PreviewWorkspace.css';
 import './ConnectedWorkspace.css';
 
@@ -64,7 +67,8 @@ export default function ConnectedWorkspace({
   const operation = useRef(false);
   const generationEpoch = useRef(0);
   const [phase, setPhase] = useState('');
-  const [plan, setPlan] = useState<GenerationPlan>();
+  const [singlePlan, setSinglePlan] = useState<GenerationPlan>();
+  const singleConfirmation = useRef<HTMLElement>(null);
   const [queuePlan, setQueuePlan] = useState<GenerationQueuePlan>();
   const [queue, setQueue] = useState<GenerationQueueState>();
   const [sceneIds, setSceneIds] = useState<string[]>([]);
@@ -80,7 +84,6 @@ export default function ConnectedWorkspace({
   ];
   const revisionRef = useRef(view.revision);
   revisionRef.current = view.revision;
-  const [confirmed, setConfirmed] = useState(false);
   const [discardConfirmed, setDiscardConfirmed] = useState(false);
   const [pending, setPending] = useState(false);
   const [storageStopped, setStorageStopped] = useState(false);
@@ -91,6 +94,12 @@ export default function ConnectedWorkspace({
   const [imageURL, setImageURL] = useState('');
   const busy = !!phase || pending || active;
   const locked = busy || projectLocked;
+  useEffect(() => {
+    if (singlePlan) {
+      singleConfirmation.current?.scrollIntoView({ block: 'nearest' });
+      singleConfirmation.current?.focus();
+    }
+  }, [singlePlan]);
   useEffect(() => {
     setSceneIds([]);
   }, [view.id]);
@@ -176,35 +185,12 @@ export default function ConnectedWorkspace({
     };
   }, [client, view.id, selected]);
   const patch = (value: Partial<WorkspaceDraft>) => {
-    setPlan(undefined);
+    setSinglePlan(undefined);
     setQueuePlan(undefined);
     setState((previous) => ({
       ...previous,
       draft: { ...previous.draft, ...value },
     }));
-  };
-  const prepare = async () => {
-    if (operation.current) return;
-    operation.current = true;
-    generationEpoch.current += 1;
-    setMessage('');
-    setPhase('save');
-    try {
-      if (!(await project.save())) return;
-      const saved = project.getSnapshot();
-      const prepared = unwrap(
-        await client.prepare(saved.id!, saved.revision!, state.selectedSceneId),
-      );
-      setPlan(prepared);
-      setConfirmed(false);
-      setPhase('confirm');
-    } catch (error) {
-      setMessage(generationMessage(error, sceneNames.current));
-    } finally {
-      operation.current = false;
-      generationEpoch.current += 1;
-      setPhase((previous) => (previous === 'confirm' ? previous : ''));
-    }
   };
   const accept = (value: GeneratedProject, asNewProject = false) => {
     project.acceptGenerated(value.snapshot, asNewProject);
@@ -212,22 +198,68 @@ export default function ConnectedWorkspace({
     setPending(false);
     setMessage('PNG 원본과 실제 사용 시드를 프로젝트에 저장했습니다.');
   };
-  const run = async (saveOnly = false, asNewProject = false) => {
+  const prepare = async () => {
+    if (operation.current) return;
+    operation.current = true;
+    generationEpoch.current += 1;
+    setMessage('');
+    setSinglePlan(undefined);
+    setPhase('save');
+    try {
+      if (!(await project.save())) return;
+      const saved = project.getSnapshot();
+      const prepared = unwrap(
+        await client.prepare(saved.id!, saved.revision!, state.selectedSceneId),
+      );
+      if (requiresAnlasWarning(prepared)) {
+        setSinglePlan(prepared);
+        setPhase('single-confirm');
+        return;
+      }
+      setPhase('run');
+      accept(unwrap(await client.run(prepared.ticket, true)));
+    } catch (error) {
+      setMessage(generationMessage(error, sceneNames.current));
+      setPending(!!(error as GenerationFailure).pendingResult);
+      setStorageStopped(
+        (error as GenerationFailure).projectCode === 'PROJECT_SERVICE_STOPPED',
+      );
+    } finally {
+      operation.current = false;
+      generationEpoch.current += 1;
+      setPhase((previous) => (previous === 'single-confirm' ? previous : ''));
+    }
+  };
+  const confirmHighSteps = async () => {
+    if (operation.current || !singlePlan) return;
+    const { ticket } = singlePlan;
+    operation.current = true;
+    generationEpoch.current += 1;
+    setSinglePlan(undefined);
+    setMessage('');
+    setPhase('run');
+    try {
+      accept(unwrap(await client.run(ticket, true)));
+    } catch (error) {
+      setMessage(generationMessage(error, sceneNames.current));
+      setPending(!!(error as GenerationFailure).pendingResult);
+      setStorageStopped(
+        (error as GenerationFailure).projectCode === 'PROJECT_SERVICE_STOPPED',
+      );
+    } finally {
+      operation.current = false;
+      generationEpoch.current += 1;
+      setPhase('');
+    }
+  };
+  const retryResult = async (asNewProject = false) => {
     if (operation.current) return;
     operation.current = true;
     generationEpoch.current += 1;
     setPhase('run');
-    setPlan(undefined);
     setMessage('');
     try {
-      accept(
-        unwrap(
-          await (saveOnly
-            ? client.retrySave(asNewProject)
-            : client.run(plan!.ticket, confirmed)),
-        ),
-        asNewProject,
-      );
+      accept(unwrap(await client.retrySave(asNewProject)), asNewProject);
     } catch (error) {
       setStorageStopped(
         (error as GenerationFailure).projectCode === 'PROJECT_SERVICE_STOPPED',
@@ -243,10 +275,9 @@ export default function ConnectedWorkspace({
   const cancel = async () => {
     try {
       unwrap(await client.cancel());
-      setPlan(undefined);
+      setSinglePlan(undefined);
       setQueuePlan(undefined);
-      setConfirmed(false);
-      if (phase === 'confirm') setPhase('');
+      if (phase === 'confirm' || phase === 'single-confirm') setPhase('');
     } catch (error) {
       setMessage(generationMessage(error, sceneNames.current));
     }
@@ -280,7 +311,6 @@ export default function ConnectedWorkspace({
     generationEpoch.current += 1;
     setPhase('save');
     setMessage('');
-    setPlan(undefined);
     setQueuePlan(undefined);
     try {
       if (!(await project.save())) return;
@@ -304,7 +334,6 @@ export default function ConnectedWorkspace({
         });
       setQueue(current.queue);
       setQueuePlan(prepared);
-      setConfirmed(false);
       setPhase('confirm');
     } catch (error) {
       try {
@@ -328,7 +357,7 @@ export default function ConnectedWorkspace({
     const { ticket } = queuePlan!;
     setQueuePlan(undefined);
     try {
-      acceptQueue(unwrap(await client.runQueue(ticket, confirmed)));
+      acceptQueue(unwrap(await client.runQueue(ticket, true)));
     } catch (error) {
       setMessage(generationMessage(error, sceneNames.current));
     } finally {
@@ -388,7 +417,7 @@ export default function ConnectedWorkspace({
       <header className="pw-header">
         <div className="pw-brand">
           <strong>SDStudio</strong>
-          <span>V4.5 Full · 씬·대기열</span>
+          <span>씬·이미지 작업실</span>
         </div>
         <nav>
           <button type="button" onClick={onOpenAuth}>
@@ -453,6 +482,27 @@ export default function ConnectedWorkspace({
               value={state.draft.negativePrompt}
               onChange={(e) => patch({ negativePrompt: e.target.value })}
             />
+            <p>
+              {state.draft.family === 'v5'
+                ? `${V5_SIZES[state.draft.resolution].width}×${V5_SIZES[state.draft.resolution].height}`
+                : '512×512'}{' '}
+              · {state.draft.steps}스텝 · 가이던스 {state.draft.guidance} ·
+              Euler ancestral / Karras
+            </p>
+            <p>
+              생성 시 입력을 저장하고 1회 전송합니다. 비용·Opus 사용량은 NovelAI
+              설정에 따라 달라집니다. V5 설정을 저장하면 이전 버전 앱에서는 열
+              수 없습니다. 변경 전 저장본은 이력에 남습니다.
+            </p>
+            <button
+              type="button"
+              className="pw-generate"
+              data-testid="prepare-generation"
+              disabled={runtimeOptions.offline}
+              onClick={prepare}
+            >
+              생성
+            </button>
             <label htmlFor="live-seed-mode">시드 방식</label>
             <select
               id="live-seed-mode"
@@ -471,24 +521,103 @@ export default function ConnectedWorkspace({
               value={state.draft.seed}
               onChange={(e) => patch({ seed: e.target.value })}
             />
-            <p>512×512 · 28스텝 · 가이던스5 · Euler ancestral / Karras · 1장</p>
-            <p>
-              기본 요청 1장 실측을 바탕으로 연결한 범위입니다.
-              캐릭터·V5·와일드카드는 아직 연결하지 않았습니다.
-            </p>
-            {(state.draft.family !== 'v4.5' ||
-              state.draft.characters.some((c) => c.enabled) ||
-              state.draft.resolution !== 'square' ||
-              state.draft.steps !== '28' ||
-              state.draft.guidance !== '5') && (
+            <label htmlFor="live-model">모델</label>
+            <select
+              id="live-model"
+              value={state.draft.family}
+              onChange={(e) =>
+                patch({
+                  family: e.target.value as 'v4.5' | 'v5',
+                  resolution: e.target.value === 'v5' ? 'portrait' : 'square',
+                  steps: e.target.value === 'v5' ? '23' : '28',
+                  guidance: e.target.value === 'v5' ? '7' : '5',
+                  qualityTags: e.target.value === 'v5' ? 'standard' : 'none',
+                  ucPreset: e.target.value === 'v5' ? 'heavy' : 'none',
+                })
+              }
+            >
+              <option value="v5">V5 Full</option>
+              <option value="v4.5">V4.5 Full · 기존 512px 설정</option>
+            </select>
+            {state.draft.family === 'v5' && (
+              <>
+                <label htmlFor="live-size">크기</label>
+                <select
+                  id="live-size"
+                  value={state.draft.resolution}
+                  onChange={(e) =>
+                    patch({
+                      resolution: e.target
+                        .value as WorkspaceDraft['resolution'],
+                    })
+                  }
+                >
+                  <option value="portrait">832 × 1216 · 세로</option>
+                  <option value="landscape">1216 × 832 · 가로</option>
+                  <option value="square">1024 × 1024 · 정사각형</option>
+                </select>
+                <label htmlFor="live-steps">스텝</label>
+                <input
+                  id="live-steps"
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={state.draft.steps}
+                  onChange={(e) => patch({ steps: e.target.value })}
+                />
+                <label htmlFor="live-guidance">가이던스</label>
+                <input
+                  id="live-guidance"
+                  type="number"
+                  min="0.1"
+                  max="10"
+                  step="0.1"
+                  value={state.draft.guidance}
+                  onChange={(e) => patch({ guidance: e.target.value })}
+                />
+                <label htmlFor="live-quality">품질 태그</label>
+                <select
+                  id="live-quality"
+                  value={state.draft.qualityTags ?? 'none'}
+                  onChange={(e) =>
+                    patch({
+                      qualityTags: e.target
+                        .value as WorkspaceDraft['qualityTags'],
+                    })
+                  }
+                >
+                  <option value="none">추가 안 함</option>
+                  <option value="light">Light</option>
+                  <option value="standard">Standard</option>
+                </select>
+                <label htmlFor="live-uc-preset">부정 프롬프트 프리셋</label>
+                <select
+                  id="live-uc-preset"
+                  value={state.draft.ucPreset ?? 'none'}
+                  onChange={(e) =>
+                    patch({
+                      ucPreset: e.target.value as WorkspaceDraft['ucPreset'],
+                    })
+                  }
+                >
+                  <option value="none">추가 안 함</option>
+                  <option value="light">Light</option>
+                  <option value="heavy">Heavy</option>
+                  <option value="human">Human focus</option>
+                  <option value="furry">Furry focus</option>
+                </select>
+                <p>
+                  품질 태그는 프롬프트 뒤에, 부정 프리셋은 부정 프롬프트 앞에
+                  추가합니다. 직접 같은 태그를 쓰셨다면 ‘추가 안 함’을
+                  선택하세요.
+                </p>
+              </>
+            )}
+            {state.draft.characters.some((c) => c.enabled) && (
               <button
                 type="button"
                 onClick={() =>
                   patch({
-                    family: 'v4.5',
-                    resolution: 'square',
-                    steps: '28',
-                    guidance: '5',
                     characters: state.draft.characters.map((c) => ({
                       ...c,
                       enabled: false,
@@ -496,57 +625,38 @@ export default function ConnectedWorkspace({
                   })
                 }
               >
-                현재 씬을 기본 설정으로 전환 (캐릭터 비활성)
+                캐릭터 조건 끄기
               </button>
             )}
-            <button
-              type="button"
-              className="pw-generate"
-              data-testid="prepare-generation"
-              disabled={runtimeOptions.offline}
-              onClick={prepare}
-            >
-              입력 저장 후 1장 생성 확인
-            </button>
           </fieldset>
-          {plan && (
+          {singlePlan && (
             <section
+              ref={singleConfirmation}
+              tabIndex={-1}
               className="connected-confirm"
-              aria-label="생성 전 확인"
-              data-testid="generation-confirm"
+              aria-label="높은 스텝 생성 확인"
+              data-testid="high-steps-confirm"
             >
-              <h3>이번 요청 1회</h3>
+              <h3>생성 설정 확인</h3>
+              <p>{ANLAS_STEP_WARNING}</p>
               <p>
-                {plan.model} · {plan.width}×{plan.height} · 시드 {plan.seed}
+                {singlePlan.model} · {singlePlan.width}×{singlePlan.height} ·{' '}
+                {singlePlan.steps}스텝 · 가이던스 {singlePlan.scale} · 시드{' '}
+                {singlePlan.seed}
               </p>
-              <p>
-                앱은 비용·무료 여부·사용량을 계산하지 않습니다. Opus도 설정에
-                따라 할당량/Anlas가 소모될 수 있으므로 같은 설정을 웹에서
-                확인하세요.
-              </p>
-              <p>
-                PNG 결과를 추가하면 프로젝트를 v2로 저장합니다. v1만 지원하는
-                이전 앱은 열 수 없으며, 기존 입력은 저장 이력에 남습니다.
-              </p>
-              <label>
-                <input
-                  type="checkbox"
-                  data-testid="generation-cost-confirm"
-                  checked={confirmed}
-                  onChange={(e) => setConfirmed(e.target.checked)}
-                />
-                NovelAI 웹에서 같은 설정의 비용·사용 조건을 확인했습니다.
-              </label>
               <button
                 type="button"
-                data-testid="send-generation"
-                disabled={!confirmed}
-                onClick={() => run()}
+                data-testid="send-high-steps"
+                onClick={confirmHighSteps}
               >
-                이번 요청 1회 전송
+                Anlas 사용 가능성 확인 · 1회 생성
               </button>
-              <button type="button" onClick={cancel}>
-                취소
+              <button
+                type="button"
+                data-testid="cancel-high-steps"
+                onClick={cancel}
+              >
+                취소·설정 변경
               </button>
             </section>
           )}
@@ -559,20 +669,19 @@ export default function ConnectedWorkspace({
               <h3>
                 총 {queuePlan.total}회 요청 · 이미지 {queuePlan.total}장
               </h3>
+              {queuePlan.settings.map((settings) => (
+                <p key={JSON.stringify(settings)}>
+                  {settings.model} · {settings.width}×{settings.height} ·{' '}
+                  {settings.steps}스텝 · 가이던스 {settings.scale}
+                </p>
+              ))}
+              {queuePlan.settings.some(requiresAnlasWarning) && (
+                <p data-testid="queue-anlas-warning">{ANLAS_STEP_WARNING}</p>
+              )}
               <p>
-                {queuePlan.model} · {queuePlan.width}×{queuePlan.height} ·{' '}
-                {queuePlan.steps}스텝 · 가이던스 {queuePlan.scale} · Euler
-                ancestral / Karras
-              </p>
-              <p>
-                씬·반복·확정 시드는 아래 예약 목록과 같습니다. 입력·예약을
-                바꾸려면 취소 후 새로 확인하세요. 확인은5분·1회용입니다.
-              </p>
-              <p>
-                앱은 비용·무료 여부·Opus 할당량을 계산하지 않습니다. NovelAI
-                웹에서 같은 설정과 총 요청 수의 사용 조건을 확인하세요. 저장
-                공간이 부족하면 실행 중에도 중지될 수 있습니다. PNG 저장 시 v2로
-                기록되어 v1 전용 앱에서는 열 수 없습니다.
+                아래 씬과 시드로 실행합니다. 비용·Opus 사용량은 설정에 따라
+                달라집니다. 저장 결과는 새 앱에서 읽을 수 있는 형식으로
+                보관합니다.
               </p>
               <ol>
                 {queuePlan.items.map((item) => (
@@ -581,19 +690,9 @@ export default function ConnectedWorkspace({
                   </li>
                 ))}
               </ol>
-              <label>
-                <input
-                  type="checkbox"
-                  data-testid="queue-cost-confirm"
-                  checked={confirmed}
-                  onChange={(event) => setConfirmed(event.target.checked)}
-                />
-                총 요청 수와 같은 설정의 웹 비용·사용 조건을 확인했습니다.
-              </label>
               <button
                 type="button"
                 data-testid="send-live-queue"
-                disabled={!confirmed}
                 onClick={runQueue}
               >
                 확인한 {queuePlan.total}회 실행
@@ -622,7 +721,7 @@ export default function ConnectedWorkspace({
                 type="button"
                 data-testid="retry-result-save"
                 disabled={!!phase || active}
-                onClick={() => run(true)}
+                onClick={() => retryResult()}
               >
                 결과만 다시 저장 (API 재호출 없음)
               </button>
@@ -630,7 +729,7 @@ export default function ConnectedWorkspace({
                 type="button"
                 data-testid="save-result-new-project"
                 disabled={!!phase || active}
-                onClick={() => run(true, true)}
+                onClick={() => retryResult(true)}
               >
                 입력·이번 결과만 새 프로젝트로 저장 (이전 PNG 제외)
               </button>
