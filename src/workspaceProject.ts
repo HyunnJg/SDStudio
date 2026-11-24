@@ -36,7 +36,7 @@ export interface ProjectContent {
   scenes: WorkspaceScene[];
 }
 export interface ImageBinding {
-  id: 'nai-v45-basic512-v1' | 'nai-v5-full-v1';
+  id: 'nai-v45-basic512-v1' | 'nai-v5-full-v1' | 'nai-v5-characters-auto-v1';
   requestHash: string;
 }
 export interface ProjectImage {
@@ -57,7 +57,7 @@ export type ProjectImageInput = Omit<
 >;
 export interface WorkspaceProject extends ProjectContent {
   format: typeof PROJECT_FORMAT;
-  version: 1 | 2 | 3;
+  version: 1 | 2 | 3 | 4;
   id: string;
   images: ProjectImage[];
 }
@@ -239,7 +239,11 @@ export function validateImageInput(value: unknown): ProjectImageInput {
   if (hasBinding) {
     const binding = record(r.binding, ['id', 'requestHash']);
     projectCheck(
-      ['nai-v45-basic512-v1', 'nai-v5-full-v1'].includes(String(binding.id)),
+      [
+        'nai-v45-basic512-v1',
+        'nai-v5-full-v1',
+        'nai-v5-characters-auto-v1',
+      ].includes(String(binding.id)),
     );
     projectHash(binding.requestHash);
   }
@@ -249,7 +253,9 @@ export function validateImageInput(value: unknown): ProjectImageInput {
 export function requiredProjectVersion(
   content: ProjectContent,
   images: readonly ProjectImageInput[] = [],
-): 1 | 2 | 3 {
+): 1 | 2 | 3 | 4 {
+  if (images.some((i) => i.binding?.id === 'nai-v5-characters-auto-v1'))
+    return 4;
   const drafts = [
     ...content.scenes.map((s) => s.draft),
     ...images.map((i) => i.draft),
@@ -272,7 +278,7 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
     'PROJECT_CORRUPT',
   );
   projectCheck(
-    v.version === 1 || v.version === 2 || v.version === 3,
+    v.version === 1 || v.version === 2 || v.version === 3 || v.version === 4,
     'PROJECT_VERSION',
   );
   try {

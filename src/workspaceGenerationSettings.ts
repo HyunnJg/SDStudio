@@ -21,3 +21,6 @@ export const V5_SIZES = Object.freeze({
   landscape: { width: 1216, height: 832 },
   square: { width: 1024, height: 1024 },
 });
+
+// Official V5 multi-character limit; storage may preserve additional disabled entries.
+export const V5_CHARACTER_LIMIT = 22;

@@ -103,3 +103,7 @@ D-043의 실제 반복 큐는 같은 addPNG를 직렬로 호출한다. 유효한
 현재 reader는 v1/v2/v3다. v3는 draft의 optional qualityTags/ucPreset(없을 때 요청에 추가 안 함) 또는 nai-v5-full-v1 binding을 보관한다. 새 입력은 기본 선택을 명시해 생성 전 입력 저장부터 v3다. 기존 v1/v2 입력은 자동 전환하지 않으며 새 선택을 명시적으로 저장할 때만 올린다. 저장된 프로젝트 버전은 일반 저장에서 내려가지 않는다. v3 필드를 v1/v2로 표기한 manifest는 거부해 구버전 reader가 해석하지 못하는 필드를 조용히 지우는 일을 막는다.
 
 create/save/addPNG/copy/recover의 최소 필요 버전 계산을 공통화했고, 현재 씬에서 옵션을 지웠더라도 과거 결과 draft/binding이 필요하면 v3를 유지한다. 이전 v1/v2 reader는 v3를 PROJECT_VERSION으로 거부하고 원본은 보존한다. 변경 직전 manifest 이력은 그대로 남아 새 UUID로 복사 복구할 수 있다. 물리 projects-v1 경로·전체 열기/복사/복구 PNG 검사·단건 선택/생성 준비의 읽기 경계는 그대로다.
+
+## D-054 — 캐릭터 결과의 manifest v4
+
+reader는 v1~v4를 허용한다. `nai-v5-characters-auto-v1` binding 결과가 생기면 v4가 필요하며 이전 이미지/입력의 v1/v2/v3 구분은 유지한다. 기존 필드/미완성·비활성 캐릭터·cell을 바꾸거나 옛 PNG를 다시 쓰지 않는다. v4 복사·재열기와 직전 v3 이력의 새 UUID 복구를 지원한다. 이전 reader는 v4를 PROJECT_VERSION으로 거부한다. 입력만 저장한 프로젝트를 이유 없이 v4로 올리지 않는다. [검증](validation/2026-11-25-v5-characters.md).

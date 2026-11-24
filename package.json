@@ -74,6 +74,7 @@
     "smoke:project-ui": "node .erb/scripts/smoke-project-ui.cjs",
     "test:generation-v5": "node --test -r ts-node/register/transpile-only src/__tests__/v5Generation.test.cjs",
     "test:generation": "node --test -r ts-node/register/transpile-only src/__tests__/workspaceGeneration.test.cjs",
+    "smoke:generation-characters": "node .erb/scripts/smoke-generation.cjs characters",
     "smoke:generation": "node .erb/scripts/smoke-generation.cjs",
     "test:project-reads": "node --test -r ts-node/register/transpile-only src/__tests__/projectReads.test.cjs",
     "test:generation-queue": "node --test -r ts-node/register/transpile-only src/__tests__/generationQueue.test.cjs src/__tests__/generationPresentation.test.cjs",

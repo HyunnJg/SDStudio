@@ -132,3 +132,39 @@
 .connected-queue-items, .connected-confirm ol { max-height:160px; overflow:auto; overflow-wrap:anywhere; padding-left:24px; }
 .connected-queue-items li { margin:8px 0; }
 .connected-queue-items button { margin-left:8px; }
+
+.connected-characters {
+  border-top: 1px solid var(--pw-line);
+  border-bottom: 1px solid var(--pw-line);
+  padding: 12px 0;
+}
+.connected-character {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--pw-line);
+  border-radius: 8px;
+  background: var(--pw-input);
+  min-width: 0;
+}
+.connected-character header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.connected-character header label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.connected-character-actions {
+  display: flex;
+  gap: 4px;
+}
+.connected-character-muted {
+  color: var(--pw-muted);
+  font-size: 12px;
+}

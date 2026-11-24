@@ -77,6 +77,30 @@ const server = http.createServer(async (request, response) => {
   assert.equal(parsed.parameters.width, 832);
   assert.equal(parsed.parameters.height, 1216);
   assert.equal(parsed.parameters.n_samples, 1);
+  if (phase === 'characters') {
+    const expected =
+      number === 1
+        ? ['person, blue coat']
+        : ['person, blue coat', 'person, red coat'];
+    assert.deepEqual(
+      parsed.parameters.v4_prompt.caption.char_captions.map(
+        (c) => c.char_caption,
+      ),
+      expected,
+    );
+    assert.deepEqual(
+      parsed.parameters.v4_negative_prompt.caption.char_captions.map(
+        (c) => c.char_caption,
+      ),
+      number === 1 ? [''] : ['', 'hat'],
+    );
+    assert.equal(parsed.parameters.v4_prompt.use_coords, false);
+    assert.equal(parsed.parameters.v4_prompt.use_order, true);
+    await new Promise((r) => setTimeout(r, 100));
+    response.writeHead(200, { 'Content-Type': 'binary/octet-stream' });
+    response.end(await payload);
+    return;
+  }
   if (phase === 'queue-errors') {
     if (number === 1) {
       response.writeHead(429);
@@ -699,6 +723,177 @@ app.on('web-contents-created', (_event, contents) => {
         checks.push(
           '390px queue/confirmation/result layout has no horizontal overflow; normal app minimum size is unchanged',
         );
+      } else if (phase === 'characters') {
+        assert.equal(
+          (
+            await evaluate(
+              "window.electron.naiAuth.setToken('synthetic-never-a-real-token',false)",
+            )
+          ).ok,
+          true,
+        );
+        await fill('[data-testid=live-prompt]', '2people, synthetic garden');
+        await click('[data-testid=add-live-character]');
+        await click('[data-testid=add-live-character]');
+        const ids = await evaluate(
+          "[...document.querySelectorAll('[data-character-id]')].map(c=>c.dataset.characterId)",
+        );
+        assert.equal(ids.length, 2);
+        await fill(`[data-character-prompt="${ids[0]}"]`, 'person, red coat');
+        await fill(`[data-character-negative="${ids[0]}"]`, 'hat');
+        await fill(`[data-character-prompt="${ids[1]}"]`, 'person, blue coat');
+        await click(`[data-character-delete="${ids[1]}"]`);
+        await click('[data-testid=undo-live-character]');
+        assert.equal(
+          await evaluate(
+            `document.querySelector('[data-character-prompt="${ids[1]}"]').value`,
+          ),
+          'person, blue coat',
+        );
+        await click(`[data-character-up="${ids[1]}"]`);
+        await click(`[data-character-enabled="${ids[0]}"]`);
+        checks.push(
+          'character text survives deletion undo/reorder; disabling keeps the stored input',
+        );
+        await click('[data-testid=prepare-generation]');
+        await until(() =>
+          evaluate(
+            "document.querySelector('[data-testid=generated-png]')?.naturalWidth===2",
+          ),
+        );
+        await until(() =>
+          evaluate(
+            "!document.querySelector('[data-testid=prepare-generation]').matches(':disabled')",
+          ),
+        );
+        const list = await evaluate('window.electron.projects.list()');
+        const first = (
+          await evaluate(`window.electron.projects.open('${list.value[0].id}')`)
+        ).value;
+        assert.equal(first.project.version, 4);
+        assert.equal(first.project.images.length, 1);
+        assert.equal(
+          first.project.images[0].binding.id,
+          'nai-v5-characters-auto-v1',
+        );
+        assert.deepEqual(
+          first.project.images[0].draft.characters.map((c) => [
+            c.id,
+            c.enabled,
+          ]),
+          [
+            [ids[1], true],
+            [ids[0], false],
+          ],
+        );
+        assert.equal(
+          first.project.images[0].draft.characters[1].prompt,
+          'person, red coat',
+        );
+        assert.equal(requests, 1);
+        const copy = await evaluate(
+          `window.electron.projects.copy('${first.project.id}','${first.revision}',${JSON.stringify({ name: 'characters (이번 결과)', selectedSceneId: first.project.selectedSceneId, scenes: first.project.scenes })})`,
+        );
+        assert.equal(copy.ok, true);
+        assert.equal(copy.value.project.version, 4);
+        checks.push(
+          'one click sends paired active captions only, persists original PNG/full draft as v4, and copies without a request',
+        );
+        await click(`[data-character-enabled="${ids[0]}"]`);
+        await fill('#live-steps', '29');
+        await click('[data-testid=prepare-generation]');
+        await until(() =>
+          evaluate(
+            "!!document.querySelector('[data-testid=high-steps-confirm]')",
+          ),
+        );
+        assert.match(
+          await evaluate(
+            "document.querySelector('[data-testid=high-steps-confirm]').textContent",
+          ),
+          /캐릭터 2명/,
+        );
+        await click('[data-testid=cancel-high-steps]');
+        await until(() =>
+          evaluate(
+            "!document.querySelector('#live-steps').matches(':disabled')",
+          ),
+        );
+        await fill('#live-steps', '23');
+        assert.equal(requests, 1);
+        checks.push(
+          'high-step confirmation includes the active character count; cancel sends nothing',
+        );
+        await click('[aria-controls=live-queue-details]');
+        await evaluate(
+          `document.querySelector('[data-queue-scene="${first.project.selectedSceneId}"]').click()`,
+        );
+        await fill('#live-repeats', '2');
+        await click('[data-testid=prepare-live-queue]');
+        await until(() =>
+          evaluate("!!document.querySelector('[data-testid=queue-confirm]')"),
+        );
+        assert.match(
+          await evaluate(
+            "document.querySelector('[data-testid=queue-confirm]').textContent",
+          ),
+          /캐릭터 2명/,
+        );
+        assert.equal(requests, 1);
+        await click('[data-testid=send-live-queue]');
+        await until(async () =>
+          (
+            await evaluate('window.electron.generation.queueStatus()')
+          ).value.queue?.items.every((i) => i.status === 'done'),
+        );
+        assert.equal(requests, 3);
+        const final = (
+          await evaluate(`window.electron.projects.open('${first.project.id}')`)
+        ).value;
+        assert.equal(final.project.images.length, 3);
+        assert.deepEqual(
+          final.project.images
+            .slice(1)
+            .map((i) => i.draft.characters.filter((c) => c.enabled).length),
+          [2, 2],
+        );
+        checks.push(
+          'two confirmed repetitions use the same reordered captions through the common serial generation/save path',
+        );
+        await evaluate(
+          "document.querySelector('[data-testid=live-characters]').scrollIntoView({block:'start'})",
+        );
+        await pause();
+        const win = BrowserWindow.fromWebContents(contents);
+        if (process.env.SDSTUDIO_GENERATION_SCREENSHOT)
+          fs.writeFileSync(
+            process.env.SDSTUDIO_GENERATION_SCREENSHOT + '.desktop.png',
+            (await contents.capturePage()).toPNG(),
+          );
+        win.setMinimumSize(360, 500);
+        win.setSize(390, 844);
+        await until(() => evaluate('innerWidth===390'));
+        assert.equal(
+          await evaluate('document.documentElement.scrollWidth<=innerWidth'),
+          true,
+        );
+        if (process.env.SDSTUDIO_GENERATION_SCREENSHOT)
+          fs.writeFileSync(
+            process.env.SDSTUDIO_GENERATION_SCREENSHOT,
+            (await contents.capturePage()).toPNG(),
+          );
+        checks.push(
+          '390px character editor and controls have no horizontal overflow',
+        );
+        await evaluate(
+          "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='테마 전환').click()",
+        );
+        await pause();
+        assert.equal(
+          await evaluate('document.documentElement.scrollWidth<=innerWidth'),
+          true,
+        );
+        checks.push('light-theme character cards remain readable at390px');
       } else if (phase === 'offline') {
         assert.equal(
           await evaluate(
@@ -728,7 +923,7 @@ app.on('web-contents-created', (_event, contents) => {
           ),
         );
         checks.push(
-          'offline generation refuses prepare before token/network access while saved v3 PNG remains viewable',
+          'offline generation refuses prepare before token/network access while saved project PNG remains viewable',
         );
       } else if (phase === 'reopen') {
         const list = await evaluate('window.electron.projects.list()');
@@ -751,6 +946,29 @@ app.on('web-contents-created', (_event, contents) => {
           `window.electron.projects.open('${restored.id}')`,
         );
         assert.equal(data.value.project.images.length, 1);
+        if (process.env.SDSTUDIO_CHARACTER_SMOKE === '1') {
+          assert.equal(data.value.project.version, 4);
+          assert.equal(
+            data.value.project.images[0].binding.id,
+            'nai-v5-characters-auto-v1',
+          );
+          assert.equal(
+            await evaluate(
+              "document.querySelectorAll('[data-character-id]').length",
+            ),
+            2,
+          );
+          assert.equal(
+            await evaluate(
+              "document.querySelector('[data-character-prompt]').value",
+            ),
+            'person, blue coat',
+          );
+          checks.push(
+            'new PID restores the v4 character editor, order and result without a request',
+          );
+        }
+
         for (const image of data.value.project.images)
           assert.deepEqual(
             fs.readFileSync(
