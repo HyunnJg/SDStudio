@@ -25,7 +25,7 @@ interface CostEvidence {
 interface Options {
   profile: string;
   request: Record<string, any>;
-  ready: () => void;
+  ready: () => void | Promise<void>;
   transport: (
     capture: (bytes: Uint8Array) => void,
   ) => Pick<NaiTransport, 'send'>;
@@ -65,6 +65,8 @@ export class LiveValidation {
   private finished = false;
 
   private active = false;
+
+  private preparing = false;
 
   constructor(options: Options) {
     this.options = options;
@@ -132,7 +134,7 @@ export class LiveValidation {
   }
 
   async run(evidence: CostEvidence, signal?: AbortSignal) {
-    if (this.used) throw new ValidationError('ALREADY_USED');
+    if (this.used || this.preparing) throw new ValidationError('ALREADY_USED');
     if (evidence?.requestHash !== this.requestHash)
       throw new ValidationError('REQUEST_CHANGED');
     if (evidence.capture !== true)
@@ -148,7 +150,14 @@ export class LiveValidation {
     if (evidence.beforeBalance < evidence.displayedCost)
       throw new ValidationError('BALANCE_LOW');
     if (signal?.aborted) throw new NaiError('CANCELLED');
-    this.options.ready(); // Local readability/offline checks only; no account API call.
+    this.preparing = true;
+    try {
+      await this.options.ready(); // Local checks only; no account API call.
+      if (this.used) throw new ValidationError('ALREADY_USED');
+      if (signal?.aborted) throw new NaiError('CANCELLED');
+    } finally {
+      this.preparing = false;
+    }
     let fd: number;
     try {
       writePrivate(path.join(this.directory, 'attempt.json'), {

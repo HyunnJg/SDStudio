@@ -44,6 +44,10 @@ jobs:
           sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
       - name: Development entry and isolated profile
         run: npm run profile:check -- "${{ runner.temp }}/sdstudio-runtime-check" --ozone-platform=headless --disable-gpu
+      - name: Download the pinned Electron26 producer (Windows CI fixture only)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./.erb/scripts/install-legacy-electron-fixture.ps1
       - name: Actual OS async storage compatibility (synthetic tokens only)
         run: npm run test:async-storage:electron
       - name: Unit regressions

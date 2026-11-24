@@ -337,7 +337,7 @@ const options = {
         report.checks.push(
           'cancellation consumes the attempt without claiming a complete response',
         );
-      assert.throws(() => store.read(), { code: 'TOKEN_MISSING' });
+      await assert.rejects(store.read(), { code: 'TOKEN_MISSING' });
       assert.equal(
         (await call(`window.validation.run(${JSON.stringify(evidence)})`)).code,
         'ALREADY_USED',

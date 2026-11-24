@@ -39,11 +39,14 @@ export function registerNaiAuth(
     channel: string,
     action: (...args: unknown[]) => ReturnType<NaiTokenStore['status']>,
   ) => {
-    ipc.handle(channel, (event, ...args): NaiAuthResult => {
+    ipc.handle(channel, async (event, ...args): Promise<NaiAuthResult> => {
       try {
         if (!trusted(event)) throw new NaiError('UNTRUSTED_SENDER');
         if (offline()) throw new NaiError('OFFLINE');
-        return { ok: true, status: action(...args) };
+        const status = await action(...args);
+        if (!trusted(event)) throw new NaiError('UNTRUSTED_SENDER');
+        if (offline()) throw new NaiError('OFFLINE');
+        return { ok: true, status };
       } catch (error) {
         return {
           ok: false,
@@ -55,8 +58,8 @@ export function registerNaiAuth(
   handle('nai-auth-status', () => store.status());
   handle('nai-auth-set', (token, remember) => store.set(token, remember));
   handle('nai-auth-clear', () => store.clear());
-  handle('nai-auth-check', () => {
-    store.read();
-    return { ...store.status(), locallyReadable: true };
+  handle('nai-auth-check', async () => {
+    await store.read();
+    return { ...(await store.status()), locallyReadable: true };
   });
 }

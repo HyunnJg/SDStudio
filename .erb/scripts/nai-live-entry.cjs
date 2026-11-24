@@ -91,9 +91,9 @@ function start(options = {}) {
       const runner = new LiveValidation({
         profile: selected,
         request: candidate.request,
-        ready: () => {
+        ready: async () => {
           if (offline) throw new NaiError('OFFLINE');
-          store.read();
+          await store.read();
         },
         metadata: () => metadata,
         transport: (capture) =>
@@ -154,12 +154,12 @@ function start(options = {}) {
             };
           }
         });
-      handle('validation-status', () => ({
+      handle('validation-status', async () => ({
         ok: true,
         status: {
           ...runner.status(),
           offline,
-          tokenConfigured: store.status().configured,
+          tokenConfigured: (await store.status()).configured,
           candidate,
         },
       }));
