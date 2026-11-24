@@ -425,7 +425,8 @@ test('binding metadata is accepted only in v2 with exact allowlisted shape; unkn
     { code: 'PROJECT_CORRUPT' },
   );
   assert.throws(
-    () => validateWorkspaceProject({ ...result.snapshot.project, version: 4 }),
+    () =>
+      validateWorkspaceProject({ ...result.snapshot.project, version: 999 }),
     { code: 'PROJECT_VERSION' },
   );
   assert.throws(

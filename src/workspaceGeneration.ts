@@ -26,6 +26,7 @@ export interface GenerationSettings {
   height: number;
   steps: number;
   scale: number;
+  characters?: number;
 }
 export interface GenerationPlan extends GenerationSettings {
   ticket: string;

@@ -24,6 +24,7 @@ import { selectWorkspaceScene } from '../preview/workspaceDraft';
 import { runtimeOptions } from '../runtime';
 import WorkspaceProjectControls from './WorkspaceProjectControls';
 import ConnectedQueueControls from './ConnectedQueueControls';
+import ConnectedCharacters from './ConnectedCharacters';
 import {
   generationMessage,
   availableQueueSceneIds,
@@ -482,6 +483,11 @@ export default function ConnectedWorkspace({
               value={state.draft.negativePrompt}
               onChange={(e) => patch({ negativePrompt: e.target.value })}
             />
+            <ConnectedCharacters
+              key={`${view.id ?? 'draft'}:${state.selectedSceneId}`}
+              draft={state.draft}
+              onChange={patch}
+            />
             <p>
               {state.draft.family === 'v5'
                 ? `${V5_SIZES[state.draft.resolution].width}×${V5_SIZES[state.draft.resolution].height}`
@@ -643,6 +649,8 @@ export default function ConnectedWorkspace({
                 {singlePlan.model} · {singlePlan.width}×{singlePlan.height} ·{' '}
                 {singlePlan.steps}스텝 · 가이던스 {singlePlan.scale} · 시드{' '}
                 {singlePlan.seed}
+                {!!singlePlan.characters &&
+                  ` · 캐릭터 ${singlePlan.characters}명 · 자동 배치`}
               </p>
               <button
                 type="button"
@@ -673,6 +681,8 @@ export default function ConnectedWorkspace({
                 <p key={JSON.stringify(settings)}>
                   {settings.model} · {settings.width}×{settings.height} ·{' '}
                   {settings.steps}스텝 · 가이던스 {settings.scale}
+                  {!!settings.characters &&
+                    ` · 캐릭터 ${settings.characters}명 · 자동 배치`}
                 </p>
               ))}
               {queuePlan.settings.some(requiresAnlasWarning) && (
@@ -687,6 +697,8 @@ export default function ConnectedWorkspace({
                 {queuePlan.items.map((item) => (
                   <li key={item.id}>
                     {item.sceneName} · {item.repeat}회 · 시드 {item.seed}
+                    {!!item.settings?.characters &&
+                      ` · 캐릭터 ${item.settings.characters}명`}
                   </li>
                 ))}
               </ol>

@@ -6,6 +6,7 @@ import {
   V5_QUALITY_TAGS,
   V5_UC_PRESETS,
   V5_SIZES,
+  V5_CHARACTER_LIMIT,
 } from '../../workspaceGenerationSettings';
 
 export function bindBasicGeneration(
@@ -14,15 +15,25 @@ export function bindBasicGeneration(
 ) {
   const d = scene.draft;
   const v5 = d.family === 'v5';
+  const characters = d.characters.filter((c) => c.enabled);
+  const inline = (p: string) => p.includes('|') || /<[^>]*\.[^>]*>/.test(p);
   const steps = Number(d.steps);
   const scale = Number(d.guidance);
   if (
     !['v4.5', 'v5'].includes(d.family) ||
-    d.characters.some((c) => c.enabled) ||
+    (characters.length > 0 &&
+      (!v5 ||
+        d.placement !== 'auto' ||
+        characters.length > V5_CHARACTER_LIMIT ||
+        characters.some(
+          (c) =>
+            !c.prompt?.trim() ||
+            typeof c.negativePrompt !== 'string' ||
+            inline(c.prompt) ||
+            inline(c.negativePrompt),
+        ))) ||
     !d.prompt.trim() ||
-    [d.prompt, d.negativePrompt].some(
-      (p) => p.includes('|') || /<[^>]*\.[^>]*>/.test(p),
-    ) ||
+    [d.prompt, d.negativePrompt].some(inline) ||
     (v5
       ? !Object.hasOwn(V5_SIZES, d.resolution) ||
         !/^\d+$/.test(d.steps) ||
@@ -61,8 +72,14 @@ export function bindBasicGeneration(
     ? join(V5_UC_PRESETS[uc], d.negativePrompt)
     : d.negativePrompt;
   const size = v5 ? V5_SIZES[d.resolution] : { width: 512, height: 512 };
+  const captions = (negativeCaption: boolean) =>
+    characters.map((c) => ({
+      char_caption: negativeCaption ? c.negativePrompt : c.prompt,
+      // Neutral center; use_coords=false delegates placement to the model.
+      centers: [{ x: 0.5, y: 0.5 }],
+    }));
   const condition = (text: string) => ({
-    caption: { base_caption: text, char_captions: [] },
+    caption: { base_caption: text, char_captions: captions(false) },
     use_coords: false,
     use_order: true,
   });
@@ -86,7 +103,7 @@ export function bindBasicGeneration(
       v4_prompt: condition(prompt),
       v4_negative_prompt: v5
         ? {
-            caption: { base_caption: negative, char_captions: [] },
+            caption: { base_caption: negative, char_captions: captions(true) },
             legacy_uc: false,
           }
         : condition(negative),
@@ -114,8 +131,8 @@ export function bindBasicGeneration(
     seed,
     draft: structuredClone(d),
   };
-  const bindingId: ImageBinding['id'] = v5
-    ? 'nai-v5-full-v1'
-    : 'nai-v45-basic512-v1';
-  return { request, input, bindingId };
+  let bindingId: ImageBinding['id'] = 'nai-v45-basic512-v1';
+  if (v5) bindingId = 'nai-v5-full-v1';
+  if (v5 && characters.length) bindingId = 'nai-v5-characters-auto-v1';
+  return { request, input, bindingId, characterCount: characters.length };
 }

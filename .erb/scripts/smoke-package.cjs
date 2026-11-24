@@ -5,18 +5,20 @@ const { spawn } = require('node:child_process');
 const WebSocket = require('ws');
 if (!process.argv[2])
   throw Error(
-    'Usage: npm run smoke:package -- /absolute/linux-unpacked [real|auth|projects|worker|crash|unresponsive|generation|generation-queue|generation-errors]',
+    'Usage: npm run smoke:package -- /absolute/linux-unpacked [real|auth|projects|worker|crash|unresponsive|generation|generation-queue|generation-errors|generation-characters]',
   );
 const directory = fs.realpathSync(process.argv[2]);
 const resilience = ['worker', 'crash', 'unresponsive'].includes(process.argv[3])
   ? process.argv[3]
   : '';
+const generationCharacterMode = process.argv[3] === 'generation-characters';
 const generationErrorMode = process.argv[3] === 'generation-errors';
 const generationQueueMode = process.argv[3] === 'generation-queue';
 const generationMode =
   process.argv[3] === 'generation' ||
   generationQueueMode ||
-  generationErrorMode;
+  generationErrorMode ||
+  generationCharacterMode;
 const projectMode = process.argv[3] === 'projects';
 const authMode = process.argv[3] === 'auth';
 const mock = [
@@ -25,6 +27,7 @@ const mock = [
   'generation',
   'generation-queue',
   'generation-errors',
+  'generation-characters',
 ].includes(process.argv[3])
   ? '0'
   : '1';
@@ -55,11 +58,14 @@ const childEnv = {
   SDSTUDIO_SMOKE_AUTH_UI: authMode ? '1' : '0',
   SDSTUDIO_SMOKE_PROJECTS: projectMode ? '1' : '0',
   SDSTUDIO_PROJECT_UI_PHASE: 'create',
-  SDSTUDIO_GENERATION_PHASE: generationErrorMode
-    ? 'queue-errors'
-    : generationQueueMode
-      ? 'queue'
-      : 'create',
+  SDSTUDIO_CHARACTER_SMOKE: generationCharacterMode ? '1' : '0',
+  SDSTUDIO_GENERATION_PHASE: generationCharacterMode
+    ? 'characters'
+    : generationErrorMode
+      ? 'queue-errors'
+      : generationQueueMode
+        ? 'queue'
+        : 'create',
   SDSTUDIO_SMOKE_RESILIENCE: resilience,
 };
 if (authMode) delete childEnv.SDSTUDIO_USER_DATA_DIR;
@@ -194,7 +200,13 @@ child.on('exit', (code) => {
         data.loopbackRequests !==
           (generationErrorMode ? 4 : generationQueueMode ? 13 : 3) ||
         data.checks?.length !==
-          (generationErrorMode ? 7 : generationQueueMode ? 8 : 9))) ||
+          (generationCharacterMode
+            ? 6
+            : generationErrorMode
+              ? 7
+              : generationQueueMode
+                ? 8
+                : 11))) ||
     !setupInfo?.isPackaged ||
     !data.packageContext.archiveUnchanged ||
     data.externalRequests.length ||

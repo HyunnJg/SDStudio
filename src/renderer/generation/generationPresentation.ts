@@ -22,7 +22,7 @@ export function generationMessage(
     OFFLINE:
       '오프라인입니다. API 토큰 설정에서 연결 모드를 변경하고 재시작하세요.',
     UNSUPPORTED_DRAFT:
-      'V5 Full 또는 기존 V4.5 기본 설정을 확인하세요. 활성 캐릭터·| 문법·프롬프트 조각 전개는 아직 지원하지 않습니다.',
+      'V5 Full 또는 기존 V4.5 기본 설정을 확인하세요. V5 캐릭터는 최대22명·자동 배치·긍정 입력을 확인하세요. 수동 위치·| 문법·프롬프트 조각 전개는 아직 지원하지 않습니다.',
     INVALID_INPUT: '프롬프트와 고정 시드(0~4294967295)를 확인하세요.',
     TOKEN_MISSING: 'API 토큰 설정에서 Persistent API Token을 입력하세요.',
     STORE_UNREADABLE:

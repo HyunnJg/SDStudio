@@ -155,6 +155,7 @@ export class WorkspaceGeneration {
         height: request.parameters.height,
         steps: request.parameters.steps,
         scale: request.parameters.scale,
+        ...(bound.characterCount ? { characters: bound.characterCount } : {}),
         samples: 1,
       };
       this.prepared = {
@@ -530,6 +531,9 @@ export class WorkspaceGeneration {
               height: bound.request.parameters.height,
               steps: bound.request.parameters.steps,
               scale: bound.request.parameters.scale,
+              ...(bound.characterCount
+                ? { characters: bound.characterCount }
+                : {}),
               samples: 1 as const,
             },
           };
@@ -542,6 +546,9 @@ export class WorkspaceGeneration {
               height: task.plan.height,
               steps: task.plan.steps,
               scale: task.plan.scale,
+              ...(task.plan.characters
+                ? { characters: task.plan.characters }
+                : {}),
             },
             sceneId: scene.id,
             sceneName: scene.name,
