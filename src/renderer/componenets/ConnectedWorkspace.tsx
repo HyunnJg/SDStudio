@@ -9,6 +9,7 @@ import {
 } from 'react';
 import type {
   GenerationClient,
+  GenerationPlan,
   GenerationReply,
   GenerationFailure,
   GeneratedProject,
@@ -27,6 +28,8 @@ import {
   generationMessage,
   availableQueueSceneIds,
   queueOutcome,
+  ANLAS_STEP_WARNING,
+  requiresAnlasWarning,
 } from '../generation/generationPresentation';
 import { V5_SIZES } from '../../workspaceGenerationSettings';
 import './PreviewWorkspace.css';
@@ -64,6 +67,8 @@ export default function ConnectedWorkspace({
   const operation = useRef(false);
   const generationEpoch = useRef(0);
   const [phase, setPhase] = useState('');
+  const [singlePlan, setSinglePlan] = useState<GenerationPlan>();
+  const singleConfirmation = useRef<HTMLElement>(null);
   const [queuePlan, setQueuePlan] = useState<GenerationQueuePlan>();
   const [queue, setQueue] = useState<GenerationQueueState>();
   const [sceneIds, setSceneIds] = useState<string[]>([]);
@@ -89,6 +94,12 @@ export default function ConnectedWorkspace({
   const [imageURL, setImageURL] = useState('');
   const busy = !!phase || pending || active;
   const locked = busy || projectLocked;
+  useEffect(() => {
+    if (singlePlan) {
+      singleConfirmation.current?.scrollIntoView({ block: 'nearest' });
+      singleConfirmation.current?.focus();
+    }
+  }, [singlePlan]);
   useEffect(() => {
     setSceneIds([]);
   }, [view.id]);
@@ -174,6 +185,7 @@ export default function ConnectedWorkspace({
     };
   }, [client, view.id, selected]);
   const patch = (value: Partial<WorkspaceDraft>) => {
+    setSinglePlan(undefined);
     setQueuePlan(undefined);
     setState((previous) => ({
       ...previous,
@@ -191,6 +203,7 @@ export default function ConnectedWorkspace({
     operation.current = true;
     generationEpoch.current += 1;
     setMessage('');
+    setSinglePlan(undefined);
     setPhase('save');
     try {
       if (!(await project.save())) return;
@@ -198,8 +211,35 @@ export default function ConnectedWorkspace({
       const prepared = unwrap(
         await client.prepare(saved.id!, saved.revision!, state.selectedSceneId),
       );
+      if (requiresAnlasWarning(prepared)) {
+        setSinglePlan(prepared);
+        setPhase('single-confirm');
+        return;
+      }
       setPhase('run');
       accept(unwrap(await client.run(prepared.ticket, true)));
+    } catch (error) {
+      setMessage(generationMessage(error, sceneNames.current));
+      setPending(!!(error as GenerationFailure).pendingResult);
+      setStorageStopped(
+        (error as GenerationFailure).projectCode === 'PROJECT_SERVICE_STOPPED',
+      );
+    } finally {
+      operation.current = false;
+      generationEpoch.current += 1;
+      setPhase((previous) => (previous === 'single-confirm' ? previous : ''));
+    }
+  };
+  const confirmHighSteps = async () => {
+    if (operation.current || !singlePlan) return;
+    const { ticket } = singlePlan;
+    operation.current = true;
+    generationEpoch.current += 1;
+    setSinglePlan(undefined);
+    setMessage('');
+    setPhase('run');
+    try {
+      accept(unwrap(await client.run(ticket, true)));
     } catch (error) {
       setMessage(generationMessage(error, sceneNames.current));
       setPending(!!(error as GenerationFailure).pendingResult);
@@ -235,8 +275,9 @@ export default function ConnectedWorkspace({
   const cancel = async () => {
     try {
       unwrap(await client.cancel());
+      setSinglePlan(undefined);
       setQueuePlan(undefined);
-      if (phase === 'confirm') setPhase('');
+      if (phase === 'confirm' || phase === 'single-confirm') setPhase('');
     } catch (error) {
       setMessage(generationMessage(error, sceneNames.current));
     }
@@ -451,7 +492,7 @@ export default function ConnectedWorkspace({
             <p>
               생성 시 입력을 저장하고 1회 전송합니다. 비용·Opus 사용량은 NovelAI
               설정에 따라 달라집니다. V5 설정을 저장하면 이전 버전 앱에서는 열
-              수 없습니다.
+              수 없습니다. 변경 전 저장본은 이력에 남습니다.
             </p>
             <button
               type="button"
@@ -588,6 +629,37 @@ export default function ConnectedWorkspace({
               </button>
             )}
           </fieldset>
+          {singlePlan && (
+            <section
+              ref={singleConfirmation}
+              tabIndex={-1}
+              className="connected-confirm"
+              aria-label="높은 스텝 생성 확인"
+              data-testid="high-steps-confirm"
+            >
+              <h3>생성 설정 확인</h3>
+              <p>{ANLAS_STEP_WARNING}</p>
+              <p>
+                {singlePlan.model} · {singlePlan.width}×{singlePlan.height} ·{' '}
+                {singlePlan.steps}스텝 · 가이던스 {singlePlan.scale} · 시드{' '}
+                {singlePlan.seed}
+              </p>
+              <button
+                type="button"
+                data-testid="send-high-steps"
+                onClick={confirmHighSteps}
+              >
+                Anlas 사용 가능성 확인 · 1회 생성
+              </button>
+              <button
+                type="button"
+                data-testid="cancel-high-steps"
+                onClick={cancel}
+              >
+                취소·설정 변경
+              </button>
+            </section>
+          )}
           {queuePlan && (
             <section
               className="connected-confirm"
@@ -603,6 +675,9 @@ export default function ConnectedWorkspace({
                   {settings.steps}스텝 · 가이던스 {settings.scale}
                 </p>
               ))}
+              {queuePlan.settings.some(requiresAnlasWarning) && (
+                <p data-testid="queue-anlas-warning">{ANLAS_STEP_WARNING}</p>
+              )}
               <p>
                 아래 씬과 시드로 실행합니다. 비용·Opus 사용량은 설정에 따라
                 달라집니다. 저장 결과는 새 앱에서 읽을 수 있는 형식으로

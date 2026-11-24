@@ -13,6 +13,7 @@ const checks = [],
   remote = [],
   errors = [];
 let firstRequestHash;
+const sentSteps = [];
 let requests = 0,
   lock,
   loopback,
@@ -70,6 +71,7 @@ const server = http.createServer(async (request, response) => {
       .update(body)
       .digest('hex');
   const parsed = JSON.parse(body);
+  sentSteps.push(parsed.parameters.steps);
   assert.equal(parsed.model, 'nai-diffusion-5-full');
   assert.equal(parsed.parameters.image_format, 'png');
   assert.equal(parsed.parameters.width, 832);
@@ -448,6 +450,12 @@ app.on('web-contents-created', (_event, contents) => {
         ).value.queue;
         assert.equal(reserved.items.length, 6);
         assert.equal(new Set(reserved.items.map((i) => i.seed)).size, 6);
+        assert.equal(
+          await evaluate(
+            "!!document.querySelector('[data-testid=queue-anlas-warning]')",
+          ),
+          false,
+        );
         checks.push(
           'selected3 scenes x2 prepare sends0; confirmation shows6 requests, fixed settings and six resolved random seeds',
         );
@@ -777,7 +785,7 @@ app.on('web-contents-created', (_event, contents) => {
           await click('[data-testid=prepare-generation]');
           assert.equal(
             await evaluate(
-              "!!document.querySelector('[data-testid=generation-confirm]')",
+              "!!document.querySelector('[data-testid=high-steps-confirm]')",
             ),
             false,
           );
@@ -819,6 +827,42 @@ app.on('web-contents-created', (_event, contents) => {
         checks.push(
           'actual Electron session transport accepts unknown MIME ZIP, worker persists original alpha/metadata PNG, renderer decodes it',
         );
+        await until(() =>
+          evaluate(
+            "!document.querySelector('#live-steps').matches(':disabled')",
+          ),
+        );
+        await fill('#live-steps', '29');
+        await click('[data-testid=prepare-generation]');
+        await until(() =>
+          evaluate(
+            "!!document.querySelector('[data-testid=high-steps-confirm]')",
+          ),
+        );
+        assert.equal(requests, 1);
+        assert.match(
+          await evaluate(
+            "document.querySelector('[data-testid=high-steps-confirm]').textContent",
+          ),
+          /29스텝/,
+        );
+        assert.equal(
+          await evaluate(
+            "document.querySelector('#live-steps').matches(':disabled')",
+          ),
+          true,
+        );
+        await click('[data-testid=cancel-high-steps]');
+        await until(() =>
+          evaluate(
+            "!document.querySelector('#live-steps').matches(':disabled')",
+          ),
+        );
+        assert.equal(requests, 1);
+        checks.push(
+          '29-step preparation and explicit cancel send0 additional requests and unlock settings',
+        );
+        await fill('#live-steps', '28');
         await generate();
         await until(() => requests === 2);
         await click('[data-testid=cancel-generation]');
@@ -831,7 +875,22 @@ app.on('web-contents-created', (_event, contents) => {
         checks.push(
           'in-flight cancel reports possible server processing, preserves input and prior PNG, no automatic retry',
         );
-        await generate();
+        await until(() =>
+          evaluate(
+            "!document.querySelector('#live-steps').matches(':disabled')",
+          ),
+        );
+        await fill('#live-steps', '29');
+        await click('[data-testid=prepare-generation]');
+        await until(() =>
+          evaluate(
+            "!!document.querySelector('[data-testid=high-steps-confirm]')",
+          ),
+        );
+        assert.equal(requests, 2);
+        await evaluate(
+          "(()=>{const b=document.querySelector('[data-testid=send-high-steps]');b.click();b.click()})()",
+        );
         await until(() =>
           evaluate(
             "!!document.querySelector('[data-testid=retry-result-save]')",
@@ -843,6 +902,10 @@ app.on('web-contents-created', (_event, contents) => {
           ),
         );
         assert.equal(requests, 3);
+        assert.deepEqual(sentSteps, [23, 28, 29]);
+        checks.push(
+          '23/28 steps remain single-click; 29-step confirmation double-click sends exactly one approved request',
+        );
         assert.equal(
           fs.readFileSync(lock, 'utf8'),
           'synthetic interrupted writer',
@@ -871,6 +934,36 @@ app.on('web-contents-created', (_event, contents) => {
         assert.equal(requests, 3);
         checks.push(
           'post-response storage fault retains result; explicit new-project save preserves original lock/PNG and adds the received PNG without a fourth request',
+        );
+        await click('[aria-controls=live-queue-details]');
+        await evaluate(
+          "document.querySelectorAll('[data-queue-scene]').forEach(c=>{if(!c.checked)c.click()})",
+        );
+        await fill('#live-repeats', '1');
+        await click('[data-testid=prepare-live-queue]');
+        await until(() =>
+          evaluate("!!document.querySelector('[data-testid=queue-confirm]')"),
+        );
+        assert.equal(
+          await evaluate(
+            "!!document.querySelector('[data-testid=queue-anlas-warning]')",
+          ),
+          true,
+        );
+        const preparedQueue = (
+          await evaluate('window.electron.generation.queueStatus()')
+        ).value.queue;
+        assert.ok(preparedQueue.items.some((i) => i.settings.steps === 23));
+        assert.ok(preparedQueue.items.some((i) => i.settings.steps === 29));
+        assert.equal(requests, 3);
+        await click('[data-testid=queue-confirm] button:last-of-type');
+        await until(() =>
+          evaluate(
+            "!document.querySelector('[data-testid=prepare-generation]').matches(':disabled')",
+          ),
+        );
+        checks.push(
+          'mixed23/29-step queue displays the Anlas warning in its existing confirmation and cancel sends0',
         );
         const diag = JSON.parse(
           fs.readFileSync(

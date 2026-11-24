@@ -194,7 +194,7 @@ child.on('exit', (code) => {
         data.loopbackRequests !==
           (generationErrorMode ? 4 : generationQueueMode ? 13 : 3) ||
         data.checks?.length !==
-          (generationErrorMode ? 7 : generationQueueMode ? 8 : 6))) ||
+          (generationErrorMode ? 7 : generationQueueMode ? 8 : 9))) ||
     !setupInfo?.isPackaged ||
     !data.packageContext.archiveUnchanged ||
     data.externalRequests.length ||

@@ -1,7 +1,17 @@
 import type {
   GenerationFailure,
   GenerationQueueState,
+  GenerationSettings,
 } from '../../workspaceGeneration';
+
+export const ANLAS_STEP_WARNING =
+  '28스텝 초과는 Opus도 Anlas를 사용할 수 있습니다.';
+
+export function requiresAnlasWarning(
+  settings: Pick<GenerationSettings, 'steps'>,
+) {
+  return settings.steps > 28;
+}
 
 export function generationMessage(
   error: unknown,
