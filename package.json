@@ -82,7 +82,8 @@
     "setup:desktop": "node .erb/scripts/setup-desktop.cjs",
     "verify:desktop": "node .erb/scripts/verify-desktop.cjs",
     "test:runtime": "node --test src/__tests__/runtimeToolchain.test.cjs",
-    "test:unit": "node --test --test-concurrency=4 -r ts-node/register/transpile-only src/__tests__/*.test.cjs"
+    "test:unit": "node --test --test-concurrency=4 -r ts-node/register/transpile-only src/__tests__/*.test.cjs",
+    "test:async-storage:electron": "node --test src/__tests__/asyncStorage.electron.cjs"
   },
   "browserslist": [],
   "prettier": {
