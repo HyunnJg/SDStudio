@@ -4,6 +4,8 @@
 
 ## 현재 단계
 
+**V5 신규 이미지 참조 공지를 확인했다(D-057).** [출시 근거·기존 문서 차이·앱 후속 제안](V5_REFERENCE_RESEARCH.md)을 PR36 문서에 추가한다. 구현/실호출은 미착수이며, 현재 PNG 가져오기와 생성 참조 전송은 별도다. PR36은 계속 검토용으로 열려 있다.
+
 **PR35를 검토·Windows/Linux CI2/2 재확인 후 main `b3fb84b`로 병합했다. 다음은 PNG 항목별 메타데이터 가져오기(D-056)다.** 파일 선택/드래그→텍스트/알파 읽기→미리보기→선택한 현재 씬 입력 적용이며 생성·업로드·자동 저장을 하지 않는다. 모델·미지원 고급 값은 임의 변환하지 않는다. 이력 컴포넌트 자체의 프로젝트 캐시 범위와 외부 dist lint 충돌도 함께 보강했다. 단위290·변경 lint/독립 tsc·Linux12PID/83체크·ASAR21+8·빌드/패키지 고지 통과. 전체 lint는기존3044오류가 남고 개인 PNG/Windows 실제 UI·실계정은 미검증이다. [계약](PNG_METADATA_IMPORT.md), [PR35 처리](reviews/2026-11-25-pr35-followup.md), [검증](validation/2026-11-25-png-metadata.md).
 
 **PR34는 Windows/Linux CI 성공 확인 후 main `525c0fc`로 병합했다. 다음은 사용자 승인한 작업실 배치(D-055)다.** 왼쪽 프롬프트/캐릭터·접힌 설정·고정 생성/중지, 중앙 원본 PNG, 오른쪽 결과/씬·대기열로 재배치한다. 실제 요청·생성 기본값·프로젝트 버전은 유지한다. 단위275·Linux 창12PID/57체크·ASAR15+8체크·빌드/변경 lint가 통과했다. Windows/macOS UI·실계정은 미실행이다. 전체 lint/tsc의 기존 영역 실패는 검증 기록에 구분한다. [설계와 후속](WORKSPACE_LAYOUT.md), [PR34 처리](reviews/2026-11-25-pr34-followup.md), [검증](validation/2026-11-25-workspace-layout.md).

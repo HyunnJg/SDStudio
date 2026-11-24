@@ -32,3 +32,7 @@
 - [NovelAI/nai_meta.py](https://github.com/NovelAI/novelai-image-metadata/blob/3428907ac7183d7e36d7cc39e8f46f6f35ce99c1/nai_meta.py): 알파 LSB 순서·magic·비트 길이·gzip/Comment 구조 확인. 같은 리비전 LICENSE는MIT/NovelAI2023이다. Python 코드·자산·의존성은 가져오지 않고 브라우저용으로 독립 구현했다. PNG CRC 함수는 이 저장소의 기존 imageResponse 구현을 공통 순수 모듈로 이동해 사용한다.
 
 [검증](validation/2026-11-25-png-metadata.md). 실계정·개인 PNG는 사용하지 않았다.
+
+## V5 신규 참조 기능과의 구분 — D-057
+
+이 문서의 ‘참조를 적용하지 않음’은 **현재 앱의 가져오기 범위**다. V5 서비스 자체의 기능 유무를 뜻하지 않는다. 신규 공식 공지와 연결 후보는 [별도 조사](V5_REFERENCE_RESEARCH.md)에 기록했다. PNG를 로컬에서 읽는 행위를 생성용 이미지 전송으로 자동 바꾸지 않는다.
