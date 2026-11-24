@@ -106,9 +106,9 @@ export class NaiTokenStore {
     if (pending) {
       try {
         await pending;
-      } catch (error) {
-        this.guard(generation);
-        throw error;
+      } catch {
+        // The setter reports its own failure. Read the preserved state below;
+        // a newer set/clear/lock still fails the generation guard.
       }
     }
     this.guard(generation);

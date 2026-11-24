@@ -5,7 +5,7 @@
 ## 운영 계약
 
 - `status/read/set/clear`는 Promise다. IPC·전송 token supplier·연구 창은 결과를 기다린다. 상태 조회는 복호화나 네트워크 인증을 하지 않는다. `lock`은 즉시 진행 중 작업을 무효화한다.
-- 유효한 교체·삭제·lock은 세대를 올린다. OS 가용성/암호화/복호화가 늦게 완료되면 세대를 확인해 `CANCELLED`로 버린다. 삭제는 멈춘 OS 작업을 기다리지 않으며, 이전 토큰이 파일이나 반환값으로 되살아나지 않는다. 읽기는 현재 진행 중인 저장을 기다린다.
+- 유효한 교체·삭제·lock은 세대를 올린다. OS 가용성/암호화/복호화가 늦게 완료되면 세대를 확인해 `CANCELLED`로 버린다. 삭제는 멈춘 OS 작업을 기다리지 않으며, 이전 토큰이 파일이나 반환값으로 되살아나지 않는다. 읽기는 현재 진행 중인 저장을 기다린다. 저장 실패는 저장 요청자에게 보고하고, 세대가 그대로인 동시 읽기는 보존된 메모리/파일을 새로 검사한다. 기존 토큰이 없으면 TOKEN_MISSING이며 손상/미지원 파일은 그 읽기 오류로 거부한다. 실패한 저장을 재시도하거나 이전 평문을 별도로 캐시하지 않는다.
 - 영구 교체는 OS await 전후의 기존 envelope 바이트를 대조한다. 외부 변경·손상·상위 버전 파일은 덮어쓰지 않는다. 기존 파일/메모리는 암호화·쓰기 실패 때 보존한다. 명시적 clear만 삭제를 허용한다.
 - `decryptStringAsync`의 `shouldReEncrypt`는 힌트만 읽는다. read가 기존 파일을 재암호화/승격하지 않는다. 일시적 공급자 오류는 `SECURE_STORAGE_UNAVAILABLE`, 그 밖의 복호화 실패는 `STORE_UNREADABLE`이며 파일을 보존한다.
 - Linux의 기존 보안 provider 허용 목록은 유지한다. basic_text/unknown에서 비동기 API의 true를 보안 저장 가능으로 해석하지 않고 가용성 질의도 하지 않는다. 보안 저장이 없으면 세션 보관을 선택할 수 있고 평문 파일 대체는 없다.
@@ -33,3 +33,7 @@
 운영 전환/교차 버전 회귀를 완료해도46을 자동으로 설치하지 않는다. 정확한45 pin/설치 gate를 유지하고 다음 메이저의 변경점·설치·창·패키지는 별도 PR에서 확인한다.
 
 공식 근거(2026-11-24 확인): [safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage), [고정45.4.1 구현](https://github.com/electron/electron/blob/v45.4.1/shell/browser/api/electron_api_safe_storage.cc). 구현 코드를 복사하지 않았다.
+
+## PR31 검토 후속: Linux 가용성은 실제 키링 확인 뒤 판단한다
+
+공식 문서(2026-11-24 재확인)는 async 암호기의 지연 초기화와 Portal/Secret Service/대체 공급자를 설명하지만 `getSelectedStorageBackend`가 async 공급자를 완전히 대표한다고 보장하지 않는다. 따라서 초기 unknown을 먼저 허용하는 변경만으로 정상 키링 지원을 입증할 수 없다. 이 후속은 Linux provider 제한을 완화하지 않고 기존 보수적 거부를 유지한다. GNOME/KDE 실제 키링에서 초기화 전후 backend·async 가용성·저장/재시작 읽기와 fallback 거부를 함께 확인하는 것을 Linux 지원 확인 항목으로 둔다. Linux basic CI는 이 증거를 대신하지 않는다. Electron45.4.1 고정도 유지한다.

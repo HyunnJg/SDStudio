@@ -506,3 +506,105 @@ test('auth IPC awaits provider completion and converts async failures to fixed c
   gate.reject(Error('sensitive-provider-detail'));
   assert.deepEqual(await request, { ok: false, code: 'STORE_UNREADABLE' });
 });
+
+for (const remember of [false, true]) {
+  test(`failed replacement does not fail a concurrent read of preserved ${remember ? 'encrypted' : 'session'} token`, async (t) => {
+    const f = fixture(t),
+      store = f.create(),
+      started = deferred(),
+      gate = deferred();
+    await store.set('synthetic-preserved-A', remember);
+    const before = remember ? fs.readFileSync(f.file) : undefined;
+    f.encryption.encryptStringAsync = async () => {
+      started.resolve();
+      await gate.promise;
+      throw Error('synthetic-provider-detail');
+    };
+    const write = assert.rejects(store.set('synthetic-rejected-B', true), {
+      code: 'STORE_WRITE_FAILED',
+    });
+    await started.promise;
+    const read = store.read();
+    gate.resolve();
+    await write;
+    assert.equal(await read, 'synthetic-preserved-A');
+    if (remember) assert.deepEqual(fs.readFileSync(f.file), before);
+    else assert.equal(fs.existsSync(f.file), false);
+  });
+}
+
+test('failed initial save leaves a concurrent read with TOKEN_MISSING rather than the setter error', async (t) => {
+  const f = fixture(t),
+    store = f.create(),
+    started = deferred(),
+    gate = deferred();
+  f.encryption.encryptStringAsync = async () => {
+    started.resolve();
+    await gate.promise;
+    throw Error('synthetic-provider-detail');
+  };
+  const write = assert.rejects(store.set('synthetic-rejected', true), {
+    code: 'STORE_WRITE_FAILED',
+  });
+  await started.promise;
+  const read = assert.rejects(store.read(), { code: 'TOKEN_MISSING' });
+  gate.resolve();
+  await Promise.all([write, read]);
+  assert.equal(fs.existsSync(f.file), false);
+});
+
+for (const action of ['clear', 'lock', 'replace']) {
+  test(`read waiting for a failed replacement still cancels after ${action}`, async (t) => {
+    const f = fixture(t),
+      store = f.create(),
+      started = deferred(),
+      gate = deferred();
+    await store.set('synthetic-preserved-A', false);
+    f.encryption.encryptStringAsync = async () => {
+      started.resolve();
+      await gate.promise;
+      throw Error('synthetic-provider-detail');
+    };
+    const write = assert.rejects(store.set('synthetic-rejected-B', true), {
+      code: 'CANCELLED',
+    });
+    await started.promise;
+    const read = assert.rejects(store.read(), { code: 'CANCELLED' });
+    if (action === 'clear') await store.clear();
+    else if (action === 'lock') store.lock();
+    else await store.set('synthetic-current-C', false);
+    gate.resolve();
+    await Promise.all([write, read]);
+    if (action === 'replace')
+      assert.equal(await store.read(), 'synthetic-current-C');
+    else await assert.rejects(store.read(), { code: 'TOKEN_MISSING' });
+    assert.equal(fs.existsSync(f.file), false);
+  });
+}
+
+for (const [bytes, code] of [
+  ['{"version":999}', 'STORE_VERSION'],
+  ['invalid-json', 'STORE_UNREADABLE'],
+]) {
+  test(`read after failed replacement still rejects changed ${code} envelope`, async (t) => {
+    const f = fixture(t),
+      store = f.create(),
+      started = deferred(),
+      gate = deferred();
+    await store.set('synthetic-preserved-A', true);
+    f.encryption.encryptStringAsync = async () => {
+      started.resolve();
+      await gate.promise;
+      throw Error('synthetic-provider-detail');
+    };
+    const write = assert.rejects(store.set('synthetic-rejected-B', true), {
+      code: 'STORE_WRITE_FAILED',
+    });
+    await started.promise;
+    const read = assert.rejects(store.read(), { code });
+    fs.writeFileSync(f.file, bytes);
+    gate.resolve();
+    await Promise.all([write, read]);
+    assert.equal(fs.readFileSync(f.file, 'utf8'), bytes);
+  });
+}
