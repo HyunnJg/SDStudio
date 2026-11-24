@@ -201,12 +201,12 @@ child.on('exit', (code) => {
           (generationErrorMode ? 4 : generationQueueMode ? 13 : 3) ||
         data.checks?.length !==
           (generationCharacterMode
-            ? 6
+            ? 8
             : generationErrorMode
-              ? 7
+              ? 8
               : generationQueueMode
-                ? 8
-                : 11))) ||
+                ? 9
+                : 15))) ||
     !setupInfo?.isPackaged ||
     !data.packageContext.archiveUnchanged ||
     data.externalRequests.length ||
