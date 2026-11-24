@@ -4,7 +4,7 @@
 
 ## 현재 단계
 
-**PR30은 검토 반영 후 main `c6ceb01`로 병합했다.** 다음 P0-01e-b에서 운영 tokenStore/IPC/연구 창 ready를 async safeStorage로 전환하고 삭제·교체·lock 중 늦은 결과를 세대로 무효화했다. 단위255·Electron 인증/전송/연구10·생성 UI3PID11체크 통과. Windows CI에 E26 동기 producer→E45 async/운영 store 읽기를 추가했다. [계약](ASYNC_TOKEN_STORAGE.md), [검증](validation/2026-11-24-async-token-store.md). Node26.13.1/npm11.21.3·Electron45.4.1 고정이며46 설치 차단은 별도 업그레이드 검토까지 유지한다.
+**PR30은 검토 반영 후 main `c6ceb01`로 병합했다.** 다음 P0-01e-b에서 운영 tokenStore/IPC/연구 창 ready를 async safeStorage로 전환하고 삭제·교체·lock 중 늦은 결과를 세대로 무효화했다. 단위255·Electron 인증/전송/연구10·생성 UI3PID11체크 통과. Windows/Linux CI 양쪽 clean 설치·255건·빌드·패키지·고지가 성공했고 Windows의 E26 동기 producer→E45 async/운영 store 재시작 읽기·원본 불변도 확인했다. [계약](ASYNC_TOKEN_STORAGE.md), [검증](validation/2026-11-24-async-token-store.md). Node26.13.1/npm11.21.3·Electron45.4.1 고정이며46 설치 차단은 별도 업그레이드 검토까지 유지한다.
 
 **사용자 Windows에서 일반 명령으로 설치·빌드·lint·실행과 V5 생성이 정상이라는 보고를 받았다.** 터미널 호환성 수동 조정이 필요 없었다. checkout SHA/정확한 MIME/비용/키링 보관 여부는 제공되지 않았다. 밝은 테마 생성 버튼이 클릭 후 백색화하는 결함은 별도 UI 수정 대상으로 기록했다. 어두운 테마는 사용자 보고상 해당하지 않는다. macOS·실제 Linux keyring은 미검증이다.
 
