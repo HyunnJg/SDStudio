@@ -1,5 +1,5 @@
 /* eslint no-void: off -- Local image loading effects handle fixed UI failures. */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import type { GenerationClient } from '../../workspaceGeneration';
 import type { ProjectImage } from '../../workspaceProject';
 import ThumbnailQueue from '../generation/thumbnailQueue';
@@ -113,16 +113,22 @@ export default function ConnectedImageHistory({
   selectedURL,
   onSelect,
 }: Props) {
-  const [queue] = useState(() => new ThumbnailQueue());
-  // Stable functions avoid re-reading visible thumbnails when selection/status changes.
-  const loaders = useRef(
-    new Map<string, () => ReturnType<GenerationClient['image']>>(),
+  // This component owns its project scope even if a caller does not key/remount it.
+  const scope = useMemo(
+    () => ({
+      client,
+      projectId,
+      queue: new ThumbnailQueue(),
+      loaders: new Map<string, () => ReturnType<GenerationClient['image']>>(),
+    }),
+    [client, projectId],
   );
+  const { queue, loaders } = scope;
   const getLoader = (id: string) => {
-    let loader = loaders.current.get(id);
+    let loader = loaders.get(id);
     if (!loader) {
-      loader = () => client.image(projectId!, id);
-      loaders.current.set(id, loader);
+      loader = () => scope.client.image(scope.projectId!, id);
+      loaders.set(id, loader);
     }
     return loader;
   };
@@ -140,7 +146,7 @@ export default function ConnectedImageHistory({
           .reverse()
           .map((image, index) => (
             <Thumbnail
-              key={image.id}
+              key={`${projectId}:${image.id}`}
               image={image}
               number={images.length - index}
               selected={selected === image.id}

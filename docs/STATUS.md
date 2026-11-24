@@ -4,6 +4,8 @@
 
 ## 현재 단계
 
+**PR35를 검토·Windows/Linux CI2/2 재확인 후 main `b3fb84b`로 병합했다. 다음은 PNG 항목별 메타데이터 가져오기(D-056)다.** 파일 선택/드래그→텍스트/알파 읽기→미리보기→선택한 현재 씬 입력 적용이며 생성·업로드·자동 저장을 하지 않는다. 모델·미지원 고급 값은 임의 변환하지 않는다. 이력 컴포넌트 자체의 프로젝트 캐시 범위와 외부 dist lint 충돌도 함께 보강했다. 단위290·변경 lint/독립 tsc·Linux12PID/83체크·ASAR21+8·빌드/패키지 고지 통과. 전체 lint는기존3044오류가 남고 개인 PNG/Windows 실제 UI·실계정은 미검증이다. [계약](PNG_METADATA_IMPORT.md), [PR35 처리](reviews/2026-11-25-pr35-followup.md), [검증](validation/2026-11-25-png-metadata.md).
+
 **PR34는 Windows/Linux CI 성공 확인 후 main `525c0fc`로 병합했다. 다음은 사용자 승인한 작업실 배치(D-055)다.** 왼쪽 프롬프트/캐릭터·접힌 설정·고정 생성/중지, 중앙 원본 PNG, 오른쪽 결과/씬·대기열로 재배치한다. 실제 요청·생성 기본값·프로젝트 버전은 유지한다. 단위275·Linux 창12PID/57체크·ASAR15+8체크·빌드/변경 lint가 통과했다. Windows/macOS UI·실계정은 미실행이다. 전체 lint/tsc의 기존 영역 실패는 검증 기록에 구분한다. [설계와 후속](WORKSPACE_LAYOUT.md), [PR34 처리](reviews/2026-11-25-pr34-followup.md), [검증](validation/2026-11-25-workspace-layout.md).
 
 **PR33은 검토 승인과 Windows/Linux CI 2/2 확인 후 main `f7aa35e`로 병합했다.** P0-01e 토큰 보관 전환은 Windows/E26→E45·263단위·동시 읽기 보완까지 완료로 두고 실제 Linux keyring/macOS 미검증과 Electron45.4.1 고정은 유지한다. [검토 처리](reviews/2026-11-25-pr33-followup.md).
