@@ -4,7 +4,7 @@
 
 ## 현재 단계
 
-**현재 우선순위는 생성 실험을 보류하고 데스크톱 런타임 현대화를 검증하는 것이다(D-050).** Node26.13.1/npm11.21.3·Electron45.4.1로 설치/재빌드를 통일했다. Linux clean 설치·클립보드·단일/반복 UI를 통과했고, Windows/Linux CI 양쪽에서 설치·실제 native/PNG·개발 엔트리·단위244건·production 빌드·디렉터리 패키지·고지 검사까지 성공했다. Windows는 VS2026/Python3.15.2를 실제 사용했다. 사용자 Windows10의 실제 창·키링과 macOS는 별도 미검증이다. [변경 범위](RUNTIME_MODERNIZATION.md), [검증](validation/2026-11-24-runtime-modernization.md).
+**PR29는 검토 보완과 Windows/Linux CI245건 성공 후 main c48814a로 병합했다(D-050).** 현재는 P0-01e-a 비동기 safeStorage의 기존 암호문 호환 검증을 준비한다. 운영 비동기 전환/46 업그레이드는 아직 완료하지 않았다. [범위](ASYNC_TOKEN_STORAGE.md). Node26.13.1/npm11.21.3·Electron45.4.1로 설치/재빌드를 통일했다. Linux clean 설치·클립보드·단일/반복 UI를 통과했고, Windows/Linux CI 양쪽에서 설치·실제 native/PNG·개발 엔트리·단위244건·production 빌드·디렉터리 패키지·고지 검사까지 성공했다. Windows는 VS2026/Python3.15.2를 실제 사용했다. 사용자 Windows10의 실제 창·키링과 macOS는 별도 미검증이다. [변경 범위](RUNTIME_MODERNIZATION.md), [검증](validation/2026-11-24-runtime-modernization.md).
 
 **V5 Full·832×1216과 생성 버튼 한 번의 작업 흐름으로 확장했다(D-048).** 새 입력 기본값은 무작위 시드·23스텝·가이던스7·Euler ancestral/Karras·품질 Standard·부정 Heavy다. V5의 세로/가로/정사각형, 품질/부정 프리셋과 스텝/가이던스를 선택한다. 기존 V4.5 기본512px 요청과 v1/v2 읽기·이력 복구는 유지하고 새 선택은 manifest v3로 구분한다. [근거와 미확인 범위](NAI_V5_BINDING.md), [검증](validation/2026-11-24-v5-workspace.md).
 
@@ -56,9 +56,9 @@ PR28은 main e36b94f의 PR26(충돌 오류 정리)·PR27(개발 DLL 누락 복�
 
 ## 바로 다음 작업
 
-PR29 검토 보완: 프로필 백업/격리/되돌리기, Electron46 차단, npm11 복귀 안내와 빈 이미지 복사 거부를 추가했다. Node26 단위245·실제 창11체크/클립보드 보존 통과, 실제 계정0. [처리 결과](reviews/2026-11-24-pr29-followup.md). 사용자가 병합을 승인했으며, 다음 독립 작업은 P0-01e 비동기 safeStorage·이전 암호문 호환이다.
+PR29 검토 보완: 프로필 백업/격리/되돌리기, Electron46 차단, npm11 복귀 안내와 빈 이미지 복사 거부를 추가했다. Node26 단위245·실제 창11체크/클립보드 보존 통과, 실제 계정0. [처리 결과](reviews/2026-11-24-pr29-followup.md). 사용자가 병합을 승인했으며, 다음 독립 작업 P0-01e-a의 실제 OS 암호문 호환 probe를 추가했다. 운영 store 전환은 후속이다.
 
-1. PR29의 Node26/Electron45 변경을 검토한다. Windows/Linux clean 설치·빌드·디렉터리 패키지 CI는 성공했다. 기존 정상 로컬 폴더를 보존하고 새 폴더에서 사용자 Windows10의 실제 창/저장·이미지 복사를 확인한다.
+1. PR29 병합본으로 사용자 Windows10의 별도 테스트 프로필 기동을 확인한다. Windows/Linux clean 설치·빌드·디렉터리 패키지 CI는 성공했다. 기존 정상 로컬 폴더를 보존하고 새 폴더에서 사용자 Windows10의 실제 창/저장·이미지 복사를 확인한다.
 2. 런타임 정리 후 평소 프롬프트로 V5 Full·832×1216 한 장, 성공 뒤에만 소량 반복을 확인한다. 이번에는 계정 호출/키 입력을 요구하지 않는다.
 3. 캐릭터·좌표·와일드카드/혼합 프롬프트는 별도 바인딩/회귀 검증 후 연다. 비용/무료 여부는 앱이 계산하지 않는다.
 4. 공개 배포 전 잔여 라이선스·DB/자산 출처, fuse·다중 OS 패키지·서명 검증을 유지한다.

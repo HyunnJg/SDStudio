@@ -9,8 +9,9 @@ Gemini·Claude 초기 검토를 반영한 작업 계획이다. [처리 결과](r
 | P0-00 | 포크·공용 문서·검토 양식 준비 | 없음 | 원본 이력이 연결되고 다른 AI가 다음 작업을 식별할 수 있음 | 완료 |
 | P0-01a | 개발용 데이터 경로 격리 | P0-00 | `DEFAULT_APP_DIR` 상수 평가 전에 개발 프로필 선택. `saveLocation` 우회 확인. 원본 경로 중첩·링크 거부 및 드라이런 검증 | Linux 구현·검증 완료 |
 | P0-01b | 데스크톱 의존성 설치·빌드 (앱 미실행) | P0-00 | 원본 CI Node `22.4.1` 기준 결과·실패 원인 기록. 필요한 lock 추적 및 깨끗한 체크아웃의 `npm ci` 재현 | Linux 검증 완료 (전체 타입검사 별도 실패) |
-| P0-01d | Node/Electron 데스크톱 현대화 | P0-01b, D-050 | 지원 조합 고정·루트 clean 설치·실제 native/개발/DLL/worker/패키지 회귀·Windows 설치 결과 구분 | PR29 검토 대기: Node26.13.1/Electron45.4.1, Linux GUI/Windows·Linux CI244·패키지 통과. 사용자 Win10 GUI/macOS 후속 |
-| P0-01e | 비동기 safeStorage와 기존 암호문 호환 | P0-01d, D-050 | 비동기 보관·기존 v1 암호문 읽기·대기 중 변경/잠금·예외/파일 보존·실제 Electron 회귀. 완료 전 Electron46+ 차단 | 다음 작업.45 정확한 pin/설치 gate 유지 |
+| P0-01d | Node/Electron 데스크톱 현대화 | P0-01b, D-050 | 지원 조합 고정·루트 clean 설치·실제 native/개발/DLL/worker/패키지 회귀·Windows 설치 결과 구분 | PR29 병합c48814a: Node26.13.1/Electron45.4.1, 검토 보완/Windows·Linux CI245·패키지 통과. 사용자 Win10 GUI/macOS 후속 |
+| P0-01e | 비동기 safeStorage와 기존 암호문 호환 | P0-01d, D-050 | 비동기 보관·기존 v1 암호문 읽기·대기 중 변경/잠금·예외/파일 보존·실제 Electron 회귀. 완료 전 Electron46+ 차단 | 진행: e-a 실제 OS 호환 probe. 운영 store/IPC 전환은 후속.45 pin/설치 gate 유지 |
+| P0-01e-a | 이전 암호문/비동기 OS 호환 probe | P0-01d | 임시 프로필의 기존 v1 생성→새 PID 비동기 읽기·왕복·파일 불변. Windows 실측/Linux basic 미검증 구분 | 구현: 로컬 Linux basic 분기1건·기존245 통과, Windows CI 확인 대기 |
 | P0-01c | 데스크톱 첫 전체 기동 | P0-01a, P0-01b, P0-02 | 빈 격리 프로필, 원본 데이터 불변 및 네트워크 확인 | Linux 화면·2백엔드 확인 / 잠금만 모의 |
 | P0-02 | 외부 요청·가짜 백엔드 경로 정리 | P0-01a, P0-01b | 데스크톱 IP 확인 제거, 업데이트 중복 시작 해소·기본 비활성, 로컬 AI 시작·다운로드 격리. 가짜 백엔드로 데스크톱 UI 실행, 외부 요청 0건 | Electron 검증 완료 / 독립 브라우저 미검증 |
 | P0-03a | 공식 모델/API 조사·입력 및 호환 설계 | P0-00 | 공식 근거·확인 날짜, 입력·인증·응답 표와 기존 씬 보존 경계. 합성 요청·PNG 응답 검증 | 설계·오프라인 투영 10건 통과 |

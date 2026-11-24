@@ -44,6 +44,8 @@ jobs:
           sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
       - name: Development entry and isolated profile
         run: npm run profile:check -- "${{ runner.temp }}/sdstudio-runtime-check" --ozone-platform=headless --disable-gpu
+      - name: Actual OS async storage compatibility (synthetic tokens only)
+        run: npm run test:async-storage:electron
       - name: Unit regressions
         run: npm run test:unit
       - name: Production build
