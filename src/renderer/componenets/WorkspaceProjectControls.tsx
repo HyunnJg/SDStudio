@@ -1,3 +1,4 @@
+/* eslint react/require-default-props: ["error", {"functions": "defaultArguments"}] */
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import {
   ProjectController,
@@ -287,5 +288,3 @@ export default function WorkspaceProjectControls({
     </>
   );
 }
-
-WorkspaceProjectControls.defaultProps = { connected: false };

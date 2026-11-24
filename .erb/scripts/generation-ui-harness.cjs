@@ -153,8 +153,8 @@ setTimeout(() => finish(1, 'Generation smoke timeout'), 40000).unref();
 process.on('uncaughtException', (error) => finish(1, error.stack));
 process.on('unhandledRejection', (error) => finish(1, error.stack));
 app.on('web-contents-created', (_event, contents) => {
-  contents.on('console-message', (_e, level, message) => {
-    if (level >= 3) errors.push(message);
+  contents.on('console-message', ({ level, message }) => {
+    if (level === 'error') errors.push(message);
   });
   contents.on('render-process-gone', () =>
     finish(1, 'Unexpected renderer exit'),
@@ -191,6 +191,8 @@ app.on('web-contents-created', (_event, contents) => {
           "!!document.querySelector('[data-testid=connected-workspace]')",
         ),
       );
+      if (process.env.SDSTUDIO_RUNTIME_REPORT && phase === 'create')
+        await require('./runtime-ui-probe.cjs')(contents, profile);
       if (phase === 'queue-errors') {
         const set = await evaluate(
           "window.electron.naiAuth.setToken('synthetic-never-a-real-token',false)",

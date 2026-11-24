@@ -34,11 +34,10 @@ import {
   webContents,
   dialog,
   safeStorage,
-  nativeImage,
-  clipboard,
 } from 'electron';
 import log from 'electron-log';
 import MenuBuilder from './menu';
+import { copyImageToClipboard } from './imageClipboard';
 import { resolveHtmlPath } from './util';
 import { v4 as uuidv4 } from 'uuid';
 const sharp = require('sharp');
@@ -388,8 +387,7 @@ ipcMain.handle('select-file', async () => {
 });
 
 ipcMain.handle('copy-image-to-clipboard', async (event, imagePath) => {
-  const image = nativeImage.createFromPath(APP_DIR + '/' + imagePath);
-  clipboard.writeImage(image);
+  await copyImageToClipboard(APP_DIR + '/' + imagePath);
 });
 
 const util = require('util');

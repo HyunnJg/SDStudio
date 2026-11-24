@@ -68,8 +68,9 @@ app
       },
     };
     const window = new BrowserWindow(options);
-    window.webContents.on('console-message', (_event, level, message) => {
-      if (level >= 2) report.rendererErrors.push(message);
+    window.webContents.on('console-message', ({ level, message }) => {
+      if (level === 'error' || level === 'warning')
+        report.rendererErrors.push(message);
     });
     const profile = app.getPath('userData'),
       store = new ProjectStore(profile);

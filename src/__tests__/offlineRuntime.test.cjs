@@ -156,7 +156,10 @@ test('disabled local AI does not touch files, download or spawn a process', asyn
   );
   let LocalAIService;
   Module._load = function (name, parent, ...rest) {
-    if (name === '.' && parent?.filename.includes('/renderer/models/'))
+    if (
+      name === '.' &&
+      parent?.filename.replaceAll('\\', '/').includes('/renderer/models/')
+    )
       return { backend };
     return load.call(this, name, parent, ...rest);
   };
@@ -188,7 +191,11 @@ test('offline Electron account and generation calls fail before reading a token 
     },
   };
   Module._load = function (name, parent, ...rest) {
-    if (parent?.filename.endsWith('/backends/electronBackend.ts')) {
+    if (
+      parent?.filename
+        .replaceAll('\\', '/')
+        .endsWith('/backends/electronBackend.ts')
+    ) {
       if (name === '../runtime') return { runtimeOptions: { offline: true } };
       if (name === './genVendors/nai')
         return { NovelAiImageGenService: class {} };

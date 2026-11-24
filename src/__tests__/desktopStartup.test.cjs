@@ -63,19 +63,20 @@ test('startup waits for initialization and also reports a window failure', async
 });
 
 test('DEBUG_PROD production and packaged apps use the adjacent preload', () => {
+  const fixtureRoot = path.resolve('fixture');
   for (const packaged of [true, false]) {
     const development = usesDevelopmentAssets(packaged, 'production');
     assert.equal(development, false);
     assert.equal(
-      resolvePreloadPath('/fixture/dist/main', development),
-      path.join('/fixture/dist/main', 'preload.js'),
+      resolvePreloadPath(path.join(fixtureRoot, 'dist/main'), development),
+      path.join(fixtureRoot, 'dist/main/preload.js'),
     );
   }
   assert.equal(usesDevelopmentAssets(true, 'development'), false);
   assert.equal(usesDevelopmentAssets(false, 'development'), true);
   assert.equal(
-    resolvePreloadPath('/fixture/src/main', true),
-    path.resolve('/fixture/.erb/dll/preload.js'),
+    resolvePreloadPath(path.join(fixtureRoot, 'src/main'), true),
+    path.join(fixtureRoot, '.erb/dll/preload.js'),
   );
 });
 

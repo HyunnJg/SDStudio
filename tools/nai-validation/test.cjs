@@ -22,7 +22,10 @@ test('launcher rejects missing/relative profiles and extra credential arguments'
 });
 test('lock contains no full app native build toolchain', () => {
   const lock = require('./package-lock.json');
-  assert.equal(lock.packages['node_modules/electron'].version, '26.6.10');
+  assert.equal(
+    lock.packages['node_modules/electron'].version,
+    require('./package.json').dependencies.electron,
+  );
   for (const name of Object.keys(lock.packages))
     assert.doesNotMatch(
       name,

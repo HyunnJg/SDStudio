@@ -18,7 +18,7 @@
     "email": "ksunhokim123@gmail.com",
     "url": "https://sunho.io"
   },
-  "main": "./src/main/main.ts",
+  "main": "./.erb/scripts/start-main.cjs",
   "version": "3.1.11",
   "scripts": {
     "smoke:auth-ui": "node .erb/scripts/smoke-auth-ui.cjs",
@@ -43,15 +43,14 @@
     "build:dll": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.renderer.dev.dll.ts",
     "build:main": "cross-env NODE_ENV=production TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.main.prod.ts",
     "build:renderer": "cross-env NODE_ENV=production TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.renderer.prod.ts",
-    "install:native": "cd src/native && npm install",
-    "preinstall": "npm run install:native",
-    "postinstall": "ts-node .erb/scripts/check-native-dep.js && electron-builder install-app-deps && npm run build:dll",
+    "preinstall": "node .erb/scripts/check-toolchain.cjs",
+    "postinstall": "node .erb/scripts/setup-desktop.cjs",
     "lint": "cross-env NODE_ENV=development eslint . --ext .js,.jsx,.ts,.tsx",
     "package-corss": "ts-node ./.erb/scripts/clean.js dist && npm run build && electron-builder build -w --x64 --publish never && npm run build:dll",
     "package": "cross-env ts-node ./.erb/scripts/clean.js dist && npm run build && electron-builder build --publish never && npm run build:dll",
-    "rebuild": "cross-env electron-rebuild --parallel --types prod,dev,optional --module-dir release/app",
+    "rebuild": "node .erb/scripts/setup-desktop.cjs --rebuild-only",
     "start": "ts-node ./.erb/scripts/check-port-in-use.js && npm run start:renderer",
-    "start:main": "cross-env NODE_ENV=development electronmon -r ts-node/register/transpile-only .",
+    "start:main": "cross-env NODE_ENV=development electronmon .",
     "start:preload": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.preload.dev.ts",
     "start:renderer": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack serve --config ./.erb/configs/webpack.config.renderer.dev.ts",
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,css,scss,md}\"",
@@ -79,7 +78,11 @@
     "test:project-reads": "node --test -r ts-node/register/transpile-only src/__tests__/projectReads.test.cjs",
     "test:generation-queue": "node --test -r ts-node/register/transpile-only src/__tests__/generationQueue.test.cjs src/__tests__/generationPresentation.test.cjs",
     "smoke:generation-queue": "node .erb/scripts/smoke-generation.cjs queue",
-    "smoke:generation-errors": "node .erb/scripts/smoke-generation.cjs queue-errors"
+    "smoke:generation-errors": "node .erb/scripts/smoke-generation.cjs queue-errors",
+    "setup:desktop": "node .erb/scripts/setup-desktop.cjs",
+    "verify:desktop": "node .erb/scripts/verify-desktop.cjs",
+    "test:runtime": "node --test src/__tests__/runtimeToolchain.test.cjs",
+    "test:unit": "node --test --test-concurrency=4 -r ts-node/register/transpile-only src/__tests__/*.test.cjs"
   },
   "browserslist": [],
   "prettier": {
@@ -173,7 +176,6 @@
     "nightwind": "^1.1.13",
     "node-fetch": "^3.3.2",
     "node-stream-zip": "^1.15.0",
-    "npm": "^10.8.2",
     "pica": "^9.0.1",
     "png-chunk-text": "^1.0.0",
     "png-chunks-encode": "^1.0.0",
@@ -202,7 +204,7 @@
     "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^6.1.0",
     "@electron/notarize": "^2.1.0",
-    "@electron/rebuild": "^3.3.0",
+    "@electron/rebuild": "4.2.1",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.11",
     "@svgr/webpack": "^8.1.0",
     "@teamsupercell/typings-for-css-modules-loader": "^2.5.2",
@@ -211,7 +213,7 @@
     "@types/adm-zip": "^0.5.5",
     "@types/jest": "^29.5.5",
     "@types/libsodium-wrappers-sumo": "^0.7.8",
-    "@types/node": "20.6.2",
+    "@types/node": "24.19.2",
     "@types/pica": "^9.0.4",
     "@types/png-chunk-text": "^1.0.3",
     "@types/png-chunks-encode": "^1.0.2",
@@ -235,10 +237,9 @@
     "css-loader": "^6.8.1",
     "css-minimizer-webpack-plugin": "^5.0.1",
     "detect-port": "^1.5.1",
-    "electron": "^26.2.1",
-    "electron-builder": "^24.6.4",
+    "electron": "45.4.1",
+    "electron-builder": "26.18.0",
     "electron-devtools-installer": "^3.2.0",
-    "electron-rebuild": "^3.2.9",
     "electronmon": "^2.0.2",
     "eslint": "^8.49.0",
     "eslint-config-airbnb-base": "^15.0.0",
@@ -280,7 +281,8 @@
     "webpack-bundle-analyzer": "^4.9.1",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^4.15.1",
-    "webpack-merge": "^5.9.0"
+    "webpack-merge": "^5.9.0",
+    "node-gyp": "12.2.0"
   },
   "build": {
     "productName": "SDStudio-HyunnJg",
@@ -396,8 +398,8 @@
     "url": "https://opencollective.com/electron-react-boilerplate-594"
   },
   "engines": {
-    "node": ">=22.4.1",
-    "npm": ">=7.x"
+    "node": ">=26.13.1 <27",
+    "npm": ">=11.21.3 <12"
   },
   "electronmon": {
     "patterns": [
@@ -408,5 +410,20 @@
   },
   "extraMetadata": {
     "version": "1.0.0"
+  },
+  "packageManager": "npm@11.21.3",
+  "overrides": {
+    "node-gyp": "12.2.0"
+  },
+  "allowScripts": {
+    "sharp@0.32.6": true,
+    "@parcel/watcher": false,
+    "core-js": false,
+    "core-js-pure": false,
+    "electron-winstaller": false,
+    "esbuild": false,
+    "exifreader": false,
+    "protobufjs": false,
+    "swiftlint": false
   }
 }

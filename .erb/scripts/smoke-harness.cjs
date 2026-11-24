@@ -57,8 +57,8 @@ app.on('web-contents-created', (_event, contents) => {
   };
   contents.session.webRequest.onCompleted(filter, record);
   contents.session.webRequest.onErrorOccurred(filter, record);
-  contents.on('console-message', (_event, level, message) => {
-    if (level >= 3) errors.push(message);
+  contents.on('console-message', ({ level, message }) => {
+    if (level === 'error') errors.push(message);
   });
   contents.on('render-process-gone', (_event, details) =>
     resilience === 'crash' && resilienceTest.expectedCrash

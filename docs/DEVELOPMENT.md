@@ -1,45 +1,55 @@
 # 개발 시작과 검증 기록
 
-## 저장소 받기
+## 현재 데스크톱 설치 기준 — D-050
 
-```sh
-git clone https://github.com/HyunnJg/SDStudio.git
-cd SDStudio
-git remote add upstream https://github.com/sunho/SDStudio.git
-git switch -c work/p0-build-baseline
-git submodule update --init --recursive
+Node **26.13.1**, npm **11.21.3**, Electron **45.4.1**로 갱신했다. 개발 명령은 Node26에서, 앱은 Electron 내부 Node24.22.3에서 실행된다. Node22 전용 셸이나 전역 node-gyp를 따로 구성하지 않는다. 아래 절차가 현재 기준이며, 뒤의 과거 조사 기록은 당시 환경을 뜻한다. [변경·검증 범위](RUNTIME_MODERNIZATION.md).
+
+이미 실행되는 로컬 체크아웃은 그대로 보존하고 다른 폴더에 새 체크아웃을 만든다. 사용자 프로필·토큰·프로젝트·`.sdstudio-runtime`·기존 lock을 지울 필요가 없다. 새 체크아웃을 설치하는 동안 기존 앱은 닫아 둔다.
+
+### 처음 실행하기 전: 코드 폴더와 사용자 데이터는 별개
+
+체크아웃을 새 폴더에 받아도 일반 실행은 기존 `%APPDATA%\SDStudio-HyunnJg`를 쓴다. Chromium 캐시·Local Storage/IndexedDB·설정·암호화 토큰·프로젝트가 그 안에 있으므로 **Electron45로 일반 프로필을 열기 전에 앱을 모두 닫고 이 폴더 전체를 별도 위치에 백업한다.** 명시적 사용자 데이터 경로를 썼다면 그 실제 경로를 백업한다. 소스 폴더만 보존한 것은 프로필 백업이 아니다.
+
+기본 Windows 프로필을 쓰는 경우의 수동 백업 예시다. 여기서 사용자의 백업을 대신 실행하거나 확인한 것은 아니다. 복사본은 계정 자료를 포함하므로 외부에 공유하지 않는다.
+
+```powershell
+$profileRoot = Join-Path $env:APPDATA 'SDStudio-HyunnJg'
+$backupRoot = Join-Path $env:LOCALAPPDATA ('SDStudio-Profile-Backup-' + [guid]::NewGuid().ToString('N'))
+if (Test-Path -LiteralPath $profileRoot) {
+    Copy-Item -LiteralPath $profileRoot -Destination $backupRoot -Recurse -ErrorAction Stop
+}
 ```
 
-기존 체크아웃은 remote를 먼저 확인한다. 원본에는 두 서브모듈이 있다. 초기 작업공간 조사에서는 서브모듈을 로컬에 초기화하지 않고, 고정 리비전의 자료를 GitHub에서 읽었다.
+첫 기동 시험은 아래처럼 체크아웃 밖의 **별도 개발 프로필**로 한다. 이 프로필은 기본 오프라인이며 기존 토큰/프로젝트를 자동 복사하지 않는다. 일반 앱의 온라인 기본값은 바꾸지 않는다.
 
-## 첫 실행 전 프로필 격리 — 구현·Linux 기동 검증 완료
-
-검토 결과, 기본 경로와 앱 이름이 원본과 같고 config의 `saveLocation`이 저장 경로를 다시 지정할 수 있음을 확인했다. **아래 명령 중 `npm start`는 P0-01a의 빈 개발 프로필 격리와 P0-02의 외부 요청 통제를 구현한 뒤에 실행한다.** P0-01a/P0-02는 구현했고 Linux에서 조건부 전체 기동도 검증했다. [실제 검증 기록](validation/2026-11-20-p0-profile.md)을 참고한다. 기존 원본 config·토큰·세션을 개발 프로필에 복사하지 않는다.
-
-첫 검증 범위는 Electron 데스크톱이다. Android/iOS 패키징과 Python/BiRefNet 자체 빌드는 제외한다. 다만 루트가 참조하는 background-mode 서브모듈 등 실제 설치 의존성은 필요할 수 있다.
-
-실행 순서는 설치·빌드(P0-01b, 앱 미실행) → P0-01a/P0-02 적용·검증 → 전체 기동(P0-01c)으로 나눈다. P0-01a의 프로필 경로 드라이런은 전체 앱 기동과 구분한다.
-
-원본 설치본이 있는 PC에서는 앱을 닫은 뒤 **그 PC에서 확인한 원본 프로필 전체를 별도 위치에 백업**한다. 대소문자만 다른 폴더를 별도 프로필이라고 가정하지 않는다. 현재 작업 환경의 가짜 프로필 검증은 사용자 PC의 백업을 수행한 것이 아니다.
-
-## 빌드 명령과 최초 조사 기록
-
-원본 CI는 Node `22.4.1`을 사용한다. 먼저 해당 조합을 재현 기준으로 조사하고, 이후 현재 지원 버전으로 옮길 필요성을 판단한다. 오래된 CI 설정을 현재 지원 정책으로 간주하지 않는다. 네이티브 모듈 때문에 Python, C++ 컴파일러와 플랫폼별 빌드 도구가 필요할 수 있다.
-
-아래는 원본 명령이다. 초기 구성 당시에는 미실행이었고, 현재 Linux의 설치·빌드 성공 및 남은 검증 범위는 위 검증 기록에 구분했다. 전체 기동의 환경별 한계는 [별도 기록](validation/2026-11-20-p0-offline.md)을 참고한다.
-
-```sh
-npm install
+```powershell
+git clone --branch main https://github.com/HyunnJg/SDStudio.git SDStudio-modern
+cd SDStudio-modern
+git submodule update --init externals/capacitor-background-mode
+node --version
+npm --version
+npm ci --include=optional
+npm run verify:desktop
 npm run build
-npm run lint
-npm start
+npm run start:isolated -- "$env:LOCALAPPDATA\SDStudio-Modern-Test"
 ```
 
-- `npm install`의 preinstall은 `src/native`를 설치하고 node-gyp 빌드를 실행한다. postinstall은 Electron 의존성과 DLL 빌드를 처리한다. 단순 프런트엔드 설치와 다르다.
-- `release/app/package.json`에도 별도 런타임 의존성과 postinstall이 있다. 실패 시 루트와 배포 폴더 중 어느 단계인지 기록한다.
-- 원본은 lock 파일을 ignore했지만, 첫 구현에서 루트·`release/app`·`src/native`의 lock을 추적하도록 바꿨다. 이제 체크아웃에서 `npm ci`로 재현한다. Node 기준은 `22.4.1`이다.
-- `npm start`는 개발 앱을 실행한다. 원본 프로필 격리와 P0-02 구현 후에 수행한다. 서비스 모듈을 import하는 테스트도 초기화 경로를 우회해야 한다. 기존 App 테스트 수정은 가짜 백엔드 확보 뒤에 진행한다.
-- `npm run package`는 패키징 단계다. 첫 UI 검토에는 필요하지 않다.
+위 명령은 PR29 병합 후 main 기준이다. PR 검토 중에는 clone의 --branch를 해당 PR 브랜치로 바꾼다. 별도 프로필에서 창·저장·이미지 복사를 확인하고 일반 프로필을 백업한 뒤에만 `npm start`로 평소 데이터를 연다.
+
+**새 Electron으로 연 일반 프로필을 Electron26 체크아웃으로 다시 열지 않는다.** 되돌릴 때는 앱을 모두 닫고, 업그레이드 뒤 프로필과 새 결과를 별도로 보존한 뒤 백업 전체를 복원한다. 복원은 백업 시점으로 돌아가는 작업이며 백업 이후 편집/결과를 자동 병합하지 않는다. 새 저장 형식(v3)을 모르는 옛 앱은 해당 프로젝트를 열 수 없다는 점도 별개다. 이 앱의 E45→E26 프로필 다운그레이드는 검증하지 않았다.
+
+Node/npm 버전이 다르면 먼저 선택한 설치의 PATH를 확인한다. npm만 맞출 때는 `npm install --global npm@11.21.3 --ignore-scripts`를 사용한다. npm12 새 버전 안내만 보고 올리지 않는다. 이미 올렸다면 같은 명령으로 npm11.21.3을 다시 선택한다. Windows에는 Python과 Visual Studio C++ 데스크톱 워크로드/Windows SDK가 필요하다. 기존 VS2026/Python 설치를 그대로 사용하고, 필요하면 해당 셸에서 `$env:npm_config_python = 'C:\실제경로\python.exe'`로 Python을 지정한다. 새 node-gyp12.2는 Windows CI에서 실제 VS2026 Enterprise/Python3.15.2 탐지·빌드에 성공했다. 사용자 Windows10/Community 설치와 실제 GUI 확인까지 대신한 것은 아니다.
+
+`npm ci`의 루트 postinstall이 자식 lock 설치 → 명시적 Electron 다운로드 → Electron 헤더 대상 native 빌드 → 실제 바이너리 확인 → 개발 DLL 빌드를 순서대로 수행한다. npm11의 외부 설치 스크립트 기본 차단에 기대지 않는다. 자세한 허용 목록은 package.json의 allowScripts와 변경 문서를 참고한다. 루트 `--ignore-scripts` 설치만으로 앱이 준비됐다고 보지 않는다. 의도적으로 설치 스크립트를 생략했다면 이후 `npm run setup:desktop`을 실행한다. 재빌드만 필요하면 `npm run rebuild`다. 설치 실패와 앱 실행을 연달아 진행하지 않고 실패 단계부터 해결한다.
+
+- `npm run verify:desktop`: 실제 Electron에서 sdsnative 검색과 sharp PNG/알파 왕복 검사. 계정·프로필·네트워크를 사용하지 않는다.
+- `npm run test:unit`: CJS 단위 회귀. Electron 창 검사는 별도다.
+- `npm run build`: main/preload/worker/renderer와 고지 생성.
+- `npm start`: 개발 서버와 Electron 창. 포크 기본 프로필은 원본과 별개이며 일반 실행은 온라인이다. 원격 호출 없는 확인에는 아래 격리 오프라인 명령을 사용한다.
+- `npm run start:isolated -- <절대 경로>`: 별도 개발 프로필에서 기본 오프라인 실행.
+- `npx electron-builder --dir --publish never`: 현재 OS 디렉터리 패키지. 서명/공개 배포가 아니다.
+
+데스크톱 file 의존성인 background-mode만 초기화하면 된다. Android/iOS 및 Python/BiRefNet 패키징은 이번 범위에 포함하지 않는다. 기존 원본 config·토큰·세션을 테스트 프로필로 복사하지 않는다.
 
 ## 2026-11-20 초기 조사 결과
 
@@ -82,7 +92,7 @@ npm run profile:check -- /tmp/sdstudio-dev-profile --ozone-platform=headless --d
 
 인자를 생략하면 저장소 아래의 무시되는 개발 프로필 폴더를 사용한다. 환경변수를 직접 사용할 경우 `SDSTUDIO_USER_DATA_DIR`는 비어 있지 않은 절대 경로여야 한다. 전체 UI 검증에는 `npm run start:isolated -- /절대/개발프로필`을 사용한다.
 
-원본 앱에서 저장 위치를 직접 변경했다면 그 사용자 지정 폴더 안에 개발 프로필을 두지 않는다. 원본 config를 읽지 않는 설계상 그 위치는 자동 탐지하지 않는다. Electron 실기 프로필 테스트는 합성 appData를 확실히 지정할 수 있는 Linux에서만 실행한다. 컨테이너에 필요한 추가 Electron 인자는 `SDSTUDIO_TEST_ELECTRON_ARGS`의 JSON 문자열 배열로 명시할 수 있으며 sandbox 비활성 플래그를 자동 추가하지 않는다. Windows npm ci는 미검증이며 sharp 0.32 계열의 libvips 바이너리는 설치 중 별도 다운로드된다.
+원본 앱에서 저장 위치를 직접 변경했다면 그 사용자 지정 폴더 안에 개발 프로필을 두지 않는다. 원본 config를 읽지 않는 설계상 그 위치는 자동 탐지하지 않는다. Electron 실기 프로필 테스트는 합성 appData를 확실히 지정할 수 있는 Linux에서만 실행한다. 컨테이너에 필요한 추가 Electron 인자는 `SDSTUDIO_TEST_ELECTRON_ARGS`의 JSON 문자열 배열로 명시할 수 있으며 sandbox 비활성 플래그를 자동 추가하지 않는다. Windows clean 설치 결과는 현대화 검증 기록을 따른다. sharp0.35의 플랫폼 바이너리는 optional npm 패키지로 설치되므로 optional 의존성을 제외하지 않는다.
 
 ## 오프라인 기동과 예제
 
@@ -212,117 +222,9 @@ npm --prefix tools/nai-validation start -- "$env:LOCALAPPDATA\SDStudio-Live-Test
 
 첫 프로필은 그대로 둔다. 첫 attempt.json의 displayedCost와 새 웹 표시 비용의 합계10 Anlas 이내, 동일 설정의 웹 비용·잔액 확인 후 추가1회만 진행한다. 값을 모르면 전송하지 않는다. [정확한 조건](NAI_LIVE_VALIDATION.md#첫-관찰과-수정-후-추가1회-규칙-d-034). 도구가 모든 프로필의 횟수/비용을 전역으로 추적하거나 서버 청구 상한을 강제하는 것은 아니다.
 
-### Windows 전체 앱용 Node 버전 준비 (PR #16 후속)
+### 이전 Node22·VS2022 우회 안내는 D-050으로 대체
 
-전체 앱의 재현 기준은 `.nvmrc`의 **22.4.1**이다. 최신 권장 버전이나 전체 Windows 지원 인증을 뜻하지 않는다. 연구 도구가 이미 열리는 PC에서 이를 위해 복구한 Electron을 지우거나 연구 실험을 반복할 필요는 없다.
-
-[Microsoft의 Windows Node 안내](https://learn.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-windows)와 [NVM for Windows 공식 안내](https://docs.nvm-windows.com/)를 따라 버전 관리 도구를 준비한다. 기존 MSI Node와 버전 관리 도구의 PATH 충돌은 해당 공식 절차로 먼저 확인한다. NVM이 이미 준비됐다면 별도 PowerShell에서 다음처럼 전환한다.
-
-```powershell
-nvm install 22.4.1
-nvm use 22.4.1
-node --version
-npm --version
-where.exe node
-```
-
-`node --version`은 v22.4.1인지, 실제 node 경로가 선택한 관리 경로인지 확인한다. npm은 선택한 Node 설치에 포함된 버전을 사용하며 기존의 npm 11을 이 조합에 강제로 유지하지 않는다. 권한이 필요한 버전 전환은 공식 안내를 따른다.
-
-이 단계만으로 **VS2026 탐지 실패가 고쳐지는 것은 아니다**. 사용자 로그의 로컬 @electron/node-gyp10.2.0-electron.1은 VS18/2026을 인식하지 못했다. 전역 node-gyp 갱신도 이 호출을 자동 교체하지 않는다. Windows 전체 npm ci 성공은 아직 재현하지 않았으며, Node 전환 직후 루트 재설치가 성공한다고 안내하지 않는다. 네이티브 도구 체인/재빌드 의존성을 별도 변경·검증한 뒤 전체 앱 설치를 진행한다. 지금은 VS/Python 재설치, 원본 데이터/lock 삭제, npm audit fix --force를 요구하지 않는다.
-
-### VS2022 Build Tools 병행 설치는 선택적인 호환 후보
-
-전체 앱을 Windows에서 빌드할 시점에, 의존성을 바꾸지 않는 후보로 **VS2022 Build Tools + C++를 사용한 데스크톱 개발**을 VS2026 옆에 설치하는 방법이 있다. [Microsoft 병행 설치 안내](https://learn.microsoft.com/en-us/visualstudio/install/install-visual-studio-versions-side-by-side?view=vs-2026)와 [VS2022 릴리스 목록](https://learn.microsoft.com/en-us/visualstudio/releases/2022/release-history)을 따라 2022/17 계열을 선택한다. VS2026을 지우거나 이미 작동하는 연구 도구를 다시 설치할 필요는 없다.
-
-이 체크아웃의 @electron/node-gyp10.2.0-electron.1 find-visualstudio.js에는 17→2022 탐지 경로가 있다. 그러나 이 저장소의 Windows 전체 npm ci·Electron 재빌드·sharp 성공은 아직 미검증이다. Node22를 선택한 뒤 VS2022 설치를 **별도로 선택한 경우에만** 실패 단계가 바뀌는지 확인한다. 성공을 약속하거나 사용자에게 지금 재설치를 요구하는 절차가 아니다. 실패하면 원문 전체 대신 도구 버전과 실패 단계로 다음 도구 체인 변경 범위를 결정한다.
-
-### 새 프로젝트 저장 기반의 합성 검사
-
-```sh
-npm run test:project
-# Linux X11과 빌드된 preload가 있을 때
-npm run test:project:electron
-```
-
-기존 V3 파일이나 개인 이미지를 입력하지 않는다. 새 IPC는 오프라인에서도 사용할 수 있으나 현재 화면의 저장/열기 버튼은 아직 미연결이다. [저장 형식과 후속 UI 범위](PROJECT_STORAGE.md).
-
-### 프로젝트 조작 화면 검사 (D-039)
-
-```sh
-npm run test:project
-npm run test:project-ui
-# production main/preload/renderer + projectWorker 빌드 후 Linux X11
-npm run smoke:project-ui
-npm run smoke:workspace
-```
-
-smoke:project-ui는 빈 전용 프로필로 실제 Electron을 두 번 실행한다. UI 저장·닫기 취소·남은 잠금 복사·손상 이력 복구 뒤 실제 native close를 완료하고 다음 PID에서 목록을 열어 입력을 복원한다. 환경 단일 인스턴스 잠금만 모의하고 원격 요청을 차단한다. 합성 프로젝트와 임시 파일만 사용하며 종료 후 정리한다. 새 프로젝트 저장은 mock 작업실에서도 별도 IPC로 실제 비공개 프로필에 기록되므로 이전의 “모든 저장 없음” 배지와 구분한다.
-
-production worker는 projectWorker.js를 추가 산출물로 빌드한다. 개발 TS worker에는 기존 루트 ts-node hook 경로를 지정하되 ts-node를 production 번들로 끌어오지 않는다. Node worker 단위 검사와 production Electron UI는 확인했지만 Windows/macOS·ASAR/패키지 실행·전체 dev 서버 재기동은 이번 검증 범위가 아니다.
-
-### 프로젝트 worker·화면 중단 패키지 검사 (D-040)
-
-위 D-039의 ASAR 미검증 상태는 [후속 실측](validation/2026-11-22-project-resilience.md)으로 Linux 디렉터리 패키지에 한해 보완했다. Windows/macOS는 계속 미검증이다. 빌드 후 패키지 경로를 지정해 `npm run smoke:package -- /absolute/linux-unpacked projects`로 실제 ASAR 내부 worker 저장/복구/닫기를 검사한다. 마지막 인자를 `worker`, `crash`, `unresponsive`로 각각 바꾸면 저장 worker 종료/수동 복구, 실제 renderer 강제 종료, 무응답 이벤트 주입을 검사한다. 네 모드는 Linux X11에서 순서대로 실행한다.
-
-패키지 archive를 바꾸지 않고 loopback inspector로 테스트 하네스만 주입한다. native dialog 선택과 singleton 잠금은 모의이며 일반 제품 실행 옵션이 아니다. 하네스의 의도적 crash 외 renderer 오류/원격 요청은 실패다. 선택 `SDSTUDIO_PACKAGE_REPORT`는 정제 결과 JSON을 지정한 로컬 파일로 복사한다. 테스트 프로필은 임시 폴더이며 실제 사용자 파일을 입력하지 않는다.
-
-운영에서 PROJECT_SERVICE_STOPPED가 보이면 입력을 유지한 채 저장 기능 다시 시작을 선택할 수 있다. 이전 쓰기는 다시 보내지 않으므로 목록/열기로 완료 여부를 확인한다. 잠금/부분 파일을 자동 삭제하지 않는다. 개발 TS worker는 시작 cwd와 관계없이 모듈 기준 hook/tsconfig를 사용한다.
-
-### 기본1장 생성·PNG 저장 검사 (D-041)
-
-```sh
-npm run test:generation
-npm run test:project-ui
-npm run build
-# Linux X11, 합성 토큰/루프백만 사용하며 실제 계정 호출 없음
-npm run smoke:generation
-npm run smoke:package -- /absolute/linux-unpacked generation
-```
-
-smoke:generation은 실제 앱3PID로 생성/취소/PNG 저장 실패 뒤 새 프로젝트 보관, 재열기, 오프라인 PNG 표시와 생성 거부를 확인한다. native net.request의 고정 주소를 테스트만 루프백으로 바꾸고 원격 요청은 차단한다. 공개 결과에는 합성 체크만 남긴다. 실제 key/PNG를 입력하지 않는다. 기본1장은 새 작업실 버튼으로 들어가고, 실제 계정 확인이 필요할 때만 사용자가 앱의 API 토큰 창에 직접 입력한다. 현재 새 UI의 실제 계정 호출은 미검증이다. [조건·오류·버전 호환](WORKSPACE_GENERATION.md).
-
-Windows 첫 전체 앱 확인에는 Node22 기준/VS2022 Build Tools 선택지·npm ci를 먼저 구분하고, packaged 프로젝트 저장/PNG 재열기 및 무응답 창에 붙은 native dialog의 표시 위치·포커스·취소/버리기도 확인한다. Linux GUI 선택 모의가 Windows OS 모달 검증을 대신하지 않는다. 이번에 Windows 설치 문제를 해결하거나 다른 OS 지원 정책을 확정하지 않았다.
-
-
-### PNG 읽기 횟수 회귀 검사 (D-042)
-
-```sh
-npm run test:project-reads
-# 선택 사항: 합성 데이터의 읽기 횟수만 로컬 JSON으로 출력
-SDSTUDIO_PROJECT_READ_REPORT=/tmp/project-reads.json npm run test:project-reads
-```
-
-PowerShell에서는 `$env:SDSTUDIO_PROJECT_READ_REPORT`에 임시 결과 경로를 먼저 지정하고 같은 npm 스크립트를 실행한다. 테스트가 임시 프로필·120개 서로 다른 합성 PNG를 만들고 정리한다. 선택 이미지의 참조/해시/크기, 생성 준비의 리비전/잠금/한도, 저장-only 재시도와 실제 TS worker 경계를 검사한다. 파일 open 횟수 측정이며 256 MiB 지연 benchmark가 아니다. 실제 키·계정 호출은 필요 없다. [실행 기록](validation/2026-11-23-project-reads.md).
-
-
-### 실제 기본 씬·반복 큐 합성 검증 (D-043)
-
-```sh
-npm run test:generation-queue
-npm run build
-# Linux X11 / 실제 계정 호출 없이 합성 토큰·loopback 응답
-npm run smoke:generation-queue
-npm run smoke:package -- /absolute/linux-unpacked generation-queue
-```
-
-smoke:generation-queue는 production 앱의3개 PID로 선택3씬×2회·묶음 확인·중지 후5건 재확인·저장 실패 결과의 새 프로젝트 보관·재열기/오프라인 표시를 확인한다.13회는 하네스의 loopback HTTP 횟수이고 계정 API 호출은0이다. 정상 단일 생성은 기존 smoke:generation으로 계속 검사한다. 선택 SDSTUDIO_GENERATION_REPORT/SDSTUDIO_GENERATION_SCREENSHOT는 합성 검증 JSON/화면만 로컬 경로에 남긴다. 패키지의 generation-queue 모드도 inspector 하네스·singleton/좁은 폭 대체 조건을 사용한다. [검증/한계](validation/2026-11-23-connected-queue.md).
-
-
-D-044 후속: test:generation-queue는 큐25 + presentation3 검사를 함께 실행한다. 미전송 입력 범위·전송 전 실패 복구·named conflict·삭제 ID 정리가 추가됐다. smoke:generation-queue는 기존13회 loopback 시나리오에 “다른 씬 보기/프로젝트 이름 변경 → 예약 입력 변경 거부/원복 → 같은5건 확인”을 포함해3PID10체크다. package의 generation-queue도8체크를 요구한다. 실제 계정 호출 없이 검사하며, [검증](validation/2026-11-23-queue-resume.md)에 한계를 기록했다.
-
-
-### 이번 중단 원인·충돌 제외 검사 (D-045)
-
-```sh
-npm run test:generation-queue
-npm run build
-# Linux X11, synthetic tokens/loopback only
-npm run smoke:generation-errors
-npm run smoke:package -- /absolute/linux-unpacked generation-errors
-```
-
-queue-errors 하네스는429→이어가기 성공/다음 TIMEOUT→다음 이어가기 결과 저장 실패→새 프로젝트 보관→충돌 씬2건 제외/나머지2건 재확인 취소를 확인한다. 상태 폴링 응답을 일부러 보류하고 네트워크90초 timer를 테스트에서만900ms로 줄인다(제품 기한 변경 없음). 실제 계정 요청0이며4회는 loopback HTTP 횟수다. 기존 smoke:generation-queue 모드는 변경 없이 유지한다. [검증/실패 후 보완/한계](validation/2026-11-23-queue-stop-cause.md).
-
+PR16/17 당시에는 Node22.4.1 재현과 VS2022 병행 설치를 후보로 안내했다. 현재 경로는 위 Node26/Electron45 설치이며 VS2022 추가 설치를 전제로 하지 않는다. 당시 사용자 오류와 실제 로컬 복구는 [Windows 기동 기록](validation/2026-11-24-windows-local-start.md)에 보존한다.
 
 ## 새 작업실 실계정 확인 (D-046)
 

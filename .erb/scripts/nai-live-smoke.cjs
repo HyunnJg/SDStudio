@@ -103,8 +103,9 @@ const options = {
     try {
       const contents = window.webContents,
         call = (code) => contents.executeJavaScript(code);
-      contents.on('console-message', (_e, level, message) => {
-        if (level >= 3) report.rendererErrors.push(message.slice(0, 300));
+      contents.on('console-message', ({ level, message }) => {
+        if (level === 'error')
+          report.rendererErrors.push(message.slice(0, 300));
       });
       const until = async (code) => {
         for (let i = 0; i < 100; i++) {

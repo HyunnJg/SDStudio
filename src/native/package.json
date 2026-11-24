@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "install": "node-gyp rebuild"
+    "install": "node -e \"console.log('Native compilation is managed by npm run setup:desktop at the repository root.')\""
   },
   "author": "",
   "license": "ISC",

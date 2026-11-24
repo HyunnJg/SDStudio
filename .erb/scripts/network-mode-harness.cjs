@@ -73,8 +73,8 @@ app.on('web-contents-created', (_event, contents) => {
   };
   contents.session.webRequest.onCompleted(filter, observe);
   contents.session.webRequest.onErrorOccurred(filter, observe);
-  contents.on('console-message', (_event, level, message) => {
-    if (level >= 3) {
+  contents.on('console-message', ({ level, message }) => {
+    if (level === 'error') {
       state.rendererErrors.push(message);
       save();
     }

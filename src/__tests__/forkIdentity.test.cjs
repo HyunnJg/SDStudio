@@ -36,7 +36,7 @@ function fixture(t) {
 test('fork runtime and builder identity agree; default profile leaves upstream files unchanged', (t) => {
   const f = fixture(t);
   for (const name of ['sdstudio', 'SDStudio']) {
-    fs.mkdirSync(path.join(f.root, name));
+    fs.mkdirSync(path.join(f.root, name), { recursive: true });
     fs.writeFileSync(
       path.join(f.root, name, 'TOKEN.txt'),
       'synthetic-original',

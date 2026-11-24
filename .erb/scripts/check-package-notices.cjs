@@ -23,6 +23,8 @@ const required = [
 for (const file of required)
   if (!fs.statSync(path.join(resources, file)).isFile())
     throw new Error(`Missing notice resource: ${file}`);
+// ASAR's filesystem API expects host-native paths; inventories use portable '/'.
+const extract = (name) => asar.extractFile(archive, path.normalize(name));
 const hash = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 const index = JSON.parse(fs.readFileSync(path.join(folder, 'index.json')));
 for (const doc of index.applicationDocuments) {
@@ -48,15 +50,13 @@ for (const entry of [
 let bundlePackages = 0;
 for (const build of index.buildInputs) {
   const name = build.path.replace(/^release\/app\//, '');
-  const bytes = asar.extractFile(archive, name);
+  const bytes = extract(name);
   if (hash(bytes) !== build.sha256)
     throw new Error(`Bundle inventory mismatch: ${name}`);
   const graph = JSON.parse(bytes);
   for (const asset of graph.assets) {
     if (
-      hash(
-        asar.extractFile(archive, asset.path.replace(/^release\/app\//, '')),
-      ) !== asset.sha256
+      hash(extract(asset.path.replace(/^release\/app\//, ''))) !== asset.sha256
     )
       throw new Error(`Packaged bundle mismatch: ${asset.path}`);
   }
@@ -73,10 +73,12 @@ for (const build of index.buildInputs) {
   }
 }
 let runtimePackages = 0;
-for (const name of asar.listPackage(archive).map((p) => p.replace(/^\//, ''))) {
+for (const name of asar
+  .listPackage(archive)
+  .map((p) => p.replaceAll('\\', '/').replace(/^\//, ''))) {
   if (!name.startsWith('node_modules/') || !name.endsWith('/package.json'))
     continue;
-  const bytes = asar.extractFile(archive, name);
+  const bytes = extract(name);
   const data = JSON.parse(bytes);
   if (!data.name || !data.version) continue;
   if (
@@ -90,6 +92,8 @@ for (const name of asar.listPackage(archive).map((p) => p.replace(/^\//, ''))) {
     throw new Error(`Unindexed copied runtime package: ${name}`);
   runtimePackages += 1;
 }
+if (!runtimePackages)
+  throw new Error('No copied runtime package metadata was inspected');
 const result = {
   requiredResourcesPresent: required,
   noticeCopiesVerified: copiedFiles,

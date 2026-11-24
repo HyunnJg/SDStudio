@@ -333,7 +333,9 @@ test('first MIME observation is private, bounded, sanitized and never overwritte
     mediaTypeState: 'present',
     mediaType: 'binary/octet-stream',
   });
-  assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  // Windows ACLs are not represented by the POSIX permission bits returned here.
+  if (process.platform !== 'win32')
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
   observe({ mediaTypeState: 'absent', httpStatus: 500 });
   assert.equal(fs.readFileSync(file, 'utf8'), saved);
 });

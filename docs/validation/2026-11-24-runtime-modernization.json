@@ -1,0 +1,227 @@
+{
+  "date": "2026-11-24",
+  "timezone": "Asia/Seoul",
+  "baseCommit": "fd42ea3a4985e9a5337a14b70dfd59e737b0cdf3",
+  "host": {
+    "platform": "linux",
+    "arch": "x64",
+    "node": "26.13.1",
+    "npm": "11.21.3",
+    "python": "3.12.14"
+  },
+  "runtime": {
+    "electron": "45.4.1",
+    "node": "24.22.3",
+    "modules": "150",
+    "napi": "10",
+    "sharp": "0.35.5",
+    "libvips": "8.18.7"
+  },
+  "cleanInstall": {
+    "exitCode": 0,
+    "rootPackages": 1929,
+    "includesElectronDownloadNativeBuildVerificationAndDLL": true
+  },
+  "unit": {
+    "passed": 244,
+    "failed": 0,
+    "skipped": 0,
+    "concurrency": 4,
+    "consecutivePasses": 1,
+    "priorUnboundedV8FailureObserved": true,
+    "standaloneProfileRepeatPasses": 5,
+    "previousPassed": 243,
+    "previousConsecutivePasses": 2
+  },
+  "electron": {
+    "initialPassed": 15,
+    "initialFailed": 1,
+    "initialFailure": "container-singleton-socket-denied",
+    "explicitSingletonShimRerunPassed": 1,
+    "skipped": 0
+  },
+  "development": {
+    "ready": true,
+    "preloadBridge": true,
+    "rendererErrors": 0,
+    "explicitCommonJSBootstrap": true,
+    "containerLoopbackAndSingletonShims": true
+  },
+  "packageChecks": {
+    "generation": {
+      "ready": true,
+      "checks": [
+        "one Generate click saves input and sends exactly one V5 request without a confirmation checkbox",
+        "actual Electron session transport accepts unknown MIME ZIP, worker persists original alpha/metadata PNG, renderer decodes it",
+        "29-step preparation and explicit cancel send0 additional requests and unlock settings",
+        "in-flight cancel reports possible server processing, preserves input and prior PNG, no automatic retry",
+        "23/28 steps remain single-click; 29-step confirmation double-click sends exactly one approved request",
+        "post-response storage fault retains result; explicit new-project save preserves original lock/PNG and adds the received PNG without a fourth request",
+        "mixed23/29-step queue displays the Anlas warning in its existing confirmation and cancel sends0",
+        "first response diagnostic contains only sanitized MIME/state/status/version in private profile",
+        "390px layout probe (test-only window minimum override) has no horizontal overflow"
+      ],
+      "loopbackRequests": 3,
+      "actualAccountRequests": 0,
+      "externalRequests": [],
+      "rendererErrors": [],
+      "nativeQuitObserved": true,
+      "package": {
+        "isPackaged": true,
+        "archiveUnchanged": true
+      }
+    },
+    "projects": {
+      "ready": true,
+      "externalRequests": [],
+      "rendererErrors": [],
+      "nativeQuitObserved": true,
+      "projectUI": {
+        "checks": [
+          "explicit UI save preserves the edited selected scene through worker IPC",
+          "new/open dirty guard cancels without losing input and explicit discard restores saved input",
+          "busy save keeps the current input and explicit new copy leaves the original lock untouched",
+          "actual native close waits for unsaved decision; cancel retains the live window",
+          "visible history recovery creates a new copy while the corrupt source stays byte-identical",
+          "390px controls and dialogs stay within the window width"
+        ]
+      },
+      "package": {
+        "isPackaged": true,
+        "archiveUnchanged": true
+      }
+    },
+    "worker": {
+      "ready": true,
+      "externalRequests": [],
+      "rendererErrors": [],
+      "nativeQuitObserved": true,
+      "resilience": {
+        "checks": [
+          "terminated real worker returns stopped error; failed close-save keeps window and original manifest",
+          "explicit storage restart keeps input and never replays failed save",
+          "new explicit save after restart succeeds through replacement worker"
+        ]
+      },
+      "package": {
+        "isPackaged": true,
+        "archiveUnchanged": true
+      }
+    },
+    "auth": {
+      "ready": true,
+      "externalRequests": [],
+      "rendererErrors": [],
+      "authUI": {
+        "checks": [
+          "new API token does not claim V3 login or prompt a password login",
+          "paste trimming is disclosed; token is cleared from input and never written in session mode",
+          "local readability check succeeds without claiming server authentication",
+          "cancelling deletion preserves session token",
+          "future-version file is preserved by read and session-mode replacement; recovery guidance is visible",
+          "only confirmed deletion removes unsupported ciphertext",
+          "invalid input is rejected before storage",
+          "390px modal has no horizontal overflow",
+          "close clears unsaved input; modal traps focus and Escape restores the opener",
+          "legacy V3 login clearly discloses password use and plaintext token storage"
+        ]
+      },
+      "package": {
+        "isPackaged": true,
+        "archiveUnchanged": true
+      }
+    },
+    "networkRestart": {
+      "checks": [
+        "environment-free launch preserves saved offline choice and settings are editable",
+        "future network settings require confirmed settings-only reset",
+        "saving online does not unlock current offline IPC or requests",
+        "cancelled restart leaves the process and running mode unchanged",
+        "V3 save failure blocks relaunch without discarding the selected next mode",
+        "stopped and cleared asynchronous V3 run blocks restart until its promise completes",
+        "native relaunch requested only after V3 fixture save",
+        "actual native child reads saved online mode without a mode environment variable",
+        "token input and local check work after restart, with no authentication/generation request",
+        "native relaunch requested only after V3 fixture save",
+        "second native restart restores offline auth and all five dangerous IPC guards",
+        "V3 fixture survives both native restarts"
+      ],
+      "relaunchCalls": 2,
+      "externalRequests": [],
+      "rendererErrors": [],
+      "done": true,
+      "distinctProcessCount": 3,
+      "archiveUnchanged": true
+    }
+  },
+  "runtimeUI": {
+    "electron": "45.4.1",
+    "node": "24.22.3",
+    "clipboardPNG": true,
+    "sharpPNG": true,
+    "sharp": "0.35.5",
+    "libvips": "8.18.7",
+    "consoleDetails": true,
+    "isPackaged": true,
+    "bytes": 91
+  },
+  "notices": {
+    "packages": 215,
+    "verifiedCopies": 219,
+    "bundleOccurrences": 143,
+    "copiedRuntimeMetadata": 74,
+    "unresolvedNoticeFiles": 8,
+    "completeRedistributionReview": false
+  },
+  "standaloneAudit": {
+    "reportedVulnerabilities": 0,
+    "dependencies": 31
+  },
+  "wholeRepositoryTypecheck": {
+    "ok": false,
+    "code": "TS2688",
+    "library": "libsodium-wrappers",
+    "preExisting": true
+  },
+  "actualAccountRequests": 0,
+  "windowsLocallyExecuted": false,
+  "macOSLocallyExecuted": false,
+  "windowsCI": {
+    "initialRun": 45343250393,
+    "cleanInstallAndNativeRuntimePassed": true,
+    "developmentEntryPassed": true,
+    "visualStudio": "2026 Enterprise 18.12.12405.243",
+    "pythonSelectedByGyp": "3.15.2",
+    "initialUnit": {
+      "passed": 238,
+      "failed": 5
+    },
+    "platformFixtureFixesApplied": true,
+    "fullPipelineResultPending": false,
+    "finalRun": 45344459034,
+    "testedCodeCommit": "0afe0c6cb3888a8e131a067b0d919c91459d025f",
+    "conclusion": "success",
+    "unitPassed": 244,
+    "productionAndDirectoryPackagePassed": true,
+    "notices": {
+      "packages": 214,
+      "copiesVerified": 217,
+      "bundleOccurrences": 143,
+      "runtimeMetadata": 73,
+      "unresolved": 7
+    }
+  },
+  "packageChecker": {
+    "actualASARFixture": true,
+    "nativeAndWindowsListingShapes": true,
+    "runtimePackagesInFixture": 3,
+    "unindexedRuntimeRejected": true,
+    "zeroRuntimeInspectionRejected": true
+  },
+  "linuxCI": {
+    "run": 45344459034,
+    "testedCodeCommit": "0afe0c6cb3888a8e131a067b0d919c91459d025f",
+    "conclusion": "success",
+    "unitPassed": 244
+  }
+}
