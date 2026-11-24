@@ -53,3 +53,7 @@ Linux sharp는 upstream이 문서화한 Electron/전역 GLib 충돌 경고와 GL
 - [Electron rebuild](https://github.com/electron/rebuild), [node-gyp Windows 안내](https://github.com/nodejs/node-gyp#on-windows)
 - [npm 설치 스크립트 정책](https://docs.npmjs.com/cli/v11/commands/npm-install-scripts/)
 - [sharp 설치/ASAR/GLib 한계](https://sharp.pixelplumbing.com/install/)
+
+## PR29 검토 반영
+
+소스 폴더를 새로 받아도 기본 사용자 프로필을 공유하므로 전체 프로필 백업·별도 개발 프로필 기동·다운그레이드 시 백업 복원을 [설치 안내](DEVELOPMENT.md)에 명시했다. Electron46은 비동기 safeStorage/이전 암호문 회귀 전까지 설치 gate로 차단한다. npm12를 설치했다면11.21.3으로 복귀한다. 빈 이미지 복사 거부와 기존 클립보드 보존도 확인한다. 원본 프로필/실제 키링/실계정에 대한 사용자 PC 검증을 대신하지 않는다.

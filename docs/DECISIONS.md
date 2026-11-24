@@ -448,3 +448,11 @@
 - 개발 main.ts의 native ESM 자동 해석 실패는 루트 CommonJS 부트스트랩에서 ts-node 등록 후 require하는 방식으로 고친다. production 엔트리는 유지한다. Electron 이미지 클립보드 변경과 console-message 하네스를 대응하고, 새 @img/libvips의 ASAR 경로와 고지 증거를 보존한다. 생성 바인딩·프로젝트 형식·시드/원본 PNG·암호화/프로필 정책은 바꾸지 않는다.
 - CI는 Windows/Linux clean 설치·단위·빌드·패키지 고지 검사를 구성한다. 자동 릴리스/Pages/Local AI 작업은 수동으로 분리해 이번 검증이 공개 배포를 일으키지 않게 한다. Windows 성공은 실제 실행 로그가 있어야 표시한다.
 - [설계/공식 근거](RUNTIME_MODERNIZATION.md), [실측과 한계](validation/2026-11-24-runtime-modernization.md). 실계정/키 입력/생성 실험은 이번0회이며 현대화가 정리된 다음 재개한다. Linux sharp/GLib 경고와 Windows/macOS 미검증은 숨기지 않는다.
+
+
+### D-050 검토 보완 — PR29 병합 조건과 다음 런타임 업그레이드
+
+- 2026-11-24, 검토 기준525c96a. 체크아웃 보존과 프로필 백업은 다르다. 일반 프로필 전체 백업 → 별도 개발 프로필 시험 → 일반 프로필 사용 순서로 안내한다. 새 Chromium으로 연 프로필의 옛 Electron 재사용/자동 다운그레이드는 보장하지 않으며 복원은 백업 전체로 한다. 실제 사용자 백업·다운그레이드를 실행하지 않았다.
+- [공식 safeStorage 문서](https://www.electronjs.org/docs/latest/api/safe-storage)에서 동기 API가 Electron46에서 제거 예정임을 확인했다. **Electron46+ 업그레이드는 비동기 safeStorage 전환과 기존 암호문 읽기/실패 보존 회귀 완료 전까지 차단한다.** 현재45 정확한 버전 고정과 설치 전 major/range 검사를 함께 유지하고, 자동 갱신 도입 때도 major 업그레이드를 허용하지 않는다.
+- 다음 독립 PR은 비동기 토큰 보관 전환이다. API 모델/생성 실험이나 저장 형식 변경을 섞지 않고, 비동기 대기 중 교체/삭제/잠금·기존 v1 암호문·보안 공급자 미지원·늦은 토큰 반환을 검증한다. Electron45에서 먼저 검증하고46으로 자동 올리지 않는다.
+- 이미지 복사는 빈 nativeImage일 때 고정 오류로 거부하고 기존 클립보드를 보존한다. 루트 old sharp 설치 승인과 action 태그는 이번에 유지한다. 전자는 선택 로컬 AI의 현재 설치 계약과 분리 검증 없이 바꾸지 않으며, 후자는 서명/공개 릴리스 작업을 다시 켤 때 SHA 고정한다.

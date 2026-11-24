@@ -9,3 +9,15 @@ test('the selected LTS host works with the user npm version; obsolete or unsuppo
   for (const npm of ['10.8.1', '11.20.0', '11.21.2', '12.0.0'])
     assert.throws(() => checkToolchain('26.13.1', `npm/${npm}`), /Use npm/);
 });
+
+const {
+  checkElectronUpgradePolicy,
+} = require('../../.erb/scripts/check-toolchain.cjs');
+test('Electron major upgrades require an explicit safeStorage migration decision', () => {
+  checkElectronUpgradePolicy('45.4.1');
+  for (const version of ['46.0.0', '^45.4.1', 'latest'])
+    assert.throws(
+      () => checkElectronUpgradePolicy(version),
+      /before Electron 46/,
+    );
+});

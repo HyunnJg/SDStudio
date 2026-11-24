@@ -6,8 +6,24 @@ Node **26.13.1**, npm **11.21.3**, Electron **45.4.1**로 갱신했다. 개발 �
 
 이미 실행되는 로컬 체크아웃은 그대로 보존하고 다른 폴더에 새 체크아웃을 만든다. 사용자 프로필·토큰·프로젝트·`.sdstudio-runtime`·기존 lock을 지울 필요가 없다. 새 체크아웃을 설치하는 동안 기존 앱은 닫아 둔다.
 
+### 처음 실행하기 전: 코드 폴더와 사용자 데이터는 별개
+
+체크아웃을 새 폴더에 받아도 일반 실행은 기존 `%APPDATA%\SDStudio-HyunnJg`를 쓴다. Chromium 캐시·Local Storage/IndexedDB·설정·암호화 토큰·프로젝트가 그 안에 있으므로 **Electron45로 일반 프로필을 열기 전에 앱을 모두 닫고 이 폴더 전체를 별도 위치에 백업한다.** 명시적 사용자 데이터 경로를 썼다면 그 실제 경로를 백업한다. 소스 폴더만 보존한 것은 프로필 백업이 아니다.
+
+기본 Windows 프로필을 쓰는 경우의 수동 백업 예시다. 여기서 사용자의 백업을 대신 실행하거나 확인한 것은 아니다. 복사본은 계정 자료를 포함하므로 외부에 공유하지 않는다.
+
 ```powershell
-git clone --branch work/node-electron-modernization https://github.com/HyunnJg/SDStudio.git SDStudio-modern
+$profileRoot = Join-Path $env:APPDATA 'SDStudio-HyunnJg'
+$backupRoot = Join-Path $env:LOCALAPPDATA ('SDStudio-Profile-Backup-' + [guid]::NewGuid().ToString('N'))
+if (Test-Path -LiteralPath $profileRoot) {
+    Copy-Item -LiteralPath $profileRoot -Destination $backupRoot -Recurse -ErrorAction Stop
+}
+```
+
+첫 기동 시험은 아래처럼 체크아웃 밖의 **별도 개발 프로필**로 한다. 이 프로필은 기본 오프라인이며 기존 토큰/프로젝트를 자동 복사하지 않는다. 일반 앱의 온라인 기본값은 바꾸지 않는다.
+
+```powershell
+git clone --branch main https://github.com/HyunnJg/SDStudio.git SDStudio-modern
 cd SDStudio-modern
 git submodule update --init externals/capacitor-background-mode
 node --version
@@ -15,10 +31,14 @@ npm --version
 npm ci --include=optional
 npm run verify:desktop
 npm run build
-npm start
+npm run start:isolated -- "$env:LOCALAPPDATA\SDStudio-Modern-Test"
 ```
 
-위 명령은 PR29 검토 브랜치를 직접 받는다. 병합된 뒤에는 --branch main으로 바꿔 받는다. 이전 main은 같은 런타임 구성이 아니므로 검토 중에는 브랜치를 생략하지 않는다. Node/npm 버전이 다르면 먼저 선택한 설치의 PATH를 확인한다. npm만 맞출 때는 `npm install --global npm@11.21.3 --ignore-scripts`를 사용한다. Windows에는 Python과 Visual Studio C++ 데스크톱 워크로드/Windows SDK가 필요하다. 기존 VS2026/Python 설치를 그대로 사용하고, 필요하면 해당 셸에서 `$env:npm_config_python = 'C:\실제경로\python.exe'`로 Python을 지정한다. 새 node-gyp12.2는 Windows CI에서 실제 VS2026 Enterprise/Python3.15.2 탐지·빌드에 성공했다. 사용자 Windows10/Community 설치와 실제 GUI 확인까지 대신한 것은 아니다.
+위 명령은 PR29 병합 후 main 기준이다. PR 검토 중에는 clone의 --branch를 해당 PR 브랜치로 바꾼다. 별도 프로필에서 창·저장·이미지 복사를 확인하고 일반 프로필을 백업한 뒤에만 `npm start`로 평소 데이터를 연다.
+
+**새 Electron으로 연 일반 프로필을 Electron26 체크아웃으로 다시 열지 않는다.** 되돌릴 때는 앱을 모두 닫고, 업그레이드 뒤 프로필과 새 결과를 별도로 보존한 뒤 백업 전체를 복원한다. 복원은 백업 시점으로 돌아가는 작업이며 백업 이후 편집/결과를 자동 병합하지 않는다. 새 저장 형식(v3)을 모르는 옛 앱은 해당 프로젝트를 열 수 없다는 점도 별개다. 이 앱의 E45→E26 프로필 다운그레이드는 검증하지 않았다.
+
+Node/npm 버전이 다르면 먼저 선택한 설치의 PATH를 확인한다. npm만 맞출 때는 `npm install --global npm@11.21.3 --ignore-scripts`를 사용한다. npm12 새 버전 안내만 보고 올리지 않는다. 이미 올렸다면 같은 명령으로 npm11.21.3을 다시 선택한다. Windows에는 Python과 Visual Studio C++ 데스크톱 워크로드/Windows SDK가 필요하다. 기존 VS2026/Python 설치를 그대로 사용하고, 필요하면 해당 셸에서 `$env:npm_config_python = 'C:\실제경로\python.exe'`로 Python을 지정한다. 새 node-gyp12.2는 Windows CI에서 실제 VS2026 Enterprise/Python3.15.2 탐지·빌드에 성공했다. 사용자 Windows10/Community 설치와 실제 GUI 확인까지 대신한 것은 아니다.
 
 `npm ci`의 루트 postinstall이 자식 lock 설치 → 명시적 Electron 다운로드 → Electron 헤더 대상 native 빌드 → 실제 바이너리 확인 → 개발 DLL 빌드를 순서대로 수행한다. npm11의 외부 설치 스크립트 기본 차단에 기대지 않는다. 자세한 허용 목록은 package.json의 allowScripts와 변경 문서를 참고한다. 루트 `--ignore-scripts` 설치만으로 앱이 준비됐다고 보지 않는다. 의도적으로 설치 스크립트를 생략했다면 이후 `npm run setup:desktop`을 실행한다. 재빌드만 필요하면 `npm run rebuild`다. 설치 실패와 앱 실행을 연달아 진행하지 않고 실패 단계부터 해결한다.
 

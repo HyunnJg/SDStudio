@@ -41,12 +41,38 @@ module.exports = async function runtimeUIProbe(contents, profile) {
       Buffer.from(await blob.arrayBuffer()),
     );
     assert.deepEqual(image.getSize(), { width: 2, height: 1 });
+    const before = Buffer.from(await blob.arrayBuffer());
+    const invalid = 'synthetic-runtime-invalid.png';
+    const invalidFile = path.join(profile, 'SDStudio', invalid);
+    fs.writeFileSync(invalidFile, 'synthetic non-image');
+    try {
+      for (const name of ['synthetic-runtime-missing.png', invalid]) {
+        const outcome = await contents.executeJavaScript(
+          `(async()=>{try {await window.electron.ipcRenderer.invoke('copy-image-to-clipboard', ${JSON.stringify(name)}); return 'unexpected-success';} catch (error) {return error.message.includes('IMAGE_NOT_READABLE') ? 'rejected' : 'unexpected-error';}})()`,
+        );
+        assert.equal(outcome, 'rejected');
+        const preserved = (await clipboard.read()).find((entry) =>
+          entry.types.includes('image/png'),
+        );
+        assert.ok(preserved);
+        assert.deepEqual(
+          Buffer.from(
+            await (await preserved.getType('image/png')).arrayBuffer(),
+          ),
+          before,
+        );
+      }
+    } finally {
+      fs.unlinkSync(invalidFile);
+    }
     fs.writeFileSync(
       process.env.SDSTUDIO_RUNTIME_REPORT,
       JSON.stringify({
         electron: process.versions.electron,
         node: process.versions.node,
         clipboardPNG: true,
+        missingAndCorruptRejected: true,
+        previousClipboardPreserved: true,
         sharpPNG: true,
         sharp: sharp.versions.sharp,
         libvips: sharp.versions.vips,
