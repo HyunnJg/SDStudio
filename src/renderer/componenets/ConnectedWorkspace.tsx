@@ -18,8 +18,15 @@ import type {
   GenerationQueueState,
   GenerationQueueStatus,
 } from '../../workspaceGeneration';
-import { ProjectError } from '../../workspaceProject';
-import type { ProjectClient } from '../../workspaceProject';
+import {
+  PROJECT_LIMITS,
+  ProjectError,
+  isProjectCapacityCode,
+} from '../../workspaceProject';
+import type {
+  ProjectCapacityCode,
+  ProjectClient,
+} from '../../workspaceProject';
 import {
   ProjectController,
   projectErrorMessage,
@@ -121,7 +128,30 @@ export default function ConnectedWorkspace({
   const [pending, setPending] = useState(false);
   const [storageStopped, setStorageStopped] = useState(false);
   const [active, setActive] = useState(false);
-  const [message, setMessage] = useState('');
+  const [feedback, setMessage] = useState<
+    | string
+    | { code: ProjectCapacityCode; projectId: string; inputEpoch: number }
+  >('');
+  const capacity =
+    typeof feedback === 'object' &&
+    feedback.projectId === view.id &&
+    feedback.inputEpoch === view.inputEpoch
+      ? feedback
+      : undefined;
+  const textFeedback = typeof feedback === 'string' ? feedback : '';
+  const message = capacity ? projectErrorMessage(capacity.code) : textFeedback;
+  const showGenerationFailure = (error: unknown) => {
+    const failure = error as Partial<GenerationFailure>;
+    const { id, inputEpoch } = project.getSnapshot();
+    if (
+      id &&
+      isProjectCapacityCode(failure?.code) &&
+      !failure.mayHaveReachedServer &&
+      !failure.pendingResult
+    )
+      setMessage({ code: failure.code, projectId: id, inputEpoch });
+    else setMessage(generationMessage(error, sceneNames.current));
+  };
   const images = view.imageRecords;
   const [resultTrashOpen, setResultTrashOpen] = useState(false);
   const [lastTrashedImage, setLastTrashedImage] = useState<{
@@ -406,7 +436,7 @@ export default function ConnectedWorkspace({
       setPhase('run');
       accept(unwrap(await client.run(prepared.ticket, true)));
     } catch (error) {
-      setMessage(generationMessage(error, sceneNames.current));
+      showGenerationFailure(error);
       setPending(!!(error as GenerationFailure).pendingResult);
       setStorageStopped(
         (error as GenerationFailure).projectCode === 'PROJECT_SERVICE_STOPPED',
@@ -429,7 +459,7 @@ export default function ConnectedWorkspace({
     try {
       accept(unwrap(await client.run(ticket, true)));
     } catch (error) {
-      setMessage(generationMessage(error, sceneNames.current));
+      showGenerationFailure(error);
       setPending(!!(error as GenerationFailure).pendingResult);
       setStorageStopped(
         (error as GenerationFailure).projectCode === 'PROJECT_SERVICE_STOPPED',
@@ -452,7 +482,7 @@ export default function ConnectedWorkspace({
       setStorageStopped(
         (error as GenerationFailure).projectCode === 'PROJECT_SERVICE_STOPPED',
       );
-      setMessage(generationMessage(error, sceneNames.current));
+      showGenerationFailure(error);
       setPending(!!(error as GenerationFailure).pendingResult);
     } finally {
       operation.current = false;
@@ -467,7 +497,7 @@ export default function ConnectedWorkspace({
       setQueuePlan(undefined);
       if (phase === 'confirm' || phase === 'single-confirm') setPhase('');
     } catch (error) {
-      setMessage(generationMessage(error, sceneNames.current));
+      showGenerationFailure(error);
     }
   };
   const acceptQueue = (value: GenerationQueueStatus) => {
@@ -485,7 +515,7 @@ export default function ConnectedWorkspace({
     setPending(outcome.pending);
     setStorageStopped(outcome.storageStopped);
     if (error) {
-      setMessage(generationMessage(error, sceneNames.current));
+      showGenerationFailure(error);
     } else setMessage(value.queue?.stopped ? '중지됨' : '완료');
   };
   const prepareQueue = async (remaining = false) => {
@@ -524,7 +554,7 @@ export default function ConnectedWorkspace({
       } catch {
         /* Keep the preparation error if metadata refresh fails. */
       }
-      setMessage(generationMessage(error, sceneNames.current));
+      showGenerationFailure(error);
     } finally {
       operation.current = false;
       generationEpoch.current += 1;
@@ -542,7 +572,7 @@ export default function ConnectedWorkspace({
     try {
       acceptQueue(unwrap(await client.runQueue(ticket, true)));
     } catch (error) {
-      setMessage(generationMessage(error, sceneNames.current));
+      showGenerationFailure(error);
     } finally {
       operation.current = false;
       generationEpoch.current += 1;
@@ -1419,7 +1449,13 @@ export default function ConnectedWorkspace({
             />
             <header className="connected-history-heading">
               <strong>결과</strong>
-              <span>{images.length}</span>
+              <span>
+                {images.length}
+                {view.trashedImages.length > 0 &&
+                  ` · 휴지통 ${view.trashedImages.length}`}
+                {images.length + view.trashedImages.length >=
+                  PROJECT_LIMITS.results - 10 && ` / ${PROJECT_LIMITS.results}`}
+              </span>
             </header>
             <div className="connected-sidebar-panel">
               <ConnectedImageHistory
@@ -1565,6 +1601,16 @@ export default function ConnectedWorkspace({
         <p role="status" data-testid="generation-status">
           {phase === 'run' || phase === 'queue-run' ? '' : message}
         </p>
+        {capacity && !pending && (
+          <button
+            type="button"
+            data-testid="generation-capacity-copy"
+            disabled={locked}
+            onClick={() => project.copy(true)}
+          >
+            입력만 새 프로젝트로
+          </button>
+        )}
         {(phase === 'run' || phase === 'queue-run') && (
           <button
             type="button"

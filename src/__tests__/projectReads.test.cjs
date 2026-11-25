@@ -227,7 +227,7 @@ test('metadata-only preflight retains revision, lock and image-count bounds with
   assert.equal(fs.readFileSync(lock, 'utf8'), 'synthetic');
   fs.unlinkSync(lock);
   assert.throws(() => f.core.generationSnapshot(id, f.snapshot.revision), {
-    code: 'PROJECT_LIMIT',
+    code: 'PROJECT_RESULT_LIMIT',
   });
   assert.equal(reads.files.length, 0);
 });
@@ -303,4 +303,23 @@ test('fresh connected scenes already default to random; fixed seed0 belongs to e
   const state = createConnectedWorkspaceState();
   assert.equal(state.draft.seedMode, 'random');
   assert.ok(state.scenes.every((s) => s.draft.seedMode === 'random'));
+});
+
+test('preflight reserves exactly 32 MiB, counting hidden results without PNG reads', (t) => {
+  const f = fixture(t, 8);
+  const project = structuredClone(f.snapshot.project);
+  project.version = 6;
+  project.trashedImageIds = project.images.map((image) => image.id);
+  for (const image of project.images) image.pngBytes = 28 * 1024 * 1024;
+  const writeManifest = () => {
+    fs.writeFileSync(path.join(f.folder, 'project.json'), JSON.stringify(project));
+    return f.core.readManifest(project.id).revision;
+  };
+  const reads = trace(t);
+  f.core.generationSnapshot(project.id, writeManifest());
+  project.images[0].pngBytes += 1;
+  assert.throws(() => f.core.generationSnapshot(project.id, writeManifest()), {
+    code: 'PROJECT_GENERATION_SPACE',
+  });
+  assert.equal(reads.files.length, 0);
 });

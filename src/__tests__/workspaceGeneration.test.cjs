@@ -384,7 +384,7 @@ test('history at its bound is refused by generation preflight before sending', a
       path.join(history, i.toString(16).padStart(64, '0') + '.json'),
       '{}',
     );
-  await assert.rejects(f.prepare(), { code: 'PROJECT_LIMIT' });
+  await assert.rejects(f.prepare(), { code: 'PROJECT_HISTORY_LIMIT' });
   assert.equal(f.sends, 0);
 });
 

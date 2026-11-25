@@ -472,7 +472,7 @@ export class ProjectStore {
         const revisions = this.history(id);
         projectCheck(
           revisions.includes(revision) || revisions.length < 1000,
-          'PROJECT_LIMIT',
+          'PROJECT_HISTORY_LIMIT',
         );
         const history = this.directory([id, 'history'], true);
         ProjectStore.immutable(
@@ -530,14 +530,17 @@ export class ProjectStore {
       'PROJECT_BUSY',
     );
     projectCheck(
-      snapshot.project.images.length < PROJECT_LIMITS.results &&
-        snapshot.project.images.reduce((n, i) => n + i.pngBytes, 0) +
-          referenceAssetBytes(snapshot.project) +
-          32 * 1024 * 1024 <=
-          PROJECT_LIMITS.totalPNGBytes &&
-        this.history(id).length < 1000,
-      'PROJECT_LIMIT',
+      snapshot.project.images.length < PROJECT_LIMITS.results,
+      'PROJECT_RESULT_LIMIT',
     );
+    projectCheck(
+      snapshot.project.images.reduce((n, i) => n + i.pngBytes, 0) +
+        referenceAssetBytes(snapshot.project) +
+        32 * 1024 * 1024 <=
+        PROJECT_LIMITS.totalPNGBytes,
+      'PROJECT_GENERATION_SPACE',
+    );
+    projectCheck(this.history(id).length < 1000, 'PROJECT_HISTORY_LIMIT');
     if (value !== undefined) {
       const input = validateImageInput(value);
       if (input.draft.reference) this.referenceBytes(id, input.draft.reference);

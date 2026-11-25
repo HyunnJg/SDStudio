@@ -16,12 +16,16 @@ const generationReferenceMode = process.argv[3] === 'generation-reference';
 const generationCharacterMode = process.argv[3] === 'generation-characters';
 const generationErrorMode = process.argv[3] === 'generation-errors';
 const generationQueueMode = process.argv[3] === 'generation-queue';
-const generationMode =
-  process.argv[3] === 'generation' ||
-  generationQueueMode ||
-  generationErrorMode ||
-  generationCharacterMode ||
-  generationReferenceMode || generationTrashMode;
+const generationCases = new Map([
+  ['generation', { requests: 3, checks: 21 }],
+  ['generation-queue', { requests: 13, checks: 9 }],
+  ['generation-errors', { requests: 4, checks: 8 }],
+  ['generation-characters', { requests: 3, checks: 8 }],
+  ['generation-reference', { requests: 3, checks: 6 }],
+  ['generation-trash', { requests: 2, checks: 8 }],
+]);
+const generationCase = generationCases.get(process.argv[3]);
+const generationMode = !!generationCase;
 const projectMode = process.argv[3] === 'projects';
 const authMode = process.argv[3] === 'auth';
 const mock = [
@@ -206,16 +210,8 @@ child.on('exit', (code) => {
     (authMode && !data.authUI) ||
     (generationMode &&
       (!data.nativeQuitObserved ||
-        data.loopbackRequests !==
-          (generationErrorMode ? 4 : generationQueueMode ? 13 : 3) ||
-        data.checks?.length !==
-          (generationReferenceMode ? 6 : generationCharacterMode
-            ? 8
-            : generationErrorMode
-              ? 8
-              : generationQueueMode
-                ? 9
-                : 21))) ||
+        data.loopbackRequests !== generationCase.requests ||
+        data.checks?.length !== generationCase.checks)) ||
     !setupInfo?.isPackaged ||
     !data.packageContext.archiveUnchanged ||
     data.externalRequests.length ||

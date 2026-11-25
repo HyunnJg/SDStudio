@@ -16,7 +16,21 @@ export const PROJECT_LIMITS = {
   results: 120,
   totalPNGBytes: 256 * 1024 * 1024,
 } as const;
+export type ProjectCapacityCode =
+  'PROJECT_RESULT_LIMIT' | 'PROJECT_GENERATION_SPACE' | 'PROJECT_HISTORY_LIMIT';
+
+export function isProjectCapacityCode(
+  code: unknown,
+): code is ProjectCapacityCode {
+  return (
+    code === 'PROJECT_RESULT_LIMIT' ||
+    code === 'PROJECT_GENERATION_SPACE' ||
+    code === 'PROJECT_HISTORY_LIMIT'
+  );
+}
+
 export type ProjectErrorCode =
+  | ProjectCapacityCode
   | 'PROJECT_INPUT'
   | 'PROJECT_VERSION'
   | 'PROJECT_CORRUPT'
