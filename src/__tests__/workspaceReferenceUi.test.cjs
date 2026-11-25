@@ -1,0 +1,52 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const React = require('react');
+const { act, create } = require('react-test-renderer');
+const Reference = require('../renderer/componenets/ConnectedReference').default;
+const Library = require('../renderer/componenets/PromptLibrary').default;
+const { createConnectedWorkspaceState } = require('../renderer/generation/connectedDraft');
+const tick = () => new Promise((resolve) => setImmediate(resolve));
+const reference = { id: '11111111-1111-4111-8111-111111111111', uploadHash: 'a'.repeat(64), sourceHash: 'b'.repeat(64), sourceBytes: 80, uploadBytes: 90, width: 832, height: 1216, role: 'character', strength: 1, preferSameOutfit: true };
+async function panel(t, extra = {}) {
+  const changes = [], files = [];
+  const props = { reference, projectId: '11111111-1111-4111-8111-111111111111', sceneId: 'scene-1', family: 'v5', locked: false, preview: undefined,
+    client: { referenceImage: async () => ({ ok: false, code: 'PROJECT_CORRUPT' }) }, onChange: (r) => changes.push(r), onFile: async (f) => files.push(f), ...extra };
+  let renderer;
+  await act(async () => { renderer = create(React.createElement(Reference, props)); await tick(); });
+  t.after(() => act(() => renderer.unmount()));
+  return { renderer, changes, files };
+}
+test('reference panel exposes separate local PNG selection, cost, current role/strength and missing-file notice', async (t) => {
+  const f = await panel(t), text = JSON.stringify(f.renderer.toJSON());
+  assert.ok(text.includes('5 Anlas')); assert.ok(text.includes('프롬프트·설정 가져오기와 별개'));
+  assert.ok(text.includes('참조 없이 자동 생성하지 않습니다'));
+  assert.equal(f.renderer.root.findByProps({ 'data-testid': 'choose-reference' }).props.disabled, false);
+});
+test('switching to style clears the outfit-only toggle, strength and remove are explicit draft changes', async (t) => {
+  const f = await panel(t);
+  act(() => f.renderer.root.findByProps({ 'data-testid': 'reference-role' }).props.onChange({ target: { value: 'style' } }));
+  assert.equal(f.changes[0].preferSameOutfit, false); assert.equal(f.changes[0].id, reference.id);
+  act(() => f.renderer.root.findByProps({ 'data-testid': 'reference-strength' }).props.onChange({ target: { value: '4.2' } }));
+  assert.equal(f.changes[1].strength, 4.2);
+  act(() => f.renderer.root.findByProps({ 'data-testid': 'remove-reference' }).props.onClick());
+  assert.equal(f.changes[2], undefined); assert.equal(f.files.length, 0);
+});
+test('V4.5 preserves the reference and offers removal instead of silently dropping it; busy selection/drop does nothing', async (t) => {
+  const f = await panel(t, { family: 'v4.5', locked: true });
+  assert.equal(f.renderer.root.findByProps({ 'data-testid': 'choose-reference' }).props.disabled, true);
+  let prevented = 0;
+  act(() => f.renderer.root.findByProps({ 'data-testid': 'reference-panel' }).props.onDrop({ preventDefault: () => prevented++, stopPropagation: () => prevented++, dataTransfer: { files: [{}] } }));
+  assert.equal(f.files.length, 0); assert.equal(prevented, 2); assert.equal(f.changes.length, 0);
+});
+test('legacy mixed import shows valid candidates and skipped count instead of losing the whole file', async (t) => {
+  const draft = createConnectedWorkspaceState().draft;
+  let renderer;
+  await act(async () => { renderer = create(React.createElement(Library, { client: { read: async () => ({ ok: true, value: { revision: 'a'.repeat(64), entries: [] } }) }, draft, kind: 'main', locked: false, onApply() {}, onClose() {}, onGuard() {}, onLegacy() {} }), { createNodeMock: () => ({ showModal() {} }) }); await tick(); });
+  t.after(() => act(() => renderer.unmount()));
+  const valid = { name: 'Synthetic import', frontPrompt: '<hair>, {red|blue}', backPrompt: '', uc: '' };
+  const encoded = Buffer.from(JSON.stringify({ presets: { SDImageGen: [valid, { ...valid, name: '' }] } }));
+  await act(async () => { renderer.root.findByProps({ 'aria-label': '기존 V3 세션 JSON' }).props.onChange({ target: { files: [{ size: encoded.length, arrayBuffer: async () => encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength) }], value: '' } }); await tick(); });
+  const text = JSON.stringify(renderer.toJSON());
+  assert.ok(text.includes('1개는 이름·길이·텍스트 형식 문제로 제외')); assert.ok(text.includes('Synthetic import'));
+  assert.ok(text.includes('V3 조각·선택 문법은 새 작업실에서 아직 지원하지 않습니다'));
+});

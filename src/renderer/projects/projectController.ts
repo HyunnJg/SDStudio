@@ -208,7 +208,7 @@ export class ProjectController {
               this.state.revision!,
               content,
             )
-          : await this.client().create(content);
+          : await this.client().create(content, this.state.id);
       this.bind(unwrap(result), baseline);
       this.update({
         message: inputOnly

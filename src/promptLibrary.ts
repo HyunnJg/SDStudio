@@ -189,7 +189,10 @@ export function applyPromptPreset(
 }
 
 // Explicit, local legacy JSON import. Only known text fields are read; no paths or old workflows run.
-export function legacyPresetCandidates(value: unknown): PresetContent[] {
+export function inspectLegacyPresets(value: unknown): {
+  candidates: PresetContent[];
+  skipped: number;
+} {
   libraryCheck(value && typeof value === 'object' && !Array.isArray(value));
   const root = value as {
     presets?: Record<string, unknown>;
@@ -201,20 +204,36 @@ export function legacyPresetCandidates(value: unknown): PresetContent[] {
       !Array.isArray(root.presets),
   );
   const candidates: PresetContent[] = [];
+  let skipped = 0;
+  const add = (item: PresetContent) => {
+    try {
+      validatePreset(item);
+    } catch {
+      skipped += 1;
+      return;
+    }
+    candidates.push(item);
+    libraryCheck(candidates.length <= LIBRARY_LIMITS.entries, 'LIBRARY_LIMIT');
+  };
   const { presets } = root;
   ['SDImageGen', 'SDImageGenEasy'].forEach((kind) => {
     const entries = presets[kind];
     if (!Array.isArray(entries)) return;
     libraryCheck(entries.length <= LIBRARY_LIMITS.entries, 'LIBRARY_LIMIT');
     entries.forEach((candidate) => {
-      if (!candidate || typeof candidate !== 'object') return;
+      if (!candidate || typeof candidate !== 'object') {
+        skipped += 1;
+        return;
+      }
       const p = candidate as Record<string, unknown>;
       if (
         ![p.name, p.frontPrompt, p.backPrompt, p.uc].every(
           (v) => typeof v === 'string',
         )
-      )
+      ) {
+        skipped += 1;
         return;
+      }
       const item: PresetContent = {
         kind: 'main',
         name: p.name as string,
@@ -225,8 +244,7 @@ export function legacyPresetCandidates(value: unknown): PresetContent[] {
         qualityTags: 'none',
         ucPreset: 'none',
       };
-      validatePreset(item);
-      candidates.push(item);
+      add(item);
       libraryCheck(
         candidates.length <= LIBRARY_LIMITS.entries,
         'LIBRARY_LIMIT',
@@ -246,8 +264,7 @@ export function legacyPresetCandidates(value: unknown): PresetContent[] {
         prompt: source.characterPrompt,
         negativePrompt: '',
       };
-      validatePreset(p);
-      candidates.push(p);
+      add(p);
     }
     if (
       typeof source.backgroundPrompt === 'string' &&
@@ -262,10 +279,15 @@ export function legacyPresetCandidates(value: unknown): PresetContent[] {
         qualityTags: 'none',
         ucPreset: 'none',
       };
-      validatePreset(p);
-      candidates.push(p);
+      add(p);
     }
     libraryCheck(candidates.length <= LIBRARY_LIMITS.entries, 'LIBRARY_LIMIT');
   }
-  return candidates;
+  return { candidates, skipped };
+}
+export function legacyPresetCandidates(value: unknown): PresetContent[] {
+  return inspectLegacyPresets(value).candidates;
+}
+export function hasLegacyPromptSyntax(p: PresetContent): boolean {
+  return [p.prompt, p.negativePrompt].some((text) => /<[^>]+>|\|/.test(text));
 }

@@ -1,4 +1,4 @@
-/* eslint import/prefer-default-export: off, max-classes-per-file: off */
+/* eslint import/prefer-default-export: off, max-classes-per-file: off, no-await-in-loop: off -- Approved queue jobs are bound serially within the memory limit. */
 import { randomUUID, createHash } from 'crypto';
 import { isDeepStrictEqual } from 'util';
 import { ProjectError, projectId, projectHash } from '../../workspaceProject';
@@ -12,6 +12,8 @@ import type {
   GenerationQueueStatus,
   GenerationFailure,
 } from '../../workspaceGeneration';
+import type { WorkspaceScene } from '../../renderer/preview/workspaceDraft';
+import type { ReferenceAsset } from '../../workspaceReference';
 import type { ProjectService } from '../projects/projectService';
 import { NaiError } from './errors';
 import { bindBasicGeneration } from './workspaceBinding';
@@ -62,7 +64,13 @@ interface Options {
   store: Pick<
     ProjectService,
     'readManifest' | 'image' | 'addPNG' | 'generationSnapshot' | 'create'
-  >;
+  > &
+    Partial<
+      Pick<
+        ProjectService,
+        'importReference' | 'referenceBytes' | 'referenceImage'
+      >
+    >;
   offline: () => boolean;
   sendImage: (bytes: Uint8Array, signal: AbortSignal) => Promise<Uint8Array>;
 }
@@ -108,6 +116,69 @@ export class WorkspaceGeneration {
     if (this.hasWork()) throw new GenerationError('GENERATION_BUSY');
   }
 
+  async importReference(
+    id: string,
+    revision: string,
+    png: Uint8Array,
+  ): Promise<{ asset: ReferenceAsset; preview: Uint8Array }> {
+    this.idle();
+    if (!this.options.store.importReference)
+      throw new GenerationError('INVALID_INPUT');
+    this.prepared = undefined;
+    this.queueApproval = undefined;
+    this.working = true;
+    try {
+      const asset = await this.options.store.importReference(id, revision, png);
+      if (!this.options.store.referenceBytes)
+        throw new GenerationError('INVALID_INPUT');
+      const preview = await this.options.store.referenceBytes(id, {
+        ...asset,
+        role: 'character',
+        strength: 1,
+        preferSameOutfit: false,
+      });
+      return { asset, preview };
+    } finally {
+      this.working = false;
+    }
+  }
+
+  async referenceImage(id: string, sceneId: string): Promise<Uint8Array> {
+    if (!this.options.store.referenceImage)
+      throw new GenerationError('INVALID_INPUT');
+    return this.options.store.referenceImage(id, sceneId);
+  }
+
+  private async bind(id: string, scene: WorkspaceScene) {
+    let bytes: Uint8Array | undefined;
+    if (scene.draft.reference) {
+      if (scene.draft.family !== 'v5')
+        throw new GenerationError('UNSUPPORTED_DRAFT');
+      if (!this.options.store.referenceBytes)
+        throw new GenerationError('INVALID_INPUT');
+      bytes = await this.options.store.referenceBytes(
+        id,
+        scene.draft.reference,
+      );
+    }
+    return bindBasicGeneration(scene, undefined, bytes);
+  }
+
+  private static referenceSettings(scene: WorkspaceScene) {
+    const r = scene.draft.reference;
+    return r
+      ? {
+          reference: {
+            id: r.id,
+            uploadHash: r.uploadHash,
+            role: r.role,
+            strength: r.strength,
+            preferSameOutfit: r.preferSameOutfit,
+          },
+        }
+      : {};
+  }
+
   async prepare(
     id: string,
     revision: string,
@@ -132,8 +203,10 @@ export class WorkspaceGeneration {
       if (!scene) throw new ProjectError('PROJECT_INPUT');
       let bound;
       try {
-        bound = bindBasicGeneration(scene);
+        bound = await this.bind(id, scene);
       } catch (error) {
+        if (error instanceof ProjectError || error instanceof GenerationError)
+          throw error;
         throw new GenerationError(
           error instanceof Error && error.message === 'INVALID_INPUT'
             ? 'INVALID_INPUT'
@@ -142,6 +215,8 @@ export class WorkspaceGeneration {
       }
       const { request, input } = bound;
       const body = Uint8Array.from(Buffer.from(JSON.stringify(request)));
+      if (body.byteLength > 4 * 1024 * 1024)
+        throw new GenerationError('QUEUE_LIMIT');
       input.binding = {
         id: bound.bindingId,
         requestHash: createHash('sha256').update(body).digest('hex'),
@@ -156,6 +231,7 @@ export class WorkspaceGeneration {
         steps: request.parameters.steps,
         scale: request.parameters.scale,
         ...(bound.characterCount ? { characters: bound.characterCount } : {}),
+        ...WorkspaceGeneration.referenceSettings(scene),
         samples: 1,
       };
       this.prepared = {
@@ -313,10 +389,13 @@ export class WorkspaceGeneration {
     this.working = true;
     try {
       if (asNewProject === true) {
-        const next = await this.options.store.create({
-          ...this.pending.content,
-          name: `${this.pending.content.name.slice(0, 105)} (이번 결과)`,
-        });
+        const next = await this.options.store.create(
+          {
+            ...this.pending.content,
+            name: `${this.pending.content.name.slice(0, 105)} (이번 결과)`,
+          },
+          this.pending.id,
+        );
         this.pending.id = next.project.id;
         this.pending.revision = next.revision;
         return await this.persist(next.revision);
@@ -492,8 +571,13 @@ export class WorkspaceGeneration {
           const scene = scenes[sceneIndex];
           let bound;
           try {
-            bound = bindBasicGeneration(scene);
+            bound = await this.bind(id, scene);
           } catch (error) {
+            if (
+              error instanceof ProjectError ||
+              error instanceof GenerationError
+            )
+              throw error;
             throw new GenerationError(
               error instanceof Error && error.message === 'INVALID_INPUT'
                 ? 'INVALID_INPUT'
@@ -510,6 +594,8 @@ export class WorkspaceGeneration {
           const body = Uint8Array.from(
             Buffer.from(JSON.stringify(bound.request)),
           );
+          if (body.byteLength > 4 * 1024 * 1024)
+            throw new GenerationError('QUEUE_LIMIT');
           bodyBytes += body.byteLength;
           if (bodyBytes > 8 * 1024 * 1024)
             throw new GenerationError('QUEUE_LIMIT');
@@ -534,6 +620,7 @@ export class WorkspaceGeneration {
               ...(bound.characterCount
                 ? { characters: bound.characterCount }
                 : {}),
+              ...WorkspaceGeneration.referenceSettings(scene),
               samples: 1 as const,
             },
           };
@@ -541,6 +628,7 @@ export class WorkspaceGeneration {
           items.push({
             id: task.plan.ticket,
             settings: {
+              ...WorkspaceGeneration.referenceSettings(scene),
               model: task.plan.model,
               width: task.plan.width,
               height: task.plan.height,

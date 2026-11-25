@@ -15,7 +15,9 @@ export function registerGeneration(
       async (event, ...args): Promise<GenerationReply<unknown>> => {
         try {
           if (!trusted(event)) throw new GenerationError('UNTRUSTED_SENDER');
-          return { ok: true, value: await action(...args) };
+          const value = await action(...args);
+          if (!trusted(event)) throw new GenerationError('UNTRUSTED_SENDER');
+          return { ok: true, value };
         } catch (error) {
           if (error instanceof GenerationError)
             return {
@@ -40,6 +42,12 @@ export function registerGeneration(
       },
     );
   };
+  handle('workspace-generation-import-reference', (id, revision, png) =>
+    service.importReference(id, revision, png),
+  );
+  handle('workspace-generation-reference-image', (id, sceneId) =>
+    service.referenceImage(id, sceneId),
+  );
   handle('workspace-generation-status', () => service.status());
   handle('workspace-generation-prepare', (id, revision, sceneId) =>
     service.prepare(id, revision, sceneId),

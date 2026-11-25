@@ -38,7 +38,9 @@ export function registerProjects(
     return store.restartStorage();
   });
   handle('workspace-project-list', () => store.list());
-  handle('workspace-project-create', (content) => store.create(content));
+  handle('workspace-project-create', (content, referenceSourceId) =>
+    store.create(content, referenceSourceId),
+  );
   handle('workspace-project-open', (id) => store.open(id));
   handle('workspace-project-save', (id, revision, content) =>
     store.save(id, revision, content),

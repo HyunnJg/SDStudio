@@ -5,12 +5,13 @@ const { spawn } = require('node:child_process');
 const WebSocket = require('ws');
 if (!process.argv[2])
   throw Error(
-    'Usage: npm run smoke:package -- /absolute/linux-unpacked [real|auth|projects|worker|crash|unresponsive|generation|generation-queue|generation-errors|generation-characters]',
+    'Usage: npm run smoke:package -- /absolute/linux-unpacked [real|auth|projects|worker|crash|unresponsive|generation|generation-queue|generation-errors|generation-characters|generation-reference]',
   );
 const directory = fs.realpathSync(process.argv[2]);
 const resilience = ['worker', 'crash', 'unresponsive'].includes(process.argv[3])
   ? process.argv[3]
   : '';
+const generationReferenceMode = process.argv[3] === 'generation-reference';
 const generationCharacterMode = process.argv[3] === 'generation-characters';
 const generationErrorMode = process.argv[3] === 'generation-errors';
 const generationQueueMode = process.argv[3] === 'generation-queue';
@@ -18,7 +19,8 @@ const generationMode =
   process.argv[3] === 'generation' ||
   generationQueueMode ||
   generationErrorMode ||
-  generationCharacterMode;
+  generationCharacterMode ||
+  generationReferenceMode;
 const projectMode = process.argv[3] === 'projects';
 const authMode = process.argv[3] === 'auth';
 const mock = [
@@ -28,10 +30,12 @@ const mock = [
   'generation-queue',
   'generation-errors',
   'generation-characters',
+  'generation-reference',
 ].includes(process.argv[3])
   ? '0'
   : '1';
-if (process.platform !== 'linux' || !process.env.DISPLAY)
+const headless = process.env.SDSTUDIO_SMOKE_HEADLESS === '1';
+if (process.platform !== 'linux' || (!headless && !process.env.DISPLAY))
   throw Error('Packaged smoke requires a Linux X11 DISPLAY');
 const archive = path.join(directory, 'resources/app.asar');
 const crypto = require('node:crypto');
@@ -58,8 +62,9 @@ const childEnv = {
   SDSTUDIO_SMOKE_AUTH_UI: authMode ? '1' : '0',
   SDSTUDIO_SMOKE_PROJECTS: projectMode ? '1' : '0',
   SDSTUDIO_PROJECT_UI_PHASE: 'create',
+  SDSTUDIO_REFERENCE_SMOKE: generationReferenceMode ? '1' : '0',
   SDSTUDIO_CHARACTER_SMOKE: generationCharacterMode ? '1' : '0',
-  SDSTUDIO_GENERATION_PHASE: generationCharacterMode
+  SDSTUDIO_GENERATION_PHASE: generationReferenceMode ? 'reference' : generationCharacterMode
     ? 'characters'
     : generationErrorMode
       ? 'queue-errors'
@@ -73,7 +78,8 @@ const child = spawn(
   path.join(directory, require('../../package.json').build.executableName),
   [
     '--inspect-brk=127.0.0.1:0',
-    '--ozone-platform=x11',
+    `--ozone-platform=${headless ? 'headless' : 'x11'}`,
+    ...(process.env.SDSTUDIO_SMOKE_NO_SANDBOX === '1' ? ['--no-sandbox'] : []),
     '--disable-gpu',
     ...(authMode ? ['--password-store=basic'] : []),
   ],
@@ -200,7 +206,7 @@ child.on('exit', (code) => {
         data.loopbackRequests !==
           (generationErrorMode ? 4 : generationQueueMode ? 13 : 3) ||
         data.checks?.length !==
-          (generationCharacterMode
+          (generationReferenceMode ? 6 : generationCharacterMode
             ? 8
             : generationErrorMode
               ? 8

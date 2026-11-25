@@ -77,6 +77,15 @@ const server = http.createServer(async (request, response) => {
   assert.equal(parsed.parameters.width, 832);
   assert.equal(parsed.parameters.height, 1216);
   assert.equal(parsed.parameters.n_samples, 1);
+  if (phase === 'reference') {
+    assert.equal(parsed.parameters.director_reference_images.length, 1);
+    assert.equal(parsed.parameters.director_reference_descriptions[0].caption.base_caption, 'style');
+    assert.deepEqual(parsed.parameters.director_reference_strength_values, [2.5]);
+    assert.deepEqual(parsed.parameters.director_reference_secondary_strength_values, [0]);
+    if (number === 3) fs.writeFileSync(lock, 'synthetic interrupted reference save');
+    response.writeHead(200, { 'Content-Type': 'binary/octet-stream' });
+    response.end(await payload); return;
+  }
   if (phase === 'characters') {
     assert.equal(parsed.input, '');
     assert.equal(parsed.parameters.v4_prompt.caption.base_caption, '');
@@ -220,7 +229,10 @@ app.on('web-contents-created', (_event, contents) => {
       await require('./workspace-layout-probe.cjs').checkEditor({ contents, evaluate, click, fill, until, checks });
       if (process.env.SDSTUDIO_RUNTIME_REPORT && phase === 'create')
         await require('./runtime-ui-probe.cjs')(contents, profile);
-      if (phase === 'queue-errors') {
+      if (phase === 'reference') {
+        await require('./reference-ui-probe.cjs')({ contents, evaluate, click, fill, until, checks, requestCount: () => requests,
+          setLock: (id) => { lock = path.join(profile, 'projects-v1', id, 'write.lock'); } });
+      } else if (phase === 'queue-errors') {
         const set = await evaluate(
           "window.electron.naiAuth.setToken('synthetic-never-a-real-token',false)",
         );
@@ -975,6 +987,12 @@ app.on('web-contents-created', (_event, contents) => {
           `window.electron.projects.open('${restored.id}')`,
         );
         assert.equal(data.value.project.images.length, 1);
+        if (process.env.SDSTUDIO_REFERENCE_SMOKE === '1') {
+          assert.equal(data.value.project.version, 5);
+          assert.equal(data.value.project.images[0].binding.id, 'nai-v5-reference-v1');
+          await until(() => evaluate("document.querySelector('[data-testid=reference-panel] img')?.naturalWidth>0"));
+          checks.push('new PID reopens the v5 result and the persisted reference preview without a generation request');
+        }
         if (process.env.SDSTUDIO_CHARACTER_SMOKE === '1') {
           assert.equal(data.value.project.version, 4);
           assert.equal(

@@ -13,7 +13,8 @@ import type {
 import {
   applyPromptPreset,
   presetFromDraft,
-  legacyPresetCandidates,
+  inspectLegacyPresets,
+  hasLegacyPromptSyntax,
   LIBRARY_LIMITS,
   LibraryError,
 } from '../../promptLibrary';
@@ -221,16 +222,20 @@ export default function PromptLibrary({
       if (!alive.current) return;
       if (bytes.byteLength > LIBRARY_LIMITS.bytes)
         throw new LibraryError('LIBRARY_LIMIT');
-      const values = legacyPresetCandidates(
+      const imported = inspectLegacyPresets(
         JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)),
       );
+      const values = imported.candidates;
       setCandidates(
         values.map((content) => ({ id: crypto.randomUUID(), content })),
       );
       setMessage(
-        values.length
-          ? '가져올 후보를 선택한 뒤 이름·텍스트를 확인하고 저장하세요. 원본 파일은 바꾸지 않습니다.'
-          : '지원하는 V3 SDImageGen/SDImageGenEasy 프리셋을 찾지 못했습니다.',
+        (imported.skipped
+          ? `${imported.skipped}개는 이름·길이·텍스트 형식 문제로 제외했습니다. `
+          : '') +
+          (values.length
+            ? '가져올 후보를 선택한 뒤 이름·텍스트를 확인하고 저장하세요. 원본 파일은 바꾸지 않습니다.'
+            : '지원하는 V3 SDImageGen/SDImageGenEasy 프리셋을 찾지 못했습니다.'),
       );
     } catch (error) {
       if (alive.current)
@@ -697,6 +702,13 @@ export default function PromptLibrary({
             onClick={() => leave(() => openEditor(p))}
           >
             {p.name} · 초안 열기
+            {hasLegacyPromptSyntax(p) && (
+              <small>
+                {' '}
+                · V3 조각·선택 문법은 새 작업실에서 아직 지원하지 않습니다. 적용
+                전 수정하세요.
+              </small>
+            )}
           </button>
         ))}
         <p>

@@ -54,9 +54,12 @@ export type Channels =
 const electronHandler = {
   promptLibrary: {
     read: () => ipcRenderer.invoke('prompt-library-read'),
-    save: (revision, content, id) => ipcRenderer.invoke('prompt-library-save', revision, content, id),
-    setDeleted: (revision, id, deleted) => ipcRenderer.invoke('prompt-library-deleted', revision, id, deleted),
-    remove: (revision, id) => ipcRenderer.invoke('prompt-library-remove', revision, id),
+    save: (revision, content, id) =>
+      ipcRenderer.invoke('prompt-library-save', revision, content, id),
+    setDeleted: (revision, id, deleted) =>
+      ipcRenderer.invoke('prompt-library-deleted', revision, id, deleted),
+    remove: (revision, id) =>
+      ipcRenderer.invoke('prompt-library-remove', revision, id),
   } satisfies LibraryClient,
   networkMode: {
     status: (): Promise<NetworkModeResult> =>
@@ -89,6 +92,15 @@ const electronHandler = {
       ipcRenderer.invoke('workspace-close-cancel'),
   },
   generation: {
+    importReference: (id, revision, png) =>
+      ipcRenderer.invoke(
+        'workspace-generation-import-reference',
+        id,
+        revision,
+        png,
+      ),
+    referenceImage: (id, sceneId) =>
+      ipcRenderer.invoke('workspace-generation-reference-image', id, sceneId),
     status: () => ipcRenderer.invoke('workspace-generation-status'),
     prepare: (id, revision, sceneId) =>
       ipcRenderer.invoke('workspace-generation-prepare', id, revision, sceneId),
@@ -132,8 +144,12 @@ const electronHandler = {
     restartStorage: () =>
       ipcRenderer.invoke('workspace-project-restart-storage'),
     list: () => ipcRenderer.invoke('workspace-project-list'),
-    create: (content) =>
-      ipcRenderer.invoke('workspace-project-create', content),
+    create: (content, referenceSourceId) =>
+      ipcRenderer.invoke(
+        'workspace-project-create',
+        content,
+        referenceSourceId,
+      ),
     open: (id) => ipcRenderer.invoke('workspace-project-open', id),
     save: (id, revision, content) =>
       ipcRenderer.invoke('workspace-project-save', id, revision, content),

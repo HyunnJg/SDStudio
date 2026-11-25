@@ -36,6 +36,9 @@ export class ProjectService implements ProjectOperations {
 
   private call<
     K extends
+      | 'importReference'
+      | 'referenceBytes'
+      | 'referenceImage'
       | 'list'
       | 'create'
       | 'open'
@@ -51,7 +54,7 @@ export class ProjectService implements ProjectOperations {
   >(
     operation: K,
     args: Parameters<ProjectStore[K]>,
-  ): Promise<ReturnType<ProjectStore[K]>> {
+  ): Promise<Awaited<ReturnType<ProjectStore[K]>>> {
     if (this.closed || this.stopped)
       return Promise.reject(new ProjectError('PROJECT_SERVICE_STOPPED'));
     if (this.restarting)
@@ -121,8 +124,8 @@ export class ProjectService implements ProjectOperations {
     return this.call('list', []);
   }
 
-  create(content: unknown) {
-    return this.call('create', [content]);
+  create(content: unknown, referenceSourceId?: string) {
+    return this.call('create', [content, referenceSourceId]);
   }
 
   open(id: string) {
@@ -146,6 +149,18 @@ export class ProjectService implements ProjectOperations {
   }
 
   // Main-only methods. No renderer endpoint accepts PNG bytes or a raw filesystem path.
+  importReference(...args: Parameters<ProjectStore['importReference']>) {
+    return this.call('importReference', args);
+  }
+
+  referenceBytes(...args: Parameters<ProjectStore['referenceBytes']>) {
+    return this.call('referenceBytes', args);
+  }
+
+  referenceImage(...args: Parameters<ProjectStore['referenceImage']>) {
+    return this.call('referenceImage', args);
+  }
+
   readManifest(id: string) {
     return this.call('readManifest', [id]);
   }

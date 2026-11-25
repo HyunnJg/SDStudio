@@ -1,7 +1,10 @@
 /* eslint import/prefer-default-export: off, no-bitwise: off, no-restricted-syntax: off -- Ordered filesystem operations and POSIX open flags. */
 import fs from 'fs';
+import sharp from 'sharp';
 import path from 'path';
 import { createHash, randomUUID } from 'crypto';
+import { REFERENCE_LIMITS, referenceSize } from '../../workspaceReference';
+import type { ReferenceAsset } from '../../workspaceReference';
 import {
   PROJECT_FORMAT,
   PROJECT_LIMITS,
@@ -13,6 +16,9 @@ import {
   validateWorkspaceProject,
   validateImageInput,
   requiredProjectVersion,
+  validateReference,
+  projectReferences,
+  referenceAssetBytes,
 } from '../../workspaceProject';
 import type {
   ProjectContent,
@@ -187,7 +193,10 @@ export class ProjectStore {
     const bytes = read(file, PROJECT_LIMITS.jsonBytes);
     const project = decode(bytes);
     projectCheck(project.id === id, 'PROJECT_CORRUPT');
-    if (verifyImages) this.images(project);
+    if (verifyImages) {
+      this.images(project);
+      this.verifyReferences(project);
+    }
     return { project, revision: hash(bytes) };
   }
 
@@ -269,10 +278,12 @@ export class ProjectStore {
       images,
     };
     const bytes = encode(project);
+    projectCheck(sourceId || projectReferences(project, images).length === 0);
     const folder = this.folder(id, true);
     this.directory([id, 'images'], true);
     this.directory([id, 'history'], true);
     if (sourceId) {
+      this.copyReferences(sourceId, project);
       for (const image of images) {
         const original = this.readPNG(sourceId, image.sha256);
         projectCheck(original.length === image.pngBytes, 'PROJECT_CORRUPT');
@@ -288,8 +299,15 @@ export class ProjectStore {
     return { project: structuredClone(project), revision: hash(bytes) };
   }
 
-  create(content: unknown): ProjectSnapshot {
-    return io(() => this.createSnapshot(validateProjectContent(content), []));
+  create(content: unknown, referenceSourceId?: string): ProjectSnapshot {
+    if (referenceSourceId !== undefined) projectId(referenceSourceId);
+    return io(() =>
+      this.createSnapshot(
+        validateProjectContent(content),
+        [],
+        referenceSourceId,
+      ),
+    );
   }
 
   private update(
@@ -353,14 +371,24 @@ export class ProjectStore {
 
   save(id: string, revision: string, content: unknown): ProjectSnapshot {
     const validated = validateProjectContent(content);
-    return this.update(id, revision, (current) => ({
-      ...current,
-      ...validated,
-      version: Math.max(
-        current.version,
-        requiredProjectVersion(validated, current.images),
-      ) as WorkspaceProject['version'],
-    }));
+    return this.update(id, revision, (current) => {
+      const known = new Set(
+        projectReferences(current, current.images).map((r) =>
+          JSON.stringify(r),
+        ),
+      );
+      for (const r of projectReferences(validated)) {
+        if (!known.has(JSON.stringify(r))) this.referenceBytes(id, r);
+      }
+      return {
+        ...current,
+        ...validated,
+        version: Math.max(
+          current.version,
+          requiredProjectVersion(validated, current.images),
+        ) as WorkspaceProject['version'],
+      };
+    });
   }
 
   generationSnapshot(
@@ -377,6 +405,7 @@ export class ProjectStore {
     projectCheck(
       snapshot.project.images.length < PROJECT_LIMITS.results &&
         snapshot.project.images.reduce((n, i) => n + i.pngBytes, 0) +
+          referenceAssetBytes(snapshot.project) +
           32 * 1024 * 1024 <=
           PROJECT_LIMITS.totalPNGBytes &&
         this.history(id).length < 1000,
@@ -384,6 +413,7 @@ export class ProjectStore {
     );
     if (value !== undefined) {
       const input = validateImageInput(value);
+      if (input.draft.reference) this.referenceBytes(id, input.draft.reference);
       encode({
         ...snapshot.project,
         version: Math.max(
@@ -426,6 +456,7 @@ export class ProjectStore {
     }
     return this.update(id, revision, (current, folder) => {
       projectCheck(current.scenes.some((s) => s.id === info.sceneId));
+      if (info.draft.reference) this.referenceBytes(id, info.draft.reference);
       const sha256 = hash(png);
       const image = { ...info, id: imageId, sha256, pngBytes: png.length };
       const next = {
@@ -455,6 +486,189 @@ export class ProjectStore {
       projectCheck(hash(bytes) === sha256, 'PROJECT_CORRUPT');
       return Uint8Array.from(bytes);
     });
+  }
+
+  private referenceFile(
+    id: string,
+    sha256: string,
+    expectedBytes: number,
+  ): Uint8Array {
+    projectHash(sha256);
+    let bytes: Uint8Array;
+    try {
+      bytes = read(
+        path.join(this.directory([id, 'references']), `${sha256}.png`),
+        REFERENCE_LIMITS.sourceBytes,
+      );
+    } catch {
+      throw new ProjectError('PROJECT_CORRUPT');
+    }
+    projectCheck(
+      hash(bytes) === sha256 && bytes.length === expectedBytes,
+      'PROJECT_CORRUPT',
+    );
+    return bytes;
+  }
+
+  referenceBytes(id: string, value: unknown): Uint8Array {
+    return io(() => {
+      const r = validateReference(value);
+      this.referenceFile(id, r.sourceHash, r.sourceBytes);
+      const bytes = this.referenceFile(id, r.uploadHash, r.uploadBytes);
+      const b = Buffer.from(bytes);
+      projectCheck(
+        b.readUInt32BE(16) === r.width && b.readUInt32BE(20) === r.height,
+        'PROJECT_CORRUPT',
+      );
+      return Uint8Array.from(bytes);
+    });
+  }
+
+  private verifyReferences(project: WorkspaceProject) {
+    const seen = new Set<string>();
+    for (const r of projectReferences(project, project.images)) {
+      const key = JSON.stringify(r);
+      if (!seen.has(key)) {
+        this.referenceBytes(project.id, r);
+        seen.add(key);
+      }
+    }
+  }
+
+  private copyReferences(sourceId: string, project: WorkspaceProject) {
+    const refs = projectReferences(project, project.images);
+    if (!refs.length) return;
+    const target = this.directory([project.id, 'references'], true);
+    for (const r of new Map(
+      refs.map((item) => [JSON.stringify(item), item]),
+    ).values()) {
+      this.referenceBytes(sourceId, r);
+      for (const [sha, size] of [
+        [r.sourceHash, r.sourceBytes],
+        [r.uploadHash, r.uploadBytes],
+      ] as const)
+        ProjectStore.immutable(
+          path.join(target, `${sha}.png`),
+          this.referenceFile(sourceId, sha, size),
+        );
+    }
+    syncDirectory(target);
+  }
+
+  referenceImage(id: string, sceneId: string): Uint8Array {
+    const snapshot = this.readManifest(id);
+    const reference = snapshot.project.scenes.find(
+      (scene) => scene.id === sceneId,
+    )?.draft.reference;
+    projectCheck(reference, 'PROJECT_NOT_FOUND');
+    return this.referenceBytes(id, reference);
+  }
+
+  async importReference(
+    id: string,
+    revision: string,
+    value: Uint8Array,
+  ): Promise<ReferenceAsset> {
+    projectId(id);
+    projectHash(revision);
+    projectCheck(
+      value instanceof Uint8Array &&
+        value.byteLength > 0 &&
+        value.byteLength <= REFERENCE_LIMITS.sourceBytes,
+    );
+    const source = Uint8Array.from(value);
+    let upload: Buffer;
+    let size: { width: number; height: number };
+    try {
+      validatePNGBytes(source);
+      const decoded = sharp(Buffer.from(source), {
+        limitInputPixels: REFERENCE_LIMITS.sourcePixels,
+        animated: false,
+      });
+      const meta = await decoded.metadata();
+      projectCheck(
+        meta.format === 'png' &&
+          !!meta.width &&
+          !!meta.height &&
+          (meta.pages === undefined || meta.pages === 1),
+      );
+      size = referenceSize(meta.width!, meta.height!);
+      // Upload is a separate centre-cropped derivative without PNG text chunks. Original bytes are retained unchanged.
+      upload = await decoded
+        .resize({ ...size, fit: 'cover', position: 'centre' })
+        .png()
+        .toBuffer();
+      validatePNGBytes(upload);
+    } catch {
+      throw new ProjectError('PROJECT_INPUT');
+    }
+    projectCheck(
+      upload.length <= REFERENCE_LIMITS.uploadBytes,
+      'PROJECT_LIMIT',
+    );
+    const current = this.readManifest(id);
+    projectCheck(current.revision === revision, 'PROJECT_CONFLICT');
+    projectCheck(
+      !fs.existsSync(path.join(this.folder(id), 'write.lock')),
+      'PROJECT_BUSY',
+    );
+    const asset: ReferenceAsset = {
+      id: randomUUID(),
+      sourceHash: hash(source),
+      sourceBytes: source.length,
+      uploadHash: hash(upload),
+      uploadBytes: upload.length,
+      ...size,
+    };
+    const provisional: WorkspaceProject = structuredClone(current.project);
+    provisional.scenes.find(
+      (scene) => scene.id === provisional.selectedSceneId,
+    )!.draft.reference = {
+      ...asset,
+      role: 'character',
+      strength: 1,
+      preferSameOutfit: false,
+    };
+    projectCheck(
+      referenceAssetBytes(provisional) +
+        current.project.images.reduce((n, i) => n + i.pngBytes, 0) <=
+        PROJECT_LIMITS.totalPNGBytes,
+      'PROJECT_LIMIT',
+    );
+    const folder = this.directory([id, 'references'], true);
+    // Also bound orphan assets left by cancelled/unsaved imports. No automatic file deletion.
+    const files = fs
+      .readdirSync(folder)
+      .filter((name) => /^[a-f0-9]{64}\.png$/.test(name));
+    const missing = [
+      [asset.sourceHash, source],
+      [asset.uploadHash, upload],
+    ].filter(([sha]) => !files.includes(`${sha}.png`));
+    projectCheck(
+      files.length + new Set(missing.map(([sha]) => sha)).size <= 360,
+      'PROJECT_LIMIT',
+    );
+    const diskBytes = files.reduce((n, name) => {
+      const st = fs.lstatSync(path.join(folder, name));
+      projectCheck(st.isFile() && !st.isSymbolicLink(), 'PROJECT_CORRUPT');
+      return n + st.size;
+    }, 0);
+    projectCheck(
+      diskBytes +
+        missing.reduce((n, [, bytes]) => n + (bytes as Uint8Array).length, 0) <=
+        PROJECT_LIMITS.totalPNGBytes,
+      'PROJECT_LIMIT',
+    );
+    ProjectStore.immutable(
+      path.join(folder, `${asset.sourceHash}.png`),
+      source,
+    );
+    ProjectStore.immutable(
+      path.join(folder, `${asset.uploadHash}.png`),
+      upload,
+    );
+    syncDirectory(folder);
+    return asset;
   }
 
   history(id: string): string[] {

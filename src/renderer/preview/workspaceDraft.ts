@@ -1,3 +1,4 @@
+import type { WorkspaceReference } from '../../workspaceReference';
 import {
   buildPreviewImageRequest,
   PreviewContractError,
@@ -14,6 +15,7 @@ export interface WorkspaceCharacter {
 }
 
 export interface WorkspaceDraft {
+  reference?: WorkspaceReference;
   family: PreviewModelFamily;
   prompt: string;
   negativePrompt: string;
