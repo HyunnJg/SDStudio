@@ -7,7 +7,7 @@ const {
   metadata,
 } = require('../../src/__tests__/fixtures/nai/metadataPNG.cjs');
 module.exports = async ({ contents, evaluate, click, until, checks }) => {
-  assert.equal(await evaluate("!!document.querySelector('[data-testid=open-metadata]').closest('.connected-input')"), true);
+  assert.equal(await evaluate("!!document.querySelector('[data-testid=choose-reference]').closest('.connected-input')"), true);
   const storedBefore = (
     await evaluate('window.electron.projects.list()')
   ).value.map((p) => [p.id, p.revision]);
@@ -19,6 +19,8 @@ module.exports = async ({ contents, evaluate, click, until, checks }) => {
     await evaluate(
       `(()=>{const file=new File([new Uint8Array(${JSON.stringify(bytes)})],'synthetic-metadata.png',{type:'image/png'});const data=new DataTransfer();data.items.add(file);${drop ? "document.querySelector('[data-testid=connected-workspace]').dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:data}));" : "const input=document.querySelector('[data-testid=metadata-file]');input.files=data.files;input.dispatchEvent(new Event('change',{bubbles:true}));"}})()`,
     );
+    await until(() => evaluate("document.querySelector('[data-testid=image-choice]')?.open"));
+    await click('[data-testid=image-use-metadata]');
     await until(() =>
       evaluate("document.querySelector('[data-testid=metadata-dialog]')?.open"),
     );

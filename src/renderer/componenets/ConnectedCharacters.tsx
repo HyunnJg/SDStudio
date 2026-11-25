@@ -13,12 +13,16 @@ interface Props {
   draft: WorkspaceDraft;
   onChange: (patch: Partial<WorkspaceDraft>) => void;
   onPreset?: (id?: string) => void;
+  presetLabels?: Record<string, string>;
+  presetCount?: number;
 }
 
 export default function ConnectedCharacters({
   draft,
   onChange,
   onPreset,
+  presetLabels = {},
+  presetCount = 0,
 }: Props) {
   const [removed, setRemoved] = useState<{
     character: WorkspaceCharacter;
@@ -53,7 +57,7 @@ export default function ConnectedCharacters({
       </h3>
       {onPreset && (
         <button type="button" onClick={() => onPreset()}>
-          캐릭터 프리셋
+          캐릭터 프리셋 {presetCount}
         </button>
       )}
       {active > V5_CHARACTER_LIMIT && (
@@ -189,7 +193,7 @@ export default function ConnectedCharacters({
                   data-character-preset={c.id}
                   onClick={() => onPreset(c.id)}
                 >
-                  프리셋 저장·불러오기
+                  {presetLabels[c.id] || '프리셋 선택'}
                 </button>
               )}
               <label htmlFor={promptId}>캐릭터 프롬프트</label>

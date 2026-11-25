@@ -37,23 +37,13 @@ export default function WorkspaceProjectControls({
     <>
       <button
         type="button"
-        data-testid="project-new"
-        onClick={() => {
-          controller.newProject();
-        }}
-        disabled={locked}
-      >
-        새 입력
-      </button>
-      <button
-        type="button"
         data-testid="project-copy"
         onClick={() => {
           controller.copy();
         }}
         disabled={locked || unavailable}
       >
-        새 복사본으로 계속
+        다른 이름으로 저장
       </button>
       <button
         type="button"
@@ -63,7 +53,7 @@ export default function WorkspaceProjectControls({
         }}
         disabled={locked || unavailable}
       >
-        입력만 새로 저장
+        입력만 복제
       </button>
     </>
   );
@@ -75,6 +65,16 @@ export default function WorkspaceProjectControls({
           aria-label="작업실 프로젝트"
           data-testid="project-controls"
         >
+          <button
+            type="button"
+            data-testid="project-new"
+            onClick={() => {
+              controller.newProject();
+            }}
+            disabled={locked}
+          >
+            새 프로젝트
+          </button>
           <label htmlFor="workspace-project-name">
             프로젝트{' '}
             <input
@@ -88,8 +88,21 @@ export default function WorkspaceProjectControls({
           </label>
           <strong data-testid="project-dirty">
             {controller.dirty() && '미저장 변경'}
-            {!controller.dirty() && state.id && '저장됨'}
-            {!controller.dirty() && !state.id && '새 입력'}
+            {!controller.dirty() &&
+              state.id &&
+              !state.operation &&
+              !state.error && (
+                <span aria-label="저장됨" title="저장됨">
+                  ✓
+                </span>
+              )}
+            {state.operation && (
+              <span aria-label="저장 중" className="workspace-working">
+                ◌
+              </span>
+            )}
+            {state.error && '확인 필요'}
+            {!controller.dirty() && !state.id && '새 프로젝트'}
           </strong>
           <button
             type="button"
@@ -109,11 +122,11 @@ export default function WorkspaceProjectControls({
             }}
             disabled={locked || unavailable}
           >
-            열기·복구
+            열기
           </button>
           {connected ? (
             <details className="connected-menu connected-project-menu">
-              <summary>프로젝트 작업</summary>
+              <summary>더 보기</summary>
               <div>{extraActions}</div>
             </details>
           ) : (
@@ -131,11 +144,13 @@ export default function WorkspaceProjectControls({
               저장 기능 다시 시작
             </button>
           )}
-          <p role={state.error ? 'alert' : 'status'}>
-            {unavailable
-              ? '프로젝트 저장은 Electron 데스크톱에서 사용할 수 있습니다.'
-              : state.operation || state.message}
-          </p>
+          {(!connected || state.error) && (
+            <p role={state.error ? 'alert' : 'status'}>
+              {unavailable && '데스크톱에서 사용할 수 있습니다.'}
+              {!unavailable && state.error && projectErrorMessage(state.error)}
+              {!unavailable && !state.error && state.operation}
+            </p>
+          )}
           {!connected && state.images > 0 && (
             <small>
               원본 PNG {state.images}장 보관 ·{' '}
@@ -158,11 +173,7 @@ export default function WorkspaceProjectControls({
               controller.closePanel();
             }}
           >
-            <h2>프로젝트 열기·복구</h2>
-            <p>
-              정보 목록만 읽었습니다. 열기·복사·복구 때 이미지 전체를
-              검사합니다. 현재 예제 결과와 대기열은 임시입니다.
-            </p>
+            <h2>프로젝트</h2>
             <button
               type="button"
               onClick={() => {
@@ -203,10 +214,7 @@ export default function WorkspaceProjectControls({
             {state.target && (
               <section aria-label="복구 이력">
                 <h3>선택한 프로젝트 이력</h3>
-                <p>
-                  원본을 덮어쓰지 않고 새 복사본을 만듭니다. 이미지가 분실됐으면
-                  이력만으로 복구되지 않습니다.
-                </p>
+                <p>선택한 저장본을 새 프로젝트로 복구합니다.</p>
                 {state.history.length === 0 ? (
                   <p>보관된 이전 이력이 없습니다.</p>
                 ) : (
@@ -226,7 +234,9 @@ export default function WorkspaceProjectControls({
                 )}
               </section>
             )}
-            <p role="status">{state.operation || state.message}</p>
+            {state.error && (
+              <p role="alert">{projectErrorMessage(state.error)}</p>
+            )}
             <button
               type="button"
               data-testid="project-dialog-close"
@@ -247,11 +257,10 @@ export default function WorkspaceProjectControls({
             }}
           >
             <h2>미저장 변경이 있습니다</h2>
-            <p>
-              {state.confirm} 전에 입력·씬을 저장할 수 있습니다. 예제 결과와
-              대기열은 저장하지 않습니다.
-            </p>
-            <p role="status">{state.operation || state.message}</p>
+            <p>{state.confirm} 전에 변경 내용을 저장할까요?</p>
+            {state.error && (
+              <p role="alert">{projectErrorMessage(state.error)}</p>
+            )}
             {state.error === 'PROJECT_SERVICE_STOPPED' && (
               <button
                 type="button"

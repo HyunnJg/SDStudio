@@ -14,7 +14,7 @@ exports.checkEditor = async ({
   checks,
 }) => {
   assert.equal(
-    await evaluate("document.querySelector('[data-testid=ai-settings]').open"),
+    await evaluate("document.querySelector('.connected-extra-settings').open"),
     false,
   );
   const prompt = await evaluate("document.querySelector('#live-prompt').value");
@@ -39,9 +39,9 @@ exports.checkEditor = async ({
     ),
     [prompt, negative],
   );
-  await click('[data-testid=ai-settings] summary');
+  await click('.connected-extra-settings summary');
   assert.equal(
-    await evaluate("document.querySelector('[data-testid=ai-settings]').open"),
+    await evaluate("document.querySelector('.connected-extra-settings').open"),
     true,
   );
   const before = await evaluate(
@@ -68,10 +68,10 @@ exports.checkEditor = async ({
   );
   // Enable the right queue panel explicitly, rather than clicking invisible controls.
   await evaluate(
-    "document.querySelectorAll('.connected-sidebar-tabs button')[1].click()",
+    "document.querySelector('#live-queue-details').scrollIntoView({block:'nearest'})",
   );
   checks.push(
-    'prompt tabs retain text; AI settings initially collapsed; Generate remains reachable while editor scrolls',
+    'prompt tabs retain text; daily AI controls remain visible and extra settings collapse; Generate remains reachable while editor scrolls',
   );
 };
 exports.checkGallery = async ({
@@ -145,7 +145,7 @@ exports.checkGallery = async ({
       evaluate("document.querySelectorAll('[data-image-id]').length===30"),
     );
     await evaluate(
-      "document.querySelector('.connected-sidebar-tabs button').click()",
+      "document.querySelector('.connected-sidebar-scroll').scrollTop=200",
     );
     await until(() =>
       evaluate(
@@ -164,7 +164,7 @@ exports.checkGallery = async ({
     const firstReads = reads.length;
     assert.ok(await evaluate('window.__layoutURLs.size<10'));
     await evaluate(
-      "document.querySelector('.connected-history').parentElement.scrollTop=100000",
+      "document.querySelector('.connected-sidebar-scroll').scrollTop=100000",
     );
     await until(() => reads.includes(fixture.images[0].id));
     await pause();
@@ -274,13 +274,12 @@ exports.checkGallery = async ({
       'copy keeps image UUIDs but unkeyed gallery prop transition reads only the new project, not cached old project loaders',
     );
     await evaluate(
-      "document.querySelectorAll('.connected-sidebar-tabs button')[1].click()",
+      "document.querySelector('.connected-sidebar-scroll').scrollTop=0",
     );
-    await until(() => evaluate('window.__layoutURLs.size<=1'));
     await click('[data-testid=project-new]');
     await until(() => evaluate('window.__layoutURLs.size===0'));
     checks.push(
-      'hiding gallery releases thumbnail object URLs; replacing project releases canvas URL and stale gallery work',
+      'replacing project releases canvas/thumbnail object URLs and stale gallery work',
     );
   } finally {
     await evaluate('window.__layoutURLRestore?.()');

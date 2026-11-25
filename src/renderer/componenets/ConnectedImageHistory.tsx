@@ -32,7 +32,9 @@ function Thumbnail({
     const observer = new IntersectionObserver(
       ([entry]) => setVisible(entry.isIntersecting),
       {
-        root: button.current.closest('.connected-sidebar-panel'),
+        root:
+          button.current.closest('.connected-sidebar-scroll') ??
+          button.current.closest('.connected-sidebar-panel'),
         rootMargin: '80px',
       },
     );
@@ -135,11 +137,7 @@ export default function ConnectedImageHistory({
   return (
     <div className="connected-history" aria-label="저장된 결과 목록">
       {!images.length && (
-        <p className="connected-history-empty">
-          생성한 이미지가 이곳에 쌓입니다.
-          <br />
-          원본 비율로 보고, 선택해 크게 열어 보세요.
-        </p>
+        <p className="connected-history-empty">아직 이미지가 없습니다.</p>
       )}
       {projectId &&
         [...images]

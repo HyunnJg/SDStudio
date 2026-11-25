@@ -895,3 +895,50 @@
 .connected-reference label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .connected-reference select, .connected-reference input[type=range] { max-width: 100%; min-width: 0; flex: 1; }
 .connected-reference-cost { color: var(--pw-muted); }
+
+/* D-062: one scrolling column per side; actions remain near the content they affect. */
+.connected-sidebar-heading, .connected-history-heading { display:flex; align-items:center; justify-content:space-between; padding:12px; border-bottom:1px solid var(--pw-line); gap:8px; font-size:12px; }
+.connected-sidebar-scroll { overflow-y:auto; overflow-x:hidden; min-height:0; flex:1; scrollbar-gutter:stable; }
+.connected-sidebar-panel { overflow:visible; flex:none; }
+.connected-queue { margin:0; border:0; border-bottom:1px solid var(--pw-line); border-radius:0; }
+.connected-queue-summary { flex-wrap:wrap; }
+.connected-queue-items { max-height:132px; overflow-y:auto; }
+.connected-scene-select { display:flex; align-items:center; gap:8px; padding:0 0 12px; }
+.connected-scene-select select { min-width:0; flex:1; }
+.connected-scene-select label { font-size:12px; flex-shrink:0; }
+.connected-ai-settings { padding:12px; }
+.connected-ai-settings h3 { margin:0 0 10px; font-size:13px; }
+.connected-settings-fields { display:grid; grid-template-columns:76px minmax(0,1fr); gap:8px; align-items:center; padding:0; }
+.connected-settings-fields label { font-size:12px; }
+.connected-settings-fields p, .connected-extra-settings { grid-column:1/-1; }
+.connected-extra-settings summary { padding:10px 0; font-size:12px; color:var(--pw-muted); }
+.connected-extra-settings p { font-size:11px; margin:0; color:var(--pw-muted); }
+.connected-reference { margin:0 0 10px; padding:10px; }
+.connected-reference img { height:140px; }
+.connected-reference-help { justify-self:end; color:var(--pw-muted); font-size:11px; cursor:help; }
+.connected-cost-badge { display:inline-block; font-size:11px; border:1px solid currentColor; border-radius:12px; padding:2px 7px; margin-left:8px; font-weight:400; }
+.connected-canvas-actions { display:flex; align-items:center; flex-wrap:wrap; gap:6px; justify-content:flex-end; }
+.connected-canvas-actions button, .connected-canvas-actions a { font-size:11px; padding:5px 8px; border:1px solid var(--pw-line); border-radius:5px; background:var(--pw-panel); color:var(--pw-text); text-decoration:none; }
+.connected-canvas-actions [aria-disabled=true] { opacity:.4; pointer-events:none; }
+.connected-preset-shortcuts { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:7px; }
+.preset-chip { font-size:11px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-radius:14px!important; padding:4px 8px!important; }
+.preset-chip[aria-pressed=true] { border-color:var(--pw-accent); color:var(--pw-accent); }
+.preset-current { display:flex; align-items:center; gap:6px; font-size:11px; margin:5px 0 8px; color:var(--pw-accent); }
+.preset-current small { color:var(--pw-muted); }
+.library-state { font-size:12px; color:var(--pw-muted); min-height:18px; }
+.library-list button[aria-pressed=true] { border-color:var(--pw-accent); background:var(--pw-input); box-shadow:inset 3px 0 var(--pw-accent); }
+.workspace-image-choice { width:min(470px,calc(100vw - 24px)); max-height:85dvh; overflow:auto; padding:20px; border:1px solid var(--pw-line,#617181); border-radius:10px; background:var(--pw-panel,#17212b); color:var(--pw-text,#e6edf1); }
+.workspace-image-choice::backdrop { background:#0009; }
+.workspace-image-choice header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.workspace-image-choice h2 { font-size:18px; margin:0; }
+.workspace-image-filename { font-size:12px; color:var(--pw-muted); overflow-wrap:anywhere; }
+.workspace-image-options { display:grid; gap:10px; }
+.workspace-image-options button { display:grid; gap:6px; padding:14px; text-align:left; border:1px solid var(--pw-line,#617181); border-radius:8px; }
+.workspace-image-options small { color:var(--pw-muted); font-size:12px; }
+
+.connected-reference:has(img) { grid-template-columns:80px minmax(0,1fr); }
+.connected-reference:has(img) > header, .connected-reference:has(img) > button, .connected-reference:has(img) > small, .connected-reference:has(img) > p, .connected-reference:has(img) > .connected-reference-help { grid-column:1/-1; }
+.connected-reference:has(img) img { grid-column:1; grid-row:3/5; width:80px; height:100px; }
+.connected-reference:has(img) label[for=reference-role] { grid-column:2; grid-row:3; display:grid; gap:3px; }
+.connected-reference:has(img) label[for=reference-strength] { grid-column:2; grid-row:4; display:grid; gap:3px; }
+.connected-reference:has(img) label[for=reference-outfit] { grid-column:1/-1; }

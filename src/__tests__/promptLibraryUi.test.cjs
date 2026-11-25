@@ -9,7 +9,7 @@ const {
   createConnectedWorkspaceState,
 } = require('../renderer/generation/connectedDraft');
 const tick = () => new Promise((resolve) => setImmediate(resolve));
-async function fixture(t) {
+async function fixture(t, overrides = {}) {
   const draft = createConnectedWorkspaceState().draft;
   let snapshot = { revision: '0'.repeat(64), entries: [] },
     saves = 0,
@@ -32,6 +32,7 @@ async function fixture(t) {
       };
       return { ok: true, value: snapshot };
     },
+    ...overrides,
   };
   let renderer;
   await act(async () => {
@@ -76,6 +77,7 @@ test('saving a library preset never applies it or generates; application remains
       .props.onChange({ target: { value: 'synthetic' } }),
   );
   assert.equal(f.guards.at(-1), true);
+  assert.ok(JSON.stringify(f.renderer.root.findByProps({'data-testid':'library-save-state'}).toJSON?.() ?? f.renderer.root.findByProps({'data-testid':'library-save-state'}).props.children).includes('편집 중'));
   await act(async () => {
     f.renderer.root
       .findByProps({ 'data-testid': 'library-save' })
@@ -83,6 +85,8 @@ test('saving a library preset never applies it or generates; application remains
     await tick();
   });
   assert.equal(f.saves, 1);
+  assert.ok(JSON.stringify(f.renderer.root.findByProps({'data-testid':'library-save-state'}).props.children).includes('저장됨'));
+  assert.equal(f.renderer.root.findAllByProps({'role':'status'}).some(n=>String(n.props.children).includes('저장했습니다')),false);
   assert.equal(f.applied.length, 0);
   assert.equal(f.guards.at(-1), false);
   act(() =>
@@ -204,4 +208,15 @@ test('23 positive cards show a local warning before generation and preserve ever
   );
   assert.deepEqual(draft, before);
   act(() => renderer.unmount());
+});
+
+test('failed library save retains editing state and exposes error without a saved marker or application', async (t) => {
+  const f=await fixture(t, {save:async()=>({ok:false,code:'LIBRARY_IO'})});
+  act(()=>f.renderer.root.findByProps({'data-testid':'library-name'}).props.onChange({target:{value:'unsaved synthetic'}}));
+  await act(async()=>{f.renderer.root.findByProps({'data-testid':'library-save'}).props.onClick();await tick();});
+  assert.ok(f.renderer.root.findByProps({'data-testid':'library-save-state'}).props.children.includes('편집 중'));
+  assert.ok(f.renderer.root.findByProps({'data-testid':'library-status'}).props.children.length>0);
+  assert.equal(f.renderer.root.findByProps({'data-testid':'library-name'}).props.value,'unsaved synthetic');
+  assert.equal(f.applied.length,0);
+  assert.equal(f.guards.at(-1),true);
 });
