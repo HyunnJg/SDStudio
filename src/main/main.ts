@@ -22,6 +22,8 @@ import { firstGenerationObserver } from './nai/generationDiagnostics';
 import { ProjectService } from './projects/projectService';
 import { ProjectCloseCoordinator } from './projects/projectClose';
 import { registerProjects } from './projects/projectIpc';
+import { PromptLibraryStore } from './prompts/promptLibraryStore';
+import { registerPromptLibrary } from './prompts/promptLibraryIpc';
 import { NetworkModeSettings, registerNetworkMode } from './networkMode';
 import path from 'path';
 import {
@@ -994,6 +996,8 @@ if (!gotTheLock) {
       const projectService = new ProjectService(app.getPath('userData'),
         usesDevelopmentAssets(app.isPackaged, process.env.NODE_ENV)
           ? path.join(__dirname, 'projects/projectWorker.ts') : path.join(__dirname, 'projectWorker.js'));
+      registerPromptLibrary(ipcMain, new PromptLibraryStore(app.getPath('userData')),
+        event => isTrustedAuthFrame(event, mainWindow?.webContents, resolveHtmlPath('index.html')));
       const generationTransport = createNaiTransport(tokenStore, () => runtimeOptions.offline,
         firstGenerationObserver(app.getPath('userData')));
       workspaceGeneration = new WorkspaceGeneration({ store: projectService, offline: () => runtimeOptions.offline,

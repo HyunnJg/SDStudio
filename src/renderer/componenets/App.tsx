@@ -207,7 +207,7 @@ export const App = observer(() => {
     projectClosingRef.current = true; setProjectClosing(true);
     (async () => {
       try {
-        if (projectTasksBusy() || project.getSnapshot().operation) { appState.pushMessage('프로젝트 저장 또는 예약·실행 중인 작업을 마치거나 비운 뒤 닫아 주세요.'); await window.electron.projectLifecycle.cancelClose(); return; }
+        if (projectTasksBusy() || project.getSnapshot().operation) { appState.pushMessage('프로젝트 저장·생성 작업 또는 프리셋 편집을 마치고 닫아 주세요. 프리셋은 라이브러리에서 저장하거나 편집을 취소할 수 있습니다.'); await window.electron.projectLifecycle.cancelClose(); return; }
         if (!(await project.prepareLeave()) || projectTasksBusy()) { await window.electron.projectLifecycle.cancelClose(); return; }
         await sessionService.saveAll();
         if (projectTasksBusy()) { await window.electron.projectLifecycle.cancelClose(); return; }

@@ -4,6 +4,7 @@ import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import type { NaiAuthResult } from '../naiAuth';
 import type { GenerationClient } from '../workspaceGeneration';
 import type { ProjectClient } from '../workspaceProject';
+import type { LibraryClient } from '../promptLibrary';
 import type { NetworkMode, NetworkModeResult } from '../networkMode';
 
 export type Channels =
@@ -51,6 +52,12 @@ export type Channels =
   | 'lookup-tag';
 
 const electronHandler = {
+  promptLibrary: {
+    read: () => ipcRenderer.invoke('prompt-library-read'),
+    save: (revision, content, id) => ipcRenderer.invoke('prompt-library-save', revision, content, id),
+    setDeleted: (revision, id, deleted) => ipcRenderer.invoke('prompt-library-deleted', revision, id, deleted),
+    remove: (revision, id) => ipcRenderer.invoke('prompt-library-remove', revision, id),
+  } satisfies LibraryClient,
   networkMode: {
     status: (): Promise<NetworkModeResult> =>
       ipcRenderer.invoke('network-mode-status'),

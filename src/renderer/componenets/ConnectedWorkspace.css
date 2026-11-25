@@ -3,6 +3,7 @@
   position: relative;
 }
 .connected-workspace .pw-header {
+  flex-wrap: wrap;
   min-height: 56px;
   gap: 16px;
   height: auto;
@@ -17,10 +18,118 @@
   font-size: 11px;
 }
 .connected-workspace .pw-header nav {
+  flex-wrap: wrap;
   display: flex;
   gap: 8px;
   margin-left: auto;
   align-self: center;
+}
+.prompt-library-dialog {
+  width: min(1100px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  box-sizing: border-box;
+  overflow: auto;
+  border: 1px solid var(--pw-line);
+  border-radius: 12px;
+  padding: 18px;
+  background: var(--pw-panel);
+  color: var(--pw-text);
+}
+.prompt-library-dialog::backdrop {
+  background: #0009;
+}
+.prompt-library-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.prompt-library-dialog h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.library-columns {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 16px;
+}
+.prompt-library-dialog fieldset {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 10px 0;
+  border: 1px solid var(--pw-line);
+  padding: 12px;
+}
+.prompt-library-dialog label {
+  display: grid;
+  gap: 5px;
+}
+.prompt-library-dialog label:has(input[type='checkbox']) {
+  display: flex;
+  align-items: center;
+}
+.prompt-library-dialog input:not([type='checkbox']),
+.prompt-library-dialog textarea,
+.prompt-library-dialog select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--pw-line);
+  border-radius: 5px;
+  background: var(--pw-input);
+  color: var(--pw-text);
+  padding: 7px;
+}
+.prompt-library-dialog textarea {
+  resize: vertical;
+}
+.prompt-library-dialog p,
+.prompt-library-dialog pre {
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.prompt-library-dialog pre {
+  white-space: pre-wrap;
+  background: var(--pw-input);
+  padding: 8px;
+}
+.library-list {
+  padding: 0;
+  list-style: none;
+  max-height: 50vh;
+  overflow: auto;
+}
+.library-list button {
+  width: 100%;
+  text-align: left;
+  overflow-wrap: anywhere;
+  margin-bottom: 5px;
+}
+.library-list [aria-pressed='true'] {
+  border-color: var(--pw-accent);
+}
+.library-editor {
+  min-width: 0;
+}
+.library-preset-settings {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.library-confirm {
+  border: 1px solid var(--pw-accent);
+  padding: 12px;
+}
+@media (max-width: 680px) {
+  .library-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .library-list {
+    max-height: 160px;
+  }
 }
 .connected-workspace button {
   padding: 9px 12px;
@@ -39,6 +148,9 @@
 }
 .connected-workspace summary {
   cursor: pointer;
+}
+.connected-workspace .connected-character-overflow {
+  color: var(--pw-error, #d94c4c);
 }
 .connected-menu {
   position: relative;

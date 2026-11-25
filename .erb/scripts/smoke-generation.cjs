@@ -42,6 +42,8 @@ try {
           SDSTUDIO_GENERATION_PHASE: phase,
           SDSTUDIO_CHARACTER_SMOKE:
             process.argv[2] === 'characters' ? '1' : '0',
+          SDSTUDIO_LIBRARY_REOPEN:
+            ['queue', 'queue-errors', 'characters'].includes(process.argv[2]) ? '0' : '1',
           SDSTUDIO_SMOKE_REPORT: report,
         },
       },
