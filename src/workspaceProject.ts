@@ -83,7 +83,7 @@ export type ProjectImageInput = Omit<
 >;
 export interface WorkspaceProject extends ProjectContent {
   format: typeof PROJECT_FORMAT;
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   id: string;
   images: ProjectImage[];
   trashedImageIds?: string[];
@@ -188,6 +188,11 @@ function localId(value: unknown): asserts value is string {
 function imageAsset(value: unknown, fields: string[]) {
   const r = record(value, [
     'id',
+    ...(value &&
+    typeof value === 'object' &&
+    Object.hasOwn(value, 'sourceFormat')
+      ? ['sourceFormat']
+      : []),
     'sourceHash',
     'sourceBytes',
     'uploadHash',
@@ -196,6 +201,8 @@ function imageAsset(value: unknown, fields: string[]) {
     'height',
     ...fields,
   ]);
+  if (Object.hasOwn(r, 'sourceFormat'))
+    choice(r.sourceFormat, ['webp', 'jpeg']);
   projectId(r.id);
   projectHash(r.sourceHash);
   projectHash(r.uploadHash);
@@ -407,7 +414,13 @@ export function validateImageInput(value: unknown): ProjectImageInput {
 export function requiredProjectVersion(
   content: ProjectContent,
   images: readonly ProjectImageInput[] = [],
-): 1 | 2 | 3 | 4 | 5 | 7 {
+): 1 | 2 | 3 | 4 | 5 | 7 | 8 {
+  if (
+    projectReferences(content, images).some(
+      (r) => r.sourceFormat || r.uploadBytes > 2 * 1024 * 1024,
+    )
+  )
+    return 8;
   if (
     content.scenes.some((s) => s.draft.img2img) ||
     images.some((i) => i.draft.img2img || i.binding?.id === 'nai-v5-img2img-v1')
@@ -450,13 +463,14 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
       v.version === 4 ||
       v.version === 5 ||
       v.version === 6 ||
-      v.version === 7,
+      v.version === 7 ||
+      v.version === 8,
     'PROJECT_VERSION',
   );
   try {
     const hasTrash =
       v.version === 6 ||
-      (v.version === 7 && Object.hasOwn(v, 'trashedImageIds'));
+      (Number(v.version) >= 7 && Object.hasOwn(v, 'trashedImageIds'));
     const p = record(value, [
       'format',
       'version',

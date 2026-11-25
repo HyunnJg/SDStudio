@@ -2,11 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { V5_SIZES } from '../../workspaceGenerationSettings';
 import type { WorkspaceDraft } from '../preview/workspaceDraft';
-import {
-  readPNGMetadata,
-  PNG_IMPORT_LIMITS,
-  PNGMetadataError,
-} from '../metadata/pngMetadata';
+import { PNG_IMPORT_LIMITS, PNGMetadataError } from '../metadata/pngMetadata';
 import {
   planMetadataImport,
   applyMetadataImport,
@@ -16,6 +12,9 @@ import type {
   ImportField,
   MetadataImportPlan,
 } from '../metadata/metadataImport';
+
+import readImageMetadata from '../metadata/imageMetadata';
+import { imageFormat } from '../../workspaceReference';
 
 const labels: Record<ImportField, string> = {
   prompt: '기본 프롬프트',
@@ -62,7 +61,7 @@ export default function PNGMetadataImport({
             throw new PNGMetadataError('PNG_LIMIT');
           const bytes = new Uint8Array(await file.arrayBuffer());
           if (controller.signal.aborted) return;
-          const metadata = await readPNGMetadata(bytes, controller.signal);
+          const metadata = await readImageMetadata(bytes, controller.signal);
           if (controller.signal.aborted) return;
           const prepared = planMetadataImport(metadata, initial.current);
           if (!availableImportFields(prepared).length)
@@ -70,7 +69,9 @@ export default function PNGMetadataImport({
           setPlan(prepared);
           setFields(availableImportFields(prepared));
           preview = URL.createObjectURL(
-            new Blob([Uint8Array.from(bytes)], { type: 'image/png' }),
+            new Blob([Uint8Array.from(bytes)], {
+              type: `image/${imageFormat(bytes)}`,
+            }),
           );
           setURL(preview);
         } catch (failure) {
@@ -78,10 +79,9 @@ export default function PNGMetadataImport({
           const code =
             failure instanceof PNGMetadataError ? failure.code : 'PNG_METADATA';
           const messages = {
-            PNG_LIMIT: 'PNG 또는 메타데이터 크기·픽셀 한도를 넘었습니다.',
-            PNG_INPUT: 'PNG 파일의 형식과 무결성을 확인해 주세요.',
-            PNG_MISSING:
-              '가져올 수 있는 메타데이터를 찾지 못했습니다. NAI에서 원본 저장한 PNG를 선택해 주세요.',
+            PNG_LIMIT: '이미지 또는 메타데이터 크기·픽셀 한도를 넘었습니다.',
+            PNG_INPUT: 'PNG·WebP·JPEG 파일을 선택해 주세요.',
+            PNG_MISSING: '이 이미지에서 가져올 생성 정보를 찾지 못했습니다.',
             PNG_METADATA:
               '메타데이터를 해석하지 못했습니다. 현재 입력은 유지됩니다.',
             CANCELLED: '읽기를 취소했습니다.',
@@ -110,7 +110,7 @@ export default function PNGMetadataImport({
     <dialog
       ref={dialog}
       className="connected-import-dialog"
-      aria-label="PNG 메타데이터 가져오기"
+      aria-label="이미지 메타데이터 가져오기"
       data-testid="metadata-dialog"
       onCancel={(event) => {
         event.preventDefault();
@@ -118,7 +118,7 @@ export default function PNGMetadataImport({
       }}
     >
       <header>
-        <h2>PNG에서 입력 가져오기</h2>
+        <h2>이미지에서 입력 가져오기</h2>
         <button type="button" aria-label="메타데이터 창 닫기" onClick={close}>
           닫기
         </button>
@@ -131,13 +131,17 @@ export default function PNGMetadataImport({
             <img
               className="connected-import-preview"
               src={url}
-              alt="가져올 PNG 미리보기"
+              alt="가져올 이미지 미리보기"
             />
           )}
           <p>
-            {plan.source === 'alpha'
-              ? '알파 채널 메타데이터'
-              : 'PNG 텍스트 메타데이터'}{' '}
+            {
+              {
+                alpha: '알파 채널 메타데이터',
+                embedded: '이미지 메타데이터',
+                text: 'PNG 텍스트 메타데이터',
+              }[plan.source]
+            }{' '}
             · 선택한 항목으로 현재 씬 입력을 바꿉니다. 이미지와 원본 파일은
             수정하지 않습니다.
           </p>

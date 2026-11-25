@@ -470,3 +470,21 @@ test('legacy drafts without preset fields keep automatic tags off and do not pro
     2,
   );
 });
+
+test('real JPEG comments and ordinary JPEG/WebP remain usable with or without generation metadata', async () => {
+  const sharp = require('sharp');
+  const { default: readImageMetadata } = require('../renderer/metadata/imageMetadata');
+  const image = sharp({create:{width:16,height:16,channels:3,background:'#214474'}});
+  const jpeg = await image.clone().jpeg().toBuffer(), webp = await image.clone().webp().toBuffer();
+  for (const bytes of [jpeg,webp]) {
+    await assert.rejects(readImageMetadata(bytes,signal()), {code:'PNG_MISSING'});
+    const stop = new AbortController(); stop.abort();
+    await assert.rejects(readImageMetadata(bytes,stop.signal), {code:'CANCELLED'});
+  }
+  const text = Buffer.from(JSON.stringify({Comment: JSON.stringify({prompt:'정원',seed:0})}));
+  const marker = Buffer.from([255,254,0,0]); marker.writeUInt16BE(text.length+2,2);
+  const tagged = Buffer.concat([jpeg.subarray(0,2),marker,text,jpeg.subarray(2)]);
+  assert.deepEqual((await readImageMetadata(tagged,signal())).comment,{prompt:'정원',seed:0});
+  const short = tagged.subarray(0,9);
+  await assert.rejects(readImageMetadata(short,signal()),{code:'PNG_INPUT'});
+});

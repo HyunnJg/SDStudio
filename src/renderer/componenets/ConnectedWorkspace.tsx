@@ -8,6 +8,10 @@ import {
   Dispatch,
   SetStateAction,
 } from 'react';
+import {
+  DEFAULT_QUEUE_INTERVAL,
+  isQueueInterval,
+} from '../../workspaceGeneration';
 import type {
   GenerationClient,
   GenerationPlan,
@@ -123,6 +127,14 @@ export default function ConnectedWorkspace({
   const [queue, setQueue] = useState<GenerationQueueState>();
   const [sceneIds, setSceneIds] = useState<string[]>([]);
   const [repeats, setRepeats] = useState('2');
+  const [intervalText, setIntervalText] = useState(() => {
+    const saved = localStorage.getItem('workspace.queueIntervalSeconds');
+    return saved?.trim() && isQueueInterval(Number(saved))
+      ? saved
+      : String(DEFAULT_QUEUE_INTERVAL);
+  });
+  const intervalValid =
+    intervalText.trim() !== '' && isQueueInterval(Number(intervalText));
   const availableSceneIds = availableQueueSceneIds(sceneIds, state.scenes);
   const sceneNames = useRef<{ id: string; name: string }[]>([]);
   sceneNames.current = [
@@ -573,12 +585,18 @@ export default function ConnectedWorkspace({
       const saved = project.getSnapshot();
       const prepared = unwrap(
         await (remaining
-          ? client.prepareRemaining(queue!.id, saved.id!, saved.revision!)
+          ? client.prepareRemaining(
+              queue!.id,
+              saved.id!,
+              saved.revision!,
+              Number(intervalText),
+            )
           : client.prepareQueue(
               saved.id!,
               saved.revision!,
               availableSceneIds,
               Number(repeats),
+              Number(intervalText),
             )),
       );
       const current = unwrap(await client.queueStatus(saved.revision));
@@ -675,7 +693,7 @@ export default function ConnectedWorkspace({
   const receiveImage = (file: File) => {
     if (locked || operation.current) return;
     if (file.size === 0 || file.size > REFERENCE_LIMITS.sourceBytes) {
-      setMessage('PNG 파일 크기를 확인해 주세요.');
+      setMessage('32 MiB 이하의 이미지 한 장을 선택해 주세요.');
       return;
     }
     setMessage('');
@@ -833,7 +851,7 @@ export default function ConnectedWorkspace({
         event.stopPropagation();
         if (!locked && event.dataTransfer.files.length === 1)
           receiveImage(event.dataTransfer.files[0]);
-        else if (!locked) setMessage('PNG 한 장을 선택해 주세요.');
+        else if (!locked) setMessage('이미지 한 장을 선택해 주세요.');
       }}
     >
       <header className="pw-header">
@@ -1326,7 +1344,8 @@ export default function ConnectedWorkspace({
                 data-testid="queue-confirm"
               >
                 <h3>
-                  총 {queuePlan.total}회 요청 · 이미지 {queuePlan.total}장
+                  총 {queuePlan.total}회 요청 · 이미지 {queuePlan.total}장 ·
+                  간격 {queuePlan.intervalSeconds}초
                 </h3>
                 {queuePlan.settings.map((settings) => (
                   <p key={JSON.stringify(settings)}>
@@ -1466,7 +1485,7 @@ export default function ConnectedWorkspace({
                   <br />
                   저장된 이미지는 오른쪽 결과에서 다시 볼 수 있습니다.
                   <br />
-                  PNG를 끌어놓으면 입력 정보를 가져올 수 있습니다.
+                  이미지를 끌어놓으면 입력 정보를 가져올 수 있습니다.
                 </span>
               </div>
             )}
@@ -1502,9 +1521,16 @@ export default function ConnectedWorkspace({
               scenes={state.scenes}
               selected={availableSceneIds}
               repeats={repeats}
+              intervalText={intervalText}
+              onIntervalChange={(value) => {
+                setIntervalText(value);
+                setQueuePlan(undefined);
+                if (value.trim() && isQueueInterval(Number(value)))
+                  localStorage.setItem('workspace.queueIntervalSeconds', value);
+              }}
               queue={queue?.projectId === view.id ? queue : undefined}
               disabled={locked}
-              canPrepare={!runtimeOptions.offline}
+              canPrepare={!runtimeOptions.offline && intervalValid}
               running={!!queue?.running}
               canResume={
                 queue?.projectId === view.id &&
@@ -1566,9 +1592,9 @@ export default function ConnectedWorkspace({
       <input
         ref={fileInput}
         type="file"
-        accept="image/png,.png"
+        accept="image/png,image/webp,image/jpeg,.png,.webp,.jpg,.jpeg"
         hidden
-        aria-label="가져올 PNG"
+        aria-label="가져올 이미지"
         data-testid="metadata-file"
         onChange={(event) => {
           const file = event.target.files?.[0];

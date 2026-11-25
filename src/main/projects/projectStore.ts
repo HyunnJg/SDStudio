@@ -6,6 +6,7 @@ import { createHash, randomUUID } from 'crypto';
 import {
   REFERENCE_LIMITS,
   referenceSize,
+  imageFormat,
   VARIATION_DEFAULTS,
 } from '../../workspaceReference';
 import { V5_SIZES } from '../../workspaceGenerationSettings';
@@ -358,7 +359,7 @@ export class ProjectStore {
       }
       return {
         ...current,
-        version: current.version === 7 ? 7 : 6,
+        version: Math.max(current.version, 6) as WorkspaceProject['version'],
         trashedImageIds: [...ids],
       };
     });
@@ -772,12 +773,13 @@ export class ProjectStore {
     id: string,
     sha256: string,
     expectedBytes: number,
+    extension = 'png',
   ): Uint8Array {
     projectHash(sha256);
     let bytes: Uint8Array;
     try {
       bytes = read(
-        path.join(this.directory([id, 'references']), `${sha256}.png`),
+        path.join(this.directory([id, 'references']), `${sha256}.${extension}`),
         REFERENCE_LIMITS.sourceBytes,
       );
     } catch {
@@ -796,7 +798,7 @@ export class ProjectStore {
         value && typeof value === 'object' && 'noise' in value
           ? validateVariation(value)
           : validateReference(value);
-      this.referenceFile(id, r.sourceHash, r.sourceBytes);
+      this.referenceFile(id, r.sourceHash, r.sourceBytes, r.sourceFormat);
       const bytes = this.referenceFile(id, r.uploadHash, r.uploadBytes);
       const b = Buffer.from(bytes);
       projectCheck(
@@ -826,13 +828,13 @@ export class ProjectStore {
       refs.map((item) => [JSON.stringify(item), item]),
     ).values()) {
       this.referenceBytes(sourceId, r);
-      for (const [sha, size] of [
-        [r.sourceHash, r.sourceBytes],
-        [r.uploadHash, r.uploadBytes],
+      for (const [sha, size, extension] of [
+        [r.sourceHash, r.sourceBytes, r.sourceFormat ?? 'png'],
+        [r.uploadHash, r.uploadBytes, 'png'],
       ] as const)
         ProjectStore.immutable(
-          path.join(target, `${sha}.png`),
-          this.referenceFile(sourceId, sha, size),
+          path.join(target, `${sha}.${extension}`),
+          this.referenceFile(sourceId, sha, size, extension),
         );
     }
     syncDirectory(target);
@@ -869,27 +871,34 @@ export class ProjectStore {
     )!;
     if (purpose === 'img2img') projectCheck(scene.draft.family === 'v5');
     const source = Uint8Array.from(value);
+    const format = imageFormat(source);
+    projectCheck(format);
     let upload: Buffer;
     let size: { width: number; height: number };
     try {
-      validatePNGBytes(source);
+      if (format === 'png') validatePNGBytes(source);
       const decoded = sharp(Buffer.from(source), {
         limitInputPixels: REFERENCE_LIMITS.sourcePixels,
         animated: false,
       });
       const meta = await decoded.metadata();
       projectCheck(
-        meta.format === 'png' &&
+        meta.format === format &&
           !!meta.width &&
           !!meta.height &&
           (meta.pages === undefined || meta.pages === 1),
       );
+      const rotated = (meta.orientation ?? 0) >= 5;
       size =
         purpose === 'img2img'
           ? V5_SIZES[scene.draft.resolution]
-          : referenceSize(meta.width!, meta.height!);
+          : referenceSize(
+              rotated ? meta.height! : meta.width!,
+              rotated ? meta.width! : meta.height!,
+            );
       // Upload is a separate centre-cropped derivative without PNG text chunks. Original bytes are retained unchanged.
       upload = await decoded
+        .autoOrient()
         .resize({ ...size, fit: 'cover', position: 'centre' })
         .png()
         .toBuffer();
@@ -911,6 +920,7 @@ export class ProjectStore {
     );
     const asset: ReferenceAsset = {
       id: randomUUID(),
+      ...(format !== 'png' ? { sourceFormat: format } : {}),
       sourceHash: hash(source),
       sourceBytes: source.length,
       uploadHash: hash(upload),
@@ -935,11 +945,11 @@ export class ProjectStore {
     // Also bound orphan assets left by cancelled/unsaved imports. No automatic file deletion.
     const files = fs
       .readdirSync(folder)
-      .filter((name) => /^[a-f0-9]{64}\.png$/.test(name));
+      .filter((name) => /^[a-f0-9]{64}\.(?:png|webp|jpeg)$/.test(name));
     const missing = [
-      [asset.sourceHash, source],
-      [asset.uploadHash, upload],
-    ].filter(([sha]) => !files.includes(`${sha}.png`));
+      [`${asset.sourceHash}.${format}`, source],
+      [`${asset.uploadHash}.png`, upload],
+    ].filter(([filename]) => !files.includes(filename as string));
     projectCheck(
       files.length + new Set(missing.map(([sha]) => sha)).size <= 360,
       'PROJECT_LIMIT',
@@ -956,7 +966,7 @@ export class ProjectStore {
       'PROJECT_LIMIT',
     );
     ProjectStore.immutable(
-      path.join(folder, `${asset.sourceHash}.png`),
+      path.join(folder, `${asset.sourceHash}.${format}`),
       source,
     );
     ProjectStore.immutable(

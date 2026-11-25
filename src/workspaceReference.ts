@@ -1,14 +1,30 @@
 // One reference per scene. Image bytes live in project assets, never in the draft/IPC plan.
 export const REFERENCE_LIMITS = {
   sourceBytes: 32 * 1024 * 1024,
-  uploadBytes: 2 * 1024 * 1024,
+  uploadBytes: 5 * 1024 * 1024,
   sourcePixels: 16_000_000,
 } as const;
+export const GENERATION_BODY_LIMIT = 8 * 1024 * 1024;
+
+export function imageFormat(
+  bytes: Uint8Array,
+): 'png' | 'webp' | 'jpeg' | undefined {
+  if ([137, 80, 78, 71, 13, 10, 26, 10].every((v, i) => bytes[i] === v))
+    return 'png';
+  if (bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255) return 'jpeg';
+  if (
+    String.fromCharCode(...bytes.subarray(0, 4)) === 'RIFF' &&
+    String.fromCharCode(...bytes.subarray(8, 12)) === 'WEBP'
+  )
+    return 'webp';
+  return undefined;
+}
 export type ReferenceRole =
   'character' | 'style' | 'character-style' | 'outfit';
 export interface ReferenceAsset {
   id: string;
   sourceHash: string;
+  sourceFormat?: 'webp' | 'jpeg';
   sourceBytes: number;
   uploadHash: string;
   uploadBytes: number;

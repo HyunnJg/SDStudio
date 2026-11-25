@@ -33,7 +33,7 @@ export const projectErrorMessage = (code: ProjectErrorCode): string =>
     PROJECT_IO:
       '저장 결과를 확정하지 못했습니다. 교체됐을 수도 있으니 다시 열어 확인하세요. 현재 편집은 유지됩니다.',
     PROJECT_IMAGE_TOO_LARGE:
-      '전송용 PNG가 2 MiB를 초과합니다. 다른 이미지를 선택하세요.',
+      '전송용 PNG가 5 MiB를 초과합니다. 다른 이미지를 선택하세요.',
     PROJECT_LIMIT:
       '보관 한도에 도달했습니다. 이력을 지우지 않고 새 복사본으로 계속하거나 입력만 새 프로젝트로 저장하세요.',
     PROJECT_RESULT_LIMIT:

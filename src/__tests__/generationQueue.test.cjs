@@ -81,8 +81,8 @@ function fixture(t, options = {}) {
     bytes,
     bodies,
     offline: () => (online = false),
-    prepare: (repeats = 2, ids = scenes.map((s) => s.id)) =>
-      service.prepareQueue(first.project.id, first.revision, ids, repeats),
+    prepare: (repeats = 2, ids = scenes.map((s) => s.id), interval = 0) =>
+      service.prepareQueue(first.project.id, first.revision, ids, repeats, interval),
     get count() {
       return count;
     },
@@ -1231,5 +1231,55 @@ test('exclusion IPC uses the existing trust guard and accepts no stale or unrela
     code: 'INVALID_INPUT',
     mayHaveReachedServer: false,
   });
+  assert.equal(f.count, 0);
+});
+
+test('confirmed queue spacing starts after completion; stopping the countdown preserves the next job', async (t) => {
+  const sentAt = [];
+  const f = fixture(t, {
+    send: ({ bytes }) => {
+      sentAt.push(performance.now());
+      return bytes;
+    },
+  });
+  const ids = [f.scenes[0].id];
+  const started = await f.prepare(2, ids, 10);
+  assert.equal(started.intervalSeconds, 10);
+  const running = f.service.runQueue(started.ticket, true);
+  const deadline = performance.now() + 8000;
+  while (!f.service.queueStatus().queue.nextRequestAt) {
+    assert.ok(
+      performance.now() < deadline,
+      'queue reached its inter-request wait',
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.equal(f.count, 1);
+  f.service.cancel();
+  const stopped = await running;
+  assert.deepEqual(
+    stopped.queue.items.map((i) => i.status),
+    ['done', 'pending'],
+  );
+  assert.equal(stopped.queue.nextRequestAt, undefined);
+  const continued = await f.service.prepareRemaining(
+    stopped.queue.id,
+    f.first.project.id,
+    f.core.readManifest(f.first.project.id).revision,
+    1,
+  );
+  await f.service.runQueue(continued.ticket, true);
+  assert.ok(sentAt[1] - sentAt[0] >= 995);
+  assert.equal(f.count, 2);
+});
+test('omitted interval defaults to ten seconds and invalid values are refused before approval', async (t) => {
+  const f = fixture(t);
+  const args = [f.first.project.id, f.first.revision, [f.scenes[0].id], 2];
+  assert.equal((await f.service.prepareQueue(...args)).intervalSeconds, 10);
+  for (const seconds of [-1, 0.1, '5', 3601, NaN]) {
+    await assert.rejects(f.service.prepareQueue(...args, seconds), {
+      code: 'INVALID_INPUT',
+    });
+  }
   assert.equal(f.count, 0);
 });

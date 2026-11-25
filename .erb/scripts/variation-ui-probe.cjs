@@ -1,4 +1,4 @@
-// Only synthetic PNGs enter this temporary desktop profile.
+// Only synthetic images enter this temporary desktop profile.
 const assert = require('node:assert/strict');
 const { png } = require('../../src/__tests__/fixtures/nai/png.cjs');
 
@@ -15,17 +15,61 @@ module.exports = async ({
   );
   assert.equal(auth.ok, true);
   await fill('[data-testid=live-prompt]', 'synthetic img2img');
-  const original = png(2, 1, Buffer.from('distinct original'));
-  await evaluate(`(() => {
-    const transfer = new DataTransfer();
-    transfer.items.add(new File([new Uint8Array(${JSON.stringify(Array.from(original))})], 'variation.png', {type:'image/png'}));
-    const picker = document.querySelector('[data-testid=metadata-file]');
-    picker.files = transfer.files;
-    picker.dispatchEvent(new Event('change', {bubbles:true}));
-  })()`);
+  const sharp = require('../../release/app/node_modules/sharp');
+  const base = sharp(png(2, 1, Buffer.from('distinct original')));
+  const pick = async (bytes, format) => {
+    await evaluate(`(() => {
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([new Uint8Array(${JSON.stringify(Array.from(bytes))})], 'fixture.' + '${format}', {type:'image/${format}'}));
+      const picker = document.querySelector('[data-testid=metadata-file]');
+      picker.files = transfer.files;
+      picker.dispatchEvent(new Event('change', {bubbles:true}));
+    })()`);
+    await until(() =>
+      evaluate("document.querySelector('[data-testid=image-choice]')?.open"),
+    );
+  };
+  const webp = await base
+    .clone()
+    .webp()
+    .withXmp(
+      '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:description>{"prompt":"webp xmp fixture","seed":0}</dc:description></rdf:Description></rdf:RDF></x:xmpmeta>',
+    )
+    .toBuffer();
+  await pick(webp, 'webp');
+  await click('[data-testid=image-use-metadata]');
   await until(() =>
-    evaluate("document.querySelector('[data-testid=image-choice]')?.open"),
+    evaluate(
+      "document.querySelector('[data-testid=metadata-dialog] pre')?.textContent === 'webp xmp fixture'",
+    ),
   );
+  await click('[data-testid=metadata-dialog] header button');
+  assert.equal(requestCount(), 0);
+  checks.push('WebP XMP prompt previews locally without a generation request');
+  const {
+    fixture,
+  } = require('../../src/__tests__/fixtures/nai/metadataPNG.cjs');
+  const hidden = fixture(
+    { Comment: { prompt: 'webp alpha fixture', seed: 0 } },
+    { format: 'alpha' },
+  );
+  await pick(
+    await sharp(hidden.bytes).webp({ lossless: true }).toBuffer(),
+    'webp',
+  );
+  await click('[data-testid=image-use-metadata]');
+  await until(() =>
+    evaluate(
+      "document.querySelector('[data-testid=metadata-dialog] pre')?.textContent === 'webp alpha fixture'",
+    ),
+  );
+  await click('[data-testid=metadata-dialog] header button');
+  assert.equal(requestCount(), 0);
+  checks.push(
+    'WebP retaining stealth alpha bits previews the original caption without a request',
+  );
+  const original = await base.clone().jpeg().toBuffer();
+  await pick(original, 'jpeg');
   await click('[data-testid=image-use-variation]');
   await until(() =>
     evaluate(
@@ -44,6 +88,11 @@ module.exports = async ({
   checks.push(
     'selecting an img2img source shows a target-size preview and two controls without sending',
   );
+  await until(() =>
+    evaluate(
+      "document.querySelector('[data-testid=prepare-generation]')?.disabled === false",
+    ),
+  );
   await click('[data-testid=prepare-generation]');
   await until(() =>
     evaluate(
@@ -56,6 +105,7 @@ module.exports = async ({
       (r) => r.value.project,
     );
   const first = (await open()).images[0];
+  assert.equal(first.draft.img2img.sourceFormat, 'jpeg');
   assert.equal(first.binding.id, 'nai-v5-img2img-v1');
   assert.equal(first.draft.img2img.strength, 0.4);
   assert.equal(first.draft.img2img.noise, 0.1);
