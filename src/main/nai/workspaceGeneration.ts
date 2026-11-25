@@ -1,7 +1,12 @@
 /* eslint import/prefer-default-export: off, max-classes-per-file: off, no-await-in-loop: off -- Approved queue jobs are bound serially within the memory limit. */
 import { randomUUID, createHash } from 'crypto';
 import { isDeepStrictEqual } from 'util';
-import { ProjectError, projectId, projectHash } from '../../workspaceProject';
+import {
+  PROJECT_LIMITS,
+  ProjectError,
+  projectId,
+  projectHash,
+} from '../../workspaceProject';
 import type { ProjectImageInput, ProjectContent } from '../../workspaceProject';
 import type {
   GenerationPlan,
@@ -579,8 +584,11 @@ export class WorkspaceGeneration {
       );
       if (scenes.length !== sceneIds.length)
         throw new GenerationError('INVALID_INPUT');
-      if (snapshot.project.images.length + scenes.length * repeats > 120)
-        throw new GenerationError('QUEUE_LIMIT');
+      if (
+        snapshot.project.images.length + scenes.length * repeats >
+        PROJECT_LIMITS.results
+      )
+        throw new ProjectError('PROJECT_RESULT_LIMIT');
       const tasks: Prepared[] = [];
       const items: GenerationQueueState['items'] = [];
       const seeds = new Set<number>();
@@ -707,8 +715,8 @@ export class WorkspaceGeneration {
       const current = await this.options.store.generationSnapshot(id, revision);
       WorkspaceGeneration.checkQueuedInputs(q, current.project);
       const count = q.state.items.filter((i) => i.status === 'pending').length;
-      if (current.project.images.length + count > 120)
-        throw new GenerationError('QUEUE_LIMIT');
+      if (current.project.images.length + count > PROJECT_LIMITS.results)
+        throw new ProjectError('PROJECT_RESULT_LIMIT');
       const plan = this.approve(q);
       delete q.state.stoppedItemId;
       return plan;

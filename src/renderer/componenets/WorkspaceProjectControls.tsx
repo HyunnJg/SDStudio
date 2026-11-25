@@ -4,6 +4,7 @@ import {
   ProjectController,
   projectErrorMessage,
 } from '../projects/projectController';
+import { isProjectCapacityCode } from '../../workspaceProject';
 import './WorkspaceProjectControls.css';
 
 interface Props {
@@ -154,6 +155,15 @@ export default function WorkspaceProjectControls({
               disabled={!!state.operation || unavailable}
             >
               저장 기능 다시 시작
+            </button>
+          )}
+          {state.id && isProjectCapacityCode(state.error) && (
+            <button
+              type="button"
+              disabled={locked || unavailable}
+              onClick={() => controller.copy(true)}
+            >
+              입력만 새 프로젝트로
             </button>
           )}
           {(!connected || state.error) && (

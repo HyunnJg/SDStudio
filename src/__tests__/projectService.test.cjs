@@ -104,7 +104,7 @@ test('1000-history boundary and stale lock offer a verified new copy without mut
   assert.equal(f.store.history(id).length, 1000);
   assert.throws(
     () => f.store.save(id, next.revision, { ...f.content, name: 'over limit' }),
-    { code: 'PROJECT_LIMIT' },
+    { code: 'PROJECT_HISTORY_LIMIT' },
   );
   const same = f.store.save(id, next.revision, {
     ...f.content,

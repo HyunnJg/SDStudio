@@ -569,7 +569,7 @@ test('total reservation count cannot exceed the remaining120-image metadata capa
   const current = f.core.readManifest(manifest.id);
   await assert.rejects(
     f.service.prepareQueue(manifest.id, current.revision, [f.scenes[0].id], 2),
-    { code: 'QUEUE_LIMIT' },
+    { code: 'PROJECT_RESULT_LIMIT' },
   );
   assert.equal(f.count, 1);
 });

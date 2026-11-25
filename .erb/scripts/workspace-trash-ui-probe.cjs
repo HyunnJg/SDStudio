@@ -69,4 +69,34 @@ module.exports=async({contents,evaluate,click,fill,until,checks,profile,requestC
  await click('[data-testid=result-trash-close]');assert.equal(requestCount(),2);
  const final=await snapshot();assert.equal(final.project.version,6);assert.equal(final.project.images.length,2);assert.equal(final.project.trashedImageIds.length,1);
  checks.push('project trash tab restores the original UUID without overwriting another project; hidden results remain v6 on disk for the next process');
+
+ // Fill an isolated copy with metadata records sharing the existing synthetic PNG.
+ const content = {name: 'Capacity fixture', scenes: final.project.scenes, selectedSceneId: final.project.selectedSceneId};
+ const copy = await evaluate(`window.electron.projects.copy('${id}', '${final.revision}', ${JSON.stringify(content)})`);
+ assert.equal(copy.ok, true);
+ const full = copy.value.project;
+ full.images = Array.from({length: 119}, () => ({...latest, id: require('node:crypto').randomUUID()}));
+ full.trashedImageIds = full.images.slice(1).map(image => image.id);
+ const manifest = path.join(profile, 'projects-v1', full.id, 'project.json');
+ fs.writeFileSync(manifest, JSON.stringify(full, null, 2) + '\n');
+ await click('[data-testid=project-list]');
+ await until(() => evaluate(`!!document.querySelector('[data-project-open="${full.id}"]')`));
+ await click(`[data-project-open="${full.id}"]`);
+ await until(() => evaluate("document.querySelector('.connected-history-heading').innerText.includes('휴지통 118 / 120')"));
+ await click('[data-queue-scene]');
+ await fill('#live-repeats', '2');
+ await click('[data-testid=prepare-live-queue]');
+ await until(() => evaluate("document.querySelector('[data-testid=generation-status]').innerText.includes('120장') && document.querySelector('[data-testid=generation-capacity-copy]')?.disabled === false"));
+ const beforeCopy = fs.readFileSync(manifest);
+ await click('[data-testid=generation-capacity-copy]');
+ await until(() => evaluate("!document.querySelector('[data-testid=generation-capacity-copy]') && document.querySelector('.connected-history-heading span').textContent.trim()==='0'"));
+ const entries = (await evaluate('window.electron.projects.list()')).value;
+ const continued = entries.find(entry => entry.name === content.name && entry.id !== full.id);
+ assert.ok(continued);
+ const fresh = (await evaluate(`window.electron.projects.open('${continued.id}')`)).value.project;
+ assert.deepEqual(fresh.scenes, full.scenes);
+ assert.equal(fresh.images.length, 0);
+ assert.deepEqual(fs.readFileSync(manifest), beforeCopy);
+ assert.equal(requestCount(), 2);
+ checks.push('119 results including 118 trashed block two reservations; inline input-only continuation retains scenes, source bytes and request count');
 };

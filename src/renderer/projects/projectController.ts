@@ -30,6 +30,12 @@ export const projectErrorMessage = (code: ProjectErrorCode): string =>
       '저장 결과를 확정하지 못했습니다. 교체됐을 수도 있으니 다시 열어 확인하세요. 현재 편집은 유지됩니다.',
     PROJECT_LIMIT:
       '보관 한도에 도달했습니다. 이력을 지우지 않고 새 복사본으로 계속하거나 입력만 새 프로젝트로 저장하세요.',
+    PROJECT_RESULT_LIMIT:
+      '휴지통을 포함해 결과는 120장까지 보관할 수 있습니다. 요청한 장수를 담을 자리가 부족합니다.',
+    PROJECT_GENERATION_SPACE:
+      '결과·참조 자산의 256 MiB 한도에서 다음 PNG에 필요한 여유 공간 32 MiB를 확보할 수 없습니다.',
+    PROJECT_HISTORY_LIMIT:
+      '이 프로젝트의 저장 이력 1,000개를 모두 사용했습니다.',
     PROJECT_UNTRUSTED: '현재 창에서는 프로젝트에 접근할 수 없습니다.',
   })[code];
 function unwrap<T>(reply: ProjectReply<T>): T {
