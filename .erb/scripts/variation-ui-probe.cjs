@@ -62,6 +62,11 @@ module.exports = async ({
   checks.push(
     'one click stores the first variation with the selected strength and noise',
   );
+  await until(() =>
+    evaluate(
+      "!document.querySelector('[data-testid=result-use-variation]').disabled",
+    ),
+  );
   await click('[data-testid=result-use-variation]');
   await until(() =>
     evaluate(

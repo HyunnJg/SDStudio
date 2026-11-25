@@ -373,7 +373,10 @@ export default function ConnectedWorkspace({
       return { ...previous, draft };
     });
   };
-  const attachImage = async (file: File, purpose: ImagePurpose) => {
+  const attachImage = async (
+    source: File | { projectId: string; imageId: string },
+    purpose: ImagePurpose,
+  ) => {
     if (operation.current || locked) return;
     operation.current = true;
     generationEpoch.current += 1;
@@ -385,13 +388,19 @@ export default function ConnectedWorkspace({
     try {
       if (
         state.draft.family !== 'v5' ||
-        file.size > REFERENCE_LIMITS.sourceBytes ||
-        file.size === 0
+        (source instanceof File &&
+          (source.size > REFERENCE_LIMITS.sourceBytes || source.size === 0))
       )
         throw new ProjectError('PROJECT_INPUT');
       if (!(await project.save())) return;
       const saved = project.getSnapshot();
-      const bytes = new Uint8Array(await file.arrayBuffer());
+      let bytes: Uint8Array;
+      if (source instanceof File)
+        bytes = new Uint8Array(await source.arrayBuffer());
+      else {
+        if (source.projectId !== saved.id) return;
+        bytes = unwrap(await client.image(source.projectId, source.imageId));
+      }
       if (
         !mounted.current ||
         liveScene.current !== sceneId ||
@@ -672,11 +681,14 @@ export default function ConnectedWorkspace({
   };
   const reuseResultImage = async (purpose: 'metadata' | ImagePurpose) => {
     if (locked || operation.current || !view.id || !result) return;
+    if (purpose !== 'metadata') {
+      await attachImage({ projectId: view.id, imageId: result.id }, purpose);
+      return;
+    }
     operation.current = true;
     generationEpoch.current += 1;
     setPhase('image');
     setMessage('');
-    let file: File | undefined;
     try {
       const bytes = unwrap(await client.image(view.id, result.id));
       if (
@@ -685,9 +697,9 @@ export default function ConnectedWorkspace({
         liveScene.current !== state.selectedSceneId
       )
         return;
-      file = new File([new Uint8Array(bytes)], 'result.png', {
-        type: 'image/png',
-      });
+      setImportFile(
+        new File([new Uint8Array(bytes)], 'result.png', { type: 'image/png' }),
+      );
     } catch (error) {
       setMessage(generationMessage(error, sceneNames.current));
     } finally {
@@ -695,9 +707,6 @@ export default function ConnectedWorkspace({
       generationEpoch.current += 1;
       setPhase('');
     }
-    if (!file || !mounted.current) return;
-    if (purpose === 'metadata') setImportFile(file);
-    else await attachImage(file, purpose);
   };
   const setResultDeleted = async (imageId: string, deleted: boolean) => {
     if (operation.current || locked || !view.id) return;
