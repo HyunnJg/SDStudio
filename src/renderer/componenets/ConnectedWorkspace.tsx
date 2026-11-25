@@ -142,8 +142,25 @@ export default function ConnectedWorkspace({
   const [imageChoice, setImageChoice] = useState<File>();
   const [presets, setPresets] = useState<PromptPreset[]>([]);
   const [uses, setUses] = useState<
-    (PresetUse & { sceneId: string; projectId?: string; fingerprint: string })[]
+    (PresetUse & {
+      sceneId: string;
+      projectId?: string;
+      fingerprint: string;
+      inputEpoch: number;
+    })[]
   >([]);
+  const presetScope = useRef({ id: view.id, inputEpoch: view.inputEpoch });
+  useEffect(() => {
+    const previous = presetScope.current;
+    presetScope.current = { id: view.id, inputEpoch: view.inputEpoch };
+    if (previous.inputEpoch !== view.inputEpoch) setUses([]);
+    else if (!previous.id && view.id)
+      setUses((items) =>
+        items.map((item) =>
+          item.projectId === undefined ? { ...item, projectId: view.id } : item,
+        ),
+      );
+  }, [view.id, view.inputEpoch]);
   const acceptLibrary = useCallback(
     (snapshot: LibrarySnapshot) => setPresets(snapshot.entries),
     [],
@@ -613,6 +630,7 @@ export default function ConnectedWorkspace({
     uses.find(
       (item) =>
         item.sceneId === state.selectedSceneId &&
+        item.inputEpoch === view.inputEpoch &&
         item.projectId === view.id &&
         item.kind === kind &&
         item.characterId === characterId,
@@ -1427,6 +1445,7 @@ export default function ConnectedWorkspace({
                   sceneId: state.selectedSceneId,
                   projectId: view.id,
                   fingerprint: presetTextKey(draft, characterId),
+                  inputEpoch: view.inputEpoch,
                 },
               ]);
             else

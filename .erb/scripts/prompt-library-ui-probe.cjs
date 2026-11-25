@@ -77,11 +77,14 @@ module.exports = async ({ contents, evaluate, click, fill, until, checks }) => {
   assert.equal(await evaluate("document.querySelector('[data-testid=library-prompt]').value"), 'front\nback');
   await click('[data-testid=library-save]'); await waitReady();
   await until(async () => (await evaluate('window.electron.promptLibrary.read()')).value.entries.length === initialEntries + 3);
+  await click('[data-testid=library-apply]');
+  await until(() => evaluate("document.querySelector('[data-testid=applied-main-preset]')?.textContent.includes('Legacy synthetic')"));
   await close(); win.setSize(1400, 900); await until(() => evaluate('innerWidth===1400'));
   await click('[data-testid=project-new]');
   await until(() => evaluate("document.querySelector('[data-testid=project-confirm]')?.open"));
   await click('[data-testid=project-confirm-discard]');
   await until(() => evaluate("document.querySelectorAll('[data-character-id]').length===0"));
+  assert.equal(await evaluate("!!document.querySelector('[data-testid=applied-main-preset]')"),false);
   await click('[data-testid=open-prompt-library]'); await waitReady();
   assert.equal((await evaluate('window.electron.promptLibrary.read()')).value.entries.length, initialEntries + 3);
   await close();

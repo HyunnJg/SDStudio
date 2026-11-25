@@ -5,8 +5,8 @@
 ## 로컬 코드 확인
 
 - Linux x64, Node26.13.1, 기존 설치/npm11.20.0 재사용. CI의 고정 npm11.21.3 clean 설치와 구분한다.
-- 전체 `test:unit` **362/362** 통과(기준357 + 확인/이미지 목적/프리셋 표시4 + 라이브러리 저장 실패1). 실패한 저장은 편집 상태/오류를 남기고 저장 표시나 적용으로 이어지지 않는다.
-- 변경 UI TSX8개와 helper TS2개의 scoped eslint, renderer 범위 strict tsc, 수정 CJS 구문·git diff 공백 검사 통과. App의 변경은 시작 상태1줄이며 기존 전체 App lint 오류를 정리하지 않았다. 전체 저장소 lint/tsc 통과를 주장하지 않는다.
+- 전체 `test:unit` **363/363** 통과(기준357 + 확인/이미지 목적/프리셋 표시4 + 라이브러리 저장 실패1 + 입력 세대1). 실패한 저장은 편집 상태/오류를 남기고 저장 표시나 적용으로 이어지지 않는다.
+- 변경 UI TSX8개와 helper TS2개 및 projectController의 scoped eslint, renderer 범위 strict tsc, 수정 CJS 구문·git diff 공백 검사 통과. App의 변경은 시작 상태1줄이며 기존 전체 App lint 오류를 정리하지 않았다. 전체 저장소 lint/tsc 통과를 주장하지 않는다.
 - production main/renderer build·최종 renderer rebuild/고지 수집, Linux directory package 및 packaged notice 검사 통과. 식별된215패키지/기존 미해결 고지 원문8개를 숨기지 않는다.
 
 ## 실제 Linux Electron
@@ -23,7 +23,7 @@
 | ASAR 참조 생성 | 1 | 9 | 3 |
 | 합계 | 14 | 177 | 29 |
 
-위는 선택한 통과 실행들의 합계다. 중간 실행/실패/재실행도 있었으므로 이번 작업 전체의 HTTP 총수로 주장하지 않는다. 큐/오류 검사는 참조 카드 크기·caption 이름/바이트 표시와 재사용 후 문맥 재검사 같은 마지막 화면 보완 전 빌드이며, 보완 뒤에는 기본/참조6PID·80체크와 ASAR2PID·42체크를 재실행했다. 모든 선택 실행에서 실제 NovelAI0·외부 요청0·renderer 오류0, 정상 native 종료와 원본 프로필 생성0을 확인했다.
+위는 선택한 통과 실행들의 합계다. 중간 실행/실패/재실행도 있었으므로 이번 작업 전체의 HTTP 총수로 주장하지 않는다. 큐/오류 검사는 참조 카드 크기·caption 이름/바이트 표시와 재사용 후 문맥 재검사 같은 마지막 화면 보완 전 빌드이며, 보완 뒤에는 기본/참조6PID·80체크와 ASAR2PID·42체크를 재실행했다. 마지막 검토에서 발견한 새 입력/재열기 프리셋 표시 잔류를 renderer 입력 세대로 보완한 뒤 전체363건·범위 lint/tsc·renderer/package를 다시 검사하고 기본3PID52체크/ASAR33체크를 다시 확인했다. 최초 저장은 같은 입력 세대를 유지한다. 모든 선택 실행에서 실제 NovelAI0·외부 요청0·renderer 오류0, 정상 native 종료와 원본 프로필 생성0을 확인했다.
 
 확인한 동작:
 

@@ -295,3 +295,16 @@ test('result metadata comes from the accepted snapshot without a second open; cl
   await f.controller.newProject();
   assert.deepEqual(f.controller.getSnapshot().imageRecords, []);
 });
+
+test('preset presentation scope changes on new input and explicit reopen, not routine saves', async () => {
+  const {controller}=fixture();
+  const initial=controller.getSnapshot().inputEpoch;
+  assert.equal(await controller.save(),true);
+  assert.equal(controller.getSnapshot().inputEpoch,initial);
+  await controller.newProject();
+  assert.equal(controller.getSnapshot().inputEpoch,initial+1);
+  assert.equal(await controller.save(),true);
+  assert.equal(controller.getSnapshot().inputEpoch,initial+1);
+  await controller.open(controller.getSnapshot().id);
+  assert.equal(controller.getSnapshot().inputEpoch,initial+2);
+});

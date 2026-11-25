@@ -37,6 +37,7 @@ function unwrap<T>(reply: ProjectReply<T>): T {
   return reply.value;
 }
 export interface ProjectView {
+  inputEpoch: number;
   name: string;
   id?: string;
   revision?: string;
@@ -70,6 +71,7 @@ export class ProjectController {
 
   constructor(private readonly options: Options) {
     this.state = {
+      inputEpoch: 0,
       name: '새 프로젝트',
       baseline: '',
       images: 0,
@@ -164,7 +166,10 @@ export class ProjectController {
     if (snapshot.project.id !== this.state.id) {
       if (!asNewProject) throw new ProjectError('PROJECT_CONFLICT');
       this.options.apply(snapshot);
-      this.update({ name: snapshot.project.name });
+      this.update({
+        inputEpoch: this.state.inputEpoch + 1,
+        name: snapshot.project.name,
+      });
     }
     const { name, selectedSceneId, scenes } = snapshot.project;
     this.bind(snapshot, JSON.stringify({ name, selectedSceneId, scenes }));
@@ -247,7 +252,13 @@ export class ProjectController {
       selectedSceneId: snapshot.project.selectedSceneId,
       scenes: snapshot.project.scenes,
     };
-    this.update({ name: content.name, panel: false, target: '', history: [] });
+    this.update({
+      inputEpoch: this.state.inputEpoch + 1,
+      name: content.name,
+      panel: false,
+      target: '',
+      history: [],
+    });
     this.bind(snapshot, JSON.stringify(content));
   }
 
@@ -275,6 +286,7 @@ export class ProjectController {
       this.options.reset();
       const initial = this.options.workspace();
       this.update({
+        inputEpoch: this.state.inputEpoch + 1,
         id: undefined,
         revision: undefined,
         name: '새 프로젝트',
