@@ -2,13 +2,15 @@
 /* eslint no-void: off -- Local image loading effects handle fixed UI failures. */
 import { useEffect, useRef, useState, useMemo } from 'react';
 import type { GenerationClient } from '../../workspaceGeneration';
-import type { ProjectImage } from '../../workspaceProject';
+import { projectErrorMessage } from '../projects/projectController';
+import type { ProjectClient, ProjectImage } from '../../workspaceProject';
 import ThumbnailQueue from '../generation/thumbnailQueue';
 
 interface ThumbnailProps {
   image: ProjectImage;
   number: number;
   selected: boolean;
+  marked?: boolean;
   selectedURL: string;
   load: () => ReturnType<GenerationClient['image']>;
   queue: ThumbnailQueue;
@@ -20,6 +22,7 @@ function Thumbnail({
   image,
   number,
   selected,
+  marked = undefined,
   selectedURL,
   load,
   queue,
@@ -82,12 +85,17 @@ function Thumbnail({
       ref={button}
       type="button"
       className="connected-thumbnail"
-      aria-pressed={selected}
+      aria-pressed={marked ?? selected}
       data-image-id={image.id}
       data-restore-result={actionLabel ? image.id : undefined}
       disabled={disabled}
       onClick={onSelect}
     >
+      {marked !== undefined && (
+        <span aria-hidden="true" className="gallery-mark">
+          {marked ? '✓' : ''}
+        </span>
+      )}
       <span className="connected-thumbnail-preview">
         {source && !failed ? (
           <img
@@ -116,6 +124,7 @@ interface Props {
   selected: string;
   selectedURL: string;
   onSelect: (id: string) => void;
+  exportResults?: ProjectClient['exportResults'];
   actionLabel?: string;
   disabled?: boolean;
 }
@@ -126,6 +135,7 @@ export default function ConnectedImageHistory({
   selected,
   selectedURL,
   onSelect,
+  exportResults = undefined,
   actionLabel = '',
   disabled = false,
 }: Props) {
@@ -140,6 +150,53 @@ export default function ConnectedImageHistory({
     [client, projectId],
   );
   const { queue, loaders } = scope;
+  const [selection, setSelection] = useState<Set<string> | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [exportError, setExportError] = useState('');
+  const ids = images
+    .filter((image) => selection?.has(image.id))
+    .map((image) => image.id);
+  const saveIds = selection
+    ? ids
+    : images.filter((image) => image.id === selected).map((image) => image.id);
+  const saveLabel =
+    saveIds.length > 1 ? `ZIP 저장 (${saveIds.length}장)` : 'PNG 저장';
+  const save = async () => {
+    if (!exportResults || !projectId || saving || !saveIds.length) return;
+    setSaving(true);
+    setExportError('');
+    try {
+      const reply = await exportResults(projectId, saveIds);
+      if (!reply.ok) {
+        const errors = {
+          PROJECT_BUSY: '다른 저장이 끝나면 다시 시도해 주세요.',
+          PROJECT_NOT_FOUND: '프로젝트 또는 선택한 결과를 찾을 수 없습니다.',
+          PROJECT_INPUT: '앱 데이터 폴더 밖에 해당 확장자로 저장해 주세요.',
+          PROJECT_IO: '파일을 저장하지 못했습니다. 저장 위치를 확인해 주세요.',
+          PROJECT_CORRUPT: '선택한 원본 이미지를 읽을 수 없습니다.',
+        };
+        setExportError(
+          errors[reply.code as keyof typeof errors] ??
+            projectErrorMessage(reply.code),
+        );
+      }
+    } catch {
+      setExportError('결과 파일을 저장하지 못했습니다.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const select = (id: string) => {
+    if (!selection) {
+      onSelect(id);
+      return;
+    }
+    const next = new Set(selection);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelection(next);
+  };
+
   const getLoader = (id: string) => {
     let loader = loaders.get(id);
     if (!loader) {
@@ -149,27 +206,69 @@ export default function ConnectedImageHistory({
     return loader;
   };
   return (
-    <div className="connected-history" aria-label="저장된 결과 목록">
-      {!images.length && (
-        <p className="connected-history-empty">아직 이미지가 없습니다.</p>
+    <>
+      {exportResults && images.length > 0 && (
+        <div className="gallery-export" aria-label="결과 저장">
+          <button
+            type="button"
+            disabled={saving}
+            aria-pressed={!!selection}
+            onClick={() => {
+              setSelection(selection ? null : new Set());
+              setExportError('');
+            }}
+          >
+            {selection ? '선택 종료' : '여러 장 선택'}
+          </button>
+          {selection && (
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() =>
+                setSelection(
+                  ids.length === images.length
+                    ? new Set()
+                    : new Set(images.map((i) => i.id)),
+                )
+              }
+            >
+              {ids.length === images.length ? '선택 해제' : '전체 선택'}
+            </button>
+          )}
+          <button
+            type="button"
+            data-testid="gallery-save"
+            disabled={saving || !saveIds.length}
+            onClick={save}
+          >
+            {saving ? '저장 중…' : saveLabel}
+          </button>
+          {exportError && <small role="alert">{exportError}</small>}
+        </div>
       )}
-      {projectId &&
-        [...images]
-          .reverse()
-          .map((image, index) => (
-            <Thumbnail
-              key={`${projectId}:${image.id}`}
-              image={image}
-              number={images.length - index}
-              selected={selected === image.id}
-              selectedURL={selectedURL}
-              load={getLoader(image.id)}
-              queue={queue}
-              onSelect={() => onSelect(image.id)}
-              actionLabel={actionLabel}
-              disabled={disabled}
-            />
-          ))}
-    </div>
+      <div className="connected-history" aria-label="저장된 결과 목록">
+        {!images.length && (
+          <p className="connected-history-empty">아직 이미지가 없습니다.</p>
+        )}
+        {projectId &&
+          [...images]
+            .reverse()
+            .map((image, index) => (
+              <Thumbnail
+                key={`${projectId}:${image.id}`}
+                image={image}
+                number={images.length - index}
+                selected={selected === image.id}
+                selectedURL={selectedURL}
+                load={getLoader(image.id)}
+                queue={queue}
+                marked={selection ? selection.has(image.id) : undefined}
+                onSelect={() => select(image.id)}
+                actionLabel={actionLabel}
+                disabled={disabled || saving}
+              />
+            ))}
+      </div>
+    </>
   );
 }

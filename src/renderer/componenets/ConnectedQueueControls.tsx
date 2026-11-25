@@ -165,6 +165,9 @@ export default function ConnectedQueueControls({
               onChange={(e) => onIntervalChange(e.target.value)}
             />
           </label>
+          {intervalText.trim() && [0, 1, 2].includes(Number(intervalText)) && (
+            <small>짧은 간격에서는 요청 제한에 걸릴 수 있습니다.</small>
+          )}
           <label htmlFor="live-repeats">
             선택 씬마다 반복
             <input

@@ -947,3 +947,9 @@
 .result-trash-history .connected-history { display:grid; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); gap:10px; }
 .result-trash-history .connected-thumbnail-preview { height:145px; }
 .result-trash-history .connected-thumbnail { min-width:0; }
+
+.gallery-export { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:10px 12px 0; }
+.gallery-export small { flex-basis:100%; }
+.connected-thumbnail { position:relative; }
+.gallery-mark { position:absolute; top:8px; left:8px; width:20px; height:20px; display:grid; place-items:center; background:var(--pw-panel); color:var(--pw-text); border:1px solid var(--pw-muted); border-radius:4px; }
+.connected-thumbnail[aria-pressed='true'] .gallery-mark { background:var(--pw-accent); color:var(--pw-bg); }
