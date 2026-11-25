@@ -12,7 +12,7 @@ fs.mkdirSync(original);
 const reports = [];
 try {
   for (const phase of [
-    ['queue', 'queue-errors', 'characters', 'reference', 'trash'].includes(process.argv[2])
+    ['queue', 'queue-errors', 'characters', 'reference', 'img2img', 'trash'].includes(process.argv[2])
       ? process.argv[2]
       : 'create',
     'reopen',
@@ -41,11 +41,12 @@ try {
           SDSTUDIO_MOCK_BACKEND: '0',
           SDSTUDIO_GENERATION_PHASE: phase,
           SDSTUDIO_TRASH_SMOKE: process.argv[2] === 'trash' ? '1' : '0',
+          SDSTUDIO_IMG2IMG_SMOKE: process.argv[2] === 'img2img' ? '1' : '0',
           SDSTUDIO_REFERENCE_SMOKE: process.argv[2] === 'reference' ? '1' : '0',
           SDSTUDIO_CHARACTER_SMOKE:
             process.argv[2] === 'characters' ? '1' : '0',
           SDSTUDIO_LIBRARY_REOPEN:
-            ['queue', 'queue-errors', 'characters', 'reference', 'trash'].includes(process.argv[2]) ? '0' : '1',
+            ['queue', 'queue-errors', 'characters', 'reference', 'img2img', 'trash'].includes(process.argv[2]) ? '0' : '1',
           SDSTUDIO_SMOKE_REPORT: report,
         },
       },

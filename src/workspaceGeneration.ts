@@ -1,4 +1,8 @@
-import type { ReferenceAsset, WorkspaceReference } from './workspaceReference';
+import type {
+  ImagePurpose,
+  ReferenceAsset,
+  WorkspaceReference,
+} from './workspaceReference';
 import type { NaiErrorCode } from './naiAuth';
 import type { ProjectErrorCode, ProjectSnapshot } from './workspaceProject';
 
@@ -28,6 +32,7 @@ export interface GenerationSettings {
   steps: number;
   scale: number;
   characters?: number;
+  img2img?: { strength: number; noise: number };
   reference?: Pick<
     WorkspaceReference,
     'id' | 'uploadHash' | 'role' | 'strength' | 'preferSameOutfit'
@@ -90,6 +95,7 @@ export interface GenerationClient {
     id: string,
     revision: string,
     png: Uint8Array,
+    purpose?: ImagePurpose,
   ): Promise<GenerationReply<{ asset: ReferenceAsset; preview: Uint8Array }>>;
   referenceImage(
     id: string,

@@ -1,4 +1,7 @@
-import type { WorkspaceReference } from '../../workspaceReference';
+import type {
+  WorkspaceReference,
+  WorkspaceVariation,
+} from '../../workspaceReference';
 import {
   buildPreviewImageRequest,
   PreviewContractError,
@@ -16,6 +19,7 @@ export interface WorkspaceCharacter {
 
 export interface WorkspaceDraft {
   reference?: WorkspaceReference;
+  img2img?: WorkspaceVariation;
   family: PreviewModelFamily;
   prompt: string;
   negativePrompt: string;

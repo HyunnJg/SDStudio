@@ -42,8 +42,10 @@ export function registerGeneration(
       },
     );
   };
-  handle('workspace-generation-import-reference', (id, revision, png) =>
-    service.importReference(id, revision, png),
+  handle(
+    'workspace-generation-import-reference',
+    (id, revision, png, purpose) =>
+      service.importReference(id, revision, png, purpose),
   );
   handle('workspace-generation-reference-image', (id, sceneId) =>
     service.referenceImage(id, sceneId),

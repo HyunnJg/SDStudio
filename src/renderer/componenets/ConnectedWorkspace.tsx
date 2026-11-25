@@ -53,9 +53,18 @@ import {
   REFERENCE_LIMITS,
   REFERENCE_ROLES,
   REFERENCE_COST_NOTICE,
+  VARIATION_DEFAULTS,
+} from '../../workspaceReference';
+import type {
+  ImagePurpose,
+  WorkspaceReference,
+  WorkspaceVariation,
 } from '../../workspaceReference';
 import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
-import { V5_CHARACTER_LIMIT } from '../../workspaceGenerationSettings';
+import {
+  V5_CHARACTER_LIMIT,
+  V5_SIZES,
+} from '../../workspaceGenerationSettings';
 import type {
   PresetKind,
   PromptPreset,
@@ -352,7 +361,19 @@ export default function ConnectedWorkspace({
       draft: { ...previous.draft, ...value },
     }));
   };
-  const attachReference = async (file: File) => {
+  const setSceneImage = (image?: WorkspaceReference | WorkspaceVariation) => {
+    setSinglePlan(undefined);
+    setQueuePlan(undefined);
+    setState((previous) => {
+      const draft = { ...previous.draft };
+      delete draft.reference;
+      delete draft.img2img;
+      if (image && 'role' in image) draft.reference = image;
+      else if (image) draft.img2img = image;
+      return { ...previous, draft };
+    });
+  };
+  const attachImage = async (file: File, purpose: ImagePurpose) => {
     if (operation.current || locked) return;
     operation.current = true;
     generationEpoch.current += 1;
@@ -378,7 +399,12 @@ export default function ConnectedWorkspace({
       )
         return;
       const imported = unwrap(
-        await client.importReference(saved.id!, saved.revision!, bytes),
+        await client.importReference(
+          saved.id!,
+          saved.revision!,
+          bytes,
+          purpose,
+        ),
       );
       if (
         !mounted.current ||
@@ -390,14 +416,20 @@ export default function ConnectedWorkspace({
         hash: imported.asset.uploadHash,
         bytes: imported.preview,
       });
-      patch({
-        reference: {
+      if (purpose === 'img2img')
+        setSceneImage({
+          ...imported.asset,
+          strength:
+            state.draft.img2img?.strength ?? VARIATION_DEFAULTS.strength,
+          noise: state.draft.img2img?.noise ?? VARIATION_DEFAULTS.noise,
+        });
+      else
+        setSceneImage({
           ...imported.asset,
           role: state.draft.reference?.role ?? 'character',
           strength: state.draft.reference?.strength ?? 1,
           preferSameOutfit: state.draft.reference?.preferSameOutfit ?? false,
-        },
-      });
+        });
       setMessage('');
     } catch (error) {
       if (mounted.current)
@@ -638,7 +670,7 @@ export default function ConnectedWorkspace({
     setMessage('');
     setImageChoice(file);
   };
-  const reuseResultImage = async (purpose: 'metadata' | 'reference') => {
+  const reuseResultImage = async (purpose: 'metadata' | ImagePurpose) => {
     if (locked || operation.current || !view.id || !result) return;
     operation.current = true;
     generationEpoch.current += 1;
@@ -665,7 +697,7 @@ export default function ConnectedWorkspace({
     }
     if (!file || !mounted.current) return;
     if (purpose === 'metadata') setImportFile(file);
-    else await attachReference(file);
+    else await attachImage(file, purpose);
   };
   const setResultDeleted = async (imageId: string, deleted: boolean) => {
     if (operation.current || locked || !view.id) return;
@@ -729,7 +761,14 @@ export default function ConnectedWorkspace({
       ];
     }),
   );
-  let generateLabel = '이미지 생성';
+  const variation = state.draft.img2img;
+  const size = V5_SIZES[state.draft.resolution];
+  const mismatchedVariation =
+    !!variation &&
+    (state.draft.family !== 'v5' ||
+      variation.width !== size.width ||
+      variation.height !== size.height);
+  let generateLabel = variation ? '변형 생성' : '이미지 생성';
   if (phase === 'save') generateLabel = '생성 중…';
   else if (phase === 'reference' || phase === 'image')
     generateLabel = '불러오는 중…';
@@ -894,19 +933,16 @@ export default function ConnectedWorkspace({
                 client={client}
                 onFile={async (file) => receiveImage(file)}
                 onChoose={chooseImage}
-                onChange={(reference) => {
-                  if (reference) patch({ reference });
-                  else {
-                    setSinglePlan(undefined);
-                    setQueuePlan(undefined);
-                    setState((previous) => {
-                      const draft = { ...previous.draft };
-                      delete draft.reference;
-                      return { ...previous, draft };
-                    });
-                  }
-                }}
+                variation={state.draft.img2img}
+                onVariation={setSceneImage}
+                onChange={setSceneImage}
               />
+              {mismatchedVariation && variation && (
+                <p role="status">
+                  변형 원본에 맞춰 V5 Full · {variation.width}×
+                  {variation.height}를 선택하거나 이미지를 다시 선택하세요.
+                </p>
+              )}
               <div className="connected-metadata-entry">
                 <button
                   type="button"
@@ -1129,6 +1165,14 @@ export default function ConnectedWorkspace({
                   <button
                     type="button"
                     disabled={locked || state.draft.family !== 'v5'}
+                    data-testid="result-use-variation"
+                    onClick={() => reuseResultImage('img2img')}
+                  >
+                    이 그림으로 변형
+                  </button>
+                  <button
+                    type="button"
+                    disabled={locked || state.draft.family !== 'v5'}
                     data-testid="result-use-reference"
                     onClick={() => reuseResultImage('reference')}
                   >
@@ -1196,6 +1240,12 @@ export default function ConnectedWorkspace({
                 {requiresAnlasWarning(singlePlan) && (
                   <p>{ANLAS_STEP_WARNING}</p>
                 )}
+                {singlePlan.img2img && (
+                  <p>
+                    이미지 변형 · 강도 {singlePlan.img2img.strength} · 노이즈{' '}
+                    {singlePlan.img2img.noise}
+                  </p>
+                )}
                 {singlePlan.reference && (
                   <p data-testid="single-reference-cost">
                     참조 1장 · 생성마다 5 Anlas 추가. 이 작업실 세션에서 처음 한
@@ -1240,6 +1290,8 @@ export default function ConnectedWorkspace({
                   <p key={JSON.stringify(settings)}>
                     {settings.model} · {settings.width}×{settings.height} ·{' '}
                     {settings.steps}스텝 · 가이던스 {settings.scale}
+                    {settings.img2img &&
+                      ` · 변형 강도 ${settings.img2img.strength} · 노이즈 ${settings.img2img.noise}`}
                     {settings.reference &&
                       ` · 참조 1장 (${REFERENCE_ROLES[settings.reference.role]}, 강도 ${settings.reference.strength}${settings.reference.preferSameOutfit ? ', 같은 의상 우선' : ''})`}
                     {!!settings.characters &&
@@ -1455,6 +1507,8 @@ export default function ConnectedWorkspace({
                   ` · 휴지통 ${view.trashedImages.length}`}
                 {images.length + view.trashedImages.length >=
                   PROJECT_LIMITS.results - 10 && ` / ${PROJECT_LIMITS.results}`}
+                {view.remainingBytes <= 40 * 1024 * 1024 &&
+                  ` · 보관 여유 ${Math.floor(view.remainingBytes / (1024 * 1024))} MiB`}
               </span>
             </header>
             <div className="connected-sidebar-panel">
@@ -1492,10 +1546,14 @@ export default function ConnectedWorkspace({
             setImageChoice(undefined);
             setImportFile(imageChoice);
           }}
+          onVariation={() => {
+            setImageChoice(undefined);
+            void attachImage(imageChoice, 'img2img');
+          }}
           onReference={() => {
             const file = imageChoice;
             setImageChoice(undefined);
-            void attachReference(file);
+            void attachImage(file, 'reference');
           }}
         />
       )}
@@ -1625,7 +1683,12 @@ export default function ConnectedWorkspace({
           type="button"
           className="pw-generate"
           data-testid="prepare-generation"
-          disabled={locked || runtimeOptions.offline || characterOverflow}
+          disabled={
+            locked ||
+            runtimeOptions.offline ||
+            characterOverflow ||
+            mismatchedVariation
+          }
           onClick={prepare}
         >
           {generateLabel}

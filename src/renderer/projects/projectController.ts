@@ -1,4 +1,8 @@
-import { ProjectError } from '../../workspaceProject';
+import {
+  ProjectError,
+  remainingProjectBytes,
+  PROJECT_LIMITS,
+} from '../../workspaceProject';
 import type {
   ProjectClient,
   ProjectContent,
@@ -28,6 +32,8 @@ export const projectErrorMessage = (code: ProjectErrorCode): string =>
       '저장 기능이 중지됐습니다. 입력은 유지됩니다. 저장 기능 다시 시작 후 목록을 확인하세요. 이전 저장은 자동 재시도하지 않습니다.',
     PROJECT_IO:
       '저장 결과를 확정하지 못했습니다. 교체됐을 수도 있으니 다시 열어 확인하세요. 현재 편집은 유지됩니다.',
+    PROJECT_IMAGE_TOO_LARGE:
+      '전송용 PNG가 2 MiB를 초과합니다. 다른 이미지를 선택하세요.',
     PROJECT_LIMIT:
       '보관 한도에 도달했습니다. 이력을 지우지 않고 새 복사본으로 계속하거나 입력만 새 프로젝트로 저장하세요.',
     PROJECT_RESULT_LIMIT:
@@ -49,6 +55,7 @@ export interface ProjectView {
   revision?: string;
   baseline: string;
   images: number;
+  remainingBytes: number;
   imageRecords: ProjectImage[];
   trashedImages: ProjectImage[];
   showTrash: boolean;
@@ -84,6 +91,7 @@ export class ProjectController {
       name: '새 프로젝트',
       baseline: '',
       images: 0,
+      remainingBytes: PROJECT_LIMITS.totalPNGBytes,
       imageRecords: [],
       trashedImages: [],
       showTrash: false,
@@ -168,6 +176,7 @@ export class ProjectController {
     this.update({
       id: snapshot.project.id,
       revision: snapshot.revision,
+      remainingBytes: remainingProjectBytes(snapshot.project),
       images: snapshot.project.images.filter(
         (image) => !snapshot.project.trashedImageIds?.includes(image.id),
       ).length,
@@ -320,6 +329,7 @@ export class ProjectController {
       revision: undefined,
       name: '새 프로젝트',
       images: 0,
+      remainingBytes: PROJECT_LIMITS.totalPNGBytes,
       imageRecords: [],
       trashedImages: [],
       showTrash: false,

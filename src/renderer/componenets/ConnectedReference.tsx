@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { GenerationClient } from '../../workspaceGeneration';
 import type {
   WorkspaceReference,
+  WorkspaceVariation,
   ReferenceRole,
 } from '../../workspaceReference';
 import {
@@ -13,6 +14,8 @@ import {
 interface Props {
   reference: WorkspaceReference | undefined;
   projectId: string | undefined;
+  variation: WorkspaceVariation | undefined;
+  onVariation: (variation: WorkspaceVariation | undefined) => void;
   sceneId: string;
   family: string;
   locked: boolean;
@@ -24,6 +27,8 @@ interface Props {
 }
 export default function ConnectedReference({
   reference,
+  variation,
+  onVariation,
   projectId,
   sceneId,
   family,
@@ -37,7 +42,8 @@ export default function ConnectedReference({
   const file = useRef<HTMLInputElement>(null);
   const [url, setURL] = useState('');
   const [unavailable, setUnavailable] = useState(false);
-  const hash = reference?.uploadHash;
+  const asset = reference ?? variation;
+  const hash = asset?.uploadHash;
   useEffect(() => {
     let alive = true;
     let objectURL = '';
@@ -89,7 +95,11 @@ export default function ConnectedReference({
     >
       <header>
         <strong>이미지 입력</strong>
-        <small>{reference ? '참조 1 · +5 Anlas/회' : 'PNG'}</small>
+        <small>
+          {reference && '참조 1 · +5 Anlas/회'}
+          {variation && '이미지 변형'}
+          {!asset && 'PNG'}
+        </small>
       </header>
 
       <input
@@ -111,7 +121,7 @@ export default function ConnectedReference({
         disabled={locked}
         onClick={() => (onChoose ? onChoose() : file.current?.click())}
       >
-        {reference ? '이미지 바꾸기' : '+ 이미지 추가'}
+        {asset ? '이미지 바꾸기' : '+ 이미지 추가'}
       </button>
       {family !== 'v5' && reference && (
         <p role="status">
@@ -119,18 +129,59 @@ export default function ConnectedReference({
           {reference && ' 참조를 해제하거나 V5로 전환해야 생성할 수 있습니다.'}
         </p>
       )}
-      {reference && (
+      {asset && (
         <>
-          {url && <img src={url} alt="전송용 참조 이미지 미리보기" />}
+          {url && (
+            <img
+              src={url}
+              alt={
+                variation
+                  ? '변형 원본의 전송용 미리보기'
+                  : '전송용 참조 이미지 미리보기'
+              }
+            />
+          )}
           {unavailable && (
             <p role="alert">
-              참조를 읽지 못했습니다. 다시 선택해 주세요. 참조 없이 자동
-              생성하지 않습니다.
+              {variation
+                ? '변형 원본을 읽지 못했습니다. 이미지를 다시 선택하세요.'
+                : '참조를 읽지 못했습니다. 다시 선택해 주세요. 참조 없이 자동 생성하지 않습니다.'}
             </p>
           )}
           <small>
-            {reference.width}×{reference.height} · 중앙 자르기
+            {asset.width}×{asset.height} · 중앙 자르기
           </small>
+        </>
+      )}
+      {variation && (
+        <fieldset disabled={locked}>
+          {family !== 'v5' && (
+            <p>이미지 변형은 V5 Full에서 사용할 수 있습니다.</p>
+          )}
+          {(['strength', 'noise'] as const).map((key) => (
+            <label key={key} htmlFor={`variation-${key}`}>
+              {key === 'strength' ? '변형 강도' : '노이즈'} {variation[key]}
+              <input
+                id={`variation-${key}`}
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={variation[key]}
+                disabled={family !== 'v5'}
+                onChange={(e) =>
+                  onVariation({ ...variation, [key]: Number(e.target.value) })
+                }
+              />
+            </label>
+          ))}
+          <button type="button" onClick={() => onVariation(undefined)}>
+            변형 해제
+          </button>
+        </fieldset>
+      )}
+      {reference && (
+        <>
           <label htmlFor="reference-role">
             참조 대상
             <select

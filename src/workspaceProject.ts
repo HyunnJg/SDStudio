@@ -5,7 +5,10 @@ import type {
   WorkspaceScene,
 } from './renderer/preview/workspaceDraft';
 
-import type { WorkspaceReference } from './workspaceReference';
+import type {
+  WorkspaceReference,
+  WorkspaceVariation,
+} from './workspaceReference';
 import { REFERENCE_LIMITS } from './workspaceReference';
 
 export const PROJECT_FORMAT = 'sdstudio-workspace';
@@ -40,6 +43,7 @@ export type ProjectErrorCode =
   | 'PROJECT_SERVICE_STOPPED'
   | 'PROJECT_IO'
   | 'PROJECT_LIMIT'
+  | 'PROJECT_IMAGE_TOO_LARGE'
   | 'PROJECT_UNTRUSTED';
 export class ProjectError extends Error {
   constructor(readonly code: ProjectErrorCode) {
@@ -57,7 +61,8 @@ export interface ImageBinding {
     | 'nai-v45-basic512-v1'
     | 'nai-v5-full-v1'
     | 'nai-v5-characters-auto-v1'
-    | 'nai-v5-reference-v1';
+    | 'nai-v5-reference-v1'
+    | 'nai-v5-img2img-v1';
   requestHash: string;
 }
 export interface ProjectImage {
@@ -78,7 +83,7 @@ export type ProjectImageInput = Omit<
 >;
 export interface WorkspaceProject extends ProjectContent {
   format: typeof PROJECT_FORMAT;
-  version: 1 | 2 | 3 | 4 | 5 | 6;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   id: string;
   images: ProjectImage[];
   trashedImageIds?: string[];
@@ -167,7 +172,7 @@ function localId(value: unknown): asserts value is string {
   );
 }
 
-export function validateReference(value: unknown): WorkspaceReference {
+function imageAsset(value: unknown, fields: string[]) {
   const r = record(value, [
     'id',
     'sourceHash',
@@ -176,9 +181,7 @@ export function validateReference(value: unknown): WorkspaceReference {
     'uploadBytes',
     'width',
     'height',
-    'role',
-    'strength',
-    'preferSameOutfit',
+    ...fields,
   ]);
   projectId(r.id);
   projectHash(r.sourceHash);
@@ -197,6 +200,18 @@ export function validateReference(value: unknown): WorkspaceReference {
       [1216, 832],
     ].some(([w, h]) => r.width === w && r.height === h),
   );
+  return r;
+}
+export function validateVariation(value: unknown): WorkspaceVariation {
+  const r = imageAsset(value, ['strength', 'noise']);
+  for (const n of [r.strength, r.noise])
+    projectCheck(
+      typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1,
+    );
+  return structuredClone(value as WorkspaceVariation);
+}
+export function validateReference(value: unknown): WorkspaceReference {
+  const r = imageAsset(value, ['role', 'strength', 'preferSameOutfit']);
   choice(r.role, ['character', 'style', 'character-style', 'outfit']);
   projectCheck(
     typeof r.strength === 'number' &&
@@ -215,11 +230,10 @@ export function validateReference(value: unknown): WorkspaceReference {
 export function projectReferences(
   content: ProjectContent,
   images: readonly ProjectImageInput[] = [],
-): WorkspaceReference[] {
-  return [
-    ...content.scenes.map((s) => s.draft),
-    ...images.map((i) => i.draft),
-  ].flatMap((d) => (d.reference ? [d.reference] : []));
+): (WorkspaceReference | WorkspaceVariation)[] {
+  return [...content.scenes.map((s) => s.draft), ...images.map((i) => i.draft)]
+    .map((d) => d.reference ?? d.img2img)
+    .filter((asset) => asset !== undefined);
 }
 export function referenceAssetBytes(project: WorkspaceProject): number {
   const sizes = new Map<string, number>();
@@ -238,8 +252,16 @@ export function referenceAssetBytes(project: WorkspaceProject): number {
   return [...sizes.values()].reduce((n, size) => n + size, 0);
 }
 
+export function remainingProjectBytes(project: WorkspaceProject): number {
+  return (
+    PROJECT_LIMITS.totalPNGBytes -
+    referenceAssetBytes(project) -
+    project.images.reduce((total, image) => total + image.pngBytes, 0)
+  );
+}
+
 function draft(value: unknown): number {
-  const optional = ['qualityTags', 'ucPreset', 'reference'].filter(
+  const optional = ['qualityTags', 'ucPreset', 'reference', 'img2img'].filter(
     (key) => !!value && typeof value === 'object' && Object.hasOwn(value, key),
   );
   const d = record(value, [
@@ -256,6 +278,10 @@ function draft(value: unknown): number {
     'guidance',
   ]);
   choice(d.family, ['v4.5', 'v5']);
+  projectCheck(
+    !(optional.includes('reference') && optional.includes('img2img')),
+  );
+  if (optional.includes('img2img')) validateVariation(d.img2img);
   if (optional.includes('reference')) validateReference(d.reference);
   if (optional.includes('qualityTags'))
     choice(d.qualityTags, ['none', 'light', 'standard']);
@@ -343,6 +369,10 @@ export function validateImageInput(value: unknown): ProjectImageInput {
       Number(r.seed) >= 0 &&
       Number(r.seed) <= 4294967295,
   );
+  draft(r.draft);
+  const sourceDraft = r.draft as WorkspaceDraft;
+  if (sourceDraft.img2img)
+    projectCheck(hasBinding && sourceDraft.family === 'v5');
   if (hasBinding) {
     const binding = record(r.binding, ['id', 'requestHash']);
     projectCheck(
@@ -351,17 +381,25 @@ export function validateImageInput(value: unknown): ProjectImageInput {
         'nai-v5-full-v1',
         'nai-v5-characters-auto-v1',
         'nai-v5-reference-v1',
+        'nai-v5-img2img-v1',
       ].includes(String(binding.id)),
+    );
+    projectCheck(
+      (binding.id === 'nai-v5-img2img-v1') === !!sourceDraft.img2img,
     );
     projectHash(binding.requestHash);
   }
-  draft(r.draft);
   return structuredClone(value as ProjectImageInput);
 }
 export function requiredProjectVersion(
   content: ProjectContent,
   images: readonly ProjectImageInput[] = [],
-): 1 | 2 | 3 | 4 | 5 {
+): 1 | 2 | 3 | 4 | 5 | 7 {
+  if (
+    content.scenes.some((s) => s.draft.img2img) ||
+    images.some((i) => i.draft.img2img || i.binding?.id === 'nai-v5-img2img-v1')
+  )
+    return 7;
   if (
     content.scenes.some((s) => s.draft.reference) ||
     images.some(
@@ -398,10 +436,14 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
       v.version === 3 ||
       v.version === 4 ||
       v.version === 5 ||
-      v.version === 6,
+      v.version === 6 ||
+      v.version === 7,
     'PROJECT_VERSION',
   );
   try {
+    const hasTrash =
+      v.version === 6 ||
+      (v.version === 7 && Object.hasOwn(v, 'trashedImageIds'));
     const p = record(value, [
       'format',
       'version',
@@ -410,7 +452,7 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
       'selectedSceneId',
       'scenes',
       'images',
-      ...(v.version === 6 ? ['trashedImageIds'] : []),
+      ...(hasTrash ? ['trashedImageIds'] : []),
     ]);
     projectId(p.id);
     validateProjectContent({
@@ -460,7 +502,7 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
       );
       total += Number(pngBytes);
     }
-    if (v.version === 6) {
+    if (hasTrash) {
       projectCheck(Array.isArray(p.trashedImageIds));
       projectCheck(
         p.trashedImageIds.length <= PROJECT_LIMITS.results,

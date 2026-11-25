@@ -167,3 +167,101 @@ test('V5 reference metadata reports missing image assets and preserves the expli
   assert.ok(plan.notices.some((n) => n.includes('참조 이미지') && n.includes('현재 씬의 참조 선택은 유지')));
   assert.deepEqual(applyMetadataImport(draft, plan, ['prompt']).reference, draft.reference);
 });
+
+async function variationFixture(t) {
+  const f = await fixture(t);
+  const id = f.current.project.id;
+  const scene = f.content.scenes[0];
+  const asset = await f.store.importReference(id, f.current.revision, f.original, 'img2img');
+  delete scene.draft.reference;
+  scene.draft.img2img = { ...asset, strength: 0.45, noise: 0.1 };
+  const saved = f.store.save(id, f.current.revision, f.content);
+  return { ...f, id, scene, asset, saved };
+}
+
+test('V5 variation binds only the target-size derivative, preserves source and appends an independently recoverable v7 result', async t => {
+  const f = await variationFixture(t);
+  assert.equal(f.saved.project.version, 7);
+  assert.throws(() => validateWorkspaceProject({ ...f.saved.project, version: 6, trashedImageIds: [] }), {code: 'PROJECT_CORRUPT'});
+  const plan = await f.service.prepare(f.id, f.saved.revision, f.scene.id);
+  assert.deepEqual(plan.img2img, { strength: 0.45, noise: 0.1 });
+  assert.equal(plan.reference, undefined);
+  assert.equal(f.bodies.length, 0);
+  const { snapshot, imageId } = await f.service.run(plan.ticket, true);
+  const body = JSON.parse(Buffer.from(f.bodies[0]));
+  assert.equal(body.action, 'img2img');
+  assert.equal(body.parameters.strength, 0.45);
+  assert.equal(body.parameters.noise, 0.1);
+  assert.equal(body.parameters.extra_noise_seed, plan.seed);
+  assert.equal(body.parameters.director_reference_images, undefined);
+  const encoded = Buffer.from(body.parameters.image, 'base64');
+  assert.equal(hash(encoded), f.asset.uploadHash);
+  assert.equal(encoded.readUInt32BE(16), 832);
+  assert.equal(encoded.readUInt32BE(20), 1216);
+  assert.deepEqual(fs.readFileSync(f.file(f.asset.sourceHash)), Buffer.from(f.original));
+  const image = snapshot.project.images[0];
+  const inconsistent = structuredClone(snapshot.project);
+  inconsistent.images[0].binding.id = 'nai-v5-full-v1';
+  assert.throws(() => validateWorkspaceProject(inconsistent), {code:'PROJECT_CORRUPT'});
+  assert.deepEqual(image.binding, {id:'nai-v5-img2img-v1', requestHash:hash(f.bodies[0])});
+  assert.deepEqual(image.draft.img2img, f.scene.draft.img2img);
+  const hidden = f.store.setImageDeleted(f.id, snapshot.revision, imageId, true);
+  assert.equal(hidden.project.version, 7);
+  const copy = f.store.copy(f.id, hidden.revision, f.content);
+  assert.deepEqual(copy.project.trashedImageIds, [imageId]);
+  assert.equal(hash(f.store.referenceImage(copy.project.id, f.scene.id)), f.asset.uploadHash);
+  const recovery = f.store.recover(f.id, snapshot.revision);
+  assert.equal(recovery.project.images[0].id, imageId);
+  assert.equal(hash(f.store.image(recovery.project.id, imageId)), hash(f.original));
+  const next = f.store.create(f.content, f.id);
+  assert.equal(next.project.images.length, 0);
+  assert.equal(hash(f.store.referenceImage(next.project.id, f.scene.id)), f.asset.uploadHash);
+});
+
+test('variation queue uses the same approved body/seed; changed strength or broken asset stops before send', async t => {
+  const f = await variationFixture(t);
+  const plan = await f.service.prepareQueue(f.id, f.saved.revision, [f.scene.id], 2);
+  assert.deepEqual(plan.settings[0].img2img, {strength: 0.45, noise: 0.1});
+  const result = await f.service.runQueue(plan.ticket, true);
+  assert.deepEqual(result.queue.items.map(i => i.status), ['done', 'done']);
+  for (const bytes of f.bodies) {
+    const request = JSON.parse(Buffer.from(bytes));
+    assert.equal(request.action, 'img2img');
+    assert.equal(request.parameters.seed, request.parameters.extra_noise_seed);
+    assert.equal(hash(Buffer.from(request.parameters.image, 'base64')), f.asset.uploadHash);
+  }
+  const current = f.store.open(f.id);
+  const changedPlan = await f.service.prepareQueue(f.id, current.revision, [f.scene.id], 1);
+  f.scene.draft.img2img.strength = 0;
+  const changed = f.store.save(f.id, current.revision, f.content);
+  const stopped = await f.service.runQueue(changedPlan.ticket, true);
+  assert.equal(stopped.queue.items[0].error.code, 'QUEUE_INPUT_CHANGED');
+  const single = await f.service.prepare(f.id, changed.revision, f.scene.id);
+  fs.unlinkSync(f.file(f.asset.uploadHash));
+  await assert.rejects(f.service.run(single.ticket, true), { code: 'PROJECT_CORRUPT' });
+  assert.equal(f.bodies.length, 2);
+});
+
+test('invalid or mixed variation, mismatched shape and unsupported family cannot silently generate', async t => {
+  const f = await variationFixture(t);
+  const bind = (patch) => bindBasicGeneration({...f.scene, draft: {...f.scene.draft, ...patch}}, () => 0, f.original);
+  for (const patch of [{reference:f.reference}, {resolution:'square'}, {family:'v4.5'}, {img2img:{...f.scene.draft.img2img, noise:1.01}}, {img2img:{...f.scene.draft.img2img, strength:NaN}}]) {
+    assert.throws(() => bind(patch));
+  }
+  assert.throws(() => bindBasicGeneration(f.scene, () => 0));
+  const zero = bind({img2img:{...f.scene.draft.img2img, strength:0, noise:0}});
+  assert.equal(zero.request.parameters.strength, 0);
+  assert.equal(zero.request.parameters.extra_noise_seed, 0);
+  const plain = bind({img2img:undefined});
+  assert.equal(plain.request.action, 'generate');
+  assert.equal(plain.request.parameters.image, undefined);
+});
+
+test('remaining project budget counts hidden results and counts shared source/derivative content once', async t => {
+  const f = await variationFixture(t);
+  const { remainingProjectBytes, PROJECT_LIMITS } = require('../workspaceProject');
+  const project = f.saved.project;
+  const mock = { id: 'example', draft: f.scene.draft, pngBytes: 2 * 1024 * 1024 };
+  const remaining = remainingProjectBytes({...project, images:[mock], trashedImageIds:[mock.id]});
+  assert.equal(remaining, PROJECT_LIMITS.totalPNGBytes - f.asset.sourceBytes - f.asset.uploadBytes - mock.pngBytes);
+});

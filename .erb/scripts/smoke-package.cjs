@@ -5,7 +5,7 @@ const { spawn } = require('node:child_process');
 const WebSocket = require('ws');
 if (!process.argv[2])
   throw Error(
-    'Usage: npm run smoke:package -- /absolute/linux-unpacked [real|auth|projects|worker|crash|unresponsive|generation|generation-queue|generation-errors|generation-characters|generation-reference|generation-trash]',
+    'Usage: npm run smoke:package -- /absolute/linux-unpacked [real|auth|projects|worker|crash|unresponsive|generation|generation-queue|generation-errors|generation-characters|generation-reference|generation-img2img|generation-trash]',
   );
 const directory = fs.realpathSync(process.argv[2]);
 const resilience = ['worker', 'crash', 'unresponsive'].includes(process.argv[3])
@@ -21,6 +21,7 @@ const generationCases = new Map([
   ['generation-queue', { requests: 13, checks: 9 }],
   ['generation-errors', { requests: 4, checks: 8 }],
   ['generation-characters', { requests: 3, checks: 8 }],
+  ['generation-img2img', { requests: 2, checks: 5 }],
   ['generation-reference', { requests: 3, checks: 6 }],
   ['generation-trash', { requests: 2, checks: 8 }],
 ]);
@@ -35,6 +36,7 @@ const mock = [
   'generation-queue',
   'generation-errors',
   'generation-characters',
+  'generation-img2img',
   'generation-reference',
   'generation-trash',
 ].includes(process.argv[3])
@@ -71,7 +73,7 @@ const childEnv = {
   SDSTUDIO_TRASH_SMOKE: generationTrashMode ? '1' : '0',
   SDSTUDIO_REFERENCE_SMOKE: generationReferenceMode ? '1' : '0',
   SDSTUDIO_CHARACTER_SMOKE: generationCharacterMode ? '1' : '0',
-  SDSTUDIO_GENERATION_PHASE: generationTrashMode ? 'trash' : generationReferenceMode ? 'reference' : generationCharacterMode
+  SDSTUDIO_GENERATION_PHASE: process.argv[3] === 'generation-img2img' ? 'img2img' : generationTrashMode ? 'trash' : generationReferenceMode ? 'reference' : generationCharacterMode
     ? 'characters'
     : generationErrorMode
       ? 'queue-errors'

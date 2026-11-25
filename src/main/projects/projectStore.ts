@@ -3,8 +3,13 @@ import fs from 'fs';
 import sharp from 'sharp';
 import path from 'path';
 import { createHash, randomUUID } from 'crypto';
-import { REFERENCE_LIMITS, referenceSize } from '../../workspaceReference';
-import type { ReferenceAsset } from '../../workspaceReference';
+import {
+  REFERENCE_LIMITS,
+  referenceSize,
+  VARIATION_DEFAULTS,
+} from '../../workspaceReference';
+import { V5_SIZES } from '../../workspaceGenerationSettings';
+import type { ImagePurpose, ReferenceAsset } from '../../workspaceReference';
 import {
   PROJECT_FORMAT,
   PROJECT_LIMITS,
@@ -17,8 +22,9 @@ import {
   validateImageInput,
   requiredProjectVersion,
   validateReference,
+  validateVariation,
   projectReferences,
-  referenceAssetBytes,
+  remainingProjectBytes,
 } from '../../workspaceProject';
 import type {
   ProjectContent,
@@ -349,7 +355,11 @@ export class ProjectStore {
         this.image(id, imageId);
         ids.delete(imageId);
       }
-      return { ...current, version: 6, trashedImageIds: [...ids] };
+      return {
+        ...current,
+        version: current.version === 7 ? 7 : 6,
+        trashedImageIds: [...ids],
+      };
     });
   }
 
@@ -393,10 +403,10 @@ export class ProjectStore {
     const id = randomUUID();
     const project: WorkspaceProject = {
       format: PROJECT_FORMAT,
-      version:
-        trashedImageIds !== undefined
-          ? 6
-          : requiredProjectVersion(content, images),
+      version: Math.max(
+        trashedImageIds !== undefined ? 6 : 1,
+        requiredProjectVersion(content, images),
+      ) as WorkspaceProject['version'],
       id,
       ...content,
       images,
@@ -534,16 +544,14 @@ export class ProjectStore {
       'PROJECT_RESULT_LIMIT',
     );
     projectCheck(
-      snapshot.project.images.reduce((n, i) => n + i.pngBytes, 0) +
-        referenceAssetBytes(snapshot.project) +
-        32 * 1024 * 1024 <=
-        PROJECT_LIMITS.totalPNGBytes,
+      remainingProjectBytes(snapshot.project) >= 32 * 1024 * 1024,
       'PROJECT_GENERATION_SPACE',
     );
     projectCheck(this.history(id).length < 1000, 'PROJECT_HISTORY_LIMIT');
     if (value !== undefined) {
       const input = validateImageInput(value);
-      if (input.draft.reference) this.referenceBytes(id, input.draft.reference);
+      const asset = input.draft.reference ?? input.draft.img2img;
+      if (asset) this.referenceBytes(id, asset);
       encode({
         ...snapshot.project,
         version: Math.max(
@@ -586,7 +594,8 @@ export class ProjectStore {
     }
     return this.update(id, revision, (current, folder) => {
       projectCheck(current.scenes.some((s) => s.id === info.sceneId));
-      if (info.draft.reference) this.referenceBytes(id, info.draft.reference);
+      const asset = info.draft.reference ?? info.draft.img2img;
+      if (asset) this.referenceBytes(id, asset);
       const sha256 = hash(png);
       const image = { ...info, id: imageId, sha256, pngBytes: png.length };
       const next = {
@@ -642,7 +651,10 @@ export class ProjectStore {
 
   referenceBytes(id: string, value: unknown): Uint8Array {
     return io(() => {
-      const r = validateReference(value);
+      const r =
+        value && typeof value === 'object' && 'noise' in value
+          ? validateVariation(value)
+          : validateReference(value);
       this.referenceFile(id, r.sourceHash, r.sourceBytes);
       const bytes = this.referenceFile(id, r.uploadHash, r.uploadBytes);
       const b = Buffer.from(bytes);
@@ -687,9 +699,10 @@ export class ProjectStore {
 
   referenceImage(id: string, sceneId: string): Uint8Array {
     const snapshot = this.readManifest(id);
-    const reference = snapshot.project.scenes.find(
+    const draft = snapshot.project.scenes.find(
       (scene) => scene.id === sceneId,
-    )?.draft.reference;
+    )?.draft;
+    const reference = draft?.reference ?? draft?.img2img;
     projectCheck(reference, 'PROJECT_NOT_FOUND');
     return this.referenceBytes(id, reference);
   }
@@ -698,6 +711,7 @@ export class ProjectStore {
     id: string,
     revision: string,
     value: Uint8Array,
+    purpose: ImagePurpose = 'reference',
   ): Promise<ReferenceAsset> {
     projectId(id);
     projectHash(revision);
@@ -706,6 +720,13 @@ export class ProjectStore {
         value.byteLength > 0 &&
         value.byteLength <= REFERENCE_LIMITS.sourceBytes,
     );
+    projectCheck(purpose === 'reference' || purpose === 'img2img');
+    const current = this.readManifest(id);
+    projectCheck(current.revision === revision, 'PROJECT_CONFLICT');
+    const scene = current.project.scenes.find(
+      (s) => s.id === current.project.selectedSceneId,
+    )!;
+    if (purpose === 'img2img') projectCheck(scene.draft.family === 'v5');
     const source = Uint8Array.from(value);
     let upload: Buffer;
     let size: { width: number; height: number };
@@ -722,7 +743,10 @@ export class ProjectStore {
           !!meta.height &&
           (meta.pages === undefined || meta.pages === 1),
       );
-      size = referenceSize(meta.width!, meta.height!);
+      size =
+        purpose === 'img2img'
+          ? V5_SIZES[scene.draft.resolution]
+          : referenceSize(meta.width!, meta.height!);
       // Upload is a separate centre-cropped derivative without PNG text chunks. Original bytes are retained unchanged.
       upload = await decoded
         .resize({ ...size, fit: 'cover', position: 'centre' })
@@ -734,10 +758,12 @@ export class ProjectStore {
     }
     projectCheck(
       upload.length <= REFERENCE_LIMITS.uploadBytes,
-      'PROJECT_LIMIT',
+      'PROJECT_IMAGE_TOO_LARGE',
     );
-    const current = this.readManifest(id);
-    projectCheck(current.revision === revision, 'PROJECT_CONFLICT');
+    projectCheck(
+      this.readManifest(id).revision === revision,
+      'PROJECT_CONFLICT',
+    );
     projectCheck(
       !fs.existsSync(path.join(this.folder(id), 'write.lock')),
       'PROJECT_BUSY',
@@ -751,20 +777,19 @@ export class ProjectStore {
       ...size,
     };
     const provisional: WorkspaceProject = structuredClone(current.project);
-    provisional.scenes.find(
-      (scene) => scene.id === provisional.selectedSceneId,
-    )!.draft.reference = {
-      ...asset,
-      role: 'character',
-      strength: 1,
-      preferSameOutfit: false,
-    };
-    projectCheck(
-      referenceAssetBytes(provisional) +
-        current.project.images.reduce((n, i) => n + i.pngBytes, 0) <=
-        PROJECT_LIMITS.totalPNGBytes,
-      'PROJECT_LIMIT',
-    );
+    const { draft } = provisional.scenes.find((s) => s.id === scene.id)!;
+    delete draft.reference;
+    delete draft.img2img;
+    if (purpose === 'img2img')
+      draft.img2img = { ...asset, ...VARIATION_DEFAULTS };
+    else
+      draft.reference = {
+        ...asset,
+        role: 'character',
+        strength: 1,
+        preferSameOutfit: false,
+      };
+    projectCheck(remainingProjectBytes(provisional) >= 0, 'PROJECT_LIMIT');
     const folder = this.directory([id, 'references'], true);
     // Also bound orphan assets left by cancelled/unsaved imports. No automatic file deletion.
     const files = fs

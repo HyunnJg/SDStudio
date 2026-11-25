@@ -15,6 +15,12 @@ export interface ReferenceAsset {
   width: number;
   height: number;
 }
+export const VARIATION_DEFAULTS = { strength: 0.5, noise: 0 } as const;
+export interface WorkspaceVariation extends ReferenceAsset {
+  strength: number;
+  noise: number;
+}
+export type ImagePurpose = 'reference' | 'img2img';
 export interface WorkspaceReference extends ReferenceAsset {
   role: ReferenceRole;
   strength: number;
