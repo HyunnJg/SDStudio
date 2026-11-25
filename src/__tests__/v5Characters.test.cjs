@@ -140,11 +140,9 @@ test('22 active characters are supported; 23, V4.5 and manual placement are reje
   bindBasicGeneration(s);
   assert.deepEqual(s, before);
 });
-test('empty active character and unresolved inline syntax in either character condition are refused', () => {
+test('unresolved inline syntax in a transmitted character condition is refused', () => {
   const s = scene();
   for (const patch of [
-    { prompt: '' },
-    { prompt: '  ' },
     { prompt: 'a | b' },
     { negativePrompt: '<group.piece>' },
     { prompt: '<group.piece>' },
@@ -157,6 +155,162 @@ test('empty active character and unresolved inline syntax in either character co
       /UNSUPPORTED_DRAFT/,
     );
   }
+});
+
+test('empty and negative-only cards stay in the stored draft while the previous plain V5 request stays identical', () => {
+  const s = scene();
+  const previous = bindBasicGeneration({
+    ...s,
+    draft: { ...s.draft, characters: [] },
+  });
+  s.draft.characters = [
+    character('empty', ''),
+    character('spaces', '  '),
+    character('negative-only', '', 'hat'),
+  ];
+  const before = structuredClone(s);
+  const bound = bindBasicGeneration(s);
+  assert.deepEqual(bound.request, previous.request);
+  assert.equal(bound.characterCount, 0);
+  assert.equal(bound.bindingId, 'nai-v5-full-v1');
+  assert.deepEqual(bound.input.draft, before.draft);
+  assert.deepEqual(s, before);
+});
+
+test('V5 character-only input permits an empty base without inventing count tags or altering presets', () => {
+  for (const qualityTags of ['none', 'standard']) {
+    const s = scene();
+    s.draft.prompt = '';
+    s.draft.qualityTags = qualityTags;
+    s.draft.characters.splice(
+      1,
+      0,
+      character('waiting', '', 'preserved negative'),
+    );
+    const bound = bindBasicGeneration(s);
+    const quality = require('../workspaceGenerationSettings').V5_QUALITY_TAGS[
+      qualityTags
+    ];
+    assert.equal(bound.request.input, quality);
+    assert.equal(
+      bound.request.parameters.v4_prompt.caption.base_caption,
+      quality,
+    );
+    assert.equal(bound.characterCount, 2);
+    assert.deepEqual(
+      bound.request.parameters.v4_prompt.caption.char_captions.map(
+        (c) => c.char_caption,
+      ),
+      ['person, red coat, source#hug', 'person, blue coat, target#hug'],
+    );
+    assert.deepEqual(
+      bound.request.parameters.v4_negative_prompt.caption.char_captions.map(
+        (c) => c.char_caption,
+      ),
+      ['hat', ''],
+    );
+    assert.equal(bound.input.draft.prompt, '');
+    assert.equal(bound.input.draft.characters.length, 4);
+  }
+});
+
+test('a blank base with no enabled positive character is refused; disabled text and negative-only cards do not qualify', () => {
+  const s = scene();
+  for (const characters of [
+    [],
+    [character('empty', '')],
+    [character('off', 'person', '', false)],
+    [character('negative-only', '', 'hat')],
+  ]) {
+    assert.throws(
+      () =>
+        bindBasicGeneration({
+          ...s,
+          draft: { ...s.draft, prompt: '  ', characters },
+        }),
+      /INVALID_INPUT/,
+    );
+  }
+  const legacy = createConnectedWorkspaceState('v4.5').scenes[0];
+  legacy.draft.characters = [character('waiting', '')];
+  assert.equal(bindBasicGeneration(legacy).characterCount, 0);
+  legacy.draft.prompt = '';
+  assert.throws(() => bindBasicGeneration(legacy), /INVALID_INPUT/);
+});
+
+test('waiting cards do not consume the22 character limit and malformed enabled cards are not silently skipped', () => {
+  const s = scene();
+  s.draft.characters = Array.from({ length: 22 }, (_, i) =>
+    character(`c${i}`, `person${i}`),
+  );
+  s.draft.characters.push(
+    ...Array.from({ length: 10 }, (_, i) => character(`waiting${i}`, '')),
+  );
+  assert.equal(bindBasicGeneration(s).characterCount, 22);
+  for (const patch of [{ prompt: undefined }, { negativePrompt: undefined }]) {
+    s.draft.characters[22] = { ...s.draft.characters[22], ...patch };
+    assert.throws(() => bindBasicGeneration(s), /UNSUPPORTED_DRAFT/);
+    s.draft.characters[22] = character('waiting0', '');
+  }
+});
+
+test('character-only single generation preserves waiting cards and saves the original request hash without extra transmissions', async (t) => {
+  const f = fixture(t);
+  f.s.draft.prompt = '';
+  f.s.draft.qualityTags = 'none';
+  f.s.draft.characters.push(character('waiting', '', 'hat'));
+  const saved = f.core.save(f.first.project.id, f.first.revision, {
+    name: 'synthetic',
+    selectedSceneId: f.s.id,
+    scenes: [f.s],
+  });
+  const p = await f.service.prepare(saved.project.id, saved.revision, f.s.id);
+  assert.equal(p.characters, 2);
+  assert.equal(f.bodies.length, 0);
+  const r = await f.service.run(p.ticket, true);
+  assert.equal(f.bodies.length, 1);
+  assert.equal(JSON.parse(f.bodies[0]).input, '');
+  const image = r.snapshot.project.images[0];
+  assert.deepEqual(image.draft, f.s.draft);
+  assert.equal(
+    image.binding.requestHash,
+    crypto.createHash('sha256').update(f.bodies[0]).digest('hex'),
+  );
+  assert.equal(r.snapshot.project.version, 4);
+});
+
+test('character-only repeated queue uses the same effective captions and leaves waiting cards in every saved result', async (t) => {
+  const f = fixture(t);
+  f.s.draft.prompt = '';
+  f.s.draft.characters.push(character('waiting', ''));
+  const saved = f.core.save(f.first.project.id, f.first.revision, {
+    name: 'synthetic',
+    selectedSceneId: f.s.id,
+    scenes: [f.s],
+  });
+  const p = await f.service.prepareQueue(
+    saved.project.id,
+    saved.revision,
+    [f.s.id],
+    2,
+  );
+  assert.equal(p.total, 2);
+  assert.equal(f.bodies.length, 0);
+  await f.service.runQueue(p.ticket, true);
+  assert.equal(f.bodies.length, 2);
+  for (const bytes of f.bodies) {
+    const body = JSON.parse(bytes);
+    assert.equal(body.parameters.v4_prompt.caption.char_captions.length, 2);
+    assert.equal(
+      body.parameters.v4_negative_prompt.caption.char_captions.length,
+      2,
+    );
+  }
+  assert.ok(
+    f.core
+      .open(saved.project.id)
+      .project.images.every((image) => image.draft.characters.length === 4),
+  );
 });
 test('character generation reserves without sending and stores v4 metadata/raw draft/hash and byte-identical PNG once', async (t) => {
   const f = fixture(t),

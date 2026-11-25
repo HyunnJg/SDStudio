@@ -7,6 +7,7 @@ import type {
 import { moveWorkspaceCharacter } from '../preview/workspaceDraft';
 import { V5_CHARACTER_LIMIT } from '../../workspaceGenerationSettings';
 import { PROJECT_LIMITS } from '../../workspaceProject';
+import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
 
 interface Props {
   draft: WorkspaceDraft;
@@ -19,7 +20,10 @@ export default function ConnectedCharacters({ draft, onChange }: Props) {
     index: number;
   }>();
   const { characters } = draft;
-  const active = characters.filter((c) => c.enabled).length;
+  const active = characters.filter(hasActiveCharacterPrompt).length;
+  const waiting = characters.filter(
+    (c) => c.enabled && !hasActiveCharacterPrompt(c),
+  ).length;
   const v5 = draft.family === 'v5';
   const update = (id: string, patch: Partial<WorkspaceCharacter>) =>
     onChange({
@@ -34,12 +38,14 @@ export default function ConnectedCharacters({ draft, onChange }: Props) {
       <h3>
         캐릭터 프롬프트{' '}
         <small>
-          {active}/{V5_CHARACTER_LIMIT}
+          생성 {active}/{V5_CHARACTER_LIMIT}
+          {waiting > 0 && ` · 작성 대기 ${waiting}`}
         </small>
       </h3>
       <p>
         기본 프롬프트에는 인원수·배경·화풍을, 아래에는 각 캐릭터의 특징을
-        적으세요. 배치는 위에서 아래로 적힌 순서를 참고합니다.
+        적으세요. 배치는 위에서 아래로 적힌 순서를 참고합니다. 빈 카드는
+        보관하고 생성에는 사용하지 않습니다.
       </p>
 
       {!v5 && (
@@ -48,7 +54,7 @@ export default function ConnectedCharacters({ draft, onChange }: Props) {
             이 앱의 V4.5 생성 경로에서는 캐릭터 조건을 지원하지 않습니다. V5
             Full로 바꾸거나 조건을 꺼 주세요. 입력은 보존됩니다.
           </p>
-          {active > 0 && (
+          {characters.some((c) => c.enabled) && (
             <button
               type="button"
               data-testid="disable-live-characters"
@@ -63,7 +69,7 @@ export default function ConnectedCharacters({ draft, onChange }: Props) {
           )}
         </div>
       )}
-      {v5 && draft.placement === 'manual' && (
+      {v5 && active > 0 && draft.placement === 'manual' && (
         <div role="status">
           <p>
             수동 위치 초안이 남아 있습니다. 이번 생성은 자동 배치로
@@ -94,7 +100,11 @@ export default function ConnectedCharacters({ draft, onChange }: Props) {
                     type="checkbox"
                     checked={c.enabled}
                     data-character-enabled={c.id}
-                    disabled={!c.enabled && active >= V5_CHARACTER_LIMIT}
+                    disabled={
+                      !c.enabled &&
+                      !!c.prompt.trim() &&
+                      active >= V5_CHARACTER_LIMIT
+                    }
                     onChange={(e) =>
                       update(c.id, { enabled: e.target.checked })
                     }
@@ -174,6 +184,16 @@ export default function ConnectedCharacters({ draft, onChange }: Props) {
                   }
                 />
               </details>
+              {c.enabled && !hasActiveCharacterPrompt(c) && (
+                <span
+                  className="connected-character-muted"
+                  data-character-waiting={c.id}
+                >
+                  작성 대기 · 캐릭터 프롬프트를 입력하면 생성에 포함합니다.
+                  {c.negativePrompt.trim() &&
+                    ' 부정 입력도 보관만 하고 아직 전송하지 않습니다.'}
+                </span>
+              )}
               {!c.enabled && (
                 <span className="connected-character-muted">
                   비활성 · 입력은 보관하고 생성에는 사용하지 않습니다.
@@ -213,7 +233,8 @@ export default function ConnectedCharacters({ draft, onChange }: Props) {
             disabled={
               characters.length >= PROJECT_LIMITS.characters ||
               characters.some((c) => c.id === removed.character.id) ||
-              (removed.character.enabled && active >= V5_CHARACTER_LIMIT)
+              (hasActiveCharacterPrompt(removed.character) &&
+                active >= V5_CHARACTER_LIMIT)
             }
             onClick={() => {
               const next = [...characters];
