@@ -78,6 +78,8 @@ const server = http.createServer(async (request, response) => {
   assert.equal(parsed.parameters.height, 1216);
   assert.equal(parsed.parameters.n_samples, 1);
   if (phase === 'characters') {
+    assert.equal(parsed.input, '');
+    assert.equal(parsed.parameters.v4_prompt.caption.base_caption, '');
     const expected =
       number === 1
         ? ['person, blue coat']
@@ -766,6 +768,12 @@ app.on('web-contents-created', (_event, contents) => {
         await evaluate("(()=>{const s=document.querySelector('#live-model');s.value='v5';s.dispatchEvent(new Event('change',{bubbles:true}))})()");
         await click(`[data-character-enabled="${ids[1]}"]`);
         checks.push('V4.5 path offers a nearby disable-character action that preserves text; switching back to V5 restores editing');
+        await click('[data-testid=add-live-character]');
+        const waitingId = await evaluate("[...document.querySelectorAll('[data-character-id]')].at(-1).dataset.characterId");
+        await fill('[data-testid=live-prompt]', '');
+        await evaluate("(()=>{const s=document.querySelector('#live-quality');s.value='none';s.dispatchEvent(new Event('change',{bubbles:true}))})()");
+        assert.ok((await evaluate("document.querySelector('[data-testid=live-characters]').textContent")).includes('작성 대기 1'));
+        assert.ok(await evaluate(`!!document.querySelector('[data-character-waiting="${waitingId}"]')`));
         await click('[data-testid=prepare-generation]');
         await until(() =>
           evaluate(
@@ -795,6 +803,7 @@ app.on('web-contents-created', (_event, contents) => {
           [
             [ids[1], true],
             [ids[0], false],
+            [waitingId, true],
           ],
         );
         assert.equal(
@@ -802,6 +811,9 @@ app.on('web-contents-created', (_event, contents) => {
           'person, red coat',
         );
         assert.equal(requests, 1);
+        assert.equal(first.project.images[0].draft.prompt, '');
+        assert.equal(first.project.images[0].draft.characters[2].prompt, '');
+        checks.push('character-only generation sends empty base without quality presets, skips waiting card, and preserves the complete draft');
         const copy = await evaluate(
           `window.electron.projects.copy('${first.project.id}','${first.revision}',${JSON.stringify({ name: 'characters (이번 결과)', selectedSceneId: first.project.selectedSceneId, scenes: first.project.scenes })})`,
         );
@@ -865,7 +877,7 @@ app.on('web-contents-created', (_event, contents) => {
         assert.deepEqual(
           final.project.images
             .slice(1)
-            .map((i) => i.draft.characters.filter((c) => c.enabled).length),
+            .map((i) => i.draft.characters.filter((c) => c.enabled && c.prompt.trim()).length),
           [2, 2],
         );
         checks.push(
@@ -969,7 +981,7 @@ app.on('web-contents-created', (_event, contents) => {
             await evaluate(
               "document.querySelectorAll('[data-character-id]').length",
             ),
-            2,
+            3,
           );
           assert.equal(
             await evaluate(

@@ -83,6 +83,12 @@ exports.checkGallery = async ({
   profile,
   sourceProjectId,
 }) => {
+  // The gallery read probe requires the desktop sidebar; headless displays may start below1100px.
+  const initial = await evaluate("({width:innerWidth,sidebar:getComputedStyle(document.querySelector('#connected-sidebar')).display})");
+  BrowserWindow.fromWebContents(contents).setSize(1400, 900);
+  await until(() => evaluate('innerWidth===1400'));
+  assert.notEqual(await evaluate("getComputedStyle(document.querySelector('#connected-sidebar')).display"), 'none');
+  checks.push(`gallery desktop viewport initialized from ${initial.width}px/${initial.sidebar}`);
   // Thirty record UUIDs deliberately reuse one synthetic PNG: this measures IPC scheduling, not disk throughput.
   const root = path.join(profile, 'projects-v1');
   const source = JSON.parse(

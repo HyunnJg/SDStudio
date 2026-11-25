@@ -2,6 +2,7 @@
 import { randomInt } from 'crypto';
 import type { WorkspaceScene } from '../../renderer/preview/workspaceDraft';
 import type { ProjectImageInput, ImageBinding } from '../../workspaceProject';
+import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
 import {
   V5_QUALITY_TAGS,
   V5_UC_PRESETS,
@@ -15,7 +16,15 @@ export function bindBasicGeneration(
 ) {
   const d = scene.draft;
   const v5 = d.family === 'v5';
-  const characters = d.characters.filter((c) => c.enabled);
+  const enabledCharacters = d.characters.filter((c) => c.enabled);
+  if (
+    enabledCharacters.some(
+      (c) =>
+        typeof c.prompt !== 'string' || typeof c.negativePrompt !== 'string',
+    )
+  )
+    throw new Error('UNSUPPORTED_DRAFT');
+  const characters = enabledCharacters.filter(hasActiveCharacterPrompt);
   const inline = (p: string) => p.includes('|') || /<[^>]*\.[^>]*>/.test(p);
   const steps = Number(d.steps);
   const scale = Number(d.guidance);
@@ -32,7 +41,6 @@ export function bindBasicGeneration(
             inline(c.prompt) ||
             inline(c.negativePrompt),
         ))) ||
-    !d.prompt.trim() ||
     [d.prompt, d.negativePrompt].some(inline) ||
     (v5
       ? !Object.hasOwn(V5_SIZES, d.resolution) ||
@@ -51,6 +59,8 @@ export function bindBasicGeneration(
         (d.ucPreset !== undefined && d.ucPreset !== 'none'))
   )
     throw new Error('UNSUPPORTED_DRAFT');
+  if (!d.prompt.trim() && (!v5 || characters.length === 0))
+    throw new Error('INVALID_INPUT');
   if (d.seedMode !== 'random' && d.seedMode !== 'fixed')
     throw new Error('INVALID_INPUT');
   if (

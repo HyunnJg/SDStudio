@@ -3,8 +3,9 @@ const fs = require('node:fs'),
   os = require('node:os'),
   assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
-if (process.platform !== 'linux' || !process.env.DISPLAY)
-  throw Error('Requires Linux X11');
+const headless = process.env.SDSTUDIO_SMOKE_HEADLESS === '1';
+if (process.platform !== 'linux' || (!headless && !process.env.DISPLAY))
+  throw Error('Requires Linux X11 or explicit SDSTUDIO_SMOKE_HEADLESS=1');
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sdstudio-generation-ui-'));
 const original = path.join(root, 'original');
 fs.mkdirSync(original);
@@ -25,7 +26,8 @@ try {
         '-r',
         path.resolve('.erb/scripts/generation-ui-harness.cjs'),
         path.resolve('release/app/dist/main/main.js'),
-        '--ozone-platform=x11',
+        `--ozone-platform=${headless ? 'headless' : 'x11'}`,
+        ...(process.env.SDSTUDIO_SMOKE_NO_SANDBOX === '1' ? ['--no-sandbox'] : []),
         '--disable-gpu',
       ],
       {

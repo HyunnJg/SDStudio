@@ -191,6 +191,16 @@
   display: flex;
   gap: 4px;
 }
+.connected-metadata-entry {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+}
+.connected-metadata-entry small {
+  color: var(--pw-muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
 .connected-prompt-tabs button {
   flex: 1;
   border: 0;

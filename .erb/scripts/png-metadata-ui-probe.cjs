@@ -7,6 +7,7 @@ const {
   metadata,
 } = require('../../src/__tests__/fixtures/nai/metadataPNG.cjs');
 module.exports = async ({ contents, evaluate, click, until, checks }) => {
+  assert.equal(await evaluate("!!document.querySelector('[data-testid=open-metadata]').closest('.connected-input')"), true);
   const storedBefore = (
     await evaluate('window.electron.projects.list()')
   ).value.map((p) => [p.id, p.revision]);

@@ -574,6 +574,30 @@ export default function ConnectedWorkspace({
                 <span>현재 씬</span>
                 <strong>{currentScene?.name}</strong>
               </div>
+              <div className="connected-metadata-entry">
+                <button
+                  type="button"
+                  data-testid="open-metadata"
+                  disabled={locked}
+                  onClick={() => fileInput.current?.click()}
+                >
+                  PNG에서 프롬프트·설정 가져오기
+                </button>
+                <small>PNG를 작업실에 끌어놓아도 가져올 수 있습니다.</small>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept="image/png,.png"
+                  hidden
+                  aria-label="메타데이터를 읽을 PNG"
+                  data-testid="metadata-file"
+                  onChange={(event) => {
+                    if (!locked && event.target.files?.[0])
+                      setImportFile(event.target.files[0]);
+                    event.target.value = '';
+                  }}
+                />
+              </div>
               <div
                 className="connected-prompt-tabs"
                 role="group"
@@ -733,27 +757,6 @@ export default function ConnectedWorkspace({
           <header className="connected-canvas-heading">
             <span>{result ? '저장된 원본 PNG' : '미리보기'}</span>
             <small>{images.length}장 보관</small>
-            <button
-              type="button"
-              data-testid="open-metadata"
-              disabled={locked}
-              onClick={() => fileInput.current?.click()}
-            >
-              PNG 정보 가져오기
-            </button>
-            <input
-              ref={fileInput}
-              type="file"
-              accept="image/png,.png"
-              hidden
-              aria-label="메타데이터를 읽을 PNG"
-              data-testid="metadata-file"
-              onChange={(event) => {
-                if (!locked && event.target.files?.[0])
-                  setImportFile(event.target.files[0]);
-                event.target.value = '';
-              }}
-            />
           </header>
           <div className="connected-feedback">
             {singlePlan && (
