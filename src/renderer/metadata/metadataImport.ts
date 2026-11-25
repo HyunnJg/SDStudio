@@ -177,11 +177,11 @@ export function applyMetadataImport(
   // Imported captions are final text; disable only the corresponding auto-append.
   if (selected.has('prompt') && plan.prompt !== undefined) {
     next.prompt = plan.prompt;
-    next.qualityTags = 'none';
+    if (next.qualityTags !== undefined) next.qualityTags = 'none';
   }
   if (selected.has('negativePrompt') && plan.negativePrompt !== undefined) {
     next.negativePrompt = plan.negativePrompt;
-    next.ucPreset = 'none';
+    if (next.ucPreset !== undefined) next.ucPreset = 'none';
   }
   if (selected.has('characters') && plan.characters !== undefined) {
     next.characters = plan.characters.map((c) => ({

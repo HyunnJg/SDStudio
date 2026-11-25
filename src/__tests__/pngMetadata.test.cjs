@@ -435,3 +435,38 @@ test('metadata dialog explains and applies prompt-only, negative-only and settin
     }
   }
 });
+
+test('legacy drafts without preset fields keep automatic tags off and do not promote the project version on caption import', async () => {
+  const { requiredProjectVersion } = require('../workspaceProject');
+  const state = createConnectedWorkspaceState('v4.5');
+  const { draft } = state;
+  assert.equal(Object.hasOwn(draft, 'qualityTags'), false);
+  assert.equal(Object.hasOwn(draft, 'ucPreset'), false);
+  const plan = planMetadataImport(await read(fixture()), draft);
+  const next = applyMetadataImport(draft, plan, ['prompt', 'negativePrompt']);
+  const original = bindBasicGeneration(state.scenes[0], () => 12345).input;
+  const rebound = bindBasicGeneration(
+    { ...state.scenes[0], draft: next },
+    () => 12345,
+  ).request;
+  assert.equal(rebound.input, plan.prompt);
+  assert.equal(rebound.parameters.negative_prompt, plan.negativePrompt);
+  assert.equal(Object.hasOwn(next, 'qualityTags'), false);
+  assert.equal(Object.hasOwn(next, 'ucPreset'), false);
+  const content = {
+    name: 'legacy',
+    selectedSceneId: state.selectedSceneId,
+    scenes: [{ ...state.scenes[0], draft: next }],
+  };
+  assert.equal(requiredProjectVersion(content), 1);
+  assert.equal(
+    requiredProjectVersion(content, [
+      {
+        ...original,
+        draft: next,
+        binding: { id: 'nai-v45-basic512-v1', requestHash: 'a'.repeat(64) },
+      },
+    ]),
+    2,
+  );
+});
