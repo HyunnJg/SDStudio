@@ -148,6 +148,13 @@ const electronHandler = {
     listTrash: () => ipcRenderer.invoke('workspace-project-list-trash'),
     trashProject: (id) => ipcRenderer.invoke('workspace-project-trash', id),
     restoreProject: (id) => ipcRenderer.invoke('workspace-project-restore', id),
+    emptyResultTrash: (id, revision, confirmed) =>
+      ipcRenderer.invoke(
+        'workspace-project-empty-result-trash',
+        id,
+        revision,
+        confirmed,
+      ),
     setImageDeleted: (id, revision, imageId, deleted) =>
       ipcRenderer.invoke(
         'workspace-project-image-deleted',

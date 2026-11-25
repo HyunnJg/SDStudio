@@ -17,6 +17,7 @@ interface Props {
   onPrepare: () => void;
   onResume: () => void;
   onStop: () => void;
+  hasResult: (id: string) => boolean;
   onResult: (id: string) => void;
   onClear: () => void;
   conflict: { sceneId: string; name: string; count: number } | undefined;
@@ -45,6 +46,7 @@ export default function ConnectedQueueControls({
   onPrepare,
   onResume,
   onStop,
+  hasResult,
   onResult,
   onClear,
   conflict,
@@ -177,7 +179,7 @@ export default function ConnectedQueueControls({
                   {item.sceneName} · {item.repeat}회 · 시드 {item.seed} ·{' '}
                   {labels[item.status]}
                 </span>
-                {item.imageId && (
+                {item.imageId && hasResult(item.imageId) && (
                   <button type="button" onClick={() => onResult(item.imageId!)}>
                     결과 열기
                   </button>
