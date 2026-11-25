@@ -218,15 +218,16 @@ app.on('web-contents-created', (_event, contents) => {
     };
     try {
       await until(() =>
-        evaluate("!!document.querySelector('[data-testid=open-preview]')"),
+        evaluate("!!document.querySelector('[data-testid=connected-workspace]')"),
       );
-      await click('[data-testid=open-preview]');
+      checks.push('new workspace is the default startup without a legacy screen detour');
       await until(() =>
         evaluate(
           "!!document.querySelector('[data-testid=connected-workspace]')",
         ),
       );
       await require('./workspace-layout-probe.cjs').checkEditor({ contents, evaluate, click, fill, until, checks });
+      await evaluate("(()=>{window.__flowMessages=[];const node=document.querySelector('[data-testid=generation-status]');new MutationObserver(()=>{if(node.textContent.trim())window.__flowMessages.push(node.textContent.trim())}).observe(node,{childList:true,characterData:true,subtree:true})})()");
       if (process.env.SDSTUDIO_RUNTIME_REPORT && phase === 'create')
         await require('./runtime-ui-probe.cjs')(contents, profile);
       if (phase === 'reference') {
@@ -237,7 +238,7 @@ app.on('web-contents-created', (_event, contents) => {
           "window.electron.naiAuth.setToken('synthetic-never-a-real-token',false)",
         );
         assert.equal(set.ok, true);
-        await click('[aria-controls=live-queue-details]');
+        assert.equal(await evaluate("!document.querySelector('#live-queue-details').hidden"), true);
         await evaluate(
           "document.querySelectorAll('[data-queue-scene]').forEach(c=>c.click())",
         );
@@ -343,7 +344,7 @@ app.on('web-contents-created', (_event, contents) => {
           'result-only new project storage sends no fifth request and preserves the original lock/PNG',
         );
         // Local conflict exclusion: four untransmitted jobs, two are for the changed scene.
-        await click('[aria-controls=live-queue-details]');
+        assert.equal(await evaluate("!document.querySelector('#live-queue-details').hidden"), true);
         await evaluate(
           "document.querySelectorAll('[data-queue-scene]').forEach((c,i)=>{if(c.checked!==(i<2))c.click()})",
         );
@@ -463,7 +464,7 @@ app.on('web-contents-created', (_event, contents) => {
           "window.electron.naiAuth.setToken('synthetic-never-a-real-token',false)",
         );
         assert.equal(set.ok, true);
-        await click('[aria-controls=live-queue-details]');
+        assert.equal(await evaluate("!document.querySelector('#live-queue-details').hidden"), true);
         await evaluate(
           "document.querySelectorAll('[data-queue-scene]').forEach(c=>c.click())",
         );
@@ -558,7 +559,7 @@ app.on('web-contents-created', (_event, contents) => {
             process.env.SDSTUDIO_GENERATION_SCREENSHOT + '.desktop.png',
             (await contents.capturePage()).toPNG(),
           );
-        await click('[aria-controls=live-queue-details]');
+        assert.equal(await evaluate("!document.querySelector('#live-queue-details').hidden"), true);
         await until(() =>
           evaluate("!document.querySelector('#live-queue-details').hidden"),
         );
@@ -859,7 +860,7 @@ app.on('web-contents-created', (_event, contents) => {
         checks.push(
           'high-step confirmation includes the active character count; cancel sends nothing',
         );
-        await click('[aria-controls=live-queue-details]');
+        assert.equal(await evaluate("!document.querySelector('#live-queue-details').hidden"), true);
         await evaluate(
           `document.querySelector('[data-queue-scene="${first.project.selectedSceneId}"]').click()`,
         );
@@ -1130,6 +1131,12 @@ app.on('web-contents-created', (_event, contents) => {
         checks.push(
           'actual Electron session transport accepts unknown MIME ZIP, worker persists original alpha/metadata PNG, renderer decodes it',
         );
+        assert.ok(await evaluate("document.querySelector('[data-testid=result-download]').href.startsWith('blob:') && document.querySelector('[data-testid=result-download]').download.endsWith('.png')"));
+        await click('[data-testid=result-use-metadata]');
+        await until(() => evaluate("document.querySelector('[data-testid=metadata-dialog]')?.open && !!document.querySelector('[data-testid=apply-metadata]')"));
+        await click('[aria-label="메타데이터 창 닫기"]');
+        assert.equal(requests,1);
+        checks.push('canvas actions expose original PNG download and local metadata reuse without another generation request');
         await until(() =>
           evaluate(
             "!document.querySelector('#live-steps').matches(':disabled')",
@@ -1226,7 +1233,7 @@ app.on('web-contents-created', (_event, contents) => {
         );
         await until(() =>
           evaluate(
-            "document.querySelector('[data-testid=generation-status]').innerText.includes('PNG 원본')",
+            "document.querySelector('[data-testid=generation-status]').innerText==='완료'",
           ),
         );
         assert.equal(
@@ -1243,7 +1250,7 @@ app.on('web-contents-created', (_event, contents) => {
         checks.push(
           'post-response storage fault retains result; explicit new-project save preserves original lock/PNG and adds the received PNG without a fourth request',
         );
-        await click('[aria-controls=live-queue-details]');
+        assert.equal(await evaluate("!document.querySelector('#live-queue-details').hidden"), true);
         await evaluate(
           "document.querySelectorAll('[data-queue-scene]').forEach(c=>{if(!c.checked)c.click()})",
         );
@@ -1292,6 +1299,8 @@ app.on('web-contents-created', (_event, contents) => {
         await require('./png-metadata-ui-probe.cjs')({contents,evaluate,click,until,checks});
         await require('./prompt-library-ui-probe.cjs')({ contents, evaluate, click, fill, until, checks });
         assert.equal(requests,3,'metadata and library actions send no generation request');
+        assert.ok((await evaluate('window.__flowMessages')).every(message=>!/(입력을 저장|요청을 준비|PNG 원본을 저장|저장했습니다|적용했습니다|예약을 준비)/.test(message)));
+        checks.push('generation feedback contains terminal outcome/errors only; local library/metadata applications do not narrate intermediate successes');
         const window = BrowserWindow.fromWebContents(contents);
         if (process.env.SDSTUDIO_GENERATION_SCREENSHOT)
           fs.writeFileSync(

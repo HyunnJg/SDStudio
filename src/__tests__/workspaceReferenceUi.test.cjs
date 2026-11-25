@@ -18,7 +18,7 @@ async function panel(t, extra = {}) {
 }
 test('reference panel exposes separate local PNG selection, cost, current role/strength and missing-file notice', async (t) => {
   const f = await panel(t), text = JSON.stringify(f.renderer.toJSON());
-  assert.ok(text.includes('5 Anlas')); assert.ok(text.includes('프롬프트·설정 가져오기와 별개'));
+  assert.ok(text.includes('5 Anlas')); assert.ok(text.includes('이미지 입력'));
   assert.ok(text.includes('참조 없이 자동 생성하지 않습니다'));
   assert.equal(f.renderer.root.findByProps({ 'data-testid': 'choose-reference' }).props.disabled, false);
 });

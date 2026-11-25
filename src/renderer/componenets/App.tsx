@@ -144,7 +144,7 @@ const DnDPreview = () => {
 
 export const App = observer(() => {
   const [authOpen, setAuthOpen] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(runtimeOptions.mockBackend);
+  const [previewOpen, setPreviewOpen] = useState(true);
   const freshWorkspace = () => runtimeOptions.mockBackend ? createWorkspaceState() : createConnectedWorkspaceState();
   const [workspace, setWorkspace] = useState(freshWorkspace);
   const nextPreviewResult = useRef(1);

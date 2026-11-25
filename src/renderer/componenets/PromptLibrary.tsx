@@ -1,5 +1,6 @@
 /* eslint react/require-default-props: off, jsx-a11y/label-has-associated-control: ["error", {"assert":"either"}], no-void: off */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { PresetUse } from '../generation/presetPresentation';
 import type { WorkspaceDraft } from '../preview/workspaceDraft';
 import type {
   LibraryClient,
@@ -25,7 +26,13 @@ interface Props {
   kind: PresetKind;
   characterId?: string;
   locked: boolean;
-  onApply: (draft: WorkspaceDraft, characterId?: string) => void;
+  onApply: (
+    draft: WorkspaceDraft,
+    characterId?: string,
+    preset?: PresetUse,
+  ) => void;
+  initialId?: string;
+  onLibraryChange?: (snapshot: LibrarySnapshot) => void;
   onClose: () => void;
   onGuard: (blocked: boolean) => void;
   onLegacy: () => void;
@@ -62,6 +69,8 @@ export default function PromptLibrary({
   onClose,
   onGuard,
   onLegacy,
+  initialId,
+  onLibraryChange,
 }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [snapshot, setSnapshot] = useState<LibrarySnapshot>();
@@ -126,6 +135,7 @@ export default function PromptLibrary({
           return;
         }
         setSnapshot(reply.value);
+        onLibraryChange?.(reply.value);
         accept?.(reply.value);
       } catch (error) {
         if (alive.current && generation === epoch.current) fail(error);
@@ -136,19 +146,33 @@ export default function PromptLibrary({
         }
       }
     },
-    [fail],
+    [fail, onLibraryChange],
   );
   useEffect(() => {
     alive.current = true;
     epoch.current += 1;
     dialog.current?.showModal();
-    void invoke(() => client.read());
+    void invoke(
+      () => client.read(),
+      (value) => {
+        const entry = value.entries.find(
+          (item) => item.id === initialId && !item.deleted,
+        );
+        if (entry) {
+          const content = contentOf(entry);
+          setEditor(content);
+          setBaseline(JSON.stringify(content));
+          setEditorId(entry.id);
+          setFilter(entry.kind);
+        }
+      },
+    );
     return () => {
       alive.current = false;
       epoch.current += 1;
       guard.current(false);
     };
-  }, [client, invoke]);
+  }, [client, invoke, initialId]);
   const openEditor = (content: PresetContent, id?: string) => {
     const value = contentOf(content);
     setEditor(value);
@@ -190,9 +214,7 @@ export default function PromptLibrary({
           ? value.entries.find((p) => p.id === editorId)
           : value.entries.at(-1);
         if (entry) openEditor(entry, entry.id);
-        setMessage(
-          '프리셋을 저장했습니다. 작업실 입력에는 아직 적용하지 않았습니다.',
-        );
+        setMessage('');
       },
     );
   };
@@ -203,11 +225,7 @@ export default function PromptLibrary({
       (s) => {
         const entry = s.entries.find((p) => p.id === editorId);
         if (entry) openEditor(entry, entry.id);
-        setMessage(
-          value
-            ? '휴지통으로 옮겼습니다. 복원할 수 있습니다.'
-            : '프리셋을 복원했습니다.',
-        );
+        setMessage('');
       },
     );
   };
@@ -247,6 +265,11 @@ export default function PromptLibrary({
       }
     }
   };
+  let saveState = '새 프리셋';
+  if (editorId) saveState = '✓ 저장됨';
+  if (selected?.deleted) saveState = '휴지통';
+  if (dirty) saveState = '● 편집 중';
+  if (working) saveState = '◌';
   return (
     <dialog
       ref={dialog}
@@ -269,7 +292,9 @@ export default function PromptLibrary({
           닫기
         </button>
       </header>
-      <p>프로젝트와 별개로 보관합니다. 저장과 작업실 적용은 각각 실행합니다.</p>
+      <div className="library-state" data-testid="library-save-state">
+        {saveState}
+      </div>
       {confirm && (
         <section role="alert" className="library-confirm">
           저장하지 않은 프리셋 편집을 버리고 계속할까요?
@@ -365,9 +390,21 @@ export default function PromptLibrary({
               새로고침
             </button>
           </fieldset>
-          <p>{snapshot?.entries.length ?? 0}/200 · 휴지통 포함</p>
+          <p className="library-count" data-testid="library-count">
+            메인{' '}
+            {snapshot?.entries.filter((p) => !p.deleted && p.kind === 'main')
+              .length ?? 0}{' '}
+            · 캐릭터{' '}
+            {snapshot?.entries.filter(
+              (p) => !p.deleted && p.kind === 'character',
+            ).length ?? 0}
+            {trash &&
+              ` · 휴지통 ${snapshot?.entries.filter((p) => p.deleted).length ?? 0}`}
+          </p>
           <ul className="library-list">
             {snapshot?.entries
+              .slice()
+              .reverse()
               .filter(
                 (p) =>
                   p.kind === filter &&
@@ -648,10 +685,19 @@ export default function PromptLibrary({
                       editor.kind === 'character'
                         ? (options.characterId ?? value.characters.at(-1)?.id)
                         : undefined,
+                      {
+                        name: dirty ? `${editor.name} · 편집본` : editor.name,
+                        kind: editor.kind,
+                        id: dirty ? undefined : editorId,
+                        characterId:
+                          editor.kind === 'character'
+                            ? (options.characterId ??
+                              value.characters.at(-1)?.id)
+                            : undefined,
+                        mode: options.mode,
+                      },
                     );
-                    setMessage(
-                      '작업실 입력에 적용했습니다. 생성하거나 프로젝트를 저장하지 않았습니다.',
-                    );
+                    setMessage('');
                   } catch (error) {
                     fail(error);
                   }

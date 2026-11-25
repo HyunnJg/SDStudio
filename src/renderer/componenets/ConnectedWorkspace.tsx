@@ -1,6 +1,7 @@
 /* eslint no-void: off, jsx-a11y/label-has-associated-control: ["error", { "assert": "either" }] -- Promise effects and explicit htmlFor/id controls. */
 import {
   useEffect,
+  useCallback,
   useState,
   useRef,
   useSyncExternalStore,
@@ -29,6 +30,13 @@ import ConnectedCharacters from './ConnectedCharacters';
 import ConnectedImageHistory from './ConnectedImageHistory';
 import PNGMetadataImport from './PNGMetadataImport';
 import PromptLibrary from './PromptLibrary';
+import WorkspaceImageChoice from './WorkspaceImageChoice';
+import {
+  matchingPreset,
+  presetTextKey,
+} from '../generation/presetPresentation';
+import type { PresetUse } from '../generation/presetPresentation';
+import needsSingleUsageConfirmation from '../generation/workspaceUx';
 import ConnectedReference from './ConnectedReference';
 import {
   REFERENCE_LIMITS,
@@ -37,7 +45,11 @@ import {
 } from '../../workspaceReference';
 import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
 import { V5_CHARACTER_LIMIT } from '../../workspaceGenerationSettings';
-import type { PresetKind } from '../../promptLibrary';
+import type {
+  PresetKind,
+  PromptPreset,
+  LibrarySnapshot,
+} from '../../promptLibrary';
 import {
   generationMessage,
   availableQueueSceneIds,
@@ -63,6 +75,9 @@ interface Props {
   onOpenLegacy: () => void;
   onToggleTheme: () => void;
 }
+// User acknowledgement lasts for this renderer session; it is not a server price guarantee.
+let referenceCostAcknowledged = false;
+
 export default function ConnectedWorkspace({
   state,
   setState,
@@ -122,16 +137,39 @@ export default function ConnectedWorkspace({
   const [libraryRequest, setLibraryRequest] = useState<{
     kind: PresetKind;
     characterId?: string;
+    initialId?: string;
   }>();
+  const [imageChoice, setImageChoice] = useState<File>();
+  const [presets, setPresets] = useState<PromptPreset[]>([]);
+  const [uses, setUses] = useState<
+    (PresetUse & { sceneId: string; projectId?: string; fingerprint: string })[]
+  >([]);
+  const acceptLibrary = useCallback(
+    (snapshot: LibrarySnapshot) => setPresets(snapshot.entries),
+    [],
+  );
+  useEffect(() => {
+    let alive = true;
+    window.electron.promptLibrary
+      .read()
+      .then((reply) => {
+        if (alive && reply.ok) setPresets(reply.value.entries);
+        return undefined;
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
   const [libraryBlocking, setLibraryBlocking] = useState(false);
   const [characterEpoch, setCharacterEpoch] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     setImportFile(undefined);
+    setImageChoice(undefined);
     setLibraryRequest(undefined);
   }, [view.id, state.selectedSceneId, state.draft.family]);
   const [promptTab, setPromptTab] = useState<'prompt' | 'negative'>('prompt');
-  const [sidebarTab, setSidebarTab] = useState<'results' | 'queue'>('results');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobilePane, setMobilePane] = useState<'input' | 'result'>('input');
   const queueConfirmation = useRef<HTMLElement>(null);
@@ -261,7 +299,7 @@ export default function ConnectedWorkspace({
     operation.current = true;
     generationEpoch.current += 1;
     setPhase('reference');
-    setMessage('참조 PNG를 로컬에서 준비하고 있습니다…');
+    setMessage('');
     setSinglePlan(undefined);
     setQueuePlan(undefined);
     const sceneId = state.selectedSceneId;
@@ -302,9 +340,7 @@ export default function ConnectedWorkspace({
           preferSameOutfit: state.draft.reference?.preferSameOutfit ?? false,
         },
       });
-      setMessage(
-        '참조를 입력에 추가했습니다. 저장·생성하면 이 씬에 보관됩니다. 아직 전송하지 않았습니다.',
-      );
+      setMessage('');
     } catch (error) {
       if (mounted.current)
         setMessage(generationMessage(error, sceneNames.current));
@@ -319,7 +355,7 @@ export default function ConnectedWorkspace({
     setSelected(value.imageId);
     setMobilePane('result');
     setPending(false);
-    setMessage('PNG 원본과 실제 사용 시드를 프로젝트에 저장했습니다.');
+    setMessage('완료');
   };
   const prepare = async () => {
     if (operation.current) return;
@@ -334,7 +370,7 @@ export default function ConnectedWorkspace({
       const prepared = unwrap(
         await client.prepare(saved.id!, saved.revision!, state.selectedSceneId),
       );
-      if (requiresAnlasWarning(prepared)) {
+      if (needsSingleUsageConfirmation(prepared, referenceCostAcknowledged)) {
         setSinglePlan(prepared);
         setPhase('single-confirm');
         return;
@@ -361,6 +397,7 @@ export default function ConnectedWorkspace({
     setSinglePlan(undefined);
     setMessage('');
     setPhase('run');
+    if (singlePlan.reference) referenceCostAcknowledged = true;
     try {
       accept(unwrap(await client.run(ticket, true)));
     } catch (error) {
@@ -421,12 +458,7 @@ export default function ConnectedWorkspace({
     setStorageStopped(outcome.storageStopped);
     if (error) {
       setMessage(generationMessage(error, sceneNames.current));
-    } else
-      setMessage(
-        value.queue?.stopped
-          ? '중지했습니다. 미전송 작업은 새 확인 후에만 계속합니다.'
-          : '예약 결과를 PNG 원본과 함께 저장했습니다.',
-      );
+    } else setMessage(value.queue?.stopped ? '중지됨' : '완료');
   };
   const prepareQueue = async (remaining = false) => {
     if (operation.current) return;
@@ -520,9 +552,7 @@ export default function ConnectedWorkspace({
       );
       setQueue(value.queue);
       setQueuePlan(undefined);
-      setMessage(
-        `“${conflict.name}”의 미전송 ${conflict.count}건을 제외했습니다. 다른 미전송 작업은 새 확인 후 실행합니다.`,
-      );
+      setMessage('');
     } catch (error) {
       setMessage(generationMessage(error, sceneNames.current));
     } finally {
@@ -532,16 +562,82 @@ export default function ConnectedWorkspace({
     }
   };
   const result = images.find((i) => i.id === selected);
-  const currentScene = state.scenes.find(
-    (scene) => scene.id === state.selectedSceneId,
-  );
+
   const showResult = (id: string) => {
     setSelected(id);
     setMobilePane('result');
     setSidebarOpen(false);
   };
+  const chooseImage = () => {
+    fileInput.current?.click();
+  };
+  const receiveImage = (file: File) => {
+    if (locked || operation.current) return;
+    if (file.size === 0 || file.size > REFERENCE_LIMITS.sourceBytes) {
+      setMessage('PNG 파일 크기를 확인해 주세요.');
+      return;
+    }
+    setMessage('');
+    setImageChoice(file);
+  };
+  const reuseResultImage = async (purpose: 'metadata' | 'reference') => {
+    if (locked || operation.current || !view.id || !result) return;
+    operation.current = true;
+    generationEpoch.current += 1;
+    setPhase('image');
+    setMessage('');
+    let file: File | undefined;
+    try {
+      const bytes = unwrap(await client.image(view.id, result.id));
+      if (
+        !mounted.current ||
+        project.getSnapshot().id !== view.id ||
+        liveScene.current !== state.selectedSceneId
+      )
+        return;
+      file = new File([new Uint8Array(bytes)], 'result.png', {
+        type: 'image/png',
+      });
+    } catch (error) {
+      setMessage(generationMessage(error, sceneNames.current));
+    } finally {
+      operation.current = false;
+      generationEpoch.current += 1;
+      setPhase('');
+    }
+    if (!file || !mounted.current) return;
+    if (purpose === 'metadata') setImportFile(file);
+    else await attachReference(file);
+  };
+  const activeUse = (kind: PresetKind, characterId?: string) =>
+    uses.find(
+      (item) =>
+        item.sceneId === state.selectedSceneId &&
+        item.projectId === view.id &&
+        item.kind === kind &&
+        item.characterId === characterId,
+    );
+  const mainUse = activeUse('main');
+  const matchedMain = matchingPreset(presets, state.draft);
+  const mainLabel = mainUse?.name ?? matchedMain?.name;
+  const mainModified =
+    !!mainUse && mainUse.fingerprint !== presetTextKey(state.draft);
+  const characterLabels = Object.fromEntries(
+    state.draft.characters.map((c) => {
+      const use = activeUse('character', c.id);
+      const matched = matchingPreset(presets, state.draft, c.id);
+      return [
+        c.id,
+        use
+          ? `${use.name}${use.fingerprint !== presetTextKey(state.draft, c.id) ? ' · 수정됨' : ''}`
+          : (matched?.name ?? ''),
+      ];
+    }),
+  );
   let generateLabel = '이미지 생성';
-  if (phase === 'save') generateLabel = '입력 저장 중…';
+  if (phase === 'save') generateLabel = '생성 중…';
+  else if (phase === 'reference' || phase === 'image')
+    generateLabel = '불러오는 중…';
   else if (phase === 'run' || phase === 'queue-run') generateLabel = '생성 중…';
   else if (pending) generateLabel = '결과 저장 필요';
   else if (singlePlan || queuePlan) generateLabel = '실행 확인 대기';
@@ -561,7 +657,7 @@ export default function ConnectedWorkspace({
         event.preventDefault();
         event.stopPropagation();
         if (!locked && event.dataTransfer.files.length === 1)
-          setImportFile(event.dataTransfer.files[0]);
+          receiveImage(event.dataTransfer.files[0]);
         else if (!locked) setMessage('PNG 한 장을 선택해 주세요.');
       }}
     >
@@ -615,7 +711,7 @@ export default function ConnectedWorkspace({
                 disabled={locked}
                 data-testid="open-legacy"
               >
-                기존 도구 · 인페인팅·선별
+                인페인팅·선별·조각
               </button>
             </div>
           </details>
@@ -631,6 +727,27 @@ export default function ConnectedWorkspace({
         <section className="connected-input" aria-label="생성 입력">
           <div className="connected-input-scroll" data-testid="input-scroll">
             <fieldset disabled={locked}>
+              <div className="connected-scene-select">
+                <label htmlFor="live-scene">편집할 씬</label>
+                <select
+                  id="live-scene"
+                  disabled={locked}
+                  value={state.selectedSceneId}
+                  onChange={(e) => {
+                    setState((previous) =>
+                      selectWorkspaceScene(previous, e.target.value),
+                    );
+                    setMobilePane('input');
+                    setSidebarOpen(false);
+                  }}
+                >
+                  {state.scenes.map((scene) => (
+                    <option key={scene.id} value={scene.id}>
+                      {scene.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="connected-model-settings">
                 <label htmlFor="live-model">모델</label>
                 <select
@@ -672,10 +789,29 @@ export default function ConnectedWorkspace({
                   </>
                 )}
               </div>
-              <div className="connected-editor-heading">
-                <span>현재 씬</span>
-                <strong>{currentScene?.name}</strong>
-              </div>
+              <ConnectedReference
+                reference={state.draft.reference}
+                projectId={view.id}
+                sceneId={state.selectedSceneId}
+                family={state.draft.family}
+                locked={locked}
+                preview={referencePreview}
+                client={client}
+                onFile={async (file) => receiveImage(file)}
+                onChoose={chooseImage}
+                onChange={(reference) => {
+                  if (reference) patch({ reference });
+                  else {
+                    setSinglePlan(undefined);
+                    setQueuePlan(undefined);
+                    setState((previous) => {
+                      const draft = { ...previous.draft };
+                      delete draft.reference;
+                      return { ...previous, draft };
+                    });
+                  }
+                }}
+              />
               <div className="connected-metadata-entry">
                 <button
                   type="button"
@@ -683,31 +819,45 @@ export default function ConnectedWorkspace({
                   data-testid="main-preset"
                   onClick={() => setLibraryRequest({ kind: 'main' })}
                 >
-                  메인 프리셋 저장·불러오기
+                  메인 프리셋{' '}
+                  {
+                    presets.filter((p) => !p.deleted && p.kind === 'main')
+                      .length
+                  }
                 </button>
-                <button
-                  type="button"
-                  data-testid="open-metadata"
-                  disabled={locked}
-                  onClick={() => fileInput.current?.click()}
-                >
-                  PNG에서 프롬프트·설정 가져오기
-                </button>
-                <small>PNG를 작업실에 끌어놓아도 가져올 수 있습니다.</small>
-                <input
-                  ref={fileInput}
-                  type="file"
-                  accept="image/png,.png"
-                  hidden
-                  aria-label="메타데이터를 읽을 PNG"
-                  data-testid="metadata-file"
-                  onChange={(event) => {
-                    if (!locked && event.target.files?.[0])
-                      setImportFile(event.target.files[0]);
-                    event.target.value = '';
-                  }}
-                />
               </div>
+              <div
+                className="connected-preset-shortcuts"
+                aria-label="메인 프리셋 빠른 선택"
+              >
+                {presets
+                  .filter((p) => !p.deleted && p.kind === 'main')
+                  .slice(-4)
+                  .reverse()
+                  .map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className="preset-chip"
+                      aria-pressed={mainLabel === p.name && !mainModified}
+                      title={p.name}
+                      onClick={() =>
+                        setLibraryRequest({ kind: 'main', initialId: p.id })
+                      }
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+              </div>
+              {mainLabel && (
+                <div
+                  className="preset-current"
+                  data-testid="applied-main-preset"
+                >
+                  <span>메인 · {mainLabel}</span>
+                  {mainModified && <small>수정됨</small>}
+                </div>
+              )}
               <div
                 className="connected-prompt-tabs"
                 role="group"
@@ -753,45 +903,21 @@ export default function ConnectedWorkspace({
                 key={`${view.id ?? 'draft'}:${state.selectedSceneId}:${characterEpoch}`}
                 draft={state.draft}
                 onChange={patch}
+                presetLabels={characterLabels}
+                presetCount={
+                  presets.filter((p) => !p.deleted && p.kind === 'character')
+                    .length
+                }
                 onPreset={(characterId) =>
                   setLibraryRequest({ kind: 'character', characterId })
                 }
               />
-              <ConnectedReference
-                reference={state.draft.reference}
-                projectId={view.id}
-                sceneId={state.selectedSceneId}
-                family={state.draft.family}
-                locked={locked}
-                preview={referencePreview}
-                client={client}
-                onFile={attachReference}
-                onChange={(reference) => {
-                  if (reference) patch({ reference });
-                  else {
-                    setSinglePlan(undefined);
-                    setQueuePlan(undefined);
-                    setState((previous) => {
-                      const draft = { ...previous.draft };
-                      delete draft.reference;
-                      return { ...previous, draft };
-                    });
-                  }
-                }}
-              />
-              <details
+              <section
                 className="connected-ai-settings"
                 data-testid="ai-settings"
+                aria-label="생성 설정"
               >
-                <summary>
-                  <strong>AI 설정</strong>
-                  <span>
-                    {state.draft.steps} 스텝 · 가이던스 {state.draft.guidance} ·{' '}
-                    {state.draft.seedMode === 'random'
-                      ? '무작위 시드'
-                      : `시드 ${state.draft.seed}`}
-                  </span>
-                </summary>
+                <h3>생성 설정</h3>
                 <div className="connected-settings-fields">
                   <label htmlFor="live-seed-mode">시드 방식</label>
                   <select
@@ -832,66 +958,95 @@ export default function ConnectedWorkspace({
                         value={state.draft.guidance}
                         onChange={(e) => patch({ guidance: e.target.value })}
                       />
-                      <label htmlFor="live-quality">품질 태그</label>
-                      <select
-                        id="live-quality"
-                        value={state.draft.qualityTags ?? 'none'}
-                        onChange={(e) =>
-                          patch({
-                            qualityTags: e.target
-                              .value as WorkspaceDraft['qualityTags'],
-                          })
-                        }
-                      >
-                        <option value="none">추가 안 함</option>
-                        <option value="light">Light</option>
-                        <option value="standard">Standard</option>
-                      </select>
-                      <label htmlFor="live-uc-preset">
-                        부정 프롬프트 프리셋
-                      </label>
-                      <select
-                        id="live-uc-preset"
-                        value={state.draft.ucPreset ?? 'none'}
-                        onChange={(e) =>
-                          patch({
-                            ucPreset: e.target
-                              .value as WorkspaceDraft['ucPreset'],
-                          })
-                        }
-                      >
-                        <option value="none">추가 안 함</option>
-                        <option value="light">Light</option>
-                        <option value="heavy">Heavy</option>
-                        <option value="human">Human focus</option>
-                        <option value="furry">Furry focus</option>
-                      </select>
-                      <p>
-                        품질 태그는 프롬프트 뒤에, 부정 프리셋은 부정 프롬프트
-                        앞에 추가합니다. 직접 같은 태그를 쓰셨다면 ‘추가 안
-                        함’을 선택하세요.
-                      </p>
+                      <details className="connected-extra-settings">
+                        <summary>품질·부정 설정</summary>
+                        <div className="connected-settings-fields">
+                          <label htmlFor="live-quality">품질 태그</label>
+                          <select
+                            id="live-quality"
+                            value={state.draft.qualityTags ?? 'none'}
+                            onChange={(e) =>
+                              patch({
+                                qualityTags: e.target
+                                  .value as WorkspaceDraft['qualityTags'],
+                              })
+                            }
+                          >
+                            <option value="none">추가 안 함</option>
+                            <option value="light">Light</option>
+                            <option value="standard">Standard</option>
+                          </select>
+                          <label htmlFor="live-uc-preset">
+                            부정 프롬프트 프리셋
+                          </label>
+                          <select
+                            id="live-uc-preset"
+                            value={state.draft.ucPreset ?? 'none'}
+                            onChange={(e) =>
+                              patch({
+                                ucPreset: e.target
+                                  .value as WorkspaceDraft['ucPreset'],
+                              })
+                            }
+                          >
+                            <option value="none">추가 안 함</option>
+                            <option value="light">Light</option>
+                            <option value="heavy">Heavy</option>
+                            <option value="human">Human focus</option>
+                            <option value="furry">Furry focus</option>
+                          </select>
+                          <p>
+                            품질 태그는 프롬프트 뒤에, 부정 프리셋은 부정
+                            프롬프트 앞에 추가합니다. 직접 같은 태그를 쓰셨다면
+                            ‘추가 안 함’을 선택하세요.
+                          </p>
+                        </div>
+                      </details>
                     </>
                   )}
                   <p>샘플러 Euler ancestral · 스케줄 Karras</p>
                 </div>
-              </details>
-              <details className="connected-help">
-                <summary>저장·사용량 안내</summary>
-                <p>
-                  생성 시 입력을 저장하고 1회 전송합니다. 비용·Opus 사용량은
-                  NovelAI 설정에 따라 달라집니다. V5·캐릭터 결과를 저장한
-                  프로젝트는 이전 앱에서 열 수 없습니다. 변경 전 저장본은 이력에
-                  남습니다.
-                </p>
-              </details>
+              </section>
             </fieldset>
           </div>
         </section>
         <section className="connected-results" aria-label="프로젝트 PNG 결과">
           <header className="connected-canvas-heading">
             <span>{result ? '저장된 원본 PNG' : '미리보기'}</span>
-            <small>{images.length}장 보관</small>
+            <div
+              className="connected-canvas-actions"
+              aria-label="선택 이미지 작업"
+            >
+              {result && (
+                <>
+                  <button
+                    type="button"
+                    disabled={locked}
+                    data-testid="result-use-metadata"
+                    onClick={() => reuseResultImage('metadata')}
+                  >
+                    설정 가져오기
+                  </button>
+                  <button
+                    type="button"
+                    disabled={locked || state.draft.family !== 'v5'}
+                    data-testid="result-use-reference"
+                    onClick={() => reuseResultImage('reference')}
+                  >
+                    참조로
+                  </button>
+                  <a
+                    download={`sdstudio-${result.seed}.png`}
+                    href={imageURL || undefined}
+                    aria-disabled={!imageURL}
+                    data-testid="result-download"
+                  >
+                    PNG 저장
+                  </a>
+                </>
+              )}
+              <small>{images.length}장</small>
+            </div>
           </header>
           <div className="connected-feedback">
             {singlePlan && (
@@ -899,11 +1054,19 @@ export default function ConnectedWorkspace({
                 ref={singleConfirmation}
                 tabIndex={-1}
                 className="connected-confirm"
-                aria-label="높은 스텝 생성 확인"
+                aria-label="생성 사용량 확인"
                 data-testid="high-steps-confirm"
               >
-                <h3>생성 설정 확인</h3>
-                <p>{ANLAS_STEP_WARNING}</p>
+                <h3>사용량 확인</h3>
+                {requiresAnlasWarning(singlePlan) && (
+                  <p>{ANLAS_STEP_WARNING}</p>
+                )}
+                {singlePlan.reference && (
+                  <p data-testid="single-reference-cost">
+                    참조 1장 · 생성마다 5 Anlas 추가. 이 작업실 세션에서 처음 한
+                    번 확인합니다.
+                  </p>
+                )}
                 <p>
                   {singlePlan.model} · {singlePlan.width}×{singlePlan.height} ·{' '}
                   {singlePlan.steps}스텝 · 가이던스 {singlePlan.scale} · 시드{' '}
@@ -916,7 +1079,7 @@ export default function ConnectedWorkspace({
                   data-testid="send-high-steps"
                   onClick={confirmHighSteps}
                 >
-                  Anlas 사용 가능성 확인 · 1회 생성
+                  확인하고 생성
                 </button>
                 <button
                   type="button"
@@ -985,9 +1148,7 @@ export default function ConnectedWorkspace({
             {pending && (
               <section role="alert">
                 <p>
-                  저장하지 못한 결과가 메모리에 있습니다. 창을 닫으면
-                  사라집니다. 새 프로젝트에 보관하면 이전 미전송 예약은
-                  종료됩니다.
+                  저장하지 못한 이미지가 있습니다. 창을 닫기 전에 저장해 주세요.
                 </p>
                 <button
                   type="button"
@@ -995,7 +1156,7 @@ export default function ConnectedWorkspace({
                   disabled={!!phase || active}
                   onClick={() => retryResult()}
                 >
-                  결과만 다시 저장 (API 재호출 없음)
+                  이미지 다시 저장
                 </button>
                 <button
                   type="button"
@@ -1003,7 +1164,7 @@ export default function ConnectedWorkspace({
                   disabled={!!phase || active}
                   onClick={() => retryResult(true)}
                 >
-                  입력·이번 결과만 새 프로젝트로 저장 (이전 PNG 제외)
+                  새 프로젝트에 저장
                 </button>
                 {storageStopped && (
                   <button
@@ -1014,9 +1175,7 @@ export default function ConnectedWorkspace({
                         const restarted = await projects.restartStorage();
                         if (!restarted.ok) throw restarted;
                         setStorageStopped(false);
-                        setMessage(
-                          '저장 기능을 다시 시작했습니다. 결과 저장은 별도로 선택하세요.',
-                        );
+                        setMessage('이미지 저장을 다시 선택해 주세요.');
                       } catch {
                         setMessage(
                           '저장 기능을 복구하지 못했습니다. PNG는 아직 메모리에 있습니다.',
@@ -1034,7 +1193,7 @@ export default function ConnectedWorkspace({
                     checked={discardConfirmed}
                     onChange={(e) => setDiscardConfirmed(e.target.checked)}
                   />
-                  메모리에 남은 PNG를 버리겠습니다. 사용량은 되돌릴 수 없습니다.
+                  저장하지 않은 이미지를 버립니다.
                 </label>
                 <button
                   type="button"
@@ -1044,9 +1203,7 @@ export default function ConnectedWorkspace({
                       generationEpoch.current += 1;
                       unwrap(await client.discardPending());
                       setPending(false);
-                      setMessage(
-                        '미저장 결과를 버렸습니다. 자동으로 다시 생성하지 않습니다.',
-                      );
+                      setMessage('');
                     } catch (error) {
                       setMessage(generationMessage(error, sceneNames.current));
                     } finally {
@@ -1087,8 +1244,8 @@ export default function ConnectedWorkspace({
           </div>
           {result && (
             <p className="connected-image-caption" data-testid="generated-seed">
-              {result.model} · 실제 사용 시드 {result.seed} ·{' '}
-              {result.pngBytes.toLocaleString()} bytes
+              {result.draft.family === 'v5' ? 'V5 Full' : 'V4.5 Full'} · 시드{' '}
+              {result.seed}
             </p>
           )}
         </section>
@@ -1097,25 +1254,8 @@ export default function ConnectedWorkspace({
           className={`connected-sidebar ${sidebarOpen ? 'is-open' : ''}`}
           aria-label="결과와 씬·대기열"
         >
-          <div
-            className="connected-sidebar-tabs"
-            role="group"
-            aria-label="오른쪽 패널 선택"
-          >
-            <button
-              type="button"
-              aria-pressed={sidebarTab === 'results'}
-              onClick={() => setSidebarTab('results')}
-            >
-              결과 {images.length}
-            </button>
-            <button
-              type="button"
-              aria-pressed={sidebarTab === 'queue'}
-              onClick={() => setSidebarTab('queue')}
-            >
-              씬·대기열
-            </button>
+          <div className="connected-sidebar-heading">
+            <strong>씬·반복</strong>
             <button
               type="button"
               className="connected-sidebar-toggle"
@@ -1126,47 +1266,9 @@ export default function ConnectedWorkspace({
             </button>
           </div>
           <div
-            className="connected-sidebar-panel"
-            hidden={sidebarTab !== 'results'}
+            className="connected-sidebar-scroll"
+            data-testid="sidebar-scroll"
           >
-            <ConnectedImageHistory
-              client={client}
-              projectId={view.id}
-              images={images}
-              selected={selected}
-              selectedURL={imageURL}
-              onSelect={showResult}
-            />
-          </div>
-          <div
-            className="connected-sidebar-panel"
-            hidden={sidebarTab !== 'queue'}
-          >
-            <div className="connected-scene-select">
-              <label htmlFor="live-scene">편집할 씬</label>
-              <select
-                id="live-scene"
-                disabled={locked}
-                value={state.selectedSceneId}
-                onChange={(e) => {
-                  setState((previous) =>
-                    selectWorkspaceScene(previous, e.target.value),
-                  );
-                  setMobilePane('input');
-                  setSidebarOpen(false);
-                }}
-              >
-                {state.scenes.map((scene) => (
-                  <option key={scene.id} value={scene.id}>
-                    {scene.name}
-                  </option>
-                ))}
-              </select>
-              <p>
-                씬 입력과 예약을 함께 관리합니다. 실행 준비 시 현재 입력을 먼저
-                저장합니다.
-              </p>
-            </div>
             <ConnectedQueueControls
               scenes={state.scenes}
               selected={availableSceneIds}
@@ -1210,9 +1312,52 @@ export default function ConnectedWorkspace({
                 setSidebarOpen(false);
               }}
             />
+            <header className="connected-history-heading">
+              <strong>결과</strong>
+              <span>{images.length}</span>
+            </header>
+            <div className="connected-sidebar-panel">
+              <ConnectedImageHistory
+                client={client}
+                projectId={view.id}
+                images={images}
+                selected={selected}
+                selectedURL={imageURL}
+                onSelect={showResult}
+              />
+            </div>
           </div>
         </aside>
       </main>
+      <input
+        ref={fileInput}
+        type="file"
+        accept="image/png,.png"
+        hidden
+        aria-label="가져올 PNG"
+        data-testid="metadata-file"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file) receiveImage(file);
+        }}
+      />
+      {imageChoice && (
+        <WorkspaceImageChoice
+          file={imageChoice}
+          canReference={state.draft.family === 'v5'}
+          onClose={() => setImageChoice(undefined)}
+          onMetadata={() => {
+            setImageChoice(undefined);
+            setImportFile(imageChoice);
+          }}
+          onReference={() => {
+            const file = imageChoice;
+            setImageChoice(undefined);
+            void attachReference(file);
+          }}
+        />
+      )}
       <PNGMetadataImport
         key={`${view.id ?? 'draft'}:${state.selectedSceneId}`}
         file={importFile}
@@ -1231,9 +1376,7 @@ export default function ConnectedWorkspace({
               : previous.selectedCharacter,
           }));
           if (characters) setCharacterEpoch((previous) => previous + 1);
-          setMessage(
-            '선택한 PNG 메타데이터를 현재 입력에 적용했습니다. 아직 전송하거나 저장하지 않았습니다.',
-          );
+          setMessage('');
         }}
       />
       {libraryRequest && (
@@ -1250,7 +1393,9 @@ export default function ConnectedWorkspace({
           }}
           onClose={() => setLibraryRequest(undefined)}
           onLegacy={onOpenLegacy}
-          onApply={(draft, characterId) => {
+          initialId={libraryRequest.initialId}
+          onLibraryChange={acceptLibrary}
+          onApply={(draft, characterId, preset) => {
             if (locked) return;
             setSinglePlan(undefined);
             setQueuePlan(undefined);
@@ -1265,17 +1410,40 @@ export default function ConnectedWorkspace({
                   ? previous.selectedCharacter
                   : (draft.characters[0]?.id ?? '')),
             }));
-            setMessage(
-              '프리셋을 현재 입력에 적용했습니다. 아직 생성하거나 저장하지 않았습니다.',
-            );
+            if (preset)
+              setUses((previous) => [
+                ...previous.filter(
+                  (item) =>
+                    !(
+                      item.sceneId === state.selectedSceneId &&
+                      item.projectId === view.id &&
+                      item.kind === preset.kind &&
+                      item.characterId === characterId
+                    ),
+                ),
+                {
+                  ...preset,
+                  characterId,
+                  sceneId: state.selectedSceneId,
+                  projectId: view.id,
+                  fingerprint: presetTextKey(draft, characterId),
+                },
+              ]);
+            else
+              setUses((previous) =>
+                previous.filter(
+                  (item) =>
+                    item.sceneId !== state.selectedSceneId ||
+                    item.projectId !== view.id,
+                ),
+              );
+            setMessage('');
           }}
         />
       )}
       <footer className="connected-action-dock" data-testid="generation-dock">
         <p role="status" data-testid="generation-status">
-          {phase === 'run' || phase === 'queue-run'
-            ? '전송·응답 검증·저장 중'
-            : message}
+          {phase === 'run' || phase === 'queue-run' ? '' : message}
         </p>
         {(phase === 'run' || phase === 'queue-run') && (
           <button
@@ -1295,11 +1463,19 @@ export default function ConnectedWorkspace({
           onClick={prepare}
         >
           {generateLabel}
+          {state.draft.reference && (
+            <span
+              className="connected-cost-badge"
+              data-testid="reference-cost-badge"
+            >
+              참조 +5 Anlas
+            </span>
+          )}
         </button>
         <small>
           {phase === 'run' || phase === 'queue-run'
-            ? '취소 후에도 서버 처리·사용량 소모가 있을 수 있습니다.'
-            : '현재 씬 · 1장 생성'}
+            ? '진행 중'
+            : '현재 씬 · 1장'}
         </small>
       </footer>
     </div>

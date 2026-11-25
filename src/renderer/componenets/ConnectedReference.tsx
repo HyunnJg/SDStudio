@@ -1,4 +1,4 @@
-/* eslint no-void: off -- File selection invokes a bounded asynchronous local operation. */
+/* eslint react/require-default-props: ["error", {"functions":"defaultArguments"}], no-void: off -- File selection invokes a bounded asynchronous local operation. */
 import { useEffect, useRef, useState } from 'react';
 import type { GenerationClient } from '../../workspaceGeneration';
 import type {
@@ -19,6 +19,7 @@ interface Props {
   preview: { hash: string; bytes: Uint8Array } | undefined;
   client: GenerationClient;
   onFile: (file: File) => Promise<void>;
+  onChoose?: () => void;
   onChange: (reference: WorkspaceReference | undefined) => void;
 }
 export default function ConnectedReference({
@@ -31,6 +32,7 @@ export default function ConnectedReference({
   client,
   onFile,
   onChange,
+  onChoose = undefined,
 }: Props) {
   const file = useRef<HTMLInputElement>(null);
   const [url, setURL] = useState('');
@@ -81,18 +83,15 @@ export default function ConnectedReference({
       onDrop={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (!locked && family === 'v5' && e.dataTransfer.files.length === 1)
+        if (!locked && e.dataTransfer.files.length === 1)
           void onFile(e.dataTransfer.files[0]);
       }}
     >
       <header>
-        <strong>이미지 레퍼런스</strong>
-        <small>V5 Full · 1장</small>
+        <strong>이미지 입력</strong>
+        <small>{reference ? '참조 1 · +5 Anlas/회' : 'PNG'}</small>
       </header>
-      <p>
-        PNG를 선택하거나 여기에 끌어놓으세요. 프롬프트·설정 가져오기와
-        별개입니다.
-      </p>
+
       <input
         ref={file}
         type="file"
@@ -109,12 +108,12 @@ export default function ConnectedReference({
       <button
         type="button"
         data-testid="choose-reference"
-        disabled={locked || family !== 'v5'}
-        onClick={() => file.current?.click()}
+        disabled={locked}
+        onClick={() => (onChoose ? onChoose() : file.current?.click())}
       >
-        {reference ? '참조 PNG 바꾸기' : '참조 PNG 선택'}
+        {reference ? '이미지 바꾸기' : '+ 이미지 추가'}
       </button>
-      {family !== 'v5' && (
+      {family !== 'v5' && reference && (
         <p role="status">
           이미지 참조는 V5 Full에서 사용합니다.
           {reference && ' 참조를 해제하거나 V5로 전환해야 생성할 수 있습니다.'}
@@ -130,8 +129,7 @@ export default function ConnectedReference({
             </p>
           )}
           <small>
-            전송용 {reference.width}×{reference.height} · 중앙 자르기 ·
-            메타데이터 제외. 원본은 별도 보관합니다.
+            {reference.width}×{reference.height} · 중앙 자르기
           </small>
           <label htmlFor="reference-role">
             참조 대상
@@ -191,21 +189,25 @@ export default function ConnectedReference({
               같은 의상 우선
             </label>
           )}
-          <p>
-            참조는 씬 전체에 적용합니다. 특정 캐릭터 카드와 1:1 대응을 보장하지
-            않습니다.
-          </p>
+
           <button
             type="button"
             data-testid="remove-reference"
             disabled={locked}
             onClick={() => onChange(undefined)}
           >
-            이번 씬의 참조 해제
+            참조 해제
           </button>
         </>
       )}
-      <p className="connected-reference-cost">{REFERENCE_COST_NOTICE}</p>
+      {reference && (
+        <span
+          className="connected-reference-help"
+          title={REFERENCE_COST_NOTICE}
+        >
+          ⓘ 비용 안내
+        </span>
+      )}
     </section>
   );
 }

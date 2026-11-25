@@ -18,8 +18,11 @@ module.exports = async ({ contents, evaluate, click, fill, until, checks }) => {
   await until(async () => (await evaluate('window.electron.promptLibrary.read()')).value.entries.length === initialEntries + 1);
   await waitReady();
   assert.equal(await evaluate("document.querySelector('#live-prompt').value"), before[0]);
+  assert.ok((await evaluate("document.querySelector('[data-testid=library-save-state]').textContent")).includes('저장됨'));
   await click('[data-testid=library-apply]');
   await until(() => evaluate("document.querySelector('#live-prompt').value==='synthetic reusable garden'"));
+  assert.ok((await evaluate("document.querySelector('[data-testid=applied-main-preset]').textContent")).includes('Synthetic library main'));
+  assert.equal(await evaluate("document.querySelector('[data-testid=generation-status]').textContent"), '');
   assert.deepEqual(await evaluate("[document.querySelector('#live-quality').value,document.querySelector('#live-uc-preset').value]"), ['none', 'none']);
   await click('[data-testid=library-undo]');
   await until(() => evaluate(`document.querySelector('#live-prompt').value===${JSON.stringify(before[0])}`));
@@ -44,7 +47,7 @@ module.exports = async ({ contents, evaluate, click, fill, until, checks }) => {
   await click('[data-testid=library-discard-edit]');
   await until(() => evaluate("!document.querySelector('[data-testid=prompt-library]')"));
   checks.push('native close preserves dirty library editor; dialog close requires explicit discard without automatic save');
-  await evaluate("[...document.querySelectorAll('[data-testid=live-characters] button')].find(b=>b.textContent==='캐릭터 프리셋').click()"); await waitReady();
+  await evaluate("[...document.querySelectorAll('[data-testid=live-characters] button')].find(b=>b.textContent.includes('캐릭터 프리셋')).click()"); await waitReady();
   await fill('[data-testid=library-name]', 'Synthetic library character');
   await fill('[data-testid=library-prompt]', 'person, synthetic blue coat');
   await fill('[data-testid=library-negative]', 'hat');

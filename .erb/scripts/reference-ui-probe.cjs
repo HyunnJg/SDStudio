@@ -7,7 +7,10 @@ module.exports = async ({ contents, evaluate, click, fill, until, checks, reques
   assert.equal(selected.ok, true);
   await fill('[data-testid=live-prompt]', 'synthetic reference illustration');
   const data = JSON.stringify(Array.from(png()));
-  await evaluate(`(()=>{const d=new DataTransfer();d.items.add(new File([new Uint8Array(${data})],'synthetic-reference.png',{type:'image/png'}));const c=document.querySelector('[data-testid=reference-file]');c.files=d.files;c.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await evaluate(`(()=>{const d=new DataTransfer();d.items.add(new File([new Uint8Array(${data})],'synthetic-reference.png',{type:'image/png'}));const c=document.querySelector('[data-testid=metadata-file]');c.files=d.files;c.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await until(() => evaluate("document.querySelector('[data-testid=image-choice]')?.open"));
+  assert.equal(requestCount(), 0);
+  await click('[data-testid=image-use-reference]');
   await until(() => evaluate("document.querySelector('[data-testid=reference-panel] img')?.naturalWidth>0"));
   assert.equal(requestCount(), 0);
   assert.equal(await evaluate("!!document.querySelector('[data-testid=metadata-dialog]')?.open"), false);
@@ -17,6 +20,8 @@ module.exports = async ({ contents, evaluate, click, fill, until, checks, reques
   await fill('[data-testid=reference-strength]', '2.5');
   // Dropping on the reference card replaces only the image and keeps its role/strength.
   await evaluate(`(()=>{const d=new DataTransfer();d.items.add(new File([new Uint8Array(${data})],'replacement.png',{type:'image/png'}));document.querySelector('[data-testid=reference-panel]').dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:d}));})()`);
+  await until(() => evaluate("document.querySelector('[data-testid=image-choice]')?.open"));
+  await click('[data-testid=image-use-reference]');
   await until(() => evaluate("document.querySelector('[data-testid=reference-panel] img')?.naturalWidth>0 && !document.querySelector('[data-testid=prepare-generation]').matches(':disabled')"));
   assert.equal(await evaluate("document.querySelector('[data-testid=reference-role]').value"), 'style');
   assert.equal(await evaluate("document.querySelector('[data-testid=reference-strength]').value"), '2.5');
@@ -24,6 +29,12 @@ module.exports = async ({ contents, evaluate, click, fill, until, checks, reques
 
   await until(() => evaluate("!document.querySelector('[data-testid=prepare-generation]').matches(':disabled')"));
   await click('[data-testid=prepare-generation]');
+  await until(() => evaluate("!!document.querySelector('[data-testid=single-reference-cost]')"));
+  assert.equal(requestCount(), 0);
+  await click('[data-testid=cancel-high-steps]');
+  await click('[data-testid=prepare-generation]');
+  await until(() => evaluate("!!document.querySelector('[data-testid=single-reference-cost]')"));
+  await click('[data-testid=send-high-steps]');
   await until(() => evaluate("document.querySelector('[data-testid=generated-png]')?.naturalWidth===2"));
   const list = (await evaluate('window.electron.projects.list()')).value;
   const result = (await evaluate(`window.electron.projects.open('${list[0].id}')`)).value;
@@ -31,7 +42,7 @@ module.exports = async ({ contents, evaluate, click, fill, until, checks, reques
   assert.equal(result.project.images[0].binding.id, 'nai-v5-reference-v1');
   assert.equal(result.project.images[0].draft.reference.role, 'style');
   assert.equal(result.project.images[0].draft.reference.strength, 2.5);
-  checks.push('one-click reference generation uses the real main transport/worker and persists v5 result/reference snapshot');
+  checks.push('first-confirmed reference generation uses the real main transport/worker and persists v5 result/reference snapshot');
   if (process.env.SDSTUDIO_REFERENCE_SCREENSHOT) {
     const win = BrowserWindow.fromWebContents(contents); win.setSize(1440, 950);
     await until(() => evaluate('innerWidth===1440'));
@@ -39,9 +50,21 @@ module.exports = async ({ contents, evaluate, click, fill, until, checks, reques
     await new Promise((resolve) => setTimeout(resolve, 150));
     require('node:fs').writeFileSync(process.env.SDSTUDIO_REFERENCE_SCREENSHOT, (await contents.capturePage()).toPNG());
   }
+  await until(() => evaluate("!document.querySelector('[data-testid=prepare-generation]').matches(':disabled')"));
+  await click('[data-testid=prepare-generation]');
+  await until(async () => (await evaluate(`window.electron.projects.open('${result.project.id}')`)).value.project.images.length===2);
+  assert.equal(requestCount(), 2);
+  assert.equal(await evaluate("!!document.querySelector('[data-testid=single-reference-cost]')"), false);
+  assert.ok((await evaluate("document.querySelector('[data-testid=reference-cost-badge]').textContent")).includes('+5 Anlas'));
+  checks.push('first reference use confirms cost before sending; cancellation sends nothing; acknowledged session stays one-click with persistent cost badge');
+  await click('[data-testid=result-use-reference]');
+  await until(() => evaluate("!document.querySelector('[data-testid=prepare-generation]').matches(':disabled')"));
+  assert.equal(requestCount(), 2);
+  assert.equal(await evaluate("document.querySelector('[data-testid=reference-role]').value"), 'style');
+  checks.push('canvas reference action reuses stored PNG locally and preserves role/strength without generation');
   setLock(result.project.id);
-  await evaluate("[...document.querySelectorAll('.connected-sidebar-tabs button')].find(b=>b.textContent==='씬·대기열').click()");
-  await click('[aria-controls=live-queue-details]');
+  assert.equal(await evaluate("!document.querySelector('#live-queue-details').hidden"), true);
+  await fill('#live-repeats', '1');
   await until(() => evaluate("document.querySelectorAll('[data-testid=connected-queue] input[type=checkbox]').length>0"));
   // Existing queue selector uses scene IDs; choose only the current scene.
   const selection = await evaluate("[...document.querySelectorAll('input[data-queue-scene]')].map(e=>({id:e.dataset.queueScene,checked:e.checked}))");

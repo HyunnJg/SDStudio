@@ -24,12 +24,12 @@ interface Props {
 }
 const labels = {
   pending: '미전송',
-  preparing: '전송 전 확인',
-  running: '응답 대기',
-  done: '저장 완료',
-  failed: '실패·자동 재시도 없음',
+  preparing: '준비 중',
+  running: '생성 중',
+  done: '✓',
+  failed: '실패',
   'result-pending': '결과 저장 필요',
-  skipped: '제외·미전송',
+  skipped: '제외',
 };
 export default function ConnectedQueueControls({
   scenes,
@@ -55,15 +55,8 @@ export default function ConnectedQueueControls({
     () => setExcludeConfirmed(false),
     [queue?.id, conflict?.sceneId, conflict?.count],
   );
-  const [expanded, setExpanded] = useState(false);
   const completed =
     queue?.items.filter((item) => item.status === 'done').length ?? 0;
-  const queueId = queue?.id;
-  const allDone =
-    !!queue && queue.items.every((item) => item.status === 'done');
-  useEffect(() => {
-    if (!queueId || allDone) setExpanded(false);
-  }, [queueId, allDone]);
   let status = queue?.stopped ? '중지' : '준비';
   if (running) status = '실행 중';
   return (
@@ -73,21 +66,13 @@ export default function ConnectedQueueControls({
       data-testid="connected-queue"
     >
       <div className="connected-queue-summary">
-        <strong>씬·대기열</strong>
-        <span aria-live="polite" data-testid="live-queue-progress">
-          {completed} / {queue?.items.length ?? 0} 저장 완료 · {status}
+        <strong>반복 생성</strong>
+        <span data-testid="live-queue-progress">
+          {completed} / {queue?.items.length ?? 0} · {status}
         </span>
-        <button
-          type="button"
-          aria-expanded={expanded}
-          aria-controls="live-queue-details"
-          onClick={() => setExpanded(!expanded)}
-        >
-          대기열 {expanded ? '접기' : '펼치기'}
-        </button>
         {running && (
           <button type="button" data-testid="stop-live-queue" onClick={onStop}>
-            중지·현재 요청 취소
+            중지
           </button>
         )}
         {queue?.items.some(
@@ -99,7 +84,7 @@ export default function ConnectedQueueControls({
             disabled={disabled}
             onClick={onClear}
           >
-            미전송 예약 비우기
+            남은 예약 비우기
           </button>
         )}
       </div>
@@ -133,7 +118,7 @@ export default function ConnectedQueueControls({
           </button>
         </div>
       )}
-      <div id="live-queue-details" hidden={!expanded}>
+      <div id="live-queue-details">
         <fieldset disabled={disabled}>
           <legend>예약할 씬</legend>
           <div className="connected-queue-selection">
@@ -166,17 +151,14 @@ export default function ConnectedQueueControls({
               onChange={(event) => onRepeats(event.target.value)}
             />
           </label>
-          <p>
-            반복 우선 순서 · 예약 최대 60건 · 자동 재시도 없음 · 대기열은 창을
-            닫으면 사라집니다.
-          </p>
+
           <button
             type="button"
             data-testid="prepare-live-queue"
             disabled={!canPrepare || !selected.length}
             onClick={onPrepare}
           >
-            입력 저장 후 선택 씬 예약 확인
+            선택한 씬 반복 생성
           </button>
           <button
             type="button"
@@ -184,7 +166,7 @@ export default function ConnectedQueueControls({
             disabled={!canResume || !canPrepare}
             onClick={onResume}
           >
-            미전송 작업만 새로 확인
+            남은 작업 계속
           </button>
         </fieldset>
         {queue && (
