@@ -59,11 +59,13 @@ export function registerGeneration(
   );
   handle(
     'workspace-generation-prepare-queue',
-    (id, revision, sceneIds, repeats) =>
-      service.prepareQueue(id, revision, sceneIds, repeats),
+    (id, revision, sceneIds, repeats, interval) =>
+      service.prepareQueue(id, revision, sceneIds, repeats, interval),
   );
-  handle('workspace-generation-prepare-remaining', (queueId, id, revision) =>
-    service.prepareRemaining(queueId, id, revision),
+  handle(
+    'workspace-generation-prepare-remaining',
+    (queueId, id, revision, interval) =>
+      service.prepareRemaining(queueId, id, revision, interval),
   );
   handle('workspace-generation-run-queue', (ticket, confirmed) =>
     service.runQueue(ticket, confirmed),

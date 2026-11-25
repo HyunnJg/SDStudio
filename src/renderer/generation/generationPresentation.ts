@@ -42,7 +42,7 @@ export function generationMessage(
     PROJECT_BUSY:
       '남은 저장 잠금이 있습니다. 프로젝트를 새 복사본으로 계속한 뒤 새로 확인하세요.',
     PROJECT_IMAGE_TOO_LARGE:
-      '전송용 PNG가 2 MiB를 초과합니다. 다른 이미지를 선택하세요.',
+      '전송용 PNG가 5 MiB를 초과합니다. 다른 이미지를 선택하세요.',
     PROJECT_LIMIT:
       '프로젝트 보관 한도에 가깝습니다. 새 프로젝트에서 계속하세요.',
     PROJECT_CONFLICT:

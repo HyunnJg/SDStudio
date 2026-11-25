@@ -247,16 +247,21 @@ export async function readAlphaMetadata(
   check(object(value), 'PNG_METADATA');
   return unpack(value);
 }
-async function decodePixels(
+export async function decodePixels(
   bytes: Uint8Array,
   signal: AbortSignal,
+  mime = 'image/png',
 ): Promise<DecodedPixels> {
   const bitmap = await createImageBitmap(
-    new Blob([Uint8Array.from(bytes)], { type: 'image/png' }),
+    new Blob([Uint8Array.from(bytes)], { type: mime }),
     { premultiplyAlpha: 'none', colorSpaceConversion: 'none' },
   );
   try {
     guard(signal);
+    check(
+      bitmap.width * bitmap.height <= PNG_IMPORT_LIMITS.pixels,
+      'PNG_LIMIT',
+    );
     const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
     const context = canvas.getContext('2d', { willReadFrequently: true });
     check(!!context);
@@ -270,7 +275,7 @@ export interface PNGMetadata {
   comment: Record<string, unknown>;
   description?: unknown;
   sourceLabel?: unknown;
-  source: 'text' | 'alpha';
+  source: 'text' | 'alpha' | 'embedded';
   width: number;
   height: number;
 }

@@ -7,6 +7,8 @@ interface Props {
   scenes: WorkspaceScene[];
   selected: string[];
   repeats: string;
+  intervalText: string;
+  onIntervalChange: (value: string) => void;
   queue: GenerationQueueState | undefined;
   disabled: boolean;
   canPrepare: boolean;
@@ -35,6 +37,8 @@ export default function ConnectedQueueControls({
   scenes,
   selected,
   repeats,
+  intervalText,
+  onIntervalChange,
   queue,
   disabled,
   canPrepare,
@@ -59,6 +63,13 @@ export default function ConnectedQueueControls({
     queue?.items.filter((item) => item.status === 'done').length ?? 0;
   let status = queue?.stopped ? '중지' : '준비';
   if (running) status = '실행 중';
+  if (running && queue?.nextRequestAt) {
+    const seconds = Math.max(
+      0,
+      Math.ceil((queue.nextRequestAt - Date.now()) / 1000),
+    );
+    status = `다음 생성 ${seconds}초 후`;
+  }
   return (
     <section
       className="connected-queue"
@@ -140,6 +151,18 @@ export default function ConnectedQueueControls({
               </label>
             ))}
           </div>
+          <label htmlFor="live-interval">
+            요청 간격 (초)
+            <input
+              id="live-interval"
+              type="number"
+              min="0"
+              max="3600"
+              step="1"
+              value={intervalText}
+              onChange={(e) => onIntervalChange(e.target.value)}
+            />
+          </label>
           <label htmlFor="live-repeats">
             선택 씬마다 반복
             <input

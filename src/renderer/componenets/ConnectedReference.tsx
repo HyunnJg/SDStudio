@@ -98,16 +98,16 @@ export default function ConnectedReference({
         <small>
           {reference && '참조 1 · +5 Anlas/회'}
           {variation && '이미지 변형'}
-          {!asset && 'PNG'}
+          {!asset && '이미지'}
         </small>
       </header>
 
       <input
         ref={file}
         type="file"
-        accept="image/png,.png"
+        accept="image/png,image/webp,image/jpeg,.png,.webp,.jpg,.jpeg"
         hidden
-        aria-label="참조로 사용할 PNG"
+        aria-label="참조로 사용할 이미지"
         data-testid="reference-file"
         onChange={(e) => {
           const selected = e.target.files?.[0];

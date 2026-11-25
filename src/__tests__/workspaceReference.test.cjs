@@ -265,3 +265,113 @@ test('remaining project budget counts hidden results and counts shared source/de
   const remaining = remainingProjectBytes({...project, images:[mock], trashedImageIds:[mock.id]});
   assert.equal(remaining, PROJECT_LIMITS.totalPNGBytes - f.asset.sourceBytes - f.asset.uploadBytes - mock.pngBytes);
 });
+
+for (const format of ['webp', 'jpeg', 'png']) {
+  test(
+    format +
+      ' original survives save, copy and reopen; stored upload and approved body match',
+    async (t) => {
+      const sharp = require('sharp');
+      const {
+        default: readImageMetadata,
+      } = require('../renderer/metadata/imageMetadata');
+      const f = await fixture(t),
+        id = f.current.project.id,
+        scene = f.content.scenes[0];
+      const metadata = {
+        prompt: 'synthetic imported prompt',
+        seed: 0,
+        steps: 23,
+      };
+      const raw = require('node:crypto').randomBytes(832 * 1216 * 3);
+      let source = sharp(raw, {
+        raw: { width: 832, height: 1216, channels: 3 },
+      });
+      if (format !== 'png')
+        source = source.withExif({
+          IFD0: { ImageDescription: JSON.stringify(metadata) },
+        });
+      let original = await source[format]().toBuffer();
+      if (format === 'png') {
+        const { chunk } = require('./fixtures/nai/metadataPNG.cjs');
+        const comment = chunk(
+          'tEXt',
+          Buffer.from('Comment\0' + JSON.stringify(metadata)),
+        );
+        original = Buffer.concat([
+          original.subarray(0, -12),
+          comment,
+          original.subarray(-12),
+        ]);
+        assert.ok(original.length > 2 * 1024 * 1024);
+      }
+      const parsed = await readImageMetadata(
+        original,
+        new AbortController().signal,
+      );
+      assert.deepEqual(parsed.comment, metadata);
+      assert.deepEqual([parsed.width, parsed.height], [832, 1216]);
+      const asset = await f.store.importReference(
+        id,
+        f.current.revision,
+        original,
+        'img2img',
+      );
+      assert.equal(asset.sourceHash, hash(original));
+      delete scene.draft.reference;
+      scene.draft.img2img = { ...asset, strength: 0.5, noise: 0 };
+      const saved = f.store.save(id, f.current.revision, f.content);
+      assert.equal(saved.project.version, 8);
+      const copy = f.store.copy(id, saved.revision, f.content);
+      const folder = path.join(
+        f.profile,
+        'projects-v1',
+        copy.project.id,
+        'references',
+      );
+      assert.deepEqual(
+        fs.readFileSync(path.join(folder, asset.sourceHash + '.' + format)),
+        original,
+      );
+      assert.equal(
+        hash(f.store.referenceImage(copy.project.id, scene.id)),
+        asset.uploadHash,
+      );
+      const hidden = f.store.open(copy.project.id);
+      assert.equal(hidden.project.version, 8);
+      if (format === 'png') {
+        assert.ok(asset.uploadBytes > 2 * 1024 * 1024);
+        const plan = await f.service.prepareQueue(
+          id,
+          saved.revision,
+          [scene.id],
+          3,
+          0,
+        );
+        const done = await f.service.runQueue(plan.ticket, true);
+        assert.ok(done.queue.items.every((i) => i.status === 'done'));
+        assert.ok(f.bodies.reduce((n, b) => n + b.length, 0) > 8 * 1024 * 1024);
+        for (const body of f.bodies)
+          assert.equal(
+            hash(
+              Buffer.from(
+                JSON.parse(Buffer.from(body)).parameters.image,
+                'base64',
+              ),
+            ),
+            asset.uploadHash,
+          );
+        const latest = f.store.readManifest(id);
+        assert.equal(
+          f.store.setImageDeleted(
+            id,
+            latest.revision,
+            latest.project.images[0].id,
+            true,
+          ).project.version,
+          8,
+        );
+      }
+    },
+  );
+}

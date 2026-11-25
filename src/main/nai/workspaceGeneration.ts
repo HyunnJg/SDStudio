@@ -1,6 +1,11 @@
 /* eslint import/prefer-default-export: off, max-classes-per-file: off, no-await-in-loop: off -- Approved queue jobs are bound serially within the memory limit. */
-import { randomUUID, createHash } from 'crypto';
+import { setTimeout as wait } from 'node:timers/promises';
+import { randomUUID, randomInt, createHash } from 'crypto';
 import { isDeepStrictEqual } from 'util';
+import {
+  DEFAULT_QUEUE_INTERVAL,
+  isQueueInterval,
+} from '../../workspaceGeneration';
 import {
   PROJECT_LIMITS,
   ProjectError,
@@ -18,7 +23,10 @@ import type {
   GenerationFailure,
 } from '../../workspaceGeneration';
 import type { WorkspaceScene } from '../../renderer/preview/workspaceDraft';
-import { VARIATION_DEFAULTS } from '../../workspaceReference';
+import {
+  GENERATION_BODY_LIMIT,
+  VARIATION_DEFAULTS,
+} from '../../workspaceReference';
 import type { ReferenceAsset, ImagePurpose } from '../../workspaceReference';
 import type { ProjectService } from '../projects/projectService';
 import { NaiError } from './errors';
@@ -63,7 +71,7 @@ interface Pending {
 }
 interface Reservation {
   state: GenerationQueueState;
-  tasks: Prepared[];
+  tasks: Omit<Prepared, 'body'>[];
 }
 
 interface Options {
@@ -99,6 +107,8 @@ export class WorkspaceGeneration {
   private controller?: AbortController;
 
   private working = false;
+
+  private lastRequestFinished?: number;
 
   private readonly options: Options;
 
@@ -182,17 +192,28 @@ export class WorkspaceGeneration {
     return this.options.store.referenceImage(id, sceneId);
   }
 
-  private async bind(id: string, scene: WorkspaceScene) {
-    let bytes: Uint8Array | undefined;
+  private async inputImage(id: string, scene: WorkspaceScene) {
     const asset = scene.draft.reference ?? scene.draft.img2img;
     if (asset) {
       if (scene.draft.family !== 'v5')
         throw new GenerationError('UNSUPPORTED_DRAFT');
       if (!this.options.store.referenceBytes)
         throw new GenerationError('INVALID_INPUT');
-      bytes = await this.options.store.referenceBytes(id, asset);
+      return this.options.store.referenceBytes(id, asset);
     }
-    return bindBasicGeneration(scene, undefined, bytes);
+    return undefined;
+  }
+
+  private async bind(
+    id: string,
+    scene: WorkspaceScene,
+    chooseSeed?: () => number,
+  ) {
+    return bindBasicGeneration(
+      scene,
+      chooseSeed,
+      await this.inputImage(id, scene),
+    );
   }
 
   private static imageSettings(scene: WorkspaceScene) {
@@ -250,7 +271,7 @@ export class WorkspaceGeneration {
       }
       const { request, input } = bound;
       const body = Uint8Array.from(Buffer.from(JSON.stringify(request)));
-      if (body.byteLength > 4 * 1024 * 1024)
+      if (body.byteLength > GENERATION_BODY_LIMIT)
         throw new GenerationError('QUEUE_LIMIT');
       input.binding = {
         id: bound.bindingId,
@@ -328,7 +349,12 @@ export class WorkspaceGeneration {
           (item) => item.id === queueItemId,
         )!.status = 'running';
       transportStarted = true;
-      const bytes = await this.options.sendImage(p.body, controller.signal);
+      let bytes: Uint8Array;
+      try {
+        bytes = await this.options.sendImage(p.body, controller.signal);
+      } finally {
+        this.lastRequestFinished = performance.now();
+      }
       this.pending = {
         content: {
           name: current.project.name,
@@ -535,6 +561,7 @@ export class WorkspaceGeneration {
       ticket: randomUUID(),
       queueId: reservation.state.id,
       total: items.length,
+      intervalSeconds: reservation.state.intervalSeconds,
       items: structuredClone(items),
       model: first.model,
       width: first.width,
@@ -560,6 +587,7 @@ export class WorkspaceGeneration {
     revision: string,
     sceneIds: string[],
     repeats: number,
+    intervalSeconds = DEFAULT_QUEUE_INTERVAL,
   ): Promise<GenerationQueuePlan> {
     this.online();
     this.idle();
@@ -572,6 +600,7 @@ export class WorkspaceGeneration {
       !sceneIds.length ||
       sceneIds.length > 60 ||
       new Set(sceneIds).size !== sceneIds.length ||
+      !isQueueInterval(intervalSeconds) ||
       !Number.isInteger(repeats) ||
       repeats < 1
     )
@@ -600,16 +629,37 @@ export class WorkspaceGeneration {
         PROJECT_LIMITS.results
       )
         throw new ProjectError('PROJECT_RESULT_LIMIT');
-      const tasks: Prepared[] = [];
+      const tasks: Reservation['tasks'] = [];
       const items: GenerationQueueState['items'] = [];
       const seeds = new Set<number>();
-      let bodyBytes = 0;
-      for (let repeat = 1; repeat <= repeats; repeat += 1) {
-        for (let sceneIndex = 0; sceneIndex < scenes.length; sceneIndex += 1) {
-          const scene = scenes[sceneIndex];
+      const chooseSeed = () => {
+        let candidate = randomInt(4294967296);
+        while (seeds.has(candidate)) candidate = (candidate + 1) % 4294967296;
+        seeds.add(candidate);
+        return candidate;
+      };
+      // Draw seeds in execution order. Read one scene's original/derivative once for all its reservations.
+      const scheduledSeeds = Array.from(
+        { length: scenes.length * repeats },
+        (_, index) => {
+          const { draft } = scenes[index % scenes.length];
+          return draft.seedMode === 'random'
+            ? chooseSeed()
+            : Number(draft.seed);
+        },
+      );
+      for (let sceneIndex = 0; sceneIndex < scenes.length; sceneIndex += 1) {
+        const scene = scenes[sceneIndex];
+        const image = await this.inputImage(id, scene);
+        for (let repeat = 1; repeat <= repeats; repeat += 1) {
+          const index = (repeat - 1) * scenes.length + sceneIndex;
           let bound;
           try {
-            bound = await this.bind(id, scene);
+            bound = bindBasicGeneration(
+              scene,
+              () => scheduledSeeds[index],
+              image,
+            );
           } catch (error) {
             if (
               error instanceof ProjectError ||
@@ -622,22 +672,9 @@ export class WorkspaceGeneration {
                 : 'UNSUPPORTED_DRAFT',
             );
           }
-          let { seed } = bound.input;
-          if (scene.draft.seedMode === 'random') {
-            while (seeds.has(seed)) seed = (seed + 1) % 4294967296;
-            seeds.add(seed);
-            bound.input.seed = seed;
-            bound.request.parameters.seed = seed;
-            if (bound.input.draft.img2img)
-              bound.request.parameters.extra_noise_seed = seed;
-          }
-          const body = Uint8Array.from(
-            Buffer.from(JSON.stringify(bound.request)),
-          );
-          if (body.byteLength > 4 * 1024 * 1024)
-            throw new GenerationError('QUEUE_LIMIT');
-          bodyBytes += body.byteLength;
-          if (bodyBytes > 8 * 1024 * 1024)
+          const { seed } = bound.input;
+          const body = Buffer.from(JSON.stringify(bound.request));
+          if (body.byteLength > GENERATION_BODY_LIMIT)
             throw new GenerationError('QUEUE_LIMIT');
           bound.input.binding = {
             id: bound.bindingId,
@@ -646,8 +683,7 @@ export class WorkspaceGeneration {
           const task = {
             id,
             revision,
-            input: bound.input,
-            body,
+            input: { ...bound.input, draft: scene.draft },
             expires: 0,
             plan: {
               ticket: randomUUID(),
@@ -664,8 +700,8 @@ export class WorkspaceGeneration {
               samples: 1 as const,
             },
           };
-          tasks.push(task);
-          items.push({
+          tasks[index] = task;
+          items[index] = {
             id: task.plan.ticket,
             settings: {
               ...WorkspaceGeneration.imageSettings(scene),
@@ -683,7 +719,7 @@ export class WorkspaceGeneration {
             repeat,
             seed,
             status: 'pending',
-          });
+          };
         }
       }
       // Bind all scenes before making the new reservation visible. The final preflight rechecks the saved revision.
@@ -692,6 +728,7 @@ export class WorkspaceGeneration {
         state: {
           id: randomUUID(),
           projectId: id,
+          intervalSeconds,
           running: false,
           stopped: false,
           items,
@@ -711,6 +748,7 @@ export class WorkspaceGeneration {
     queueId: string,
     id: string,
     revision: string,
+    intervalSeconds?: number,
   ): Promise<GenerationQueuePlan> {
     this.online();
     this.idle();
@@ -722,6 +760,9 @@ export class WorkspaceGeneration {
     const q = this.queue;
     if (!q || q.state.id !== queueId || q.state.projectId !== id)
       throw new GenerationError('INVALID_INPUT');
+    const interval =
+      intervalSeconds === undefined ? q.state.intervalSeconds : intervalSeconds;
+    if (!isQueueInterval(interval)) throw new GenerationError('INVALID_INPUT');
     delete q.state.stoppedItemId;
     this.working = true;
     try {
@@ -730,6 +771,7 @@ export class WorkspaceGeneration {
       const count = q.state.items.filter((i) => i.status === 'pending').length;
       if (current.project.images.length + count > PROJECT_LIMITS.results)
         throw new ProjectError('PROJECT_RESULT_LIMIT');
+      q.state.intervalSeconds = interval;
       const plan = this.approve(q);
       delete q.state.stoppedItemId;
       return plan;
@@ -782,6 +824,23 @@ export class WorkspaceGeneration {
         const item = q.state.items[index];
         if (item.status !== 'pending') continue;
         if (q.state.stopped || controller.signal.aborted) break;
+        if (this.lastRequestFinished !== undefined) {
+          const remaining =
+            this.lastRequestFinished +
+            q.state.intervalSeconds * 1000 -
+            performance.now();
+          if (remaining > 0) {
+            q.state.nextRequestAt = Date.now() + remaining;
+            try {
+              await wait(remaining, undefined, { signal: controller.signal });
+            } catch (error) {
+              if (!controller.signal.aborted) throw error;
+            } finally {
+              delete q.state.nextRequestAt;
+            }
+            if (controller.signal.aborted) break;
+          }
+        }
         item.status = 'preparing';
         delete item.error;
         try {
@@ -794,7 +853,21 @@ export class WorkspaceGeneration {
             break;
           }
           const task = { ...q.tasks[index], revision: current.revision };
-          await this.execute(task, controller, item.id);
+          const scene = current.project.scenes.find(
+            (s) => s.id === item.sceneId,
+          )!;
+          const { request } = await this.bind(
+            task.id,
+            scene,
+            () => task.input.seed,
+          );
+          const body = Buffer.from(JSON.stringify(request));
+          if (
+            createHash('sha256').update(body).digest('hex') !==
+            task.input.binding?.requestHash
+          )
+            throw new ProjectError('PROJECT_CONFLICT');
+          await this.execute({ ...task, body }, controller, item.id);
           // Response retention/storage is completed even if a stop arrived after the server returned.
           if (q.state.stopped || controller.signal.aborted) break;
         } catch (error) {

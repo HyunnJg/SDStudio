@@ -6,6 +6,10 @@ import type {
 import type { NaiErrorCode } from './naiAuth';
 import type { ProjectErrorCode, ProjectSnapshot } from './workspaceProject';
 
+export const DEFAULT_QUEUE_INTERVAL = 10;
+export const isQueueInterval = (value: number) =>
+  Number.isInteger(value) && value >= 0 && value <= 3600;
+
 export type GenerationCode =
   | NaiErrorCode
   | ProjectErrorCode
@@ -69,6 +73,7 @@ export interface GenerationQueuePlan {
   ticket: string;
   queueId: string;
   total: number;
+  intervalSeconds: number;
   items: GenerationQueueItem[];
   model: GenerationSettings['model'];
   width: number;
@@ -83,6 +88,8 @@ export interface GenerationQueueState {
   running: boolean;
   stopped: boolean;
   stoppedItemId?: string;
+  intervalSeconds: number;
+  nextRequestAt?: number;
   items: GenerationQueueItem[];
 }
 export interface GenerationQueueStatus {
@@ -116,11 +123,13 @@ export interface GenerationClient {
     revision: string,
     sceneIds: string[],
     repeats: number,
+    intervalSeconds?: number,
   ): Promise<GenerationReply<GenerationQueuePlan>>;
   prepareRemaining(
     queueId: string,
     id: string,
     revision: string,
+    intervalSeconds?: number,
   ): Promise<GenerationReply<GenerationQueuePlan>>;
   runQueue(
     ticket: string,

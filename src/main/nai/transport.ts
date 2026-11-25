@@ -3,6 +3,7 @@ import type {
   ClientRequestConstructorOptions,
   Session,
 } from 'electron';
+import { GENERATION_BODY_LIMIT } from '../../workspaceReference';
 import { NaiError, validateToken } from './errors';
 import { readNaiImageResponse } from './imageResponse';
 import { describeResponseMediaType } from './responseMediaType';
@@ -46,7 +47,13 @@ export class NaiTransport {
   ): Promise<Uint8Array> {
     const deadline = performance.now() + timeoutMs;
     // Image reception may probe ZIP bytes; success always requires the decoder below.
-    const response = await this.sendResponse(body, signal, timeoutMs, true);
+    const response = await this.sendResponse(
+      body,
+      signal,
+      timeoutMs,
+      true,
+      GENERATION_BODY_LIMIT,
+    );
     try {
       const remaining = deadline - performance.now();
       if (remaining <= 0)
@@ -81,6 +88,7 @@ export class NaiTransport {
     signal: AbortSignal | undefined,
     timeoutMs: number,
     acceptZipSignature: boolean,
+    bodyLimit = 4 * 1024 * 1024,
   ): Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
       let settled = false;
@@ -116,7 +124,7 @@ export class NaiTransport {
         if (
           !(body instanceof Uint8Array) ||
           body.byteLength === 0 ||
-          body.byteLength > 4 * 1024 * 1024 ||
+          body.byteLength > bodyLimit ||
           !Number.isInteger(timeoutMs) ||
           timeoutMs < 1 ||
           timeoutMs > 180000

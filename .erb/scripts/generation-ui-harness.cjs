@@ -259,6 +259,7 @@ app.on('web-contents-created', (_event, contents) => {
         await evaluate(
           "document.querySelectorAll('[data-queue-scene]').forEach(c=>c.click())",
         );
+        await fill('#live-interval', '0');
         await fill('#live-repeats', '2');
         const confirm = async () => {
           await until(() =>
@@ -365,6 +366,7 @@ app.on('web-contents-created', (_event, contents) => {
         await evaluate(
           "document.querySelectorAll('[data-queue-scene]').forEach((c,i)=>{if(c.checked!==(i<2))c.click()})",
         );
+        await fill('#live-interval', '0');
         await fill('#live-repeats', '2');
         await click('[data-testid=prepare-live-queue]');
         await until(() =>
@@ -485,6 +487,8 @@ app.on('web-contents-created', (_event, contents) => {
         await evaluate(
           "document.querySelectorAll('[data-queue-scene]').forEach(c=>c.click())",
         );
+        assert.equal(await evaluate("document.querySelector('#live-interval').value"), '10');
+        await fill('#live-interval', '1');
         await fill('#live-repeats', '2');
         await click('[data-testid=prepare-live-queue]');
         await until(() =>
@@ -520,6 +524,7 @@ app.on('web-contents-created', (_event, contents) => {
         );
 
         await click('[data-testid=send-live-queue]');
+        await until(() => evaluate("document.querySelector('[data-testid=live-queue-progress]').textContent.includes('다음 생성')"));
         await until(
           async () =>
             requests === 6 &&
@@ -580,6 +585,7 @@ app.on('web-contents-created', (_event, contents) => {
         await until(() =>
           evaluate("!document.querySelector('#live-queue-details').hidden"),
         );
+        await fill('#live-interval','0');
         const firstCheckboxes = await evaluate(
           "Array.from(document.querySelectorAll('[data-queue-scene]')).map(c=>c.checked)",
         );
@@ -704,6 +710,7 @@ app.on('web-contents-created', (_event, contents) => {
         await evaluate(
           "document.querySelectorAll('[data-queue-scene]').forEach((c,i)=>{if(c.checked!==(i===0))c.click()})",
         );
+        await fill('#live-interval', '0');
         await fill('#live-repeats', '1');
         await click('[data-testid=prepare-live-queue]');
         await until(() =>
@@ -881,6 +888,7 @@ app.on('web-contents-created', (_event, contents) => {
         await evaluate(
           `document.querySelector('[data-queue-scene="${first.project.selectedSceneId}"]').click()`,
         );
+        await fill('#live-interval', '0');
         await fill('#live-repeats', '2');
         await click('[data-testid=prepare-live-queue]');
         await until(() =>
@@ -1008,7 +1016,7 @@ app.on('web-contents-created', (_event, contents) => {
         assert.equal(data.value.project.images.length, (img2img || process.env.SDSTUDIO_TRASH_SMOKE === '1') ? 2 : 1);
         if (process.env.SDSTUDIO_TRASH_SMOKE === '1') { assert.equal(data.value.project.version,6);assert.equal(data.value.project.trashedImageIds.length,1);assert.equal(await evaluate("document.querySelectorAll('[data-image-id]').length"),1);checks.push('new PID restores v6 visibility and original bytes without resurrecting a hidden image'); }
         if (img2img) {
-          assert.equal(data.value.project.version, 7);
+          assert.equal(data.value.project.version, 8);
           await until(() => evaluate("document.querySelector('[data-testid=reference-panel] img')?.naturalWidth===832"));
           assert.equal(await evaluate("document.querySelector('#variation-noise').value"), '0.1');
           checks.push('new PID restores both results, the img2img preview and noise');
@@ -1279,6 +1287,7 @@ app.on('web-contents-created', (_event, contents) => {
         await evaluate(
           "document.querySelectorAll('[data-queue-scene]').forEach(c=>{if(!c.checked)c.click()})",
         );
+        await fill('#live-interval', '0');
         await fill('#live-repeats', '1');
         await click('[data-testid=prepare-live-queue]');
         await until(() =>
