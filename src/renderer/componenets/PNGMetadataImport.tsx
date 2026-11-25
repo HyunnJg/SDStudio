@@ -163,7 +163,14 @@ export default function PNGMetadataImport({
                     ` · ${plan.characters!.length}명으로 대체`}
                 </label>
                 {(field === 'prompt' || field === 'negativePrompt') && (
-                  <pre>{plan[field]}</pre>
+                  <>
+                    <pre>{plan[field]}</pre>
+                    <p>
+                      최종 태그가 포함된 원문이므로 이 항목을 가져오면{' '}
+                      {field === 'prompt' ? '품질 태그' : 'UC 프리셋'} 자동
+                      추가를 끕니다.
+                    </p>
+                  </>
                 )}
                 {field === 'characters' && (
                   <ol>
@@ -181,8 +188,8 @@ export default function PNGMetadataImport({
                     {draft.family === 'v5' ? 'V5 Full' : 'V4.5 Full'} ·{' '}
                     {size ? `${size.width}×${size.height}` : '현재 크기 유지'} ·{' '}
                     {plan.settings.steps ?? draft.steps} 스텝 · 가이던스{' '}
-                    {plan.settings.guidance ?? draft.guidance} · 품질·UC 프리셋
-                    추가 안 함
+                    {plan.settings.guidance ?? draft.guidance} · 설정만 가져오면
+                    품질·UC 프리셋 유지
                   </p>
                 )}
                 {field === 'seed' && <code>{plan.seed}</code>}
@@ -190,8 +197,8 @@ export default function PNGMetadataImport({
             ))}
           </fieldset>
           <p className="connected-import-note">
-            모델은 현재 선택을 유지합니다. ‘생성 설정’을 고르면 중복 태그를
-            피하도록 품질·UC 자동 추가를 끕니다. 선택하지 않은 항목은 그대로
+            모델은 현재 선택을 유지합니다. 기본 프롬프트를 가져오면 품질 태그,
+            부정을 가져오면 UC 프리셋 자동 추가만 끕니다. 나머지 항목은 그대로
             남습니다.
           </p>
           {plan.notices.length > 0 && (

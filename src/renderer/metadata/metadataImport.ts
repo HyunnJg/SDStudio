@@ -16,12 +16,7 @@ export interface MetadataImportPlan {
   negativePrompt?: string;
   characters?: ImportCharacter[];
   seed?: string;
-  settings: Partial<
-    Pick<
-      WorkspaceDraft,
-      'resolution' | 'steps' | 'guidance' | 'qualityTags' | 'ucPreset'
-    >
-  >;
+  settings: Partial<Pick<WorkspaceDraft, 'resolution' | 'steps' | 'guidance'>>;
   notices: string[];
   source: PNGMetadata['source'];
 }
@@ -129,11 +124,6 @@ export function planMetadataImport(
     notices.push(
       '현재 V4.5 경로의 고정 512px 설정과 달라 생성 설정은 유지합니다.',
     );
-  if (Object.keys(plan.settings).length) {
-    // Imported captions already contain the final quality/UC text. Avoid appending presets again.
-    plan.settings.qualityTags = 'none';
-    plan.settings.ucPreset = 'none';
-  }
   if (
     (c.cfg_rescale !== undefined && c.cfg_rescale !== 0) ||
     (c.sampler !== undefined && c.sampler !== 'k_euler_ancestral') ||
@@ -184,10 +174,15 @@ export function applyMetadataImport(
 ): WorkspaceDraft {
   const next = structuredClone(draft);
   const selected = new Set(fields);
-  if (selected.has('prompt') && plan.prompt !== undefined)
+  // Imported captions are final text; disable only the corresponding auto-append.
+  if (selected.has('prompt') && plan.prompt !== undefined) {
     next.prompt = plan.prompt;
-  if (selected.has('negativePrompt') && plan.negativePrompt !== undefined)
+    next.qualityTags = 'none';
+  }
+  if (selected.has('negativePrompt') && plan.negativePrompt !== undefined) {
     next.negativePrompt = plan.negativePrompt;
+    next.ucPreset = 'none';
+  }
   if (selected.has('characters') && plan.characters !== undefined) {
     next.characters = plan.characters.map((c) => ({
       ...c,

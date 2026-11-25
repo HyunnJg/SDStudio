@@ -71,6 +71,58 @@ module.exports = async ({ contents, evaluate, click, until, checks }) => {
   checks.push(
     'drag/drop seed-only import preserves prompt/characters/settings and accepts fixed seed0 without saving or sending',
   );
+  for (const selected of ['prompt', 'negativePrompt', 'settings']) {
+    await evaluate(`(()=>{
+      for (const [id,value] of [['live-quality','standard'],['live-uc-preset','heavy']]) {
+        const input=document.getElementById(id);input.value=value;
+        input.dispatchEvent(new Event('change',{bubbles:true}));
+      }
+    })()`);
+    const previous = await evaluate(
+      "[document.querySelector('#live-prompt').value,document.querySelector('#live-negative').value,document.querySelector('#live-steps').value,document.querySelector('#live-guidance').value]",
+    );
+    await open(fixture());
+    await until(() =>
+      evaluate("!!document.querySelector('[data-testid=apply-metadata]')"),
+    );
+    assert.ok(
+      (
+        await evaluate(
+          "document.querySelector('[data-testid=metadata-dialog]').textContent",
+        )
+      ).includes('최종 태그가 포함된 원문'),
+    );
+    for (const field of [
+      'prompt',
+      'negativePrompt',
+      'characters',
+      'settings',
+      'seed',
+    ])
+      if (field !== selected) await click(`[data-import-field=${field}]`);
+    await click('[data-testid=apply-metadata]');
+    await until(() =>
+      evaluate("!document.querySelector('[data-testid=metadata-dialog]').open"),
+    );
+    assert.deepEqual(
+      await evaluate(
+        "[document.querySelector('#live-quality').value,document.querySelector('#live-uc-preset').value]",
+      ),
+      [
+        selected === 'prompt' ? 'none' : 'standard',
+        selected === 'negativePrompt' ? 'none' : 'heavy',
+      ],
+    );
+    const current = await evaluate(
+      "[document.querySelector('#live-prompt').value,document.querySelector('#live-negative').value,document.querySelector('#live-steps').value,document.querySelector('#live-guidance').value]",
+    );
+    if (selected === 'settings')
+      assert.deepEqual(current.slice(0, 2), previous.slice(0, 2));
+    else assert.deepEqual(current.slice(2), previous.slice(2));
+    checks.push(
+      `${selected}-only import preserves unrelated presets and inputs, with an explicit preview notice`,
+    );
+  }
   await open(fixture(metadata(), { format: 'alpha' }), true);
   await until(() =>
     evaluate(

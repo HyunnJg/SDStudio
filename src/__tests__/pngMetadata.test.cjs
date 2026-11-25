@@ -16,6 +16,8 @@ const {
 const {
   createConnectedWorkspaceState,
 } = require('../renderer/generation/connectedDraft');
+const { bindBasicGeneration } = require('../main/nai/workspaceBinding');
+const { V5_CHARACTER_LIMIT } = require('../workspaceGenerationSettings');
 const { default: crc } = require('../pngCRC');
 const { fixture, metadata, chunk } = require('./fixtures/nai/metadataPNG.cjs');
 const signal = () => new AbortController().signal;
@@ -241,4 +243,195 @@ test('empty character list explicitly clears only when selected; malformed strin
   assert.equal(plan.prompt, undefined);
   assert.deepEqual(plan.characters, []);
   assert.deepEqual(applyMetadataImport(d, plan, ['characters']).characters, []);
+});
+
+for (const format of ['text', 'alpha'])
+  for (const fields of [
+    ['prompt'],
+    ['negativePrompt'],
+    ['prompt', 'negativePrompt'],
+  ])
+    test(`${format}: ${fields.join('+')} import rebinds final captions without duplicate quality/UC text`, async () => {
+      const scene = createConnectedWorkspaceState().scenes[0];
+      scene.draft.prompt = '1girl, park';
+      scene.draft.negativePrompt = 'blur';
+      const original = bindBasicGeneration(scene, () => 12345).request;
+      const m = await read(
+        fixture(
+          {
+            Comment: JSON.stringify({
+              ...original.parameters,
+              model: original.model,
+            }),
+          },
+          { format },
+        ),
+      );
+      const plan = planMetadataImport(m, scene.draft);
+      const before = structuredClone(scene.draft);
+      const next = applyMetadataImport(scene.draft, plan, fields);
+      const rebound = bindBasicGeneration(
+        { ...scene, draft: next },
+        () => 12345,
+      ).request;
+      assert.equal(rebound.input, original.input);
+      assert.equal(
+        rebound.parameters.v4_prompt.caption.base_caption,
+        original.input,
+      );
+      assert.equal(
+        rebound.parameters.negative_prompt,
+        original.parameters.negative_prompt,
+      );
+      assert.equal(
+        rebound.parameters.v4_negative_prompt.caption.base_caption,
+        original.parameters.v4_negative_prompt.caption.base_caption,
+      );
+      assert.equal(
+        next.qualityTags,
+        fields.includes('prompt') ? 'none' : before.qualityTags,
+      );
+      assert.equal(
+        next.ucPreset,
+        fields.includes('negativePrompt') ? 'none' : before.ucPreset,
+      );
+      assert.deepEqual(applyMetadataImport(next, plan, fields), next);
+      assert.deepEqual(scene.draft, before);
+    });
+
+test('settings-only import preserves both preset choices and unselected captions', async () => {
+  const draft = createConnectedWorkspaceState().draft;
+  const plan = planMetadataImport(await read(fixture()), draft);
+  const next = applyMetadataImport(draft, plan, ['settings']);
+  assert.equal(next.steps, '28');
+  assert.equal(next.guidance, '5.5');
+  for (const field of [
+    'prompt',
+    'negativePrompt',
+    'qualityTags',
+    'ucPreset',
+    'seedMode',
+  ])
+    assert.equal(next[field], draft[field]);
+});
+
+test('empty imported captions disable corresponding presets; unavailable captions leave them intact', async () => {
+  const draft = createConnectedWorkspaceState().draft;
+  const m = await read(
+    fixture({ Comment: JSON.stringify({ prompt: '', uc: '' }) }),
+  );
+  const next = applyMetadataImport(draft, planMetadataImport(m, draft), [
+    'prompt',
+    'negativePrompt',
+  ]);
+  assert.deepEqual(
+    [next.prompt, next.negativePrompt, next.qualityTags, next.ucPreset],
+    ['', '', 'none', 'none'],
+  );
+  const absent = planMetadataImport({ ...m, comment: {} }, draft);
+  assert.deepEqual(
+    applyMetadataImport(draft, absent, ['prompt', 'negativePrompt']),
+    draft,
+  );
+});
+
+for (const count of [7, V5_CHARACTER_LIMIT])
+  test(`${count} character captions import without truncation using the shared V5 limit`, async () => {
+    const draft = createConnectedWorkspaceState().draft;
+    const m = await read(fixture());
+    m.comment.v4_prompt.caption.char_captions = Array.from(
+      { length: count },
+      (_, i) => ({ char_caption: `character-${i}` }),
+    );
+    m.comment.v4_negative_prompt.caption.char_captions = Array.from(
+      { length: count },
+      (_, i) => ({ char_caption: `negative-${i}` }),
+    );
+    let id = 0;
+    const next = applyMetadataImport(
+      draft,
+      planMetadataImport(m, draft),
+      ['characters'],
+      () => `character-${++id}`,
+    );
+    assert.equal(next.characters.length, count);
+    assert.deepEqual(
+      next.characters.map((c) => [c.prompt, c.negativePrompt]),
+      Array.from({ length: count }, (_, i) => [
+        `character-${i}`,
+        `negative-${i}`,
+      ]),
+    );
+    assert.equal(next.qualityTags, draft.qualityTags);
+    assert.equal(next.ucPreset, draft.ucPreset);
+  });
+
+test('metadata dialog explains and applies prompt-only, negative-only and settings-only preset behavior', async () => {
+  const React = require('react');
+  const { act, create } = require('react-test-renderer');
+  const Dialog = require('../renderer/componenets/PNGMetadataImport').default;
+  for (const selected of ['prompt', 'negativePrompt', 'settings']) {
+    const f = fixture();
+    const draft = createConnectedWorkspaceState().draft;
+    let applied, renderer;
+    try {
+      await act(async () => {
+        renderer = create(
+          React.createElement(Dialog, {
+            file: {
+              size: f.bytes.length,
+              arrayBuffer: async () => Uint8Array.from(f.bytes).buffer,
+            },
+            draft,
+            locked: false,
+            onClose() {},
+            onApply(value) {
+              applied = value;
+            },
+          }),
+          {
+            createNodeMock: (element) =>
+              element.type === 'dialog' ? { showModal() {}, close() {} } : null,
+          },
+        );
+        await new Promise((resolve) => setImmediate(resolve));
+      });
+      const preview = JSON.stringify(renderer.toJSON());
+      assert.ok(preview.includes('최종 태그가 포함된 원문'));
+      assert.ok(preview.includes('품질·UC 프리셋 유지'));
+      assert.ok(!preview.includes('‘생성 설정’을 고르면 중복 태그'));
+      act(() => {
+        for (const field of availableImportFields(
+          planMetadataImport(
+            {
+              comment: JSON.parse(metadata().Comment),
+              source: 'text',
+              width: 96,
+              height: 64,
+            },
+            draft,
+          ),
+        )) {
+          if (field !== selected)
+            renderer.root
+              .findByProps({ 'data-import-field': field })
+              .props.onChange({ target: { checked: false } });
+        }
+      });
+      act(() =>
+        renderer.root
+          .findByProps({ 'data-testid': 'apply-metadata' })
+          .props.onClick(),
+      );
+      assert.deepEqual(
+        [applied.qualityTags, applied.ucPreset],
+        [
+          selected === 'prompt' ? 'none' : draft.qualityTags,
+          selected === 'negativePrompt' ? 'none' : draft.ucPreset,
+        ],
+      );
+    } finally {
+      if (renderer) act(() => renderer.unmount());
+    }
+  }
 });
