@@ -942,3 +942,8 @@
 .connected-reference:has(img) label[for=reference-role] { grid-column:2; grid-row:3; display:grid; gap:3px; }
 .connected-reference:has(img) label[for=reference-strength] { grid-column:2; grid-row:4; display:grid; gap:3px; }
 .connected-reference:has(img) label[for=reference-outfit] { grid-column:1/-1; }
+
+.workspace-project-dialog .result-trash-history { max-height:55vh; overflow-y:auto; margin:12px 0; }
+.result-trash-history .connected-history { display:grid; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); gap:10px; }
+.result-trash-history .connected-thumbnail-preview { height:145px; }
+.result-trash-history .connected-thumbnail { min-width:0; }

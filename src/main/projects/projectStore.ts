@@ -233,6 +233,126 @@ export class ProjectStore {
     });
   }
 
+  listTrash(): ProjectListing[] {
+    return io(() => {
+      let root: string;
+      try {
+        root = this.directory(['.trash']);
+      } catch (error) {
+        if (error instanceof ProjectError && error.code === 'PROJECT_NOT_FOUND')
+          return [];
+        throw error;
+      }
+      const ids = fs
+        .readdirSync(root)
+        .filter((name) => /^[a-f0-9-]{36}$/.test(name))
+        .sort();
+      projectCheck(ids.length <= 1000, 'PROJECT_LIMIT');
+      return ids.map((id) => {
+        try {
+          projectId(id);
+          const { project, revision } = this.readSnapshot(
+            id,
+            path.join(this.directory(['.trash', id]), 'project.json'),
+            false,
+          );
+          return { id, name: project.name, revision };
+        } catch (error) {
+          return {
+            id,
+            error: error instanceof ProjectError ? error.code : 'PROJECT_IO',
+          } as ProjectListing;
+        }
+      });
+    });
+  }
+
+  private static exists(file: string): boolean {
+    try {
+      fs.lstatSync(file);
+      return true;
+    } catch (error) {
+      if ((error as { code?: string }).code === 'ENOENT') return false;
+      throw error;
+    }
+  }
+
+  trashProject(id: string): void {
+    io(() => {
+      const folder = this.folder(id);
+      const trash = this.directory(['.trash'], true);
+      projectCheck(
+        fs.readdirSync(trash).filter((name) => /^[a-f0-9-]{36}$/.test(name))
+          .length < 1000,
+        'PROJECT_LIMIT',
+      );
+      const destination = path.join(trash, id);
+      projectCheck(!ProjectStore.exists(destination), 'PROJECT_CONFLICT');
+      const lock = path.join(folder, 'write.lock');
+      // Close the handle before moving the directory (Windows); the exclusive file still gates writers.
+      try {
+        writeNew(lock, Buffer.from('project-trash-v1\n'));
+      } catch (error) {
+        if ((error as { code?: string }).code === 'EEXIST')
+          throw new ProjectError('PROJECT_BUSY');
+        throw error;
+      }
+      let moved = false;
+      try {
+        fs.renameSync(folder, destination);
+        moved = true;
+        syncDirectory(this.directory([]));
+        syncDirectory(trash);
+      } finally {
+        fs.unlinkSync(path.join(moved ? destination : folder, 'write.lock'));
+        syncDirectory(moved ? destination : folder);
+      }
+    });
+  }
+
+  restoreProject(id: string): void {
+    io(() => {
+      projectId(id);
+      const source = this.directory(['.trash', id]);
+      const root = this.directory([]);
+      projectCheck(
+        fs.readdirSync(root).filter((name) => /^[a-f0-9-]{36}$/.test(name))
+          .length < 1000,
+        'PROJECT_LIMIT',
+      );
+      const destination = path.join(root, id);
+      projectCheck(!ProjectStore.exists(destination), 'PROJECT_CONFLICT');
+      // Preserve any crash-left lock and every original byte. Opening will verify the data separately.
+      fs.renameSync(source, destination);
+      syncDirectory(root);
+      syncDirectory(this.directory(['.trash']));
+    });
+  }
+
+  setImageDeleted(
+    id: string,
+    revision: string,
+    imageId: string,
+    deleted: boolean,
+  ): ProjectSnapshot {
+    projectId(imageId);
+    projectCheck(typeof deleted === 'boolean');
+    return this.update(id, revision, (current) => {
+      projectCheck(
+        current.images.some((image) => image.id === imageId),
+        'PROJECT_NOT_FOUND',
+      );
+      const ids = new Set(current.trashedImageIds ?? []);
+      if (ids.has(imageId) === deleted) return current;
+      if (deleted) ids.add(imageId);
+      else {
+        this.image(id, imageId);
+        ids.delete(imageId);
+      }
+      return { ...current, version: 6, trashedImageIds: [...ids] };
+    });
+  }
+
   open(id: string): ProjectSnapshot {
     return io(() =>
       this.readSnapshot(id, path.join(this.folder(id), 'project.json')),
@@ -262,6 +382,7 @@ export class ProjectStore {
     content: ProjectContent,
     images: WorkspaceProject['images'],
     sourceId?: string,
+    trashedImageIds?: string[],
   ): ProjectSnapshot {
     const root = this.directory([], true);
     projectCheck(
@@ -272,10 +393,16 @@ export class ProjectStore {
     const id = randomUUID();
     const project: WorkspaceProject = {
       format: PROJECT_FORMAT,
-      version: requiredProjectVersion(content, images),
+      version:
+        trashedImageIds !== undefined
+          ? 6
+          : requiredProjectVersion(content, images),
       id,
       ...content,
       images,
+      ...(trashedImageIds !== undefined
+        ? { trashedImageIds: [...trashedImageIds] }
+        : {}),
     };
     const bytes = encode(project);
     projectCheck(sourceId || projectReferences(project, images).length === 0);
@@ -697,7 +824,12 @@ export class ProjectStore {
       projectHash(revision);
       const current = this.open(id); // Copies verify every referenced PNG, unlike metadata-only save.
       projectCheck(current.revision === revision, 'PROJECT_CONFLICT');
-      return this.createSnapshot(validated, current.project.images, id);
+      return this.createSnapshot(
+        validated,
+        current.project.images,
+        id,
+        current.project.trashedImageIds,
+      );
     });
   }
 
@@ -713,7 +845,12 @@ export class ProjectStore {
       projectCheck(snapshot.revision === revision, 'PROJECT_CORRUPT');
       const { name, selectedSceneId, scenes, images } = snapshot.project;
       // Never overwrite a damaged/newer source. Recovery is an explicit new project copy.
-      return this.createSnapshot({ name, selectedSceneId, scenes }, images, id);
+      return this.createSnapshot(
+        { name, selectedSceneId, scenes },
+        images,
+        id,
+        snapshot.project.trashedImageIds,
+      );
     });
   }
 }

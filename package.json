@@ -76,6 +76,7 @@
     "test:generation": "node --test -r ts-node/register/transpile-only src/__tests__/workspaceGeneration.test.cjs",
     "smoke:generation-characters": "node .erb/scripts/smoke-generation.cjs characters",
     "test:reference": "node --test -r ts-node/register/transpile-only src/__tests__/workspaceReference.test.cjs src/__tests__/workspaceReferenceUi.test.cjs",
+    "smoke:trash": "node .erb/scripts/smoke-generation.cjs trash",
     "smoke:reference": "node .erb/scripts/smoke-generation.cjs reference",
     "smoke:generation": "node .erb/scripts/smoke-generation.cjs",
     "test:project-reads": "node --test -r ts-node/register/transpile-only src/__tests__/projectReads.test.cjs",

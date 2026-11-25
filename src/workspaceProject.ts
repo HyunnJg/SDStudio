@@ -64,9 +64,10 @@ export type ProjectImageInput = Omit<
 >;
 export interface WorkspaceProject extends ProjectContent {
   format: typeof PROJECT_FORMAT;
-  version: 1 | 2 | 3 | 4 | 5;
+  version: 1 | 2 | 3 | 4 | 5 | 6;
   id: string;
   images: ProjectImage[];
+  trashedImageIds?: string[];
 }
 export interface ProjectSnapshot {
   project: WorkspaceProject;
@@ -83,6 +84,15 @@ export type ProjectReply<T> =
 export interface ProjectClient {
   restartStorage(): Promise<ProjectReply<void>>;
   list(): Promise<ProjectReply<ProjectListing[]>>;
+  listTrash(): Promise<ProjectReply<ProjectListing[]>>;
+  trashProject(id: string): Promise<ProjectReply<void>>;
+  restoreProject(id: string): Promise<ProjectReply<void>>;
+  setImageDeleted(
+    id: string,
+    revision: string,
+    imageId: string,
+    deleted: boolean,
+  ): Promise<ProjectReply<ProjectSnapshot>>;
   create(
     content: ProjectContent,
     referenceSourceId?: string,
@@ -373,7 +383,8 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
       v.version === 2 ||
       v.version === 3 ||
       v.version === 4 ||
-      v.version === 5,
+      v.version === 5 ||
+      v.version === 6,
     'PROJECT_VERSION',
   );
   try {
@@ -385,6 +396,7 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
       'selectedSceneId',
       'scenes',
       'images',
+      ...(v.version === 6 ? ['trashedImageIds'] : []),
     ]);
     projectId(p.id);
     validateProjectContent({
@@ -433,6 +445,19 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
           Number(pngBytes) <= 32 * 1024 * 1024,
       );
       total += Number(pngBytes);
+    }
+    if (v.version === 6) {
+      projectCheck(Array.isArray(p.trashedImageIds));
+      projectCheck(
+        p.trashedImageIds.length <= PROJECT_LIMITS.results,
+        'PROJECT_LIMIT',
+      );
+      const deleted = new Set<string>();
+      for (const id of p.trashedImageIds) {
+        projectId(id);
+        projectCheck(ids.has(id) && !deleted.has(id));
+        deleted.add(id);
+      }
     }
     total += referenceAssetBytes(value as WorkspaceProject);
     projectCheck(total <= PROJECT_LIMITS.totalPNGBytes, 'PROJECT_LIMIT');

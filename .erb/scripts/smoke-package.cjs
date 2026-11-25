@@ -5,12 +5,13 @@ const { spawn } = require('node:child_process');
 const WebSocket = require('ws');
 if (!process.argv[2])
   throw Error(
-    'Usage: npm run smoke:package -- /absolute/linux-unpacked [real|auth|projects|worker|crash|unresponsive|generation|generation-queue|generation-errors|generation-characters|generation-reference]',
+    'Usage: npm run smoke:package -- /absolute/linux-unpacked [real|auth|projects|worker|crash|unresponsive|generation|generation-queue|generation-errors|generation-characters|generation-reference|generation-trash]',
   );
 const directory = fs.realpathSync(process.argv[2]);
 const resilience = ['worker', 'crash', 'unresponsive'].includes(process.argv[3])
   ? process.argv[3]
   : '';
+const generationTrashMode = process.argv[3] === 'generation-trash';
 const generationReferenceMode = process.argv[3] === 'generation-reference';
 const generationCharacterMode = process.argv[3] === 'generation-characters';
 const generationErrorMode = process.argv[3] === 'generation-errors';
@@ -20,7 +21,7 @@ const generationMode =
   generationQueueMode ||
   generationErrorMode ||
   generationCharacterMode ||
-  generationReferenceMode;
+  generationReferenceMode || generationTrashMode;
 const projectMode = process.argv[3] === 'projects';
 const authMode = process.argv[3] === 'auth';
 const mock = [
@@ -31,6 +32,7 @@ const mock = [
   'generation-errors',
   'generation-characters',
   'generation-reference',
+  'generation-trash',
 ].includes(process.argv[3])
   ? '0'
   : '1';
@@ -62,9 +64,10 @@ const childEnv = {
   SDSTUDIO_SMOKE_AUTH_UI: authMode ? '1' : '0',
   SDSTUDIO_SMOKE_PROJECTS: projectMode ? '1' : '0',
   SDSTUDIO_PROJECT_UI_PHASE: 'create',
+  SDSTUDIO_TRASH_SMOKE: generationTrashMode ? '1' : '0',
   SDSTUDIO_REFERENCE_SMOKE: generationReferenceMode ? '1' : '0',
   SDSTUDIO_CHARACTER_SMOKE: generationCharacterMode ? '1' : '0',
-  SDSTUDIO_GENERATION_PHASE: generationReferenceMode ? 'reference' : generationCharacterMode
+  SDSTUDIO_GENERATION_PHASE: generationTrashMode ? 'trash' : generationReferenceMode ? 'reference' : generationCharacterMode
     ? 'characters'
     : generationErrorMode
       ? 'queue-errors'

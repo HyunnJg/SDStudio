@@ -12,12 +12,14 @@ module.exports = async ({ contents, evaluate, click, fill, until, checks, reques
   assert.equal(requestCount(), 0);
   await click('[data-testid=image-use-reference]');
   await until(() => evaluate("document.querySelector('[data-testid=reference-panel] img')?.naturalWidth>0"));
+  await until(() => evaluate("!document.querySelector('[data-testid=choose-reference]').disabled"));
   assert.equal(requestCount(), 0);
   assert.equal(await evaluate("!!document.querySelector('[data-testid=metadata-dialog]')?.open"), false);
   assert.ok((await evaluate("document.querySelector('[data-testid=reference-panel]').textContent")).includes('5 Anlas'));
   checks.push('visible reference chooser creates a local crop preview and cost notice without uploading or opening metadata import');
   await evaluate("(()=>{const c=document.querySelector('[data-testid=reference-role]');c.value='style';c.dispatchEvent(new Event('change',{bubbles:true}));})()");
   await fill('[data-testid=reference-strength]', '2.5');
+  await until(() => evaluate("!document.querySelector('[data-testid=choose-reference]').disabled"));
   // Dropping on the reference card replaces only the image and keeps its role/strength.
   await evaluate(`(()=>{const d=new DataTransfer();d.items.add(new File([new Uint8Array(${data})],'replacement.png',{type:'image/png'}));document.querySelector('[data-testid=reference-panel]').dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:d}));})()`);
   await until(() => evaluate("document.querySelector('[data-testid=image-choice]')?.open"));

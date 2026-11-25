@@ -230,7 +230,9 @@ app.on('web-contents-created', (_event, contents) => {
       await evaluate("(()=>{window.__flowMessages=[];const node=document.querySelector('[data-testid=generation-status]');new MutationObserver(()=>{if(node.textContent.trim())window.__flowMessages.push(node.textContent.trim())}).observe(node,{childList:true,characterData:true,subtree:true})})()");
       if (process.env.SDSTUDIO_RUNTIME_REPORT && phase === 'create')
         await require('./runtime-ui-probe.cjs')(contents, profile);
-      if (phase === 'reference') {
+      if (phase === 'trash') {
+        await require('./workspace-trash-ui-probe.cjs')({contents,evaluate,click,fill,until,checks,profile,requestCount:()=>requests});
+      } else if (phase === 'reference') {
         await require('./reference-ui-probe.cjs')({ contents, evaluate, click, fill, until, checks, requestCount: () => requests,
           setLock: (id) => { lock = path.join(profile, 'projects-v1', id, 'write.lock'); } });
       } else if (phase === 'queue-errors') {
@@ -987,7 +989,8 @@ app.on('web-contents-created', (_event, contents) => {
         const data = await evaluate(
           `window.electron.projects.open('${restored.id}')`,
         );
-        assert.equal(data.value.project.images.length, 1);
+        assert.equal(data.value.project.images.length, process.env.SDSTUDIO_TRASH_SMOKE === '1' ? 2 : 1);
+        if (process.env.SDSTUDIO_TRASH_SMOKE === '1') { assert.equal(data.value.project.version,6);assert.equal(data.value.project.trashedImageIds.length,1);assert.equal(await evaluate("document.querySelectorAll('[data-image-id]').length"),1);checks.push('new PID restores v6 visibility and original bytes without resurrecting a hidden image'); }
         if (process.env.SDSTUDIO_REFERENCE_SMOKE === '1') {
           assert.equal(data.value.project.version, 5);
           assert.equal(data.value.project.images[0].binding.id, 'nai-v5-reference-v1');
