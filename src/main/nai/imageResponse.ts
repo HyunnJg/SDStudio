@@ -1,5 +1,6 @@
 /* eslint no-bitwise: off -- CRC32 and ZIP bit flags require bit operations. */
 import { createInflateRaw } from 'zlib';
+import crc32 from '../../pngCRC';
 import { NaiError } from './errors';
 import type { ImageResponseReason } from './responseReasons';
 
@@ -9,18 +10,6 @@ export const IMAGE_RESPONSE_LIMITS = {
   pngBytes: 32 * 1024 * 1024,
   pixels: 16 * 1024 * 1024,
 } as const;
-const crcTable = Uint32Array.from({ length: 256 }, (_, value) => {
-  let crc = value;
-  for (let bit = 0; bit < 8; bit += 1)
-    crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
-  return crc >>> 0;
-});
-function crc32(bytes: ArrayLike<number>, previous = 0): number {
-  let crc = previous ^ 0xffffffff;
-  for (let i = 0; i < bytes.length; i += 1)
-    crc = (crc >>> 8) ^ crcTable[(crc ^ bytes[i]) & 255];
-  return (crc ^ 0xffffffff) >>> 0;
-}
 function invalid(reason: ImageResponseReason): never {
   throw new NaiError('INVALID_IMAGE_RESPONSE', false, undefined, reason);
 }

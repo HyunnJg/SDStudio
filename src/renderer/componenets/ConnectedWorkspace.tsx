@@ -26,6 +26,7 @@ import WorkspaceProjectControls from './WorkspaceProjectControls';
 import ConnectedQueueControls from './ConnectedQueueControls';
 import ConnectedCharacters from './ConnectedCharacters';
 import ConnectedImageHistory from './ConnectedImageHistory';
+import PNGMetadataImport from './PNGMetadataImport';
 import {
   generationMessage,
   availableQueueSceneIds,
@@ -93,6 +94,13 @@ export default function ConnectedWorkspace({
   const images = view.imageRecords;
   const [selected, setSelected] = useState('');
   const [imageURL, setImageURL] = useState('');
+  const [importFile, setImportFile] = useState<File>();
+  const [characterEpoch, setCharacterEpoch] = useState(0);
+  const fileInput = useRef<HTMLInputElement>(null);
+  useEffect(
+    () => setImportFile(undefined),
+    [view.id, state.selectedSceneId, state.draft.family],
+  );
   const [promptTab, setPromptTab] = useState<'prompt' | 'negative'>('prompt');
   const [sidebarTab, setSidebarTab] = useState<'results' | 'queue'>('results');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -448,6 +456,20 @@ export default function ConnectedWorkspace({
       className={`preview-workspace connected-workspace ${darkMode ? '' : 'pw-light'}`}
       data-testid="connected-workspace"
       data-mobile-pane={mobilePane}
+      onDragOver={(event) => {
+        if (!Array.from(event.dataTransfer.types).includes('Files')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.dataTransfer.dropEffect = locked ? 'none' : 'copy';
+      }}
+      onDrop={(event) => {
+        if (!event.dataTransfer.files.length) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (!locked && event.dataTransfer.files.length === 1)
+          setImportFile(event.dataTransfer.files[0]);
+        else if (!locked) setMessage('PNG 한 장을 선택해 주세요.');
+      }}
     >
       <header className="pw-header">
         <div className="pw-brand">
@@ -594,7 +616,7 @@ export default function ConnectedWorkspace({
                 onChange={(e) => patch({ negativePrompt: e.target.value })}
               />
               <ConnectedCharacters
-                key={`${view.id ?? 'draft'}:${state.selectedSceneId}`}
+                key={`${view.id ?? 'draft'}:${state.selectedSceneId}:${characterEpoch}`}
                 draft={state.draft}
                 onChange={patch}
               />
@@ -711,6 +733,27 @@ export default function ConnectedWorkspace({
           <header className="connected-canvas-heading">
             <span>{result ? '저장된 원본 PNG' : '미리보기'}</span>
             <small>{images.length}장 보관</small>
+            <button
+              type="button"
+              data-testid="open-metadata"
+              disabled={locked}
+              onClick={() => fileInput.current?.click()}
+            >
+              PNG 정보 가져오기
+            </button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/png,.png"
+              hidden
+              aria-label="메타데이터를 읽을 PNG"
+              data-testid="metadata-file"
+              onChange={(event) => {
+                if (!locked && event.target.files?.[0])
+                  setImportFile(event.target.files[0]);
+                event.target.value = '';
+              }}
+            />
           </header>
           <div className="connected-feedback">
             {singlePlan && (
@@ -891,6 +934,8 @@ export default function ConnectedWorkspace({
                   왼쪽에서 프롬프트를 쓰고 생성하세요.
                   <br />
                   저장된 이미지는 오른쪽 결과에서 다시 볼 수 있습니다.
+                  <br />
+                  PNG를 끌어놓으면 입력 정보를 가져올 수 있습니다.
                 </span>
               </div>
             )}
@@ -940,7 +985,6 @@ export default function ConnectedWorkspace({
             hidden={sidebarTab !== 'results'}
           >
             <ConnectedImageHistory
-              key={view.id ?? 'draft'}
               client={client}
               projectId={view.id}
               images={images}
@@ -1024,6 +1068,29 @@ export default function ConnectedWorkspace({
           </div>
         </aside>
       </main>
+      <PNGMetadataImport
+        key={`${view.id ?? 'draft'}:${state.selectedSceneId}`}
+        file={importFile}
+        draft={state.draft}
+        locked={locked}
+        onClose={() => setImportFile(undefined)}
+        onApply={(draft, characters) => {
+          if (locked) return;
+          setSinglePlan(undefined);
+          setQueuePlan(undefined);
+          setState((previous) => ({
+            ...previous,
+            draft,
+            selectedCharacter: characters
+              ? (draft.characters[0]?.id ?? '')
+              : previous.selectedCharacter,
+          }));
+          if (characters) setCharacterEpoch((previous) => previous + 1);
+          setMessage(
+            '선택한 PNG 메타데이터를 현재 입력에 적용했습니다. 아직 전송하거나 저장하지 않았습니다.',
+          );
+        }}
+      />
       <footer className="connected-action-dock" data-testid="generation-dock">
         <p role="status" data-testid="generation-status">
           {phase === 'run' || phase === 'queue-run'

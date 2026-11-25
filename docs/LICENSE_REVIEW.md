@@ -66,3 +66,7 @@ LICENSE는 초기 ERB MIT 원문 복원이며 Sunho Kim의 새 저작권 문구�
 
 
 2026-11-24 D-050: 제품 sharp0.35.5/libvips8.18.7로 갱신했다. @img/sharp-libvips 플랫폼 패키지의 README.md 라이선스 표와 versions.json을 고지 증거에 추가하고 실제 패키지 사본 해시를 확인한다. 이전 sharp/vendor 경로는 해당 과거 설치에 대한 증거이며 새 버전에 소급 적용하지 않는다. Linux/Windows 플랫폼별 패키지의 실제 설치/산출물 기준으로 수집하며 전이 라이선스 조건 이행을 완료했다고 주장하지 않는다. [범위](RUNTIME_MODERNIZATION.md).
+
+## D-056 PNG 메타데이터 형식 참고
+
+NovelAI/novelai-image-metadata `3428907ac7183d7e36d7cc39e8f46f6f35ce99c1`의 nai_meta.py와 LICENSE(MIT, Copyright(c)2023NovelAI)를 읽어 알파 LSB 프로토콜을 확인했다. 외부 파일/코드/자산/의존성을 도입하지 않고, 이 저장소의 기존 CRC와 Web API로 독립 구현했다. [참고 범위](PNG_METADATA_IMPORT.md#공식-근거와-독립-구현). 기존 라이선스 미확인 항목을 해소한 작업은 아니다.

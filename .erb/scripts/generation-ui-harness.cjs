@@ -936,6 +936,8 @@ app.on('web-contents-created', (_event, contents) => {
         checks.push(
           'offline generation refuses prepare before token/network access while saved project PNG remains viewable',
         );
+        await require('./png-metadata-ui-probe.cjs')({contents,evaluate,click,until,checks});
+        assert.equal(requests,0,'offline metadata import is local and never sends');
       } else if (phase === 'reopen') {
         const list = await evaluate('window.electron.projects.list()');
         assert.equal(list.ok, true);
@@ -1253,6 +1255,8 @@ app.on('web-contents-created', (_event, contents) => {
           'first response diagnostic contains only sanitized MIME/state/status/version in private profile',
         );
         await require('./workspace-layout-probe.cjs').checkGallery({ contents, evaluate, click, until, checks, profile, sourceProjectId: preparedQueue.projectId });
+        await require('./png-metadata-ui-probe.cjs')({contents,evaluate,click,until,checks});
+        assert.equal(requests,3,'metadata import sends no generation request');
         const window = BrowserWindow.fromWebContents(contents);
         if (process.env.SDSTUDIO_GENERATION_SCREENSHOT)
           fs.writeFileSync(

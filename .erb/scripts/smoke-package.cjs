@@ -206,7 +206,7 @@ child.on('exit', (code) => {
               ? 8
               : generationQueueMode
                 ? 9
-                : 15))) ||
+                : 21))) ||
     !setupInfo?.isPackaged ||
     !data.packageContext.archiveUnchanged ||
     data.externalRequests.length ||

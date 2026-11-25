@@ -113,8 +113,10 @@ exports.checkGallery = async ({
     `(()=>{const create=URL.createObjectURL.bind(URL),revoke=URL.revokeObjectURL.bind(URL);window.__layoutURLs=new Set();window.__layoutURLRestore=()=>{URL.createObjectURL=create;URL.revokeObjectURL=revoke;};URL.createObjectURL=(blob)=>{const url=create(blob);window.__layoutURLs.add(url);return url;};URL.revokeObjectURL=(url)=>{window.__layoutURLs.delete(url);revoke(url);};})()`,
   );
   let reads = [];
+  const allReads = [];
   const event = 'workspace-generation-image';
   const listener = (_event, id, imageId) => {
+    allReads.push({ projectId: id, imageId });
     if (id === fixtureId) reads.push(imageId);
   };
   // handle invocations do not emit ipcMain events. Wrap the registered handler in this test process only.
@@ -224,6 +226,47 @@ exports.checkGallery = async ({
     );
     window.setSize(1400, 900);
     await until(() => evaluate('innerWidth===1400'));
+    // Let resize/intersection-triggered reads settle before measuring the copy transition.
+    let stable = 0;
+    let readCount = allReads.length;
+    await until(async () => {
+      await pause();
+      if (allReads.length === readCount) stable += 1;
+      else stable = 0;
+      readCount = allReads.length;
+      return stable >= 2;
+    });
+    const beforeCopy = (
+      await evaluate('window.electron.projects.list()')
+    ).value.map((p) => p.id);
+    const copyStart = allReads.length;
+    await click('[data-testid=project-copy]');
+    let copied;
+    await until(async () => {
+      copied = (await evaluate('window.electron.projects.list()')).value.find(
+        (p) => !beforeCopy.includes(p.id),
+      );
+      return !!copied;
+    });
+    await until(
+      () =>
+        allReads.slice(copyStart).filter((r) => r.projectId === copied.id)
+          .length >= 2,
+    );
+    await pause();
+    assert.ok(
+      allReads.slice(copyStart).every((r) => r.projectId === copied.id),
+    );
+    const copySnapshot = (
+      await evaluate(`window.electron.projects.open('${copied.id}')`)
+    ).value;
+    assert.deepEqual(
+      copySnapshot.project.images.map((i) => i.id),
+      fixture.images.map((i) => i.id),
+    );
+    checks.push(
+      'copy keeps image UUIDs but unkeyed gallery prop transition reads only the new project, not cached old project loaders',
+    );
     await evaluate(
       "document.querySelectorAll('.connected-sidebar-tabs button')[1].click()",
     );

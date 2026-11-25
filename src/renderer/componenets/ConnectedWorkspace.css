@@ -672,3 +672,96 @@
     max-height: 85%;
   }
 }
+
+.connected-canvas-heading {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.connected-canvas-heading > button {
+  font-size: 11px;
+  padding: 6px 9px;
+  margin-left: auto;
+}
+.connected-import-dialog {
+  width: min(660px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  border: 1px solid var(--pw-line);
+  border-radius: 12px;
+  padding: 20px;
+  color: var(--pw-text);
+  background: var(--pw-panel);
+}
+.connected-import-dialog::backdrop {
+  background: #0009;
+}
+.connected-import-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.connected-import-dialog h2 {
+  font-size: 18px;
+  margin: 0;
+}
+.connected-import-dialog p {
+  font-size: 12px;
+  line-height: 1.8;
+}
+.connected-import-preview {
+  display: block;
+  max-height: 230px;
+  width: 100%;
+  object-fit: contain;
+  margin: 18px 0;
+  background: var(--pw-bg);
+}
+.connected-import-dialog fieldset {
+  min-width: 0;
+  border: 1px solid var(--pw-line);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.connected-import-field {
+  margin: 10px 0 16px;
+}
+.connected-import-field label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 600;
+}
+.connected-import-field pre {
+  font: inherit;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+  margin: 8px 0;
+  max-height: 130px;
+  overflow: auto;
+  padding: 8px;
+  background: var(--pw-input);
+  border-radius: 5px;
+}
+.connected-import-field ol {
+  max-height: 240px;
+  overflow: auto;
+  padding-left: 22px;
+}
+.connected-import-note {
+  color: var(--pw-muted);
+  font-size: 11px;
+  line-height: 1.8;
+}
+.connected-import-dialog footer {
+  position: sticky;
+  bottom: -20px;
+  background: var(--pw-panel);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--pw-line);
+}
