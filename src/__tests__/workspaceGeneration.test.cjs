@@ -265,7 +265,7 @@ test('all generation IPCs check trust first and return no token, raw error, inte
     f.service,
     (e) => e === 'trusted',
   );
-  assert.equal(handlers.size, 13);
+  assert.equal(handlers.size, 15);
   for (const action of handlers.values())
     assert.deepEqual(await action('untrusted', '../private', 'raw-secret'), {
       ok: false,

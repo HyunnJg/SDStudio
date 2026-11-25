@@ -2,6 +2,8 @@
 import { randomInt } from 'crypto';
 import type { WorkspaceScene } from '../../renderer/preview/workspaceDraft';
 import type { ProjectImageInput, ImageBinding } from '../../workspaceProject';
+import { validateReference } from '../../workspaceProject';
+import { referenceDescription } from '../../workspaceReference';
 import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
 import {
   V5_QUALITY_TAGS,
@@ -13,9 +15,12 @@ import {
 export function bindBasicGeneration(
   scene: WorkspaceScene,
   random = () => randomInt(4294967296),
+  referencePNG: Uint8Array | undefined = undefined,
 ) {
   const d = scene.draft;
   const v5 = d.family === 'v5';
+  const reference = d.reference ? validateReference(d.reference) : undefined;
+  if (reference && (!v5 || !referencePNG)) throw new Error('UNSUPPORTED_DRAFT');
   const enabledCharacters = d.characters.filter((c) => c.enabled);
   if (
     enabledCharacters.some(
@@ -109,6 +114,25 @@ export function bindBasicGeneration(
       sampler: 'k_euler_ancestral',
       noise_schedule: 'karras',
       cfg_rescale: 0,
+      ...(reference && referencePNG
+        ? {
+            director_reference_images: [
+              Buffer.from(referencePNG).toString('base64'),
+            ],
+            director_reference_descriptions: [
+              {
+                caption: {
+                  base_caption: referenceDescription(reference),
+                  char_captions: [],
+                },
+                legacy_uc: false,
+              },
+            ],
+            director_reference_information_extracted: [1],
+            director_reference_strength_values: [reference.strength],
+            director_reference_secondary_strength_values: [0],
+          }
+        : {}),
       negative_prompt: negative,
       v4_prompt: condition(prompt),
       v4_negative_prompt: v5
@@ -144,5 +168,6 @@ export function bindBasicGeneration(
   let bindingId: ImageBinding['id'] = 'nai-v45-basic512-v1';
   if (v5) bindingId = 'nai-v5-full-v1';
   if (v5 && characters.length) bindingId = 'nai-v5-characters-auto-v1';
+  if (reference) bindingId = 'nai-v5-reference-v1';
   return { request, input, bindingId, characterCount: characters.length };
 }

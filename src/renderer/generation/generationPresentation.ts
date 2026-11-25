@@ -32,7 +32,8 @@ export function generationMessage(
       '저장된 토큰 형식을 읽지 못했습니다. API 토큰 설정에서 복구 안내를 확인하세요.',
     CONFIRMATION_EXPIRED:
       '확인이 만료됐거나 이미 사용됐습니다. 입력 저장 후 새 설정을 확인하세요.',
-    QUEUE_LIMIT: '예약 최대60건·프로젝트 이미지120장 한도를 확인하세요.',
+    QUEUE_LIMIT:
+      '예약 최대60건·프로젝트 이미지120장 한도를 확인하세요. 참조 이미지·프롬프트 크기가 큰 경우 예약 횟수를 줄여 주세요.',
     GENERATION_BUSY: '진행 중 요청이나 저장하지 못한 결과를 먼저 처리하세요.',
     CANCELLED: '취소했습니다.',
     TIMEOUT: '응답 기한을 넘었습니다.',

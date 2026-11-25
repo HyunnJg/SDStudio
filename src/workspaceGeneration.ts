@@ -1,3 +1,4 @@
+import type { ReferenceAsset, WorkspaceReference } from './workspaceReference';
 import type { NaiErrorCode } from './naiAuth';
 import type { ProjectErrorCode, ProjectSnapshot } from './workspaceProject';
 
@@ -27,6 +28,10 @@ export interface GenerationSettings {
   steps: number;
   scale: number;
   characters?: number;
+  reference?: Pick<
+    WorkspaceReference,
+    'id' | 'uploadHash' | 'role' | 'strength' | 'preferSameOutfit'
+  >;
 }
 export interface GenerationPlan extends GenerationSettings {
   ticket: string;
@@ -81,6 +86,15 @@ export interface GenerationQueueStatus {
 }
 
 export interface GenerationClient {
+  importReference(
+    id: string,
+    revision: string,
+    png: Uint8Array,
+  ): Promise<GenerationReply<{ asset: ReferenceAsset; preview: Uint8Array }>>;
+  referenceImage(
+    id: string,
+    sceneId: string,
+  ): Promise<GenerationReply<Uint8Array>>;
   status(): Promise<GenerationReply<{ active: boolean; pending: boolean }>>;
   prepare(
     id: string,

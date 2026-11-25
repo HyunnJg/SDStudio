@@ -107,3 +107,7 @@ create/save/addPNG/copy/recover의 최소 필요 버전 계산을 공통화했�
 ## D-054 — 캐릭터 결과의 manifest v4
 
 reader는 v1~v4를 허용한다. `nai-v5-characters-auto-v1` binding 결과가 생기면 v4가 필요하며 이전 이미지/입력의 v1/v2/v3 구분은 유지한다. 기존 필드/미완성·비활성 캐릭터·cell을 바꾸거나 옛 PNG를 다시 쓰지 않는다. v4 복사·재열기와 직전 v3 이력의 새 UUID 복구를 지원한다. 이전 reader는 v4를 PROJECT_VERSION으로 거부한다. 입력만 저장한 프로젝트를 이유 없이 v4로 올리지 않는다. [검증](validation/2026-11-25-v5-characters.md).
+
+## D-061 — 참조 자산과 version5
+
+참조 필드를 저장한 프로젝트만version5로 구분한다. 원본과 전송 파생본은 `references/<sha256>.png`이며 결과 `images/`와 별도다. 기존v1~v4 읽기/이력 복구를 유지하고, 참조 원본/파생은 열기·복사·복구·해당 생성 전 검사한다. 선택적 `create(content, referenceSourceId)`는 현재 프로필의 UUID에서 참조 자산만 복사한다(이전 결과 PNG 제외). generation의 새 importReference는 경로 없이 한정된 PNG 바이트를 로컬 worker에서 준비하며 referenceImage는 manifest 씬 참조만 읽는다. 역할/파일·요청·총량 한도와 무참조/실계정 미확인 범위는 [V5_REFERENCE.md](V5_REFERENCE.md)를 따른다.

@@ -164,3 +164,7 @@ D-044에서 큐의 전체 프로젝트 fingerprint를 제거했다. prepareRemai
 
 
 D-045: main의 stoppedItemId와 renderer의 queueOutcome이 현재 중단 원인을 대응시킨다. 현재 오류와 과거 작업 이력을 분리하고 result-pending은 독립적으로 UI에 반영한다. 로컬 작업 세대가 지난 폴링은 버리며 준비 직후/실패 직후 큐 메타데이터를 즉시 갱신한다. 새 trusted generation-exclude-scene IPC는 현재 충돌 씬의 pending만 체크 확인 뒤 skipped로 바꾸는 메모리 조작이며, model/body/목적지/파일 경로·PNG 쓰기 권한은 받지 않는다. pending이 남으면 새 확인 없이는 실행하지 않는다.
+
+## D-061 참조 자산과 공통 생성
+
+공용 workspaceReference는 타입·역할/wire 대응·한도만 제공한다. ConnectedReference는 파일 선택/드롭과 실제 전송 미리보기·편집, generation importReference는 로컬 준비, ProjectStore/직렬 projectWorker는 sharp 전처리와 원본/파생 불변 파일을 담당한다. workspaceBinding은 검증된 파생 바이트만 참조 배열에 넣으며 WorkspaceGeneration의 기존 단일/큐/저장-only를 재사용한다. draft.reference를 저장한 프로젝트는v5이며 새 create의 선택적 원본 UUID는 참조 자산만 복사한다. 현재 범위는 [V5_REFERENCE.md](V5_REFERENCE.md)다.

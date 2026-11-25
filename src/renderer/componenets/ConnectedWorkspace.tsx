@@ -17,6 +17,7 @@ import type {
   GenerationQueueState,
   GenerationQueueStatus,
 } from '../../workspaceGeneration';
+import { ProjectError } from '../../workspaceProject';
 import type { ProjectClient } from '../../workspaceProject';
 import { ProjectController } from '../projects/projectController';
 import type { WorkspaceState, WorkspaceDraft } from '../preview/workspaceDraft';
@@ -28,6 +29,12 @@ import ConnectedCharacters from './ConnectedCharacters';
 import ConnectedImageHistory from './ConnectedImageHistory';
 import PNGMetadataImport from './PNGMetadataImport';
 import PromptLibrary from './PromptLibrary';
+import ConnectedReference from './ConnectedReference';
+import {
+  REFERENCE_LIMITS,
+  REFERENCE_ROLES,
+  REFERENCE_COST_NOTICE,
+} from '../../workspaceReference';
 import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
 import { V5_CHARACTER_LIMIT } from '../../workspaceGenerationSettings';
 import type { PresetKind } from '../../promptLibrary';
@@ -99,6 +106,19 @@ export default function ConnectedWorkspace({
   const [selected, setSelected] = useState('');
   const [imageURL, setImageURL] = useState('');
   const [importFile, setImportFile] = useState<File>();
+  const [referencePreview, setReferencePreview] = useState<{
+    hash: string;
+    bytes: Uint8Array;
+  }>();
+  const liveScene = useRef(state.selectedSceneId);
+  liveScene.current = state.selectedSceneId;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const [libraryRequest, setLibraryRequest] = useState<{
     kind: PresetKind;
     characterId?: string;
@@ -235,6 +255,64 @@ export default function ConnectedWorkspace({
       ...previous,
       draft: { ...previous.draft, ...value },
     }));
+  };
+  const attachReference = async (file: File) => {
+    if (operation.current || locked) return;
+    operation.current = true;
+    generationEpoch.current += 1;
+    setPhase('reference');
+    setMessage('참조 PNG를 로컬에서 준비하고 있습니다…');
+    setSinglePlan(undefined);
+    setQueuePlan(undefined);
+    const sceneId = state.selectedSceneId;
+    try {
+      if (
+        state.draft.family !== 'v5' ||
+        file.size > REFERENCE_LIMITS.sourceBytes ||
+        file.size === 0
+      )
+        throw new ProjectError('PROJECT_INPUT');
+      if (!(await project.save())) return;
+      const saved = project.getSnapshot();
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      if (
+        !mounted.current ||
+        liveScene.current !== sceneId ||
+        project.getSnapshot().id !== saved.id
+      )
+        return;
+      const imported = unwrap(
+        await client.importReference(saved.id!, saved.revision!, bytes),
+      );
+      if (
+        !mounted.current ||
+        liveScene.current !== sceneId ||
+        project.getSnapshot().id !== saved.id
+      )
+        return;
+      setReferencePreview({
+        hash: imported.asset.uploadHash,
+        bytes: imported.preview,
+      });
+      patch({
+        reference: {
+          ...imported.asset,
+          role: state.draft.reference?.role ?? 'character',
+          strength: state.draft.reference?.strength ?? 1,
+          preferSameOutfit: state.draft.reference?.preferSameOutfit ?? false,
+        },
+      });
+      setMessage(
+        '참조를 입력에 추가했습니다. 저장·생성하면 이 씬에 보관됩니다. 아직 전송하지 않았습니다.',
+      );
+    } catch (error) {
+      if (mounted.current)
+        setMessage(generationMessage(error, sceneNames.current));
+    } finally {
+      operation.current = false;
+      generationEpoch.current += 1;
+      if (mounted.current) setPhase('');
+    }
   };
   const accept = (value: GeneratedProject, asNewProject = false) => {
     project.acceptGenerated(value.snapshot, asNewProject);
@@ -679,6 +757,28 @@ export default function ConnectedWorkspace({
                   setLibraryRequest({ kind: 'character', characterId })
                 }
               />
+              <ConnectedReference
+                reference={state.draft.reference}
+                projectId={view.id}
+                sceneId={state.selectedSceneId}
+                family={state.draft.family}
+                locked={locked}
+                preview={referencePreview}
+                client={client}
+                onFile={attachReference}
+                onChange={(reference) => {
+                  if (reference) patch({ reference });
+                  else {
+                    setSinglePlan(undefined);
+                    setQueuePlan(undefined);
+                    setState((previous) => {
+                      const draft = { ...previous.draft };
+                      delete draft.reference;
+                      return { ...previous, draft };
+                    });
+                  }
+                }}
+              />
               <details
                 className="connected-ai-settings"
                 data-testid="ai-settings"
@@ -842,10 +942,17 @@ export default function ConnectedWorkspace({
                   <p key={JSON.stringify(settings)}>
                     {settings.model} · {settings.width}×{settings.height} ·{' '}
                     {settings.steps}스텝 · 가이던스 {settings.scale}
+                    {settings.reference &&
+                      ` · 참조 1장 (${REFERENCE_ROLES[settings.reference.role]}, 강도 ${settings.reference.strength}${settings.reference.preferSameOutfit ? ', 같은 의상 우선' : ''})`}
                     {!!settings.characters &&
                       ` · 캐릭터 ${settings.characters}명 · 자동 배치`}
                   </p>
                 ))}
+                {queuePlan.settings.some((settings) => settings.reference) && (
+                  <p data-testid="queue-reference-cost">
+                    {REFERENCE_COST_NOTICE}
+                  </p>
+                )}
                 {queuePlan.settings.some(requiresAnlasWarning) && (
                   <p data-testid="queue-anlas-warning">{ANLAS_STEP_WARNING}</p>
                 )}

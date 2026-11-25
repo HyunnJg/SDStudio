@@ -5,6 +5,9 @@ import type {
   WorkspaceScene,
 } from './renderer/preview/workspaceDraft';
 
+import type { WorkspaceReference } from './workspaceReference';
+import { REFERENCE_LIMITS } from './workspaceReference';
+
 export const PROJECT_FORMAT = 'sdstudio-workspace';
 export const PROJECT_LIMITS = {
   jsonBytes: 2 * 1024 * 1024,
@@ -36,7 +39,11 @@ export interface ProjectContent {
   scenes: WorkspaceScene[];
 }
 export interface ImageBinding {
-  id: 'nai-v45-basic512-v1' | 'nai-v5-full-v1' | 'nai-v5-characters-auto-v1';
+  id:
+    | 'nai-v45-basic512-v1'
+    | 'nai-v5-full-v1'
+    | 'nai-v5-characters-auto-v1'
+    | 'nai-v5-reference-v1';
   requestHash: string;
 }
 export interface ProjectImage {
@@ -57,7 +64,7 @@ export type ProjectImageInput = Omit<
 >;
 export interface WorkspaceProject extends ProjectContent {
   format: typeof PROJECT_FORMAT;
-  version: 1 | 2 | 3 | 4;
+  version: 1 | 2 | 3 | 4 | 5;
   id: string;
   images: ProjectImage[];
 }
@@ -76,7 +83,10 @@ export type ProjectReply<T> =
 export interface ProjectClient {
   restartStorage(): Promise<ProjectReply<void>>;
   list(): Promise<ProjectReply<ProjectListing[]>>;
-  create(content: ProjectContent): Promise<ProjectReply<ProjectSnapshot>>;
+  create(
+    content: ProjectContent,
+    referenceSourceId?: string,
+  ): Promise<ProjectReply<ProjectSnapshot>>;
   open(id: string): Promise<ProjectReply<ProjectSnapshot>>;
   save(
     id: string,
@@ -132,8 +142,80 @@ function localId(value: unknown): asserts value is string {
     typeof value === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(value),
   );
 }
+
+export function validateReference(value: unknown): WorkspaceReference {
+  const r = record(value, [
+    'id',
+    'sourceHash',
+    'sourceBytes',
+    'uploadHash',
+    'uploadBytes',
+    'width',
+    'height',
+    'role',
+    'strength',
+    'preferSameOutfit',
+  ]);
+  projectId(r.id);
+  projectHash(r.sourceHash);
+  projectHash(r.uploadHash);
+  for (const [key, max] of [
+    ['sourceBytes', REFERENCE_LIMITS.sourceBytes],
+    ['uploadBytes', REFERENCE_LIMITS.uploadBytes],
+  ] as const)
+    projectCheck(
+      Number.isInteger(r[key]) && Number(r[key]) > 0 && Number(r[key]) <= max,
+    );
+  projectCheck(
+    [
+      [832, 1216],
+      [1024, 1024],
+      [1216, 832],
+    ].some(([w, h]) => r.width === w && r.height === h),
+  );
+  choice(r.role, ['character', 'style', 'character-style', 'outfit']);
+  projectCheck(
+    typeof r.strength === 'number' &&
+      Number.isFinite(r.strength) &&
+      r.strength >= 0 &&
+      r.strength <= 5,
+  );
+  projectCheck(typeof r.preferSameOutfit === 'boolean');
+  projectCheck(
+    !r.preferSameOutfit ||
+      r.role === 'character' ||
+      r.role === 'character-style',
+  );
+  return structuredClone(value as WorkspaceReference);
+}
+export function projectReferences(
+  content: ProjectContent,
+  images: readonly ProjectImageInput[] = [],
+): WorkspaceReference[] {
+  return [
+    ...content.scenes.map((s) => s.draft),
+    ...images.map((i) => i.draft),
+  ].flatMap((d) => (d.reference ? [d.reference] : []));
+}
+export function referenceAssetBytes(project: WorkspaceProject): number {
+  const sizes = new Map<string, number>();
+  for (const r of projectReferences(project, project.images)) {
+    for (const [hash, size] of [
+      [r.sourceHash, r.sourceBytes],
+      [r.uploadHash, r.uploadBytes],
+    ] as const) {
+      projectCheck(
+        !sizes.has(hash) || sizes.get(hash) === size,
+        'PROJECT_CORRUPT',
+      );
+      sizes.set(hash, size);
+    }
+  }
+  return [...sizes.values()].reduce((n, size) => n + size, 0);
+}
+
 function draft(value: unknown): number {
-  const optional = ['qualityTags', 'ucPreset'].filter(
+  const optional = ['qualityTags', 'ucPreset', 'reference'].filter(
     (key) => !!value && typeof value === 'object' && Object.hasOwn(value, key),
   );
   const d = record(value, [
@@ -150,6 +232,7 @@ function draft(value: unknown): number {
     'guidance',
   ]);
   choice(d.family, ['v4.5', 'v5']);
+  if (optional.includes('reference')) validateReference(d.reference);
   if (optional.includes('qualityTags'))
     choice(d.qualityTags, ['none', 'light', 'standard']);
   if (optional.includes('ucPreset'))
@@ -243,6 +326,7 @@ export function validateImageInput(value: unknown): ProjectImageInput {
         'nai-v45-basic512-v1',
         'nai-v5-full-v1',
         'nai-v5-characters-auto-v1',
+        'nai-v5-reference-v1',
       ].includes(String(binding.id)),
     );
     projectHash(binding.requestHash);
@@ -253,7 +337,14 @@ export function validateImageInput(value: unknown): ProjectImageInput {
 export function requiredProjectVersion(
   content: ProjectContent,
   images: readonly ProjectImageInput[] = [],
-): 1 | 2 | 3 | 4 {
+): 1 | 2 | 3 | 4 | 5 {
+  if (
+    content.scenes.some((s) => s.draft.reference) ||
+    images.some(
+      (i) => i.draft.reference || i.binding?.id === 'nai-v5-reference-v1',
+    )
+  )
+    return 5;
   if (images.some((i) => i.binding?.id === 'nai-v5-characters-auto-v1'))
     return 4;
   const drafts = [
@@ -278,7 +369,11 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
     'PROJECT_CORRUPT',
   );
   projectCheck(
-    v.version === 1 || v.version === 2 || v.version === 3 || v.version === 4,
+    v.version === 1 ||
+      v.version === 2 ||
+      v.version === 3 ||
+      v.version === 4 ||
+      v.version === 5,
     'PROJECT_VERSION',
   );
   try {
@@ -339,6 +434,7 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
       );
       total += Number(pngBytes);
     }
+    total += referenceAssetBytes(value as WorkspaceProject);
     projectCheck(total <= PROJECT_LIMITS.totalPNGBytes, 'PROJECT_LIMIT');
     projectCheck(
       Number(p.version) >=

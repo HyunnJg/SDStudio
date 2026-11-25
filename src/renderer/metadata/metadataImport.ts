@@ -139,10 +139,14 @@ export function planMetadataImport(
     c.image !== undefined ||
     c.reference_image_multiple !== undefined ||
     c.reference_image !== undefined ||
-    c.director_reference_images !== undefined
+    c.director_reference_images !== undefined ||
+    (Array.isArray(c.director_reference_strengths) &&
+      c.director_reference_strengths.length > 0) ||
+    (Array.isArray(c.director_reference_descriptions) &&
+      c.director_reference_descriptions.length > 0)
   )
     notices.push(
-      'Image2Image·참조 이미지·Vibe 정보는 가져오지 않습니다. 메타데이터만으로 원본 결과를 재현할 수 없습니다.',
+      'Image2Image·참조 이미지·Vibe 정보는 가져오지 않습니다. 현재 씬의 참조 선택은 유지합니다. 메타데이터만으로 원본 결과를 재현할 수 없습니다.',
     );
   const originalModel = c.model;
   if (
