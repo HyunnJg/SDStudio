@@ -23,7 +23,24 @@ test('busy controller does not invoke trash, while a generated hidden result is 
  const image={id:'image-synthetic',seed:0,draft:f.snapshot.project.scenes[0].draft,pngBytes:1024};f.c.acceptGenerated({...f.snapshot,project:{...f.snapshot.project,images:[image],trashedImageIds:[image.id]}});
  assert.deepEqual(f.c.getSnapshot().imageRecords,[]);assert.deepEqual(f.c.getSnapshot().trashedImages,[image]);
 });
-test('result trash dialog keeps restoration failures visible inside the modal and exposes no permanent delete',()=>{
- let renderer;act(()=>{renderer=create(React.createElement(Dialog,{client:{image:async()=>({ok:false,code:'PROJECT_CORRUPT'})},projectId:'11111111-1111-4111-8111-111111111111',images:[{id:'image-synthetic',seed:0}],locked:true,error:'Synthetic restore failure',onRestore(){throw Error('should not run')},onClose(){}}),{createNodeMock:()=>({showModal(){}})});});
- assert.equal(renderer.root.findByProps({'role':'alert'}).props.children,'Synthetic restore failure');assert.equal(renderer.root.findByProps({'data-restore-result':'image-synthetic'}).props.disabled,true);assert.equal(JSON.stringify(renderer.toJSON()).includes('영구 삭제'),false);act(()=>renderer.unmount());
+test('result trash dialog keeps restoration failures visible and disables destructive actions while locked',()=>{
+ let renderer;act(()=>{renderer=create(React.createElement(Dialog,{client:{image:async()=>({ok:false,code:'PROJECT_CORRUPT'})},revision:'a'.repeat(64),projectId:'11111111-1111-4111-8111-111111111111',images:[{id:'image-synthetic',seed:0}],locked:true,error:'Synthetic restore failure',onRestore(){throw Error('should not run')},onClose(){}}),{createNodeMock:()=>({showModal(){}})});});
+ assert.equal(renderer.root.findByProps({'role':'alert'}).props.children,'Synthetic restore failure');assert.equal(renderer.root.findByProps({'data-restore-result':'image-synthetic'}).props.disabled,true);assert.equal(renderer.root.findByProps({'data-testid':'empty-result-trash'}).props.disabled,true);act(()=>renderer.unmount());
+});
+
+test('empty confirmation expires on revision change and explicit cancel does not invoke storage', () => {
+  const calls = [];
+  const props = {client:{}, projectId:'p', images:[], locked:false, error:'',
+    revision:'a', onEmpty:revision=>calls.push(revision), onRestore(){}, onClose(){}};
+  let renderer;
+  act(() => {renderer = create(React.createElement(Dialog,props), {createNodeMock:()=>({showModal(){}})});});
+  const click = id => act(() => renderer.root.findByProps({'data-testid':id}).props.onClick());
+  click('empty-result-trash');
+  act(() => renderer.update(React.createElement(Dialog,{...props,revision:'b'})));
+  assert.equal(renderer.root.findAllByProps({'data-testid':'confirm-empty-result-trash'}).length,0);
+  click('empty-result-trash');click('cancel-empty-result-trash');
+  assert.deepEqual(calls,[]);
+  click('empty-result-trash');click('confirm-empty-result-trash');
+  assert.deepEqual(calls,['b']);
+  act(()=> renderer.unmount());
 });

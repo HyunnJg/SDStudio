@@ -43,6 +43,7 @@ export class ProjectService implements ProjectOperations {
       | 'listTrash'
       | 'trashProject'
       | 'restoreProject'
+      | 'emptyResultTrash'
       | 'setImageDeleted'
       | 'create'
       | 'open'
@@ -175,6 +176,10 @@ export class ProjectService implements ProjectOperations {
 
   restoreProject(id: string) {
     return this.call('restoreProject', [id]);
+  }
+
+  emptyResultTrash(...args: Parameters<ProjectStore['emptyResultTrash']>) {
+    return this.call('emptyResultTrash', args);
   }
 
   setImageDeleted(...args: Parameters<ProjectStore['setImageDeleted']>) {

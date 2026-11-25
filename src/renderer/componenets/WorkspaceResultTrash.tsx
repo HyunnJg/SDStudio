@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import type { ProjectImage } from '../../workspaceProject';
+import { useEffect, useRef, useState } from 'react';
+import type { ProjectImage, ResultTrashReport } from '../../workspaceProject';
 import type { GenerationClient } from '../../workspaceGeneration';
 import ConnectedImageHistory from './ConnectedImageHistory';
 
@@ -9,6 +9,9 @@ interface Props {
   error: string;
   images: ProjectImage[];
   locked: boolean;
+  revision: string | undefined;
+  report: ResultTrashReport | undefined;
+  onEmpty: (revision: string) => void;
   onRestore: (id: string) => void;
   onClose: () => void;
 }
@@ -18,9 +21,13 @@ export default function WorkspaceResultTrash({
   error,
   images,
   locked,
+  revision,
+  report,
+  onEmpty,
   onRestore,
   onClose,
 }: Props) {
+  const [confirmation, setConfirmation] = useState<string>();
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     dialog.current?.showModal();
@@ -37,11 +44,16 @@ export default function WorkspaceResultTrash({
       }}
     >
       <h2>결과 휴지통</h2>
-      <small>
-        원본 PNG와 이력은 보관되며 보관 한도에 포함됩니다. 복원하면 결과 목록에
-        다시 나타납니다.
-      </small>
-      {images.length === 0 && <p>휴지통이 비었습니다.</p>}
+      <small>휴지통의 결과도 프로젝트 보관 한도에 포함됩니다.</small>
+      {images.length === 0 && !report && <p>휴지통이 비었습니다.</p>}
+      {report && (
+        <p role="status" data-testid="result-trash-report">
+          결과 자리 {report.removedResults}개 확보 · PNG 파일{' '}
+          {report.deletedFiles}개 정리 ({report.deletedBytes.toLocaleString()}
+          바이트)
+          {report.cleanupIncomplete && ' · 일부 파일 정리 보류'}
+        </p>
+      )}
       {error && <p role="alert">{error}</p>}
       {images.length > 0 && (
         <div className="result-trash-history connected-sidebar-panel">
@@ -57,6 +69,45 @@ export default function WorkspaceResultTrash({
           />
         </div>
       )}
+      {revision &&
+        (confirmation === revision ? (
+          <section aria-label="파일 정리 확인">
+            <p>
+              {images.length > 0 &&
+                `휴지통의 결과 ${images.length}장을 현재 프로젝트에서 비웁니다. `}
+              이력 복구에 필요한 PNG는 보존하고, 사용되지 않는 결과 파일만
+              지웁니다.
+            </p>
+            <button
+              type="button"
+              disabled={locked}
+              data-testid="cancel-empty-result-trash"
+              onClick={() => setConfirmation(undefined)}
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              disabled={locked}
+              data-testid="confirm-empty-result-trash"
+              onClick={() => {
+                setConfirmation(undefined);
+                onEmpty(revision);
+              }}
+            >
+              {images.length ? '비우기 확인' : '파일 정리 확인'}
+            </button>
+          </section>
+        ) : (
+          <button
+            type="button"
+            disabled={locked}
+            data-testid="empty-result-trash"
+            onClick={() => setConfirmation(revision)}
+          >
+            {images.length ? '휴지통 비우기' : '미사용 결과 파일 정리'}
+          </button>
+        ))}
       <button
         type="button"
         disabled={locked}

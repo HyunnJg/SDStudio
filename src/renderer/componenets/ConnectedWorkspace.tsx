@@ -29,6 +29,7 @@ import {
 } from '../../workspaceProject';
 import type {
   ProjectCapacityCode,
+  ResultTrashReport,
   ProjectClient,
 } from '../../workspaceProject';
 import {
@@ -174,6 +175,7 @@ export default function ConnectedWorkspace({
     else setMessage(generationMessage(error, sceneNames.current));
   };
   const images = view.imageRecords;
+  const [trashReport, setTrashReport] = useState<ResultTrashReport>();
   const [resultTrashOpen, setResultTrashOpen] = useState(false);
   const [lastTrashedImage, setLastTrashedImage] = useState<{
     projectId: string;
@@ -760,6 +762,36 @@ export default function ConnectedWorkspace({
       setPhase('');
     }
   };
+  const emptyResultTrash = async (revision: string) => {
+    if (operation.current || locked || !view.id || revision !== view.revision)
+      return;
+    operation.current = true;
+    generationEpoch.current += 1;
+    setSinglePlan(undefined);
+    setQueuePlan(undefined);
+    setTrashReport(undefined);
+    setMessage('');
+    setPhase('result');
+    try {
+      const reply = await projects.emptyResultTrash(view.id, revision, true);
+      if (!reply.ok) throw new ProjectError(reply.code);
+      if (!mounted.current || project.getSnapshot().id !== view.id) return;
+      project.acceptGenerated(reply.value.snapshot);
+      setLastTrashedImage(undefined);
+      setTrashReport(reply.value.report);
+    } catch (error) {
+      if (error instanceof ProjectError) project.reportError(error.code);
+      setMessage(
+        error instanceof ProjectError
+          ? projectErrorMessage(error.code)
+          : generationMessage(error),
+      );
+    } finally {
+      operation.current = false;
+      generationEpoch.current += 1;
+      if (mounted.current) setPhase('');
+    }
+  };
   const activeUse = (kind: PresetKind, characterId?: string) =>
     uses.find(
       (item) =>
@@ -1246,6 +1278,7 @@ export default function ConnectedWorkspace({
                 data-testid="open-result-trash"
                 onClick={() => {
                   setMessage('');
+                  setTrashReport(undefined);
                   setResultTrashOpen(true);
                 }}
               >
@@ -1528,11 +1561,8 @@ export default function ConnectedWorkspace({
               }}
               conflict={conflict}
               onExclude={excludeConflict}
-              onResult={(id) => {
-                setSelected(id);
-                setMobilePane('result');
-                setSidebarOpen(false);
-              }}
+              hasResult={(id) => images.some((image) => image.id === id)}
+              onResult={showResult}
             />
             <header className="connected-history-heading">
               <strong>결과</strong>
@@ -1681,6 +1711,9 @@ export default function ConnectedWorkspace({
           client={client}
           projectId={view.id}
           error={message}
+          revision={view.revision}
+          report={trashReport}
+          onEmpty={emptyResultTrash}
           images={view.trashedImages}
           locked={locked}
           onRestore={(id) => setResultDeleted(id, false)}
