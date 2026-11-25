@@ -11,6 +11,7 @@ const operations = [
   'listTrash',
   'trashProject',
   'restoreProject',
+  'emptyResultTrash',
   'setImageDeleted',
   'create',
   'open',

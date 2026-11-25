@@ -92,6 +92,12 @@ export interface ProjectSnapshot {
   project: WorkspaceProject;
   revision: string;
 }
+export interface ResultTrashReport {
+  removedResults: number;
+  deletedFiles: number;
+  deletedBytes: number;
+  cleanupIncomplete: boolean;
+}
 export interface ProjectListing {
   id: string;
   name?: string;
@@ -106,6 +112,13 @@ export interface ProjectClient {
   listTrash(): Promise<ProjectReply<ProjectListing[]>>;
   trashProject(id: string): Promise<ProjectReply<void>>;
   restoreProject(id: string): Promise<ProjectReply<void>>;
+  emptyResultTrash(
+    id: string,
+    revision: string,
+    confirmed: boolean,
+  ): Promise<
+    ProjectReply<{ snapshot: ProjectSnapshot; report: ResultTrashReport }>
+  >;
   setImageDeleted(
     id: string,
     revision: string,

@@ -32,6 +32,7 @@ import type {
   ProjectSnapshot,
   ProjectImageInput,
   ProjectListing,
+  ResultTrashReport,
 } from '../../workspaceProject';
 import { validatePNGBytes } from '../nai/imageResponse';
 
@@ -447,11 +448,16 @@ export class ProjectStore {
     );
   }
 
-  private update(
+  // The same project lock covers the revision check, atomic replacement and any asset sweep.
+  private withRevision<T>(
     id: string,
     revision: string,
-    action: (project: WorkspaceProject, folder: string) => WorkspaceProject,
-  ): ProjectSnapshot {
+    action: (
+      current: ProjectSnapshot,
+      folder: string,
+      previous: Uint8Array,
+    ) => T,
+  ): T {
     return io(() => {
       projectHash(revision);
       const folder = this.folder(id);
@@ -476,34 +482,169 @@ export class ProjectStore {
           PROJECT_LIMITS.jsonBytes,
         );
         projectCheck(hash(previous) === revision, 'PROJECT_CONFLICT');
-        const next = action(structuredClone(current.project), folder);
-        const bytes = encode(next);
-        if (hash(bytes) === revision) return current; // Unchanged explicit save adds no history.
-        const revisions = this.history(id);
-        projectCheck(
-          revisions.includes(revision) || revisions.length < 1000,
-          'PROJECT_HISTORY_LIMIT',
-        );
-        const history = this.directory([id, 'history'], true);
-        ProjectStore.immutable(
-          path.join(history, `${revision}.json`),
-          previous,
-        );
-        syncDirectory(history);
-        const temporary = path.join(folder, `.next-${randomUUID()}.json`);
-        try {
-          writeNew(temporary, bytes);
-          fs.renameSync(temporary, path.join(folder, 'project.json'));
-          syncDirectory(folder);
-        } finally {
-          if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
-        }
-        return { project: next, revision: hash(bytes) };
+        return action(current, folder, previous);
       } finally {
         fs.closeSync(fd);
         fs.unlinkSync(lock);
       }
     });
+  }
+
+  private commit(
+    current: ProjectSnapshot,
+    folder: string,
+    previous: Uint8Array,
+    next: WorkspaceProject,
+  ): ProjectSnapshot {
+    const {
+      revision,
+      project: { id },
+    } = current;
+
+    const bytes = encode(next);
+    if (hash(bytes) === revision) return current; // Unchanged explicit save adds no history.
+    const revisions = this.history(id);
+    projectCheck(
+      revisions.includes(revision) || revisions.length < 1000,
+      'PROJECT_HISTORY_LIMIT',
+    );
+    const history = this.directory([id, 'history'], true);
+    ProjectStore.immutable(path.join(history, `${revision}.json`), previous);
+    syncDirectory(history);
+    const temporary = path.join(folder, `.next-${randomUUID()}.json`);
+    try {
+      writeNew(temporary, bytes);
+      fs.renameSync(temporary, path.join(folder, 'project.json'));
+      syncDirectory(folder);
+    } finally {
+      if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
+    }
+    return { project: next, revision: hash(bytes) };
+  }
+
+  private update(
+    id: string,
+    revision: string,
+    action: (project: WorkspaceProject, folder: string) => WorkspaceProject,
+  ): ProjectSnapshot {
+    return this.withRevision(id, revision, (current, folder, previous) =>
+      this.commit(
+        current,
+        folder,
+        previous,
+        action(structuredClone(current.project), folder),
+      ),
+    );
+  }
+
+  emptyResultTrash(id: string, revision: string, confirmed: boolean) {
+    projectCheck(confirmed === true);
+    return this.withRevision(id, revision, (current, folder, previous) => {
+      const hidden = new Set(current.project.trashedImageIds);
+      const snapshot = hidden.size
+        ? this.commit(current, folder, previous, {
+            ...current.project,
+            images: current.project.images.filter(
+              (image) => !hidden.has(image.id),
+            ),
+            trashedImageIds: [],
+          })
+        : current;
+      const report: ResultTrashReport = {
+        removedResults: hidden.size,
+        deletedFiles: 0,
+        deletedBytes: 0,
+        cleanupIncomplete: false,
+      };
+      // The list is already durable. A cleanup failure must not report a failed manifest write.
+      try {
+        // The pre-empty manifest is now an immutable history entry and includes all surviving records.
+        this.cleanResultFiles(current.project, report);
+      } catch {
+        report.cleanupIncomplete = true;
+      }
+      return { snapshot, report };
+    });
+  }
+
+  private cleanResultFiles(
+    project: WorkspaceProject,
+    report: ResultTrashReport,
+  ) {
+    const { id } = project;
+    const directory = this.directory([id, 'images']);
+    const candidates = new Set(
+      fs
+        .readdirSync(directory, { withFileTypes: true })
+        .filter(
+          (entry) => entry.isFile() && /^[0-9a-f]{64}\.png$/.test(entry.name),
+        )
+        .map((entry) => entry.name.slice(0, -4)),
+    );
+    const retain = (manifest: WorkspaceProject) => {
+      manifest.images.forEach((image) => candidates.delete(image.sha256));
+      for (const asset of projectReferences(manifest, manifest.images)) {
+        candidates.delete(asset.sourceHash);
+        candidates.delete(asset.uploadHash);
+      }
+    };
+    retain(project);
+    if (!candidates.size) return;
+    const history = this.directory([id, 'history']);
+    const entries = fs.readdirSync(history, { withFileTypes: true });
+    projectCheck(entries.length <= 1000, 'PROJECT_HISTORY_LIMIT');
+    for (const entry of entries) {
+      projectCheck(
+        entry.isFile() && /^[0-9a-f]{64}\.json$/.test(entry.name),
+        'PROJECT_CORRUPT',
+      );
+      const snapshot = this.readSnapshot(
+        id,
+        path.join(history, entry.name),
+        false,
+      );
+      projectCheck(
+        snapshot.revision === entry.name.slice(0, -5),
+        'PROJECT_CORRUPT',
+      );
+      retain(snapshot.project);
+      if (!candidates.size) return;
+    }
+    for (const digest of candidates) {
+      try {
+        const size = ProjectStore.unlinkOrphanResult(
+          path.join(directory, `${digest}.png`),
+          digest,
+        );
+        if (size) {
+          report.deletedFiles += 1;
+          report.deletedBytes += size;
+        }
+      } catch {
+        report.cleanupIncomplete = true;
+      }
+    }
+    if (report.deletedFiles) syncDirectory(directory);
+  }
+
+  private static unlinkOrphanResult(file: string, digest: string): number {
+    const before = fs.lstatSync(file);
+    if (!before.isFile() || before.nlink !== 1) return 0;
+    const bytes = read(file, 32 * 1024 * 1024);
+    projectCheck(hash(bytes) === digest, 'PROJECT_CORRUPT');
+    validatePNGBytes(bytes);
+    const after = fs.lstatSync(file);
+    projectCheck(
+      after.isFile() &&
+        after.nlink === 1 &&
+        after.ino === before.ino &&
+        after.dev === before.dev &&
+        after.size === bytes.length &&
+        after.ctimeMs === before.ctimeMs,
+      'PROJECT_CORRUPT',
+    );
+    fs.unlinkSync(file);
+    return bytes.length;
   }
 
   save(id: string, revision: string, content: unknown): ProjectSnapshot {

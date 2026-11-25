@@ -17,6 +17,7 @@ export type ProjectOperations = { restartStorage?: () => Promise<void> } & {
       | 'listTrash'
       | 'trashProject'
       | 'restoreProject'
+      | 'emptyResultTrash'
       | 'setImageDeleted'
   ]: (
     ...args: Parameters<ProjectStore[K]>
@@ -63,6 +64,9 @@ export function registerProjects(
   );
   handle('workspace-project-restore', (id) =>
     mutation(async () => store.restoreProject(id)),
+  );
+  handle('workspace-project-empty-result-trash', (id, revision, confirmed) =>
+    mutation(async () => store.emptyResultTrash(id, revision, confirmed)),
   );
   handle('workspace-project-image-deleted', (id, revision, imageId, deleted) =>
     mutation(async () => store.setImageDeleted(id, revision, imageId, deleted)),

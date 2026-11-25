@@ -146,3 +146,147 @@ test('post-rename sync failure reports uncertainty but leaves the moved project 
  if(process.platform==='win32'){mock.mock.restore();t.diagnostic('directory fsync intentionally skipped on Windows; exercised by Linux CI');return;}
  assert.throws(()=>f.store.trashProject(f.id),{code:'PROJECT_IO'});mock.mock.restore();assert.deepEqual(fs.readFileSync(path.join(f.trash,'project.json')),before);assert.equal(f.store.listTrash()[0].id,f.id);f.store.restoreProject(f.id);assert.deepEqual(f.store.open(f.id),f.snapshot);
 });
+
+function orphanResult(f, marker) {
+  const bytes = png(2, 1, Buffer.from(marker));
+  const digest = require('node:crypto').createHash('sha256').update(bytes).digest('hex');
+  const file = path.join(f.folder, 'images', digest + '.png');
+  fs.writeFileSync(file, bytes);
+  return {bytes, file, digest};
+}
+
+test('emptying the trash frees slots, preserves pre-empty history and removes only genuinely orphaned files', t => {
+  const f = fixture(t);
+  const hidden = f.store.setImageDeleted(f.id, f.snapshot.revision, f.image.id, true);
+  const orphan = orphanResult(f, 'unreferenced PNG');
+  const {snapshot, report} = f.store.emptyResultTrash(f.id, hidden.revision, true);
+  assert.deepEqual(report, {removedResults:1, deletedFiles:1, deletedBytes:orphan.bytes.length, cleanupIncomplete:false});
+  assert.deepEqual(snapshot.project.images, []);
+  assert.deepEqual(snapshot.project.trashedImageIds, []);
+  assert.equal(snapshot.project.version, 6);
+  assert.equal(fs.existsSync(orphan.file), false);
+  assert.deepEqual(f.store.generationSnapshot(f.id, snapshot.revision), snapshot);
+  const old = f.store.recover(f.id, f.snapshot.revision);
+  assert.deepEqual(f.store.image(old.project.id, f.image.id), Uint8Array.from(png()));
+  assert.deepEqual(f.store.recover(f.id, hidden.revision).project.trashedImageIds, [f.image.id]);
+  const other = f.store.addPNG(f.id, snapshot.revision, f.input, png(2,1,Buffer.from('next result')));
+  const again = f.store.emptyResultTrash(f.id, other.revision, true);
+  assert.equal(again.snapshot.revision, other.revision);
+  assert.deepEqual(again.report, {removedResults:0,deletedFiles:0,deletedBytes:0,cleanupIncomplete:false});
+  assert.deepEqual(f.store.recover(f.id, f.snapshot.revision).project.images, old.project.images);
+});
+
+test('empty requires explicit confirmation and the displayed revision; a failed commit never sweeps', t => {
+  const f = fixture(t);
+  const hidden = f.store.setImageDeleted(f.id, f.snapshot.revision, f.image.id, true);
+  const orphan = orphanResult(f, 'keep until confirmed commit');
+  for (const confirmed of [false, 'true', undefined])
+    assert.throws(() => f.store.emptyResultTrash(f.id, hidden.revision, confirmed), {code:'PROJECT_INPUT'});
+  assert.throws(() => f.store.emptyResultTrash(f.id, f.snapshot.revision, true), {code:'PROJECT_CONFLICT'});
+  fs.writeFileSync(path.join(f.folder, 'write.lock'), 'synthetic active writer');
+  assert.throws(() => f.store.emptyResultTrash(f.id, hidden.revision, true), {code:'PROJECT_BUSY'});
+  fs.unlinkSync(path.join(f.folder, 'write.lock'));
+  const originalRename = fs.renameSync;
+  t.mock.method(fs, 'renameSync', (from,to) => {
+    if (to === path.join(f.folder, 'project.json')) throw Error('synthetic commit error');
+    return originalRename(from,to);
+  });
+  assert.throws(() => f.store.emptyResultTrash(f.id, hidden.revision, true), {code:'PROJECT_IO'});
+  assert.deepEqual(f.store.readManifest(f.id), hidden);
+  assert.deepEqual(fs.readFileSync(orphan.file), orphan.bytes);
+});
+
+test('invalid history blocks file deletion after a committed empty; explicit retry changes no revision', t => {
+  const f = fixture(t);
+  const hidden = f.store.setImageDeleted(f.id, f.snapshot.revision, f.image.id, true);
+  const orphan = orphanResult(f, 'orphan for retry');
+  const invalid = path.join(f.folder, 'history', '0'.repeat(64) + '.json');
+  fs.copyFileSync(path.join(f.folder, 'project.json'), invalid);
+  const result = f.store.emptyResultTrash(f.id, hidden.revision, true);
+  assert.deepEqual(result.report, {removedResults:1, deletedFiles:0, deletedBytes:0, cleanupIncomplete:true});
+  assert.equal(f.store.readManifest(f.id).project.images.length, 0);
+  assert.ok(fs.existsSync(orphan.file));
+  fs.unlinkSync(invalid);
+  const retry = f.store.emptyResultTrash(f.id, result.snapshot.revision, true);
+  assert.equal(retry.snapshot.revision, result.snapshot.revision);
+  assert.equal(retry.report.deletedBytes, orphan.bytes.length);
+  assert.equal(retry.report.removedResults, 0);
+});
+
+test('result sweep protects scene assets and leaves references, links, unknown names and unrelated projects alone', async t => {
+  const f = fixture(t);
+  const asset = await f.store.importReference(f.id, f.snapshot.revision, png(2,1,Buffer.from('asset')));
+  const content = structuredClone(f.content);
+  content.scenes[0].draft.reference = {...asset,role:'style',strength:1,preferSameOutfit:false};
+  const current = f.store.save(f.id,f.snapshot.revision,content);
+  const duplicateSource = path.join(f.folder,'images',asset.sourceHash + '.png');
+  fs.copyFileSync(path.join(f.folder,'references',asset.sourceHash + '.png'), duplicateSource);
+  const unexpected = path.join(f.folder,'images','notes.txt');
+  fs.writeFileSync(unexpected, 'keep');
+  const other = f.store.create(f.content);
+  const otherFile = path.join(f.profile,'projects-v1',other.project.id,'images',asset.sourceHash + '.png');
+  fs.copyFileSync(duplicateSource,otherFile);
+  const removed = orphanResult(f, 'removable');
+  if (process.platform !== 'win32') {
+    fs.symlinkSync(otherFile, path.join(f.folder, 'images','a'.repeat(64)+'.png'));
+    fs.linkSync(otherFile, path.join(f.folder, 'images','b'.repeat(64)+'.png'));
+  }
+  const result = f.store.emptyResultTrash(f.id,current.revision,true);
+  assert.equal(result.report.deletedBytes,removed.bytes.length);
+  assert.equal(result.snapshot.revision,current.revision);
+  assert.ok(fs.existsSync(duplicateSource) && fs.existsSync(otherFile) && fs.existsSync(unexpected));
+  assert.ok(f.store.referenceImage(f.id,content.selectedSceneId).length);
+  assert.deepEqual(f.store.open(f.id),current);
+});
+
+test('partial unlink reports successful bytes; empty-trash IPC observes trust and main mutation gate', async t => {
+  const f = fixture(t);
+  const orphan = orphanResult(f, 'unused A'), keep = orphanResult(f, 'unused B');
+  const unlink = fs.unlinkSync;
+  const fault = t.mock.method(fs,'unlinkSync', file => {
+    if (file === keep.file) throw Error('synthetic busy PNG');
+    return unlink(file);
+  });
+  const service = new ProjectService(f.profile, require.resolve('../main/projects/projectWorker.ts'));
+  t.after(() => service.close());
+  const handlers = new Map();
+  let trusted = false, gates = 0;
+  registerProjects({handle:(id,h) => handlers.set(id,h)}, service, () => trusted, async action => {gates++;return action();});
+  const empty = handlers.get('workspace-project-empty-result-trash');
+  assert.equal((await empty({},f.id,f.snapshot.revision,true)).code, 'PROJECT_UNTRUSTED');
+  assert.equal(gates,0);
+  const local = f.store.emptyResultTrash(f.id,f.snapshot.revision,true);
+  assert.deepEqual(local.report,{removedResults:0,deletedFiles:1,deletedBytes:orphan.bytes.length,cleanupIncomplete:true});
+  fault.mock.restore();
+  trusted = true;
+  const retry = await empty({},f.id,f.snapshot.revision,true);
+  assert.equal(gates,1);
+  assert.equal(retry.value.report.deletedBytes,keep.bytes.length);
+  assert.equal(retry.value.report.cleanupIncomplete,false);
+});
+
+test('empty preserves v7 and an img2img source and crop used only by a recoverable revision', async t => {
+  const f = fixture(t);
+  const content = structuredClone(f.content);
+  const scene = content.scenes[0];
+  scene.draft.family = 'v5';
+  scene.draft.resolution = 'portrait';
+  const base = f.store.save(f.id, f.snapshot.revision, content);
+  const asset = await f.store.importReference(f.id, base.revision, png(2, 1, Buffer.from('variation')), 'img2img');
+  scene.draft.img2img = { ...asset, strength: 0.5, noise: 0 };
+  const variation = f.store.save(f.id, base.revision, content);
+  const upload = f.store.referenceImage(f.id, scene.id);
+  delete scene.draft.img2img;
+  const detached = f.store.save(f.id, variation.revision, content);
+  const hidden = f.store.setImageDeleted(f.id, detached.revision, f.image.id, true);
+  const shared = path.join(f.folder, 'images', asset.sourceHash + '.png');
+  fs.copyFileSync(path.join(f.folder, 'references', asset.sourceHash + '.png'), shared);
+  const orphan = orphanResult(f, 'unreferenced in every revision');
+  const { snapshot, report } = f.store.emptyResultTrash(f.id, hidden.revision, true);
+  assert.equal(snapshot.project.version, 7);
+  assert.deepEqual(report, { removedResults: 1, deletedFiles: 1, deletedBytes: orphan.bytes.length, cleanupIncomplete: false });
+  assert.ok(fs.existsSync(shared));
+  const recovered = f.store.recover(f.id, variation.revision);
+  assert.deepEqual(f.store.referenceImage(recovered.project.id, scene.id), upload);
+  assert.deepEqual(f.store.image(recovered.project.id, f.image.id), Uint8Array.from(png()));
+});
