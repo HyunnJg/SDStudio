@@ -132,6 +132,18 @@ export default function WorkspaceProjectControls({
           ) : (
             extraActions
           )}
+          {state.lastTrashedProject && (
+            <button
+              type="button"
+              data-testid="undo-project-trash"
+              disabled={locked || unavailable}
+              onClick={() =>
+                controller.restoreProject(state.lastTrashedProject!.id, true)
+              }
+            >
+              프로젝트 복원
+            </button>
+          )}
           {state.error === 'PROJECT_SERVICE_STOPPED' && (
             <button
               type="button"
@@ -173,11 +185,31 @@ export default function WorkspaceProjectControls({
               controller.closePanel();
             }}
           >
-            <h2>프로젝트</h2>
+            <h2>{state.showTrash ? '프로젝트 휴지통' : '프로젝트'}</h2>
+            <nav aria-label="프로젝트 목록 종류">
+              <button
+                type="button"
+                data-testid="project-active-tab"
+                aria-pressed={!state.showTrash}
+                disabled={!!state.operation}
+                onClick={() => controller.list(false)}
+              >
+                프로젝트
+              </button>
+              <button
+                type="button"
+                data-testid="project-trash-tab"
+                aria-pressed={state.showTrash}
+                disabled={!!state.operation}
+                onClick={() => controller.list(true)}
+              >
+                휴지통
+              </button>
+            </nav>
             <button
               type="button"
               onClick={() => {
-                controller.list();
+                controller.list(state.showTrash);
               }}
               disabled={!!state.operation}
             >
@@ -188,30 +220,61 @@ export default function WorkspaceProjectControls({
                 <article key={p.id}>
                   <strong>{p.name ?? `프로젝트 ${p.id.slice(0, 8)}`}</strong>
                   {p.error && <p>{projectErrorMessage(p.error)}</p>}
-                  <button
-                    type="button"
-                    data-project-open={p.id}
-                    onClick={() => {
-                      controller.open(p.id);
-                    }}
-                    disabled={!!state.operation}
-                  >
-                    열기
-                  </button>
-                  <button
-                    type="button"
-                    data-project-history={p.id}
-                    onClick={() => {
-                      controller.inspect(p.id);
-                    }}
-                    disabled={!!state.operation}
-                  >
-                    이력 확인
-                  </button>
+                  {state.showTrash ? (
+                    <button
+                      type="button"
+                      data-project-restore={p.id}
+                      disabled={!!state.operation}
+                      onClick={() => controller.restoreProject(p.id)}
+                    >
+                      복원
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        data-project-open={p.id}
+                        onClick={() => {
+                          controller.open(p.id);
+                        }}
+                        disabled={!!state.operation}
+                      >
+                        열기
+                      </button>
+                      <button
+                        type="button"
+                        data-project-history={p.id}
+                        onClick={() => {
+                          controller.inspect(p.id);
+                        }}
+                        disabled={!!state.operation}
+                      >
+                        이력 확인
+                      </button>
+                      <button
+                        type="button"
+                        data-project-trash={p.id}
+                        disabled={locked || !!state.operation}
+                        onClick={() => controller.trashProject(p.id)}
+                      >
+                        휴지통으로
+                      </button>
+                    </>
+                  )}
                 </article>
               ))}
             </div>
-            {state.target && (
+            {state.projects.length === 0 && (
+              <p>
+                {state.showTrash
+                  ? '휴지통이 비었습니다.'
+                  : '저장된 프로젝트가 없습니다.'}
+              </p>
+            )}
+            {state.showTrash && (
+              <small>원본 이미지와 이력은 함께 보관됩니다.</small>
+            )}
+            {!state.showTrash && state.target && (
               <section aria-label="복구 이력">
                 <h3>선택한 프로젝트 이력</h3>
                 <p>선택한 저장본을 새 프로젝트로 복구합니다.</p>

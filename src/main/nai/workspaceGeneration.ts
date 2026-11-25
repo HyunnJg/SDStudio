@@ -108,6 +108,25 @@ export class WorkspaceGeneration {
     return this.working || !!this.pending;
   }
 
+  async withProjectMutation<T>(
+    action: () => Promise<T>,
+    trashedProjectId?: string,
+  ): Promise<T> {
+    if (this.hasWork()) throw new ProjectError('PROJECT_BUSY');
+    this.working = true; // Claim synchronously: prepare/run/import cannot race an asynchronous worker mutation.
+    this.prepared = undefined;
+    this.queueApproval = undefined;
+    this.latest = undefined;
+    try {
+      const result = await action();
+      if (trashedProjectId && this.queue?.state.projectId === trashedProjectId)
+        this.queue = undefined;
+      return result;
+    } finally {
+      this.working = false;
+    }
+  }
+
   private online() {
     if (this.options.offline()) throw new GenerationError('OFFLINE');
   }

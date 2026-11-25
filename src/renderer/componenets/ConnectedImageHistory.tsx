@@ -1,3 +1,4 @@
+/* eslint react/require-default-props: ["error", {"functions": "defaultArguments"}] */
 /* eslint no-void: off -- Local image loading effects handle fixed UI failures. */
 import { useEffect, useRef, useState, useMemo } from 'react';
 import type { GenerationClient } from '../../workspaceGeneration';
@@ -12,6 +13,8 @@ interface ThumbnailProps {
   load: () => ReturnType<GenerationClient['image']>;
   queue: ThumbnailQueue;
   onSelect: () => void;
+  actionLabel: string;
+  disabled: boolean;
 }
 function Thumbnail({
   image,
@@ -21,6 +24,8 @@ function Thumbnail({
   load,
   queue,
   onSelect,
+  actionLabel,
+  disabled,
 }: ThumbnailProps) {
   const button = useRef<HTMLButtonElement>(null);
   const [visible, setVisible] = useState(false);
@@ -79,6 +84,8 @@ function Thumbnail({
       className="connected-thumbnail"
       aria-pressed={selected}
       data-image-id={image.id}
+      data-restore-result={actionLabel ? image.id : undefined}
+      disabled={disabled}
       onClick={onSelect}
     >
       <span className="connected-thumbnail-preview">
@@ -93,7 +100,10 @@ function Thumbnail({
         )}
       </span>
       <span className="connected-thumbnail-caption">
-        <strong>결과 {number}</strong>
+        <strong>
+          결과 {number}
+          {actionLabel && ` · ${actionLabel}`}
+        </strong>
         <span>시드 {image.seed}</span>
       </span>
     </button>
@@ -106,6 +116,8 @@ interface Props {
   selected: string;
   selectedURL: string;
   onSelect: (id: string) => void;
+  actionLabel?: string;
+  disabled?: boolean;
 }
 export default function ConnectedImageHistory({
   client,
@@ -114,6 +126,8 @@ export default function ConnectedImageHistory({
   selected,
   selectedURL,
   onSelect,
+  actionLabel = '',
+  disabled = false,
 }: Props) {
   // This component owns its project scope even if a caller does not key/remount it.
   const scope = useMemo(
@@ -152,6 +166,8 @@ export default function ConnectedImageHistory({
               load={getLoader(image.id)}
               queue={queue}
               onSelect={() => onSelect(image.id)}
+              actionLabel={actionLabel}
+              disabled={disabled}
             />
           ))}
     </div>

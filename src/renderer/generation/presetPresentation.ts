@@ -1,9 +1,5 @@
 import type { WorkspaceDraft } from '../preview/workspaceDraft';
-import type {
-  PresetContent,
-  PromptPreset,
-  PresetKind,
-} from '../../promptLibrary';
+import type { PromptPreset, PresetKind } from '../../promptLibrary';
 
 export interface PresetUse {
   name: string;
@@ -31,7 +27,7 @@ export function matchingPreset(
   entries: PromptPreset[],
   draft: WorkspaceDraft,
   characterId?: string,
-): PresetContent | undefined {
+): PromptPreset | undefined {
   return [...entries].reverse().find((entry) => {
     if (entry.deleted || entry.kind !== (characterId ? 'character' : 'main'))
       return false;

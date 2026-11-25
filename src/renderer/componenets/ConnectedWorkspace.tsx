@@ -20,7 +20,10 @@ import type {
 } from '../../workspaceGeneration';
 import { ProjectError } from '../../workspaceProject';
 import type { ProjectClient } from '../../workspaceProject';
-import { ProjectController } from '../projects/projectController';
+import {
+  ProjectController,
+  projectErrorMessage,
+} from '../projects/projectController';
 import type { WorkspaceState, WorkspaceDraft } from '../preview/workspaceDraft';
 import { selectWorkspaceScene } from '../preview/workspaceDraft';
 import { runtimeOptions } from '../runtime';
@@ -31,6 +34,7 @@ import ConnectedImageHistory from './ConnectedImageHistory';
 import PNGMetadataImport from './PNGMetadataImport';
 import PromptLibrary from './PromptLibrary';
 import WorkspaceImageChoice from './WorkspaceImageChoice';
+import WorkspaceResultTrash from './WorkspaceResultTrash';
 import {
   matchingPreset,
   presetTextKey,
@@ -75,6 +79,7 @@ interface Props {
   onOpenLegacy: () => void;
   onToggleTheme: () => void;
 }
+// One reference only: include reference count in the acknowledgement key before supporting multiple references.
 // User acknowledgement lasts for this renderer session; it is not a server price guarantee.
 let referenceCostAcknowledged = false;
 
@@ -118,6 +123,11 @@ export default function ConnectedWorkspace({
   const [active, setActive] = useState(false);
   const [message, setMessage] = useState('');
   const images = view.imageRecords;
+  const [resultTrashOpen, setResultTrashOpen] = useState(false);
+  const [lastTrashedImage, setLastTrashedImage] = useState<{
+    projectId: string;
+    imageId: string;
+  }>();
   const [selected, setSelected] = useState('');
   const [imageURL, setImageURL] = useState('');
   const [importFile, setImportFile] = useState<File>();
@@ -183,6 +193,7 @@ export default function ConnectedWorkspace({
   const fileInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     setImportFile(undefined);
+    setResultTrashOpen(false);
     setImageChoice(undefined);
     setLibraryRequest(undefined);
   }, [view.id, state.selectedSceneId, state.draft.family]);
@@ -626,6 +637,40 @@ export default function ConnectedWorkspace({
     if (purpose === 'metadata') setImportFile(file);
     else await attachReference(file);
   };
+  const setResultDeleted = async (imageId: string, deleted: boolean) => {
+    if (operation.current || locked || !view.id) return;
+    operation.current = true;
+    generationEpoch.current += 1;
+    setSinglePlan(undefined);
+    setQueuePlan(undefined);
+    setPhase('result');
+    setMessage('');
+    try {
+      if (!(await project.save())) return;
+      const saved = project.getSnapshot();
+      const reply = await projects.setImageDeleted(
+        saved.id!,
+        saved.revision!,
+        imageId,
+        deleted,
+      );
+      if (!reply.ok) throw new ProjectError(reply.code);
+      if (!mounted.current || project.getSnapshot().id !== saved.id) return;
+      project.acceptGenerated(reply.value);
+      if (deleted) setLastTrashedImage({ projectId: saved.id!, imageId });
+      else if (lastTrashedImage?.imageId === imageId)
+        setLastTrashedImage(undefined);
+    } catch (error) {
+      if (error instanceof ProjectError) {
+        project.reportError(error.code);
+        setMessage(resultTrashOpen ? projectErrorMessage(error.code) : '');
+      } else setMessage(generationMessage(error, sceneNames.current));
+    } finally {
+      operation.current = false;
+      generationEpoch.current += 1;
+      setPhase('');
+    }
+  };
   const activeUse = (kind: PresetKind, characterId?: string) =>
     uses.find(
       (item) =>
@@ -637,18 +682,20 @@ export default function ConnectedWorkspace({
     );
   const mainUse = activeUse('main');
   const matchedMain = matchingPreset(presets, state.draft);
-  const mainLabel = mainUse?.name ?? matchedMain?.name;
+  const mainLabel =
+    mainUse?.name ?? (matchedMain ? `일치: ${matchedMain.name}` : undefined);
   const mainModified =
     !!mainUse && mainUse.fingerprint !== presetTextKey(state.draft);
   const characterLabels = Object.fromEntries(
     state.draft.characters.map((c) => {
       const use = activeUse('character', c.id);
       const matched = matchingPreset(presets, state.draft, c.id);
+      const fallback = matched ? `일치: ${matched.name}` : '';
       return [
         c.id,
         use
           ? `${use.name}${use.fingerprint !== presetTextKey(state.draft, c.id) ? ' · 수정됨' : ''}`
-          : (matched?.name ?? ''),
+          : fallback,
       ];
     }),
   );
@@ -857,7 +904,11 @@ export default function ConnectedWorkspace({
                       key={p.id}
                       type="button"
                       className="preset-chip"
-                      aria-pressed={mainLabel === p.name && !mainModified}
+                      aria-pressed={
+                        (mainUse?.id === p.id ||
+                          (!mainUse && matchedMain?.id === p.id)) &&
+                        !mainModified
+                      }
                       title={p.name}
                       onClick={() =>
                         setLibraryRequest({ kind: 'main', initialId: p.id })
@@ -1053,8 +1104,17 @@ export default function ConnectedWorkspace({
                   >
                     참조로
                   </button>
+                  <button
+                    type="button"
+                    disabled={locked}
+                    data-testid="trash-result"
+                    aria-label="선택 이미지 휴지통으로"
+                    onClick={() => setResultDeleted(result.id, true)}
+                  >
+                    휴지통으로
+                  </button>
                   <a
-                    download={`sdstudio-${result.seed}.png`}
+                    download={`sdstudio-${result.seed}-${result.id.slice(0, 8)}.png`}
                     href={imageURL || undefined}
                     aria-disabled={!imageURL}
                     data-testid="result-download"
@@ -1063,6 +1123,33 @@ export default function ConnectedWorkspace({
                   </a>
                 </>
               )}
+              {lastTrashedImage &&
+                lastTrashedImage.projectId === view.id &&
+                view.trashedImages.some(
+                  (i) => i.id === lastTrashedImage.imageId,
+                ) && (
+                  <button
+                    type="button"
+                    disabled={locked}
+                    data-testid="undo-result-trash"
+                    onClick={() =>
+                      setResultDeleted(lastTrashedImage.imageId, false)
+                    }
+                  >
+                    되돌리기
+                  </button>
+                )}
+              <button
+                type="button"
+                disabled={locked}
+                data-testid="open-result-trash"
+                onClick={() => {
+                  setMessage('');
+                  setResultTrashOpen(true);
+                }}
+              >
+                휴지통 {view.trashedImages.length}
+              </button>
               <small>{images.length}장</small>
             </div>
           </header>
@@ -1456,6 +1543,20 @@ export default function ConnectedWorkspace({
                     item.projectId !== view.id,
                 ),
               );
+            setMessage('');
+          }}
+        />
+      )}
+      {resultTrashOpen && (
+        <WorkspaceResultTrash
+          client={client}
+          projectId={view.id}
+          error={message}
+          images={view.trashedImages}
+          locked={locked}
+          onRestore={(id) => setResultDeleted(id, false)}
+          onClose={() => {
+            setResultTrashOpen(false);
             setMessage('');
           }}
         />

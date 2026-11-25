@@ -5,7 +5,20 @@ import type { ProjectReply } from '../../workspaceProject';
 import type { ProjectStore } from './projectStore';
 
 export type ProjectOperations = { restartStorage?: () => Promise<void> } & {
-  [K in 'list' | 'create' | 'open' | 'save' | 'history' | 'recover' | 'copy']: (
+  [
+    K in
+      | 'list'
+      | 'create'
+      | 'open'
+      | 'save'
+      | 'history'
+      | 'recover'
+      | 'copy'
+      | 'listTrash'
+      | 'trashProject'
+      | 'restoreProject'
+      | 'setImageDeleted'
+  ]: (
     ...args: Parameters<ProjectStore[K]>
   ) => ReturnType<ProjectStore[K]> | Promise<ReturnType<ProjectStore[K]>>;
 };
@@ -15,6 +28,10 @@ export function registerProjects(
   ipc: Pick<IpcMain, 'handle'>,
   store: ProjectOperations,
   trusted: (event: IpcMainInvokeEvent) => boolean,
+  mutation: (
+    action: () => Promise<unknown>,
+    trashedProjectId?: string,
+  ) => Promise<unknown> = async (action) => action(),
 ) {
   const handle = (channel: string, action: (...args: any[]) => unknown) => {
     ipc.handle(
@@ -22,7 +39,9 @@ export function registerProjects(
       async (event, ...args): Promise<ProjectReply<unknown>> => {
         try {
           if (!trusted(event)) throw new ProjectError('PROJECT_UNTRUSTED');
-          return { ok: true, value: await action(...args) };
+          const value = await action(...args);
+          if (!trusted(event)) throw new ProjectError('PROJECT_UNTRUSTED');
+          return { ok: true, value };
         } catch (error) {
           return {
             ok: false,
@@ -38,6 +57,16 @@ export function registerProjects(
     return store.restartStorage();
   });
   handle('workspace-project-list', () => store.list());
+  handle('workspace-project-list-trash', () => store.listTrash());
+  handle('workspace-project-trash', (id) =>
+    mutation(async () => store.trashProject(id), id),
+  );
+  handle('workspace-project-restore', (id) =>
+    mutation(async () => store.restoreProject(id)),
+  );
+  handle('workspace-project-image-deleted', (id, revision, imageId, deleted) =>
+    mutation(async () => store.setImageDeleted(id, revision, imageId, deleted)),
+  );
   handle('workspace-project-create', (content, referenceSourceId) =>
     store.create(content, referenceSourceId),
   );

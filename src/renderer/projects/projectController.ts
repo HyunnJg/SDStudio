@@ -44,6 +44,9 @@ export interface ProjectView {
   baseline: string;
   images: number;
   imageRecords: ProjectImage[];
+  trashedImages: ProjectImage[];
+  showTrash: boolean;
+  lastTrashedProject?: ProjectListing;
   operation: string;
   message: string;
   error?: ProjectErrorCode;
@@ -76,6 +79,8 @@ export class ProjectController {
       baseline: '',
       images: 0,
       imageRecords: [],
+      trashedImages: [],
+      showTrash: false,
       operation: '',
       message: '입력·씬은 명시적으로 저장합니다. 예제 SVG·대기열은 임시입니다.',
       panel: false,
@@ -116,6 +121,10 @@ export class ProjectController {
     return this.fingerprint() !== this.state.baseline;
   }
 
+  reportError(code: ProjectErrorCode) {
+    this.update({ error: code, message: projectErrorMessage(code) });
+  }
+
   available() {
     return !!this.options.client;
   }
@@ -153,8 +162,19 @@ export class ProjectController {
     this.update({
       id: snapshot.project.id,
       revision: snapshot.revision,
-      images: snapshot.project.images.length,
-      imageRecords: structuredClone(snapshot.project.images),
+      images: snapshot.project.images.filter(
+        (image) => !snapshot.project.trashedImageIds?.includes(image.id),
+      ).length,
+      imageRecords: structuredClone(
+        snapshot.project.images.filter(
+          (image) => !snapshot.project.trashedImageIds?.includes(image.id),
+        ),
+      ),
+      trashedImages: structuredClone(
+        snapshot.project.images.filter((image) =>
+          snapshot.project.trashedImageIds?.includes(image.id),
+        ),
+      ),
       baseline,
       message:
         '입력·씬 저장됨 · 기존 PNG 기록 유지 · 대기열은 저장하지 않습니다.',
@@ -223,10 +243,14 @@ export class ProjectController {
     });
   }
 
-  async list() {
-    this.update({ panel: true });
+  async list(showTrash = false) {
+    this.update({ panel: true, showTrash, target: '', history: [] });
     return this.execute('목록 읽는 중', async () => {
-      this.update({ projects: unwrap(await this.client().list()) });
+      this.update({
+        projects: unwrap(
+          await (showTrash ? this.client().listTrash() : this.client().list()),
+        ),
+      });
     });
   }
 
@@ -281,27 +305,75 @@ export class ProjectController {
     await action();
   }
 
+  private resetInput() {
+    this.options.reset();
+    const initial = this.options.workspace();
+    this.update({
+      inputEpoch: this.state.inputEpoch + 1,
+      id: undefined,
+      revision: undefined,
+      name: '새 프로젝트',
+      images: 0,
+      imageRecords: [],
+      trashedImages: [],
+      showTrash: false,
+      panel: false,
+      error: undefined,
+      baseline: JSON.stringify({
+        name: '새 프로젝트',
+        selectedSceneId: initial.selectedSceneId,
+        scenes: snapshotWorkspaceScenes(initial),
+      }),
+      message: '새 입력입니다. 저장 버튼을 눌러 보관하세요.',
+    });
+  }
+
   async newProject() {
     return this.guard('새 입력 시작', async () => {
-      this.options.reset();
-      const initial = this.options.workspace();
-      this.update({
-        inputEpoch: this.state.inputEpoch + 1,
-        id: undefined,
-        revision: undefined,
-        name: '새 프로젝트',
-        images: 0,
-        imageRecords: [],
-        panel: false,
-        error: undefined,
-        baseline: JSON.stringify({
-          name: '새 프로젝트',
-          selectedSceneId: initial.selectedSceneId,
-          scenes: snapshotWorkspaceScenes(initial),
-        }),
-        message: '새 입력입니다. 저장 버튼을 눌러 보관하세요.',
-      });
+      this.resetInput();
     });
+  }
+
+  async trashProject(id: string) {
+    const move = async () => {
+      await this.execute('휴지통으로 이동 중', async () => {
+        const entry =
+          this.state.id === id
+            ? { id, name: this.state.name }
+            : (this.state.projects.find((p) => p.id === id) ?? { id });
+        unwrap(await this.client().trashProject(id));
+        if (this.state.id === id) this.resetInput();
+        this.update({
+          lastTrashedProject: entry,
+          target: '',
+          history: [],
+          projects: unwrap(await this.client().list()),
+        });
+      });
+    };
+    if (this.state.id === id) return this.guard('프로젝트 휴지통 이동', move);
+    return move();
+  }
+
+  async restoreProject(id: string, open = false) {
+    const restore = async () => {
+      await this.execute('프로젝트 복원 중', async () => {
+        unwrap(await this.client().restoreProject(id));
+        if (this.state.lastTrashedProject?.id === id)
+          this.update({ lastTrashedProject: undefined });
+        if (open) await this.replace(unwrap(await this.client().open(id)));
+        else
+          this.update({
+            projects: unwrap(
+              await (this.state.showTrash
+                ? this.client().listTrash()
+                : this.client().list()),
+            ),
+          });
+      });
+    };
+    if (open) return this.guard('복원한 프로젝트 열기', restore);
+    return restore();
   }
 
   async open(id: string) {

@@ -40,6 +40,10 @@ export class ProjectService implements ProjectOperations {
       | 'referenceBytes'
       | 'referenceImage'
       | 'list'
+      | 'listTrash'
+      | 'trashProject'
+      | 'restoreProject'
+      | 'setImageDeleted'
       | 'create'
       | 'open'
       | 'save'
@@ -159,6 +163,22 @@ export class ProjectService implements ProjectOperations {
 
   referenceImage(...args: Parameters<ProjectStore['referenceImage']>) {
     return this.call('referenceImage', args);
+  }
+
+  listTrash() {
+    return this.call('listTrash', []);
+  }
+
+  trashProject(id: string) {
+    return this.call('trashProject', [id]);
+  }
+
+  restoreProject(id: string) {
+    return this.call('restoreProject', [id]);
+  }
+
+  setImageDeleted(...args: Parameters<ProjectStore['setImageDeleted']>) {
+    return this.call('setImageDeleted', args);
   }
 
   readManifest(id: string) {

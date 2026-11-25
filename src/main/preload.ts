@@ -144,6 +144,17 @@ const electronHandler = {
     restartStorage: () =>
       ipcRenderer.invoke('workspace-project-restart-storage'),
     list: () => ipcRenderer.invoke('workspace-project-list'),
+    listTrash: () => ipcRenderer.invoke('workspace-project-list-trash'),
+    trashProject: (id) => ipcRenderer.invoke('workspace-project-trash', id),
+    restoreProject: (id) => ipcRenderer.invoke('workspace-project-restore', id),
+    setImageDeleted: (id, revision, imageId, deleted) =>
+      ipcRenderer.invoke(
+        'workspace-project-image-deleted',
+        id,
+        revision,
+        imageId,
+        deleted,
+      ),
     create: (content, referenceSourceId) =>
       ipcRenderer.invoke(
         'workspace-project-create',
