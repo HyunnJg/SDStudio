@@ -27,6 +27,10 @@ import ConnectedQueueControls from './ConnectedQueueControls';
 import ConnectedCharacters from './ConnectedCharacters';
 import ConnectedImageHistory from './ConnectedImageHistory';
 import PNGMetadataImport from './PNGMetadataImport';
+import PromptLibrary from './PromptLibrary';
+import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
+import { V5_CHARACTER_LIMIT } from '../../workspaceGenerationSettings';
+import type { PresetKind } from '../../promptLibrary';
 import {
   generationMessage,
   availableQueueSceneIds,
@@ -95,12 +99,17 @@ export default function ConnectedWorkspace({
   const [selected, setSelected] = useState('');
   const [imageURL, setImageURL] = useState('');
   const [importFile, setImportFile] = useState<File>();
+  const [libraryRequest, setLibraryRequest] = useState<{
+    kind: PresetKind;
+    characterId?: string;
+  }>();
+  const [libraryBlocking, setLibraryBlocking] = useState(false);
   const [characterEpoch, setCharacterEpoch] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
-  useEffect(
-    () => setImportFile(undefined),
-    [view.id, state.selectedSceneId, state.draft.family],
-  );
+  useEffect(() => {
+    setImportFile(undefined);
+    setLibraryRequest(undefined);
+  }, [view.id, state.selectedSceneId, state.draft.family]);
   const [promptTab, setPromptTab] = useState<'prompt' | 'negative'>('prompt');
   const [sidebarTab, setSidebarTab] = useState<'results' | 'queue'>('results');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -122,6 +131,13 @@ export default function ConnectedWorkspace({
   }, [singlePlan, pending]);
   const busy = !!phase || pending || active;
   const locked = busy || projectLocked;
+  const busyCallback = useRef(onBusyChange);
+  busyCallback.current = onBusyChange;
+  useEffect(() => () => busyCallback.current(false), []);
+  const characterOverflow =
+    state.draft.family === 'v5' &&
+    state.draft.characters.filter(hasActiveCharacterPrompt).length >
+      V5_CHARACTER_LIMIT;
   useEffect(() => {
     if (singlePlan) {
       singleConfirmation.current?.scrollIntoView({ block: 'nearest' });
@@ -136,8 +152,8 @@ export default function ConnectedWorkspace({
   }, [state.scenes]);
   useEffect(() => setDiscardConfirmed(false), [pending]);
   useEffect(() => {
-    onBusyChange(busy);
-  }, [busy, onBusyChange]);
+    onBusyChange(busy || libraryBlocking);
+  }, [busy, libraryBlocking, onBusyChange]);
   useEffect(() => {
     let alive = true;
     let refreshing = false;
@@ -482,6 +498,14 @@ export default function ConnectedWorkspace({
         <nav aria-label="작업실 화면">
           <button
             type="button"
+            data-testid="open-prompt-library"
+            disabled={locked}
+            onClick={() => setLibraryRequest({ kind: 'main' })}
+          >
+            프롬프트 라이브러리
+          </button>
+          <button
+            type="button"
             className="connected-mobile-switch"
             onClick={() =>
               setMobilePane(mobilePane === 'input' ? 'result' : 'input')
@@ -513,7 +537,7 @@ export default function ConnectedWorkspace({
                 disabled={locked}
                 data-testid="open-legacy"
               >
-                기존 V3 화면
+                기존 도구 · 인페인팅·선별
               </button>
             </div>
           </details>
@@ -575,6 +599,14 @@ export default function ConnectedWorkspace({
                 <strong>{currentScene?.name}</strong>
               </div>
               <div className="connected-metadata-entry">
+                <button
+                  type="button"
+                  disabled={locked}
+                  data-testid="main-preset"
+                  onClick={() => setLibraryRequest({ kind: 'main' })}
+                >
+                  메인 프리셋 저장·불러오기
+                </button>
                 <button
                   type="button"
                   data-testid="open-metadata"
@@ -643,6 +675,9 @@ export default function ConnectedWorkspace({
                 key={`${view.id ?? 'draft'}:${state.selectedSceneId}:${characterEpoch}`}
                 draft={state.draft}
                 onChange={patch}
+                onPreset={(characterId) =>
+                  setLibraryRequest({ kind: 'character', characterId })
+                }
               />
               <details
                 className="connected-ai-settings"
@@ -1094,6 +1129,41 @@ export default function ConnectedWorkspace({
           );
         }}
       />
+      {libraryRequest && (
+        <PromptLibrary
+          key={`${view.id ?? 'draft'}:${state.selectedSceneId}`}
+          client={window.electron.promptLibrary}
+          draft={state.draft}
+          kind={libraryRequest.kind}
+          characterId={libraryRequest.characterId}
+          locked={locked}
+          onGuard={(blocked) => {
+            setLibraryBlocking(blocked);
+            onBusyChange(busy || blocked);
+          }}
+          onClose={() => setLibraryRequest(undefined)}
+          onLegacy={onOpenLegacy}
+          onApply={(draft, characterId) => {
+            if (locked) return;
+            setSinglePlan(undefined);
+            setQueuePlan(undefined);
+            setState((previous) => ({
+              ...previous,
+              draft,
+              selectedCharacter:
+                characterId ??
+                (draft.characters.some(
+                  (c) => c.id === previous.selectedCharacter,
+                )
+                  ? previous.selectedCharacter
+                  : (draft.characters[0]?.id ?? '')),
+            }));
+            setMessage(
+              '프리셋을 현재 입력에 적용했습니다. 아직 생성하거나 저장하지 않았습니다.',
+            );
+          }}
+        />
+      )}
       <footer className="connected-action-dock" data-testid="generation-dock">
         <p role="status" data-testid="generation-status">
           {phase === 'run' || phase === 'queue-run'
@@ -1114,7 +1184,7 @@ export default function ConnectedWorkspace({
           type="button"
           className="pw-generate"
           data-testid="prepare-generation"
-          disabled={locked || runtimeOptions.offline}
+          disabled={locked || runtimeOptions.offline || characterOverflow}
           onClick={prepare}
         >
           {generateLabel}

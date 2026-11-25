@@ -950,7 +950,11 @@ app.on('web-contents-created', (_event, contents) => {
         );
         await require('./png-metadata-ui-probe.cjs')({contents,evaluate,click,until,checks});
         assert.equal(requests,0,'offline metadata import is local and never sends');
+        await require('./prompt-library-ui-probe.cjs')({ contents, evaluate, click, fill, until, checks });
+        assert.equal(requests, 0, 'offline library never sends a generation request');
       } else if (phase === 'reopen') {
+        const library = await evaluate('window.electron.promptLibrary.read()');
+        if (process.env.SDSTUDIO_LIBRARY_REOPEN === '1') { assert.equal(library.ok, true); assert.equal(library.value.entries.length, 3); checks.push('new PID reopens the persisted prompt library without a generation request'); }
         const list = await evaluate('window.electron.projects.list()');
         assert.equal(list.ok, true);
         const restored = list.value.find((p) => p.name.includes('(이번 결과)'));
@@ -1268,7 +1272,8 @@ app.on('web-contents-created', (_event, contents) => {
         );
         await require('./workspace-layout-probe.cjs').checkGallery({ contents, evaluate, click, until, checks, profile, sourceProjectId: preparedQueue.projectId });
         await require('./png-metadata-ui-probe.cjs')({contents,evaluate,click,until,checks});
-        assert.equal(requests,3,'metadata import sends no generation request');
+        await require('./prompt-library-ui-probe.cjs')({ contents, evaluate, click, fill, until, checks });
+        assert.equal(requests,3,'metadata and library actions send no generation request');
         const window = BrowserWindow.fromWebContents(contents);
         if (process.env.SDSTUDIO_GENERATION_SCREENSHOT)
           fs.writeFileSync(

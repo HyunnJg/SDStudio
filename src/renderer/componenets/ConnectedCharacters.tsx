@@ -1,4 +1,4 @@
-/* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "either" }] */
+/* eslint react/require-default-props: off, jsx-a11y/label-has-associated-control: ["error", { "assert": "either" }] */
 import { useState } from 'react';
 import type {
   WorkspaceDraft,
@@ -12,9 +12,14 @@ import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
 interface Props {
   draft: WorkspaceDraft;
   onChange: (patch: Partial<WorkspaceDraft>) => void;
+  onPreset?: (id?: string) => void;
 }
 
-export default function ConnectedCharacters({ draft, onChange }: Props) {
+export default function ConnectedCharacters({
+  draft,
+  onChange,
+  onPreset,
+}: Props) {
   const [removed, setRemoved] = useState<{
     character: WorkspaceCharacter;
     index: number;
@@ -37,11 +42,30 @@ export default function ConnectedCharacters({ draft, onChange }: Props) {
     >
       <h3>
         캐릭터 프롬프트{' '}
-        <small>
+        <small
+          className={
+            active > V5_CHARACTER_LIMIT ? 'connected-character-overflow' : ''
+          }
+        >
           생성 {active}/{V5_CHARACTER_LIMIT}
           {waiting > 0 && ` · 작성 대기 ${waiting}`}
         </small>
       </h3>
+      {onPreset && (
+        <button type="button" onClick={() => onPreset()}>
+          캐릭터 프리셋
+        </button>
+      )}
+      {active > V5_CHARACTER_LIMIT && (
+        <p
+          role="alert"
+          className="connected-character-overflow"
+          data-testid="character-limit-warning"
+        >
+          생성 대상이 {V5_CHARACTER_LIMIT}명을 넘었습니다. 일부 캐릭터를 꺼
+          주세요. 입력은 보관됩니다.
+        </p>
+      )}
       <p>
         기본 프롬프트에는 인원수·배경·화풍을, 아래에는 각 캐릭터의 특징을
         적으세요. 배치는 위에서 아래로 적힌 순서를 참고합니다. 빈 카드는
@@ -159,6 +183,15 @@ export default function ConnectedCharacters({ draft, onChange }: Props) {
                   </button>
                 </div>
               </header>
+              {onPreset && (
+                <button
+                  type="button"
+                  data-character-preset={c.id}
+                  onClick={() => onPreset(c.id)}
+                >
+                  프리셋 저장·불러오기
+                </button>
+              )}
               <label htmlFor={promptId}>캐릭터 프롬프트</label>
               <textarea
                 id={promptId}
