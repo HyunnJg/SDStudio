@@ -20,7 +20,7 @@ test('current project trash respects dirty cancel/discard and explicit undo reop
 });
 test('busy controller does not invoke trash, while a generated hidden result is kept separate from gallery records',async()=>{
  const f=fixture();await f.c.open(f.id);f.busy(true);await f.c.trashProject(f.id);assert.equal(f.calls,0);assert.equal(f.c.getSnapshot().id,f.id);f.busy(false);
- const image={id:'image-synthetic',seed:0};f.c.acceptGenerated({...f.snapshot,project:{...f.snapshot.project,images:[image],trashedImageIds:[image.id]}});
+ const image={id:'image-synthetic',seed:0,draft:f.snapshot.project.scenes[0].draft,pngBytes:1024};f.c.acceptGenerated({...f.snapshot,project:{...f.snapshot.project,images:[image],trashedImageIds:[image.id]}});
  assert.deepEqual(f.c.getSnapshot().imageRecords,[]);assert.deepEqual(f.c.getSnapshot().trashedImages,[image]);
 });
 test('result trash dialog keeps restoration failures visible inside the modal and exposes no permanent delete',()=>{

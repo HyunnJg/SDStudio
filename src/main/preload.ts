@@ -92,12 +92,13 @@ const electronHandler = {
       ipcRenderer.invoke('workspace-close-cancel'),
   },
   generation: {
-    importReference: (id, revision, png) =>
+    importReference: (id, revision, png, purpose) =>
       ipcRenderer.invoke(
         'workspace-generation-import-reference',
         id,
         revision,
         png,
+        purpose,
       ),
     referenceImage: (id, sceneId) =>
       ipcRenderer.invoke('workspace-generation-reference-image', id, sceneId),

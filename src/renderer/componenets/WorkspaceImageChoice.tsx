@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 interface Props {
   file: File;
   canReference: boolean;
+  onVariation: () => void;
   onMetadata: () => void;
   onReference: () => void;
   onClose: () => void;
@@ -10,6 +11,7 @@ interface Props {
 export default function WorkspaceImageChoice({
   file,
   canReference,
+  onVariation,
   onMetadata,
   onReference,
   onClose,
@@ -44,6 +46,15 @@ export default function WorkspaceImageChoice({
         >
           <strong>프롬프트·설정 가져오기</strong>
           <small>이미지에 담긴 입력을 읽습니다.</small>
+        </button>
+        <button
+          type="button"
+          data-testid="image-use-variation"
+          disabled={!canReference}
+          onClick={onVariation}
+        >
+          <strong>이 이미지로 변형</strong>
+          <small>원본 구도를 바탕으로 새로운 결과를 생성합니다.</small>
         </button>
         <button
           type="button"

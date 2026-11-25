@@ -18,7 +18,8 @@ import type {
   GenerationFailure,
 } from '../../workspaceGeneration';
 import type { WorkspaceScene } from '../../renderer/preview/workspaceDraft';
-import type { ReferenceAsset } from '../../workspaceReference';
+import { VARIATION_DEFAULTS } from '../../workspaceReference';
+import type { ReferenceAsset, ImagePurpose } from '../../workspaceReference';
 import type { ProjectService } from '../projects/projectService';
 import { NaiError } from './errors';
 import { bindBasicGeneration } from './workspaceBinding';
@@ -144,6 +145,7 @@ export class WorkspaceGeneration {
     id: string,
     revision: string,
     png: Uint8Array,
+    purpose: ImagePurpose = 'reference',
   ): Promise<{ asset: ReferenceAsset; preview: Uint8Array }> {
     this.idle();
     if (!this.options.store.importReference)
@@ -152,14 +154,21 @@ export class WorkspaceGeneration {
     this.queueApproval = undefined;
     this.working = true;
     try {
-      const asset = await this.options.store.importReference(id, revision, png);
+      const asset = await this.options.store.importReference(
+        id,
+        revision,
+        png,
+        purpose,
+      );
       if (!this.options.store.referenceBytes)
         throw new GenerationError('INVALID_INPUT');
+      const options =
+        purpose === 'img2img'
+          ? VARIATION_DEFAULTS
+          : { role: 'character', strength: 1, preferSameOutfit: false };
       const preview = await this.options.store.referenceBytes(id, {
         ...asset,
-        role: 'character',
-        strength: 1,
-        preferSameOutfit: false,
+        ...options,
       });
       return { asset, preview };
     } finally {
@@ -175,20 +184,22 @@ export class WorkspaceGeneration {
 
   private async bind(id: string, scene: WorkspaceScene) {
     let bytes: Uint8Array | undefined;
-    if (scene.draft.reference) {
+    const asset = scene.draft.reference ?? scene.draft.img2img;
+    if (asset) {
       if (scene.draft.family !== 'v5')
         throw new GenerationError('UNSUPPORTED_DRAFT');
       if (!this.options.store.referenceBytes)
         throw new GenerationError('INVALID_INPUT');
-      bytes = await this.options.store.referenceBytes(
-        id,
-        scene.draft.reference,
-      );
+      bytes = await this.options.store.referenceBytes(id, asset);
     }
     return bindBasicGeneration(scene, undefined, bytes);
   }
 
-  private static referenceSettings(scene: WorkspaceScene) {
+  private static imageSettings(scene: WorkspaceScene) {
+    if (scene.draft.img2img) {
+      const { strength, noise } = scene.draft.img2img;
+      return { img2img: { strength, noise } };
+    }
     const r = scene.draft.reference;
     return r
       ? {
@@ -255,7 +266,7 @@ export class WorkspaceGeneration {
         steps: request.parameters.steps,
         scale: request.parameters.scale,
         ...(bound.characterCount ? { characters: bound.characterCount } : {}),
-        ...WorkspaceGeneration.referenceSettings(scene),
+        ...WorkspaceGeneration.imageSettings(scene),
         samples: 1,
       };
       this.prepared = {
@@ -617,6 +628,8 @@ export class WorkspaceGeneration {
             seeds.add(seed);
             bound.input.seed = seed;
             bound.request.parameters.seed = seed;
+            if (bound.input.draft.img2img)
+              bound.request.parameters.extra_noise_seed = seed;
           }
           const body = Uint8Array.from(
             Buffer.from(JSON.stringify(bound.request)),
@@ -647,7 +660,7 @@ export class WorkspaceGeneration {
               ...(bound.characterCount
                 ? { characters: bound.characterCount }
                 : {}),
-              ...WorkspaceGeneration.referenceSettings(scene),
+              ...WorkspaceGeneration.imageSettings(scene),
               samples: 1 as const,
             },
           };
@@ -655,7 +668,7 @@ export class WorkspaceGeneration {
           items.push({
             id: task.plan.ticket,
             settings: {
-              ...WorkspaceGeneration.referenceSettings(scene),
+              ...WorkspaceGeneration.imageSettings(scene),
               model: task.plan.model,
               width: task.plan.width,
               height: task.plan.height,

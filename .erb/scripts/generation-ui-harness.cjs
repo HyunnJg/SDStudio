@@ -77,6 +77,19 @@ const server = http.createServer(async (request, response) => {
   assert.equal(parsed.parameters.width, 832);
   assert.equal(parsed.parameters.height, 1216);
   assert.equal(parsed.parameters.n_samples, 1);
+  if (phase === 'img2img') {
+    assert.equal(parsed.action, 'img2img');
+    assert.equal(parsed.parameters.strength, 0.4);
+    assert.equal(parsed.parameters.noise, 0.1);
+    assert.equal(parsed.parameters.extra_noise_seed, parsed.parameters.seed);
+    assert.equal(parsed.parameters.director_reference_images, undefined);
+    const source = Buffer.from(parsed.parameters.image, 'base64');
+    assert.equal(source.readUInt32BE(16), 832);
+    assert.equal(source.readUInt32BE(20), 1216);
+    response.writeHead(200, { 'Content-Type': 'application/zip' });
+    response.end(await payload);
+    return;
+  }
   if (phase === 'reference') {
     assert.equal(parsed.parameters.director_reference_images.length, 1);
     assert.equal(parsed.parameters.director_reference_descriptions[0].caption.base_caption, 'style');
@@ -232,6 +245,8 @@ app.on('web-contents-created', (_event, contents) => {
         await require('./runtime-ui-probe.cjs')(contents, profile);
       if (phase === 'trash') {
         await require('./workspace-trash-ui-probe.cjs')({contents,evaluate,click,fill,until,checks,profile,requestCount:()=>requests});
+      } else if (phase === 'img2img') {
+        await require('./variation-ui-probe.cjs')({evaluate, click, fill, until, checks, requestCount: () => requests});
       } else if (phase === 'reference') {
         await require('./reference-ui-probe.cjs')({ contents, evaluate, click, fill, until, checks, requestCount: () => requests,
           setLock: (id) => { lock = path.join(profile, 'projects-v1', id, 'write.lock'); } });
@@ -945,7 +960,7 @@ app.on('web-contents-created', (_event, contents) => {
         assert.equal(denied.code, 'OFFLINE');
         assert.equal(requests, 0);
         const listing = await evaluate('window.electron.projects.list()');
-        const target = listing.value.find((p) =>
+        const target = process.env.SDSTUDIO_IMG2IMG_SMOKE === '1' ? listing.value[0] : listing.value.find((p) =>
           p.name.includes('(이번 결과)'),
         );
         await click('[data-testid=project-list]');
@@ -972,7 +987,8 @@ app.on('web-contents-created', (_event, contents) => {
         if (process.env.SDSTUDIO_LIBRARY_REOPEN === '1') { assert.equal(library.ok, true); assert.equal(library.value.entries.length, 3); checks.push('new PID reopens the persisted prompt library without a generation request'); }
         const list = await evaluate('window.electron.projects.list()');
         assert.equal(list.ok, true);
-        const restored = list.value.find((p) => p.name.includes('(이번 결과)'));
+        const img2img = process.env.SDSTUDIO_IMG2IMG_SMOKE === '1';
+        const restored = img2img ? list.value[0] : list.value.find((p) => p.name.includes('(이번 결과)'));
         assert.ok(restored);
         await click('[data-testid=project-list]');
         await until(() =>
@@ -989,8 +1005,14 @@ app.on('web-contents-created', (_event, contents) => {
         const data = await evaluate(
           `window.electron.projects.open('${restored.id}')`,
         );
-        assert.equal(data.value.project.images.length, process.env.SDSTUDIO_TRASH_SMOKE === '1' ? 2 : 1);
+        assert.equal(data.value.project.images.length, (img2img || process.env.SDSTUDIO_TRASH_SMOKE === '1') ? 2 : 1);
         if (process.env.SDSTUDIO_TRASH_SMOKE === '1') { assert.equal(data.value.project.version,6);assert.equal(data.value.project.trashedImageIds.length,1);assert.equal(await evaluate("document.querySelectorAll('[data-image-id]').length"),1);checks.push('new PID restores v6 visibility and original bytes without resurrecting a hidden image'); }
+        if (img2img) {
+          assert.equal(data.value.project.version, 7);
+          await until(() => evaluate("document.querySelector('[data-testid=reference-panel] img')?.naturalWidth===832"));
+          assert.equal(await evaluate("document.querySelector('#variation-noise').value"), '0.1');
+          checks.push('new PID restores both results, the img2img preview and noise');
+        }
         if (process.env.SDSTUDIO_REFERENCE_SMOKE === '1') {
           assert.equal(data.value.project.version, 5);
           assert.equal(data.value.project.images[0].binding.id, 'nai-v5-reference-v1');

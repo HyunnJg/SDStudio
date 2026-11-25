@@ -198,7 +198,7 @@ test('close/restart waits for a decision and an edit after a captured save remai
   g.edit();
   release({
     ok: true,
-    value: { project: { id: 'x', images: [] }, revision: 'a' },
+    value: { project: { ...g.controller.content(), id: 'x', images: [] }, revision: 'a' },
   });
   await save;
   assert.equal(g.controller.dirty(), true);
@@ -275,7 +275,7 @@ test('result metadata comes from the accepted snapshot without a second open; cl
   await f.controller.save();
   const current = f.controller.getSnapshot();
   const content = f.controller.content();
-  const image = { id: '33333333-3333-4333-8333-333333333333', seed: 0 };
+  const image = { id: '33333333-3333-4333-8333-333333333333', seed: 0, draft: content.scenes[0].draft, pngBytes: 120 };
   const snapshot = {
     project: {
       ...content,

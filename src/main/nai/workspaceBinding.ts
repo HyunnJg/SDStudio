@@ -2,7 +2,7 @@
 import { randomInt } from 'crypto';
 import type { WorkspaceScene } from '../../renderer/preview/workspaceDraft';
 import type { ProjectImageInput, ImageBinding } from '../../workspaceProject';
-import { validateReference } from '../../workspaceProject';
+import { validateReference, validateVariation } from '../../workspaceProject';
 import { referenceDescription } from '../../workspaceReference';
 import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
 import {
@@ -15,12 +15,15 @@ import {
 export function bindBasicGeneration(
   scene: WorkspaceScene,
   random = () => randomInt(4294967296),
-  referencePNG: Uint8Array | undefined = undefined,
+  inputPNG: Uint8Array | undefined = undefined,
 ) {
   const d = scene.draft;
   const v5 = d.family === 'v5';
   const reference = d.reference ? validateReference(d.reference) : undefined;
-  if (reference && (!v5 || !referencePNG)) throw new Error('UNSUPPORTED_DRAFT');
+  if (reference && (!v5 || !inputPNG)) throw new Error('UNSUPPORTED_DRAFT');
+  const variation = d.img2img ? validateVariation(d.img2img) : undefined;
+  if (variation && (!v5 || reference || !inputPNG))
+    throw new Error('UNSUPPORTED_DRAFT');
   const enabledCharacters = d.characters.filter((c) => c.enabled);
   if (
     enabledCharacters.some(
@@ -87,6 +90,11 @@ export function bindBasicGeneration(
     ? join(V5_UC_PRESETS[uc], d.negativePrompt)
     : d.negativePrompt;
   const size = v5 ? V5_SIZES[d.resolution] : { width: 512, height: 512 };
+  if (
+    variation &&
+    (variation.width !== size.width || variation.height !== size.height)
+  )
+    throw new Error('UNSUPPORTED_DRAFT');
   const captions = (negativeCaption: boolean) =>
     characters.map((c) => ({
       char_caption: negativeCaption ? c.negativePrompt : c.prompt,
@@ -103,7 +111,7 @@ export function bindBasicGeneration(
     model: v5
       ? ('nai-diffusion-5-full' as const)
       : ('nai-diffusion-4-5-full' as const),
-    action: 'generate',
+    action: variation ? 'img2img' : 'generate',
     parameters: {
       params_version: v5 ? 4 : 3,
       ...size,
@@ -114,10 +122,10 @@ export function bindBasicGeneration(
       sampler: 'k_euler_ancestral',
       noise_schedule: 'karras',
       cfg_rescale: 0,
-      ...(reference && referencePNG
+      ...(reference && inputPNG
         ? {
             director_reference_images: [
-              Buffer.from(referencePNG).toString('base64'),
+              Buffer.from(inputPNG).toString('base64'),
             ],
             director_reference_descriptions: [
               {
@@ -131,6 +139,13 @@ export function bindBasicGeneration(
             director_reference_information_extracted: [1],
             director_reference_strength_values: [reference.strength],
             director_reference_secondary_strength_values: [0],
+          }
+        : {}),
+      ...(variation && inputPNG
+        ? {
+            image: Buffer.from(inputPNG).toString('base64'),
+            strength: variation.strength,
+            noise: variation.noise,
           }
         : {}),
       negative_prompt: negative,
@@ -152,7 +167,7 @@ export function bindBasicGeneration(
             skip_cfg_above_sigma: null,
             deliberate_euler_ancestral_bug: false,
             prefer_brownian: true,
-            extra_noise_seed: seed - 1,
+            extra_noise_seed: variation ? seed : seed - 1,
           }
         : {}),
     },
@@ -169,5 +184,6 @@ export function bindBasicGeneration(
   if (v5) bindingId = 'nai-v5-full-v1';
   if (v5 && characters.length) bindingId = 'nai-v5-characters-auto-v1';
   if (reference) bindingId = 'nai-v5-reference-v1';
+  if (variation) bindingId = 'nai-v5-img2img-v1';
   return { request, input, bindingId, characterCount: characters.length };
 }
