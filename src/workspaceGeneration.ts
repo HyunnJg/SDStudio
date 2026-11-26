@@ -71,6 +71,7 @@ export interface GenerationQueueItem {
   settings?: GenerationSettings;
 }
 export interface GenerationQueuePlan {
+  repeatsFixedSeed?: true;
   ticket: string;
   queueId: string;
   total: number;

@@ -81,6 +81,40 @@ test('cut preparation rejects ambiguous targets, missing I2I and unsafe paragrap
     assert.throws(() => make({ ...cut, img2imgStrength: invalid }));
   assert.deepEqual(make({ ...cut, included: false }), []);
 });
+test('multi pieces exclude only whitespace lines at import and when binding old drafts', () => {
+  const text = ' dark hair \r\n \t\r\ngray hair\r\n';
+  const piece = { key: 'art.hair', multi: true, text };
+  const library = (prompt) => ({
+    name: 'art',
+    pieces: [{ name: 'hair', multi: true, prompt }],
+  });
+  const imported = require('../workspacePromptPieces').inspectPieceImport(
+    library(text),
+  );
+  assert.equal(imported.ignored, 2);
+  assert.equal(imported.pieces[0].text, ' dark hair \ngray hair');
+  const draft = { ...base.draft, prompt: '<art.hair>', pieces: [piece] };
+  const seen = new Set();
+  for (let seed = 0; seed < 128; seed++) {
+    const selected = expandDraft(draft, seed).prompt;
+    seen.add(selected);
+    assert.equal(
+      expandDraft({ ...draft, pieces: imported.pieces }, seed).prompt,
+      selected,
+    );
+  }
+  assert.deepEqual(seen, new Set([' dark hair ', 'gray hair']));
+  assert.throws(() => importPieces(library('\n \t')), /UNSUPPORTED_DRAFT/);
+  assert.throws(
+    () => expandDraft({ ...draft, pieces: [{ ...piece, text: '  \n' }] }, 1),
+    /UNSUPPORTED_DRAFT/,
+  );
+  assert.equal(
+    expandDraft({ ...draft, pieces: [{ ...piece, multi: false }] }, 1).prompt,
+    text,
+  );
+});
+
 test('model IDs, caption generations, sizes and medium effort constraints agree', () => {
   for (const model of Object.keys(MODELS)) {
     const draft = {

@@ -123,7 +123,7 @@ test('V5 quality and UC choices affect only effective request strings; seed0 and
       };
       const { request } = bindBasicGeneration({ ...scene, draft: d });
       assert.equal(request.parameters.seed, 0);
-      assert.equal(request.parameters.extra_noise_seed, -1);
+      assert.equal(request.parameters.extra_noise_seed, 0);
       assert.equal(request.parameters.negative_prompt, V5_UC_PRESETS[ucPreset]);
       assert.equal(
         request.input,

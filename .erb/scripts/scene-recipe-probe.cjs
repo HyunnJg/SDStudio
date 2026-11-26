@@ -25,22 +25,43 @@ module.exports = async ({ evaluate, click, fill, until, checks, requests }) => {
   await evaluate(`(() => {
     const input = document.querySelector('.workspace-pieces input');
     const dt = new DataTransfer();
-    dt.items.add(new File([JSON.stringify({name:'art',pieces:[{name:'coat',prompt:'red coat\\nblue coat',multi:true}]})],'pieces.json'));
+    dt.items.add(new File([JSON.stringify({name:'art',pieces:[{name:'coat',prompt:'red coat\\n \\nblue coat\\n',multi:true}]})],'pieces.json'));
     input.files = dt.files; input.dispatchEvent(new Event('change',{bubbles:true}));
   })()`);
   await until(() =>
     evaluate("!!document.querySelector('[data-testid=apply-piece-import]')"),
   );
+  assert.match(
+    await evaluate(
+      "document.querySelector('[data-testid=apply-piece-import]').textContent",
+    ),
+    /빈 줄 2개 제외/,
+  );
   await click('[data-testid=apply-piece-import]');
   await click('.workspace-pieces details summary');
   await fill('[aria-label="조각 이름"]', 'art.weather');
-  await fill('[aria-label="조각 내용"]', '{rain|snow}');
+  await click('.workspace-pieces details input[type=checkbox]');
+  await fill('[aria-label="조각 내용"]', '{rain|snow}\n \n');
+  assert.match(
+    await evaluate(
+      "document.querySelector('.workspace-pieces details').textContent",
+    ),
+    /빈 줄 2개 제외/,
+  );
   await click('[data-testid=save-scene-piece]');
   await until(() =>
     evaluate(
       "document.querySelector('.workspace-pieces select').value==='art.weather'",
     ),
   );
+  assert.equal(
+    await evaluate(
+      'document.querySelector(\'[aria-label="조각 내용"]\').value',
+    ),
+    '{rain|snow}',
+  );
+  await select('#live-seed-mode', 'fixed');
+  await fill('#live-seed', '7');
   await fill('#live-prompt', '<art.coat>, <art.weather>');
   await click('[data-testid=scene-recipe] summary');
   await fill('[data-testid=scene-recipe] input', 'Recipe');
@@ -84,6 +105,11 @@ module.exports = async ({ evaluate, click, fill, until, checks, requests }) => {
   await click('[data-testid=prepare-recipe]');
   await until(() =>
     evaluate("!!document.querySelector('[data-testid=queue-confirm]')"),
+  );
+  assert.ok(
+    await evaluate(
+      "document.querySelector('[data-testid=queue-confirm]').textContent.includes('같은 선택')",
+    ),
   );
   assert.equal(requests(), 0);
   checks.push(

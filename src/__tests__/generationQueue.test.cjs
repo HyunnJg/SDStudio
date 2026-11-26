@@ -544,6 +544,7 @@ test('selected subset follows saved scene order, preserves fixed0 repeats, and d
   );
   assert.equal(p.items[0].seed, 0);
   assert.equal(p.items[2].seed, 0);
+  assert.equal(p.repeatsFixedSeed, true);
   await f.service.runQueue(p.ticket, true);
   assert.equal(f.count, 4);
   f.service.clearQueue();

@@ -561,7 +561,18 @@ export class WorkspaceGeneration {
     const first = reservation.tasks.find(
       (task) => task.plan.ticket === items[0].id,
     )!.plan;
+    const fixedScenes = new Set(
+      reservation.tasks
+        .filter((task) => task.sourceDraft.seedMode === 'fixed')
+        .map((task) => task.input.sceneId),
+    );
+    const pendingFixed = items
+      .filter((item) => fixedScenes.has(item.sceneId))
+      .map((item) => item.sceneId);
     const plan: GenerationQueuePlan = {
+      ...(new Set(pendingFixed).size < pendingFixed.length
+        ? { repeatsFixedSeed: true as const }
+        : {}),
       ticket: randomUUID(),
       queueId: reservation.state.id,
       total: items.length,

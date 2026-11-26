@@ -1182,6 +1182,12 @@ export default function ConnectedWorkspace({
                         value={state.draft.guidance}
                         onChange={(e) => patch({ guidance: e.target.value })}
                       />
+                      {state.draft.family !== 'v5' && (
+                        <small>
+                          V5 품질 태그·부정 프리셋은 이 모델에 적용되지
+                          않습니다.
+                        </small>
+                      )}
                       <details
                         hidden={state.draft.family !== 'v5'}
                         className="connected-extra-settings"
@@ -1392,6 +1398,12 @@ export default function ConnectedWorkspace({
                 {queuePlan.settings.some((settings) => settings.reference) && (
                   <p data-testid="queue-reference-cost">
                     {REFERENCE_COST_NOTICE}
+                  </p>
+                )}
+                {queuePlan.repeatsFixedSeed && (
+                  <p>
+                    고정 시드로 반복하는 씬은 조각·와일드카드도 매번 같은 선택을
+                    사용합니다.
                   </p>
                 )}
                 {queuePlan.settings.some(requiresAnlasWarning) && (

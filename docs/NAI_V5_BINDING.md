@@ -27,7 +27,7 @@
 
 - 새 바인딩 `nai-v5-full-v1`: Full high 설정을 기본으로 세로832×1216/가로1216×832/정사각1024×1024, 사용자 스텝1~50·scale0초과~10을 허용한다. 이는 앱의 제한이며 그 모든 조합을 서버에서 실험했다는 뜻이 아니다. Medium/새 모델·임의 sampler/endpoint는 열지 않는다.
 - 품질 none/light/standard와 UC none/light/heavy/human/furry는 명시적 필드로 저장한다. 품질 suffix/부정 prefix를 적용한 최종 본문을 해시하며 실제 편집 초안은 바꾸지 않는다. 옵션이 없는 옛 V5 초안은 none으로 해석해 숨은 태그를 추가하지 않는다. 새 입력만 standard/heavy다.
-- char_captions=[], use_coords=false, 양성 use_order=true, 음성 legacy_uc=false이며 활성 캐릭터/좌표/와일드카드·혼합 문법은 지원하지 않는다. 기존 seed0은 seed0으로 보내고 extra_noise_seed=-1이다. 서버가 seed0을 어떻게 해석하는지는 이번에 확인하지 않았다.
+- char_captions=[], use_coords=false, 양성 use_order=true, 음성 legacy_uc=false이며 활성 캐릭터/좌표/와일드카드·혼합 문법은 지원하지 않는다. 이 시점에는 seed0을 seed0으로 보내고 extra_noise_seed=-1을 사용했다. D-075에서 보조 시드를 0으로 제한하고 V5 Full의 PNG 저장을 실계정으로 확인했다.
 - **출력 차이:** 웹 클라이언트는 WebP를 요청하고 PNG 내보내기를 별도로 한다. 앱은 기존 제한 ZIP/PNG 원본 보관 경로를 유지하기 위해 **image_format=png**를 요청한다. 이 값이 현재 V5 서버에서 수용되는지 직접 확인하지 않았다. 웹과 완전히 같은 요청이라고 주장하지 않으며, 첫 실계정1장 확인 항목이다. 형식이 다르면 기존 고정 오류/서버 처리 불확실성을 남기고 자동 재시도하지 않는다.
 - 기존 V4.5 binding/request 형태는 그대로다. V5 선택 필드/결과는 manifest v3, reader는 v1/v2/v3다. 선택한 모델의 새 설정은 저장/복구·혼합 큐에도 남는다.
 

@@ -201,7 +201,7 @@ export function bindBasicGeneration(
             skip_cfg_above_sigma: null,
             deliberate_euler_ancestral_bug: false,
             prefer_brownian: true,
-            extra_noise_seed: variation ? seed : seed - 1,
+            extra_noise_seed: variation ? seed : Math.max(0, seed - 1),
           }
         : {}),
     },

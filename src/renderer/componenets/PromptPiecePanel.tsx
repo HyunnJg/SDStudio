@@ -2,7 +2,8 @@
 import { useRef, useState } from 'react';
 import {
   PromptPiece,
-  importPieces,
+  inspectPieceImport,
+  multiPieceLines,
   validPieces,
 } from '../../workspacePromptPieces';
 
@@ -22,10 +23,15 @@ export default function PromptPiecePanel({
   const empty = { key: '', text: '', multi: false };
   const [editor, setEditor] = useState<PromptPiece>(empty);
   const [editing, setEditing] = useState('');
+  const lines = editor.multi ? multiPieceLines(editor.text) : undefined;
   const savePiece = () => {
+    if (lines && !lines.candidates.length) return;
+    const piece = lines
+      ? { ...editor, text: lines.candidates.join('\n') }
+      : editor;
     const next = editing
-      ? pieces.map((p) => (p.key === editing ? editor : p))
-      : [...pieces, editor];
+      ? pieces.map((p) => (p.key === editing ? piece : p))
+      : [...pieces, piece];
     if (
       !validPieces(next) ||
       (editing && !pieces.some((p) => p.key === editing))
@@ -34,10 +40,12 @@ export default function PromptPiecePanel({
       return;
     }
     onChange(next);
-    setEditing(editor.key);
+    setEditor(piece);
+    setEditing(piece.key);
     setError('');
   };
-  const [pending, setPending] = useState<PromptPiece[]>([]);
+  const [pending, setPending] =
+    useState<ReturnType<typeof inspectPieceImport>>();
   return (
     <details className="workspace-pieces">
       <summary>와일드카드·V3 조각 {pieces.length || ''}</summary>
@@ -57,10 +65,12 @@ export default function PromptPiecePanel({
             request.current += 1;
             const ticket = request.current;
             setError('');
-            setPending([]);
+            setPending(undefined);
             try {
               if (file.size > 2 * 1024 * 1024) throw Error();
-              const imported = importPieces(JSON.parse(await file.text()));
+              const imported = inspectPieceImport(
+                JSON.parse(await file.text()),
+              );
               if (request.current === ticket) setPending(imported);
             } catch {
               if (request.current === ticket)
@@ -69,7 +79,7 @@ export default function PromptPiecePanel({
           }}
         />
       </label>
-      {pending.length > 0 && (
+      {pending && (
         <button
           data-testid="apply-piece-import"
           disabled={disabled}
@@ -77,11 +87,12 @@ export default function PromptPiecePanel({
           onClick={() => {
             setEditor(empty);
             setEditing('');
-            onChange(pending);
-            setPending([]);
+            onChange(pending.pieces);
+            setPending(undefined);
           }}
         >
-          현재 씬의 조각을 {pending.length}개로 교체
+          현재 씬의 조각을 {pending.pieces.length}개로 교체
+          {pending.ignored > 0 && ` · 빈 줄 ${pending.ignored}개 제외`}
         </button>
       )}
       {pieces.map((p) => (
@@ -144,6 +155,9 @@ export default function PromptPiecePanel({
             />
             줄마다 후보 한 개
           </label>
+          {lines && lines.ignored > 0 && (
+            <small>빈 줄 {lines.ignored}개 제외</small>
+          )}
           <button
             data-testid="save-scene-piece"
             type="button"

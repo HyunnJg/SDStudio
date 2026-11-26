@@ -33,7 +33,13 @@ export function validPieces(value: unknown): value is PromptPiece[] {
   });
 }
 
-export function importPieces(value: unknown): PromptPiece[] {
+export function multiPieceLines(text: string) {
+  const lines = text.split(/\r?\n/);
+  const candidates = lines.filter((line) => line.trim().length > 0);
+  return { candidates, ignored: lines.length - candidates.length };
+}
+
+export function inspectPieceImport(value: unknown) {
   if (!value || typeof value !== 'object') return invalid();
   const data = value as Record<string, any>;
   const libraries = data.pieces
@@ -66,7 +72,19 @@ export function importPieces(value: unknown): PromptPiece[] {
     }
   }
   if (!out.length || !validPieces(out)) return invalid();
-  return out;
+  let ignored = 0;
+  const pieces = out.map((p) => {
+    if (!p.multi) return p;
+    const lines = multiPieceLines(p.text);
+    if (!lines.candidates.length) return invalid();
+    ignored += lines.ignored;
+    return { ...p, text: lines.candidates.join('\n') };
+  });
+  return { pieces, ignored };
+}
+
+export function importPieces(value: unknown): PromptPiece[] {
+  return inspectPieceImport(value).pieces;
 }
 
 // Use only the approved image seed. Rebinding an interrupted reservation repeats the same choices.
@@ -75,6 +93,7 @@ export function expandDraft(
   seed: number,
 ): WorkspaceDraft {
   const dictionary = new Map(input.pieces?.map((p) => [p.key, p]));
+  const lineChoices = new Map<string, string[]>();
   let state = seed >>> 0;
   let budget = 524288;
   const pick = (count: number) => {
@@ -98,14 +117,17 @@ export function expandDraft(
         else {
           const piece = dictionary.get(key);
           if (!piece || path.includes(key)) return invalid();
-          const options = piece.multi
-            ? piece.text.split(/\r?\n/)
-            : [piece.text];
-          output += expand(
-            options[piece.multi ? pick(options.length) : 0],
-            [...path, key],
-            depth + 1,
-          );
+          let chosen = piece.text;
+          if (piece.multi) {
+            let options = lineChoices.get(key);
+            if (!options) {
+              options = multiPieceLines(piece.text).candidates;
+              if (!options.length) return invalid();
+              lineChoices.set(key, options);
+            }
+            chosen = options[pick(options.length)];
+          }
+          output += expand(chosen, [...path, key], depth + 1);
         }
       } else if (match[0] === '||') {
         const end = text.indexOf('||', tokens.lastIndex);
