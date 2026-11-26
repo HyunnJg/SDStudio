@@ -32,6 +32,7 @@ module.exports=async({contents,evaluate,click,fill,until,checks,profile,requestC
   dialog.showSaveDialog = async () => ({canceled:false,filePath:exported});
   await click('.gallery-export button[aria-pressed]');
   await click(`[data-image-id="${latest.id}"]`);
+  await until(()=>evaluate("!document.querySelector('[data-testid=gallery-save]').disabled"));
   assert.equal(await evaluate("document.querySelector('[data-testid=gallery-save]').textContent"),'PNG 저장');
   await click(`[data-image-id="${before.project.images[0].id}"]`);
   await until(()=>evaluate("document.querySelector('[data-testid=gallery-save]').textContent.includes('2장')"));
@@ -46,6 +47,9 @@ module.exports=async({contents,evaluate,click,fill,until,checks,profile,requestC
   assert.equal(Object.keys(archive.files).length,2);
   await until(()=>evaluate("!document.querySelector('[data-testid=gallery-save]').disabled"));
   await click('.gallery-export button[aria-pressed]');
+  await until(()=>evaluate("document.querySelector('.gallery-export button[aria-pressed]').textContent.includes('(2)')"));
+  const persistedPicks = await evaluate(`window.electron.projects.resultPicks('${id}')`);
+  assert.deepEqual(persistedPicks.value,before.project.images.map(image=>image.id));
   checks.push('gallery selection exports two same-seed original PNG records through a native-save dialog stub');
  } finally { dialog.showSaveDialog=chooseFile;fs.rmSync(exportDir,{recursive:true,force:true}); }
  const channel='workspace-project-image-deleted',handler=ipcMain._invokeHandlers.get(channel);
@@ -167,4 +171,32 @@ module.exports=async({contents,evaluate,click,fill,until,checks,profile,requestC
  await click('[data-testid=project-save]');
  await until(() => JSON.parse(fs.readFileSync(manifest)).scenes.some(scene => scene.id === full.selectedSceneId && scene.draft.prompt === 'unsaved cleanup edit'));
  checks.push('empty frees 118 slots, reports exact orphan bytes, keeps unsaved input and restores the previous 119-result snapshot without another request');
+
+ // Export one scene without clearing the retained choice in another scene.
+ const split = await evaluate(`window.electron.projects.copy('${id}', '${final.revision}', ${JSON.stringify({...content,name:'Scene picks fixture'})})`);
+ assert.equal(split.ok,true);
+ const sample = split.value.project;
+ const other = {...sample.scenes[0], id:'synthetic-other', name:'다른 씬'};
+ sample.scenes.push(other);
+ sample.images[1].sceneId = other.id;
+ sample.trashedImageIds = [];
+ fs.writeFileSync(path.join(profile,'projects-v1',sample.id,'project.json'), JSON.stringify(sample));
+ await click('[data-testid=project-list]');
+ await until(()=>evaluate(`!!document.querySelector('[data-project-open="${sample.id}"]')`));
+ await click(`[data-project-open="${sample.id}"]`);
+ await until(()=>evaluate("document.querySelector('.gallery-export button[aria-pressed]')?.textContent.includes('(2)')"));
+ await click('.gallery-export button[aria-pressed]');
+ await evaluate("(()=>{const el=document.querySelector('.gallery-export select');el.value='synthetic-other';el.dispatchEvent(new Event('change',{bubbles:true}));})()");
+ await until(()=>evaluate("document.querySelectorAll('[data-image-id]').length===1"));
+ assert.equal(await evaluate("document.querySelector('[data-testid=gallery-save]').textContent"),'PNG 저장');
+ const singleDir=fs.mkdtempSync(path.join(require('os').tmpdir(),'sdstudio-pick-scope-'));
+ try {
+  const single=path.join(singleDir,'picked.png');
+  dialog.showSaveDialog=async()=>({canceled:false,filePath:single});
+  await click('[data-testid=gallery-save]');
+  await until(()=>fs.existsSync(single));
+  assert.deepEqual(fs.readFileSync(single),fs.readFileSync(path.join(profile,'projects-v1',sample.id,'images',sample.images[1].sha256+'.png')));
+  assert.deepEqual((await evaluate(`window.electron.projects.resultPicks('${sample.id}')`)).value,sample.images.map(i=>i.id));
+ } finally { dialog.showSaveDialog=chooseFile;fs.rmSync(singleDir,{recursive:true,force:true}); }
+ checks.push('scene export preserves both durable picks and returns the original selected scene PNG');
 };

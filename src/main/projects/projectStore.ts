@@ -337,6 +337,75 @@ export class ProjectStore {
     });
   }
 
+  private readPickFile(id: string): Set<string> {
+    const file = path.join(this.folder(id), 'result-picks.v1.json');
+    if (!ProjectStore.exists(file)) return new Set();
+    const bytes = read(file, 8192);
+    try {
+      const ids: unknown = JSON.parse(
+        new TextDecoder('utf-8', { fatal: true }).decode(bytes),
+      );
+      projectCheck(Array.isArray(ids) && ids.length <= PROJECT_LIMITS.results);
+      ids.forEach(projectId);
+      projectCheck(new Set(ids).size === ids.length);
+      return new Set(ids);
+    } catch {
+      throw new ProjectError('PROJECT_CORRUPT');
+    }
+  }
+
+  resultPicks(id: string): string[] {
+    return io(() => {
+      const { project } = this.readManifest(id);
+      const picks = this.readPickFile(id);
+      return project.images
+        .map((image) => image.id)
+        .filter((key) => picks.has(key));
+    });
+  }
+
+  setResultPicks(
+    id: string,
+    revision: string,
+    ids: string[],
+    picked: boolean,
+  ): string[] {
+    projectCheck(
+      Array.isArray(ids) &&
+        ids.length > 0 &&
+        ids.length <= PROJECT_LIMITS.results,
+    );
+    ids.forEach(projectId);
+    projectCheck(
+      new Set(ids).size === ids.length && typeof picked === 'boolean',
+    );
+    return this.withRevision(id, revision, ({ project }, folder) => {
+      const visible = new Set(project.images.map((image) => image.id));
+      project.trashedImageIds?.forEach((key) => visible.delete(key));
+      projectCheck(
+        ids.every((key) => visible.has(key)),
+        'PROJECT_NOT_FOUND',
+      );
+      const picks = this.readPickFile(id);
+      ids.forEach((key) => {
+        if (picked) picks.add(key);
+        else picks.delete(key);
+      });
+      const next = project.images
+        .map((image) => image.id)
+        .filter((key) => picks.has(key));
+      const temporary = path.join(folder, `.picks-${randomUUID()}.tmp`);
+      try {
+        writeNew(temporary, Buffer.from(JSON.stringify(next)));
+        fs.renameSync(temporary, path.join(folder, 'result-picks.v1.json'));
+        syncDirectory(folder);
+      } finally {
+        if (ProjectStore.exists(temporary)) fs.unlinkSync(temporary);
+      }
+      return next;
+    });
+  }
+
   setImageDeleted(
     id: string,
     revision: string,
@@ -395,6 +464,7 @@ export class ProjectStore {
     images: WorkspaceProject['images'],
     sourceId?: string,
     trashedImageIds?: string[],
+    copiedPicks: string[] = [],
   ): ProjectSnapshot {
     const root = this.directory([], true);
     projectCheck(
@@ -432,6 +502,11 @@ export class ProjectStore {
         );
       }
     }
+    if (copiedPicks.length)
+      writeNew(
+        path.join(folder, 'result-picks.v1.json'),
+        Buffer.from(JSON.stringify(copiedPicks)),
+      );
     writeNew(path.join(folder, 'project.json'), bytes);
     syncDirectory(path.join(folder, 'images'));
     syncDirectory(folder);
@@ -1008,6 +1083,7 @@ export class ProjectStore {
         current.project.images,
         id,
         current.project.trashedImageIds,
+        this.resultPicks(id),
       );
     });
   }

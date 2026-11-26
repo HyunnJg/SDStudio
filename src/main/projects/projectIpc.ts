@@ -18,6 +18,8 @@ export type ProjectOperations = { restartStorage?: () => Promise<void> } & {
       | 'trashProject'
       | 'restoreProject'
       | 'emptyResultTrash'
+      | 'resultPicks'
+      | 'setResultPicks'
       | 'setImageDeleted'
   ]: (
     ...args: Parameters<ProjectStore[K]>
@@ -57,6 +59,10 @@ export function registerProjects(
       throw new ProjectError('PROJECT_SERVICE_STOPPED');
     return store.restartStorage();
   });
+  handle('workspace-project-result-picks', (id) => store.resultPicks(id));
+  handle('workspace-project-set-result-picks', (id, revision, ids, picked) =>
+    store.setResultPicks(id, revision, ids, picked),
+  );
   handle('workspace-project-list', () => store.list());
   handle('workspace-project-list-trash', () => store.listTrash());
   handle('workspace-project-trash', (id) =>

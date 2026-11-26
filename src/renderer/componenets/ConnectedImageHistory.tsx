@@ -11,6 +11,7 @@ interface ThumbnailProps {
   number: number;
   selected: boolean;
   marked?: boolean;
+  editingPicks: boolean;
   selectedURL: string;
   load: () => ReturnType<GenerationClient['image']>;
   queue: ThumbnailQueue;
@@ -23,6 +24,7 @@ function Thumbnail({
   number,
   selected,
   marked = undefined,
+  editingPicks,
   selectedURL,
   load,
   queue,
@@ -85,14 +87,18 @@ function Thumbnail({
       ref={button}
       type="button"
       className="connected-thumbnail"
-      aria-pressed={marked ?? selected}
+      aria-pressed={editingPicks ? marked : selected}
       data-image-id={image.id}
       data-restore-result={actionLabel ? image.id : undefined}
       disabled={disabled}
       onClick={onSelect}
     >
-      {marked !== undefined && (
-        <span aria-hidden="true" className="gallery-mark">
+      {(editingPicks || marked) && (
+        <span
+          className="gallery-mark"
+          data-picked={!!marked}
+          aria-label={marked ? '선별됨' : undefined}
+        >
           {marked ? '✓' : ''}
         </span>
       )}
@@ -124,7 +130,12 @@ interface Props {
   selected: string;
   selectedURL: string;
   onSelect: (id: string) => void;
-  exportResults?: ProjectClient['exportResults'];
+  projects?: Pick<
+    ProjectClient,
+    'exportResults' | 'resultPicks' | 'setResultPicks'
+  >;
+  revision?: string;
+  scenes?: { id: string; name: string }[];
   actionLabel?: string;
   disabled?: boolean;
 }
@@ -135,7 +146,9 @@ export default function ConnectedImageHistory({
   selected,
   selectedURL,
   onSelect,
-  exportResults = undefined,
+  projects = undefined,
+  revision = undefined,
+  scenes = [],
   actionLabel = '',
   disabled = false,
 }: Props) {
@@ -150,23 +163,79 @@ export default function ConnectedImageHistory({
     [client, projectId],
   );
   const { queue, loaders } = scope;
-  const [selection, setSelection] = useState<Set<string> | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [scene, setScene] = useState('');
+  const [onlyPicked, setOnlyPicked] = useState(false);
+  const [picks, setPicks] = useState<Set<string>>();
+  const [pickError, setPickError] = useState('');
+  const [reload, setReload] = useState(0);
+  const [writing, setWriting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [exportError, setExportError] = useState('');
-  const ids = images
-    .filter((image) => selection?.has(image.id))
-    .map((image) => image.id);
-  const saveIds = selection
+  useEffect(() => {
+    if (!projectId || !projects) return undefined;
+    let alive = true;
+    setPicks(undefined);
+    setPickError('');
+    void projects
+      .resultPicks(projectId)
+      .then((reply) => {
+        if (!alive) return undefined;
+        if (reply.ok) setPicks(new Set(reply.value));
+        else setPickError(projectErrorMessage(reply.code));
+        return undefined;
+      })
+      .catch(() => {
+        if (alive) setPickError('선별 목록을 읽지 못했습니다.');
+      });
+    return () => {
+      alive = false;
+    };
+  }, [projectId, projects, reload]);
+
+  const sceneIds = [...new Set(images.map((image) => image.sceneId))];
+  const scoped =
+    selecting && scene ? images.filter((i) => i.sceneId === scene) : images;
+  const ids = scoped.filter((i) => picks?.has(i.id)).map((i) => i.id);
+  const saveIds = selecting
     ? ids
-    : images.filter((image) => image.id === selected).map((image) => image.id);
+    : images.filter((i) => i.id === selected).map((i) => i.id);
+  const count = images.filter((i) => picks?.has(i.id)).length;
+  const changePicks = async (changed: string[], picked: boolean) => {
+    if (
+      !projectId ||
+      !revision ||
+      !projects ||
+      !picks ||
+      writing ||
+      !changed.length
+    )
+      return;
+    setWriting(true);
+    setPickError('');
+    try {
+      const reply = await projects.setResultPicks(
+        projectId,
+        revision,
+        changed,
+        picked,
+      );
+      if (reply.ok) setPicks(new Set(reply.value));
+      else setPickError(projectErrorMessage(reply.code));
+    } catch {
+      setPickError('선별 목록을 저장하지 못했습니다.');
+    } finally {
+      setWriting(false);
+    }
+  };
   const saveLabel =
     saveIds.length > 1 ? `ZIP 저장 (${saveIds.length}장)` : 'PNG 저장';
   const save = async () => {
-    if (!exportResults || !projectId || saving || !saveIds.length) return;
+    if (!projects || !projectId || saving || !saveIds.length) return;
     setSaving(true);
     setExportError('');
     try {
-      const reply = await exportResults(projectId, saveIds);
+      const reply = await projects.exportResults(projectId, saveIds);
       if (!reply.ok) {
         const errors = {
           PROJECT_BUSY: '다른 저장이 끝나면 다시 시도해 주세요.',
@@ -187,14 +256,8 @@ export default function ConnectedImageHistory({
     }
   };
   const select = (id: string) => {
-    if (!selection) {
-      onSelect(id);
-      return;
-    }
-    const next = new Set(selection);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelection(next);
+    if (selecting) void changePicks([id], !picks?.has(id));
+    else onSelect(id);
   };
 
   const getLoader = (id: string) => {
@@ -207,42 +270,91 @@ export default function ConnectedImageHistory({
   };
   return (
     <>
-      {exportResults && images.length > 0 && (
+      {projects && images.length > 0 && (
         <div className="gallery-export" aria-label="결과 저장">
           <button
             type="button"
-            disabled={saving}
-            aria-pressed={!!selection}
+            disabled={saving || writing || !picks}
+            aria-pressed={selecting}
             onClick={() => {
-              setSelection(selection ? null : new Set());
+              setSelecting(!selecting);
+              setScene('');
+              setOnlyPicked(false);
               setExportError('');
             }}
           >
-            {selection ? '선택 종료' : '여러 장 선택'}
+            {selecting ? '선별 종료' : `선별${count ? ` (${count})` : ''}`}
           </button>
-          {selection && (
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() =>
-                setSelection(
-                  ids.length === images.length
-                    ? new Set()
-                    : new Set(images.map((i) => i.id)),
-                )
-              }
-            >
-              {ids.length === images.length ? '선택 해제' : '전체 선택'}
-            </button>
+          {selecting && (
+            <>
+              {sceneIds.length > 1 || scene ? (
+                <select
+                  aria-label="선별할 씬"
+                  value={scene}
+                  disabled={writing || saving}
+                  onChange={(event) => setScene(event.target.value)}
+                >
+                  <option value="">전체 씬</option>
+                  {[...new Set([...sceneIds, ...(scene ? [scene] : [])])].map(
+                    (id) => (
+                      <option key={id} value={id}>
+                        {scenes.find((item) => item.id === id)?.name ??
+                          `이전 씬 (${id})`}
+                      </option>
+                    ),
+                  )}
+                </select>
+              ) : null}
+              <label htmlFor="gallery-only-picked">
+                <input
+                  id="gallery-only-picked"
+                  type="checkbox"
+                  checked={onlyPicked}
+                  onChange={(event) => setOnlyPicked(event.target.checked)}
+                />
+                선별만 보기
+              </label>
+              <button
+                type="button"
+                disabled={
+                  onlyPicked ||
+                  !scoped.length ||
+                  saving ||
+                  writing ||
+                  !picks ||
+                  !!pickError
+                }
+                onClick={() =>
+                  void changePicks(
+                    scoped.map((i) => i.id),
+                    ids.length !== scoped.length,
+                  )
+                }
+              >
+                {ids.length > 0 && ids.length === scoped.length
+                  ? '모두 해제'
+                  : '모두 선별'}
+              </button>
+            </>
           )}
           <button
             type="button"
             data-testid="gallery-save"
-            disabled={saving || !saveIds.length}
+            disabled={
+              saving || writing || !saveIds.length || (selecting && !!pickError)
+            }
             onClick={save}
           >
             {saving ? '저장 중…' : saveLabel}
           </button>
+          {pickError && (
+            <small role="alert">
+              {pickError}{' '}
+              <button type="button" onClick={() => setReload((n) => n + 1)}>
+                선별 다시 읽기
+              </button>
+            </small>
+          )}
           {exportError && <small role="alert">{exportError}</small>}
         </div>
       )}
@@ -250,22 +362,31 @@ export default function ConnectedImageHistory({
         {!images.length && (
           <p className="connected-history-empty">아직 이미지가 없습니다.</p>
         )}
+        {onlyPicked && !ids.length && (
+          <p className="connected-history-empty">선별한 결과가 없습니다.</p>
+        )}
         {projectId &&
-          [...images]
+          [...scoped]
+            .filter((image) => !onlyPicked || picks?.has(image.id))
             .reverse()
-            .map((image, index) => (
+            .map((image) => (
               <Thumbnail
                 key={`${projectId}:${image.id}`}
                 image={image}
-                number={images.length - index}
+                number={images.indexOf(image) + 1}
                 selected={selected === image.id}
                 selectedURL={selectedURL}
                 load={getLoader(image.id)}
                 queue={queue}
-                marked={selection ? selection.has(image.id) : undefined}
+                marked={picks?.has(image.id)}
+                editingPicks={selecting}
                 onSelect={() => select(image.id)}
                 actionLabel={actionLabel}
-                disabled={disabled || saving}
+                disabled={
+                  disabled ||
+                  saving ||
+                  (selecting && (writing || !picks || !!pickError))
+                }
               />
             ))}
       </div>
