@@ -585,7 +585,10 @@ export default function ConnectedWorkspace({
       showGenerationFailure(error);
     } else setMessage(value.queue?.stopped ? '중지됨' : '완료');
   };
-  const prepareQueue = async (remaining = false) => {
+  const prepareQueue = async (
+    remaining = false,
+    selectedIds = availableSceneIds,
+  ) => {
     if (operation.current) return;
     operation.current = true;
     generationEpoch.current += 1;
@@ -606,7 +609,7 @@ export default function ConnectedWorkspace({
           : client.prepareQueue(
               saved.id!,
               saved.revision!,
-              availableSceneIds,
+              selectedIds,
               Number(repeats),
               Number(intervalText),
             )),
@@ -1630,6 +1633,12 @@ export default function ConnectedWorkspace({
             <div className="connected-sidebar-panel">
               <ConnectedImageHistory
                 key={view.id}
+                queueSceneIds={availableSceneIds}
+                onPrepareMissing={
+                  locked || runtimeOptions.offline || !intervalValid
+                    ? undefined
+                    : (ids) => void prepareQueue(false, ids)
+                }
                 projects={projects}
                 revision={view.revision}
                 scenes={state.scenes}

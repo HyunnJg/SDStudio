@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {BrowserWindow,ipcMain}=require('electron');
 module.exports=async({contents,evaluate,click,fill,until,checks,profile,requestCount})=>{
- const win=BrowserWindow.fromWebContents(contents);win.setSize(1400,950);await until(()=>evaluate('innerWidth===1400'));
+ const win=BrowserWindow.fromWebContents(contents);win.setContentSize(1400,950);await until(()=>evaluate('innerWidth===1400'));
  assert.equal((await evaluate("window.electron.naiAuth.setToken('synthetic-never-a-real-token',false)")).ok,true);
  await fill('#workspace-project-name','Synthetic trash (이번 결과)');
  await fill('#live-prompt','synthetic illustration');
@@ -199,6 +199,24 @@ module.exports=async({contents,evaluate,click,fill,until,checks,profile,requestC
   assert.deepEqual((await evaluate(`window.electron.projects.resultPicks('${sample.id}')`)).value,sample.images.map(i=>i.id));
  } finally { dialog.showSaveDialog=chooseFile;fs.rmSync(singleDir,{recursive:true,force:true}); }
  checks.push('scene export preserves both durable picks and returns the original selected scene PNG');
+
+ // Two selected queue scenes, one visible pick left; prepare only the other scene.
+ await click(`[data-queue-scene="${sample.scenes[0].id}"]`);
+ await click('[data-queue-scene="synthetic-other"]');
+ const missingButton = '[data-testid=prepare-unpicked]';
+ assert.equal(await evaluate(`document.querySelector('${missingButton}').disabled`),true);
+ await click(`[data-image-id="${sample.images[1].id}"]`);
+ await until(()=>evaluate(`!document.querySelector('${missingButton}').disabled`));
+ await evaluate("(()=>{const el=document.querySelector('.gallery-export select');el.value='';el.dispatchEvent(new Event('change',{bubbles:true}));})()");
+ await fill('#live-repeats','2');
+ await click(missingButton);
+ await until(()=>evaluate("!!document.querySelector('[data-testid=queue-confirm]')"));
+ const plannedNames = await evaluate("Array.from(document.querySelectorAll('[data-testid=queue-confirm] li'),n=>n.textContent)");
+ assert.equal(plannedNames.length,2);
+ assert.ok(plannedNames.every(name=>name.startsWith(other.name+' · ')));
+ assert.equal(requestCount(),2);
+ await click('[data-testid=queue-confirm] button:last-of-type');
+ await idle();
 
  // Delete only the disposable scene fixture through the actual trash picker.
  await click('[data-testid=project-list]');

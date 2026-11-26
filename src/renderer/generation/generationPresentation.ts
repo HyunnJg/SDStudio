@@ -80,6 +80,19 @@ export function availableQueueSceneIds(
     : ids.filter((id) => valid.has(id));
 }
 
+export function scenesWithoutPicks(
+  selected: readonly string[],
+  visibleImages: readonly { id: string; sceneId: string }[],
+  picks: ReadonlySet<string>,
+) {
+  const covered = new Set(
+    visibleImages
+      .filter((image) => picks.has(image.id))
+      .map((image) => image.sceneId),
+  );
+  return selected.filter((id) => !covered.has(id));
+}
+
 export function queueOutcome(queue: GenerationQueueState | undefined) {
   const item = queue?.items.find((value) => value.id === queue.stoppedItemId);
   const error =
