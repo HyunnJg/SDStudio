@@ -23,10 +23,7 @@ import type {
   GenerationFailure,
 } from '../../workspaceGeneration';
 import type { WorkspaceScene } from '../../renderer/preview/workspaceDraft';
-import {
-  GENERATION_BODY_LIMIT,
-  VARIATION_DEFAULTS,
-} from '../../workspaceReference';
+import { GENERATION_BODY_LIMIT } from '../../workspaceReference';
 import type { ReferenceAsset, ImagePurpose } from '../../workspaceReference';
 import type { ProjectService } from '../projects/projectService';
 import { NaiError } from './errors';
@@ -174,14 +171,7 @@ export class WorkspaceGeneration {
       );
       if (!this.options.store.referenceBytes)
         throw new GenerationError('INVALID_INPUT');
-      const options =
-        purpose === 'img2img'
-          ? VARIATION_DEFAULTS
-          : { role: 'character', strength: 1, preferSameOutfit: false };
-      const preview = await this.options.store.referenceBytes(id, {
-        ...asset,
-        ...options,
-      });
+      const preview = await this.options.store.referenceBytes(id, asset);
       return { asset, preview };
     } finally {
       this.working = false;
@@ -199,13 +189,18 @@ export class WorkspaceGeneration {
   }
 
   private async inputImages(id: string, scene: WorkspaceScene) {
-    const { reference, img2img, family } = scene.draft;
-    if (!reference && !img2img) return {};
-    if (family !== 'v5') throw new GenerationError('UNSUPPORTED_DRAFT');
+    const { reference, img2img, inpaintSource, inpaintMask, family } =
+      scene.draft;
+    if (!reference && !img2img && !inpaintSource && !inpaintMask) return {};
+    if ((reference || img2img) && family !== 'v5')
+      throw new GenerationError('UNSUPPORTED_DRAFT');
     const { store } = this.options;
     if (!store.referenceBytes) throw new GenerationError('INVALID_INPUT');
     return {
       reference: reference && (await store.referenceBytes(id, reference)),
+      inpaintSource:
+        inpaintSource && (await store.referenceBytes(id, inpaintSource)),
+      inpaintMask: inpaintMask && (await store.referenceBytes(id, inpaintMask)),
       img2img: img2img && (await store.referenceBytes(id, img2img)),
     };
   }

@@ -36,7 +36,10 @@ export interface WorkspaceVariation extends ReferenceAsset {
   strength: number;
   noise: number;
 }
-export type ImagePurpose = 'reference' | 'img2img';
+export type ImagePurpose =
+  'reference' | 'img2img' | 'inpaintSource' | 'inpaintMask';
+export const isInpaintPurpose = (purpose: ImagePurpose) =>
+  purpose === 'inpaintSource' || purpose === 'inpaintMask';
 export interface WorkspaceReference extends ReferenceAsset {
   role: ReferenceRole;
   strength: number;

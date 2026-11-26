@@ -20,7 +20,12 @@ import {
 export function bindBasicGeneration(
   scene: WorkspaceScene,
   random = () => randomInt(4294967296),
-  images: { reference?: Uint8Array; img2img?: Uint8Array } = {},
+  images: {
+    reference?: Uint8Array;
+    img2img?: Uint8Array;
+    inpaintSource?: Uint8Array;
+    inpaintMask?: Uint8Array;
+  } = {},
 ) {
   if (scene.draft.seedMode !== 'random' && scene.draft.seedMode !== 'fixed')
     throw new Error('INVALID_INPUT');
@@ -122,6 +127,21 @@ export function bindBasicGeneration(
     (variation.width !== size.width || variation.height !== size.height)
   )
     throw new Error('UNSUPPORTED_DRAFT');
+  const inpaint = d.inpaintSource;
+  if (
+    (inpaint || d.inpaintMask) &&
+    (model !== 'nai-diffusion-3' ||
+      reference ||
+      variation ||
+      !inpaint ||
+      !d.inpaintMask ||
+      !images.inpaintSource ||
+      !images.inpaintMask ||
+      [inpaint, d.inpaintMask].some(
+        (asset) => asset.width !== size.width || asset.height !== size.height,
+      ))
+  )
+    throw Error('UNSUPPORTED_DRAFT');
   const captions = (negativeCaption: boolean) =>
     characters.map((c) => ({
       char_caption: negativeCaption ? c.negativePrompt : c.prompt,
@@ -134,10 +154,13 @@ export function bindBasicGeneration(
     use_order: true,
   });
   const captionVersion = v5 ? 4 : 3;
+  let action = 'generate';
+  if (inpaint) action = 'infill';
+  else if (variation) action = 'img2img';
   const request = {
     input: prompt,
-    model,
-    action: variation ? 'img2img' : 'generate',
+    model: inpaint ? ('nai-diffusion-3-inpainting' as const) : model,
+    action,
     parameters: {
       params_version: v3 ? 1 : captionVersion,
       ...size,
@@ -174,6 +197,14 @@ export function bindBasicGeneration(
             noise: variation.noise,
           }
         : {}),
+      ...(inpaint &&
+        images.inpaintSource &&
+        images.inpaintMask && {
+          image: Buffer.from(images.inpaintSource).toString('base64'),
+          mask: Buffer.from(images.inpaintMask).toString('base64'),
+          strength: 1,
+          noise: 0,
+        }),
       negative_prompt: negative,
       ...(v3
         ? { sm: false, sm_dyn: false, legacy: false }
@@ -222,5 +253,6 @@ export function bindBasicGeneration(
   if (reference) bindingId = 'nai-v5-reference-v1';
   if (variation)
     bindingId = reference ? 'nai-v5-img2img-reference-v1' : 'nai-v5-img2img-v1';
+  if (inpaint) bindingId = 'nai-v3-inpaint-v1';
   return { request, input, bindingId, characterCount: characters.length };
 }

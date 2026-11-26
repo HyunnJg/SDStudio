@@ -23,6 +23,8 @@ export interface WorkspaceDraft {
   model?: import('../../workspaceCatalog').ModelId;
   reference?: WorkspaceReference;
   img2img?: WorkspaceVariation;
+  inpaintSource?: import('../../workspaceReference').ReferenceAsset;
+  inpaintMask?: import('../../workspaceReference').ReferenceAsset;
   family: PreviewModelFamily;
   prompt: string;
   negativePrompt: string;

@@ -495,3 +495,106 @@ test('combined images over the serialized 8 MiB limit cannot obtain a single or 
   await assert.rejects(f.service.prepareQueue(f.id,saved.revision,[f.scene.id],1), {code:'GENERATION_BODY_LIMIT'});
   assert.equal(f.bodies.length,0);
 });
+
+test('V3 infill keeps the edited mask aligned with its source through generation, queue, reopening and copying', async (t) => {
+  const sharp = require('sharp');
+  const f = await fixture(t);
+  const id = f.current.project.id;
+  const scene = f.content.scenes[0];
+  Object.assign(scene.draft, {
+    family: 'v4.5',
+    model: 'nai-diffusion-3',
+    resolution: '128x64',
+    prompt: 'background',
+  });
+  delete scene.draft.reference;
+  let saved = f.store.save(id, f.current.revision, f.content);
+  const save = () => {
+    saved = f.store.save(id, saved.revision, f.content);
+  };
+  const source = await f.service.importReference(
+    id,
+    saved.revision,
+    f.original,
+    'inpaintSource',
+  );
+  scene.draft.inpaintSource = source.asset;
+  save();
+  assert.equal(saved.project.version, 11);
+  await assert.rejects(f.service.prepare(id, saved.revision, scene.id), {
+    code: 'UNSUPPORTED_DRAFT',
+  });
+  const pixels = Buffer.alloc(128 * 64);
+  const pngMask = () =>
+    sharp(pixels, { raw: { width: 128, height: 64, channels: 1 } })
+      .png()
+      .toBuffer();
+  await assert.rejects(
+    f.service.importReference(
+      id,
+      saved.revision,
+      await pngMask(),
+      'inpaintMask',
+    ),
+    { code: 'PROJECT_INPUT' },
+  );
+  pixels.fill(255, 0, 32);
+  await assert.rejects(
+    f.service.importReference(id, saved.revision, f.original, 'inpaintMask'),
+    { code: 'PROJECT_INPUT' },
+  );
+  const mask = await f.service.importReference(
+    id,
+    saved.revision,
+    await pngMask(),
+    'inpaintMask',
+  );
+  scene.draft.inpaintMask = mask.asset;
+  save();
+  assert.throws(
+    () => validateWorkspaceProject({ ...saved.project, version: 10 }),
+    { code: 'PROJECT_CORRUPT' },
+  );
+  const wire = await f.service.prepare(id, saved.revision, scene.id);
+  assert.equal(wire.model, 'nai-diffusion-3-inpainting');
+  assert.equal(f.bodies.length, 0);
+  const result = await f.service.run(wire.ticket, true);
+  assert.equal(
+    result.snapshot.project.images[0].binding.id,
+    'nai-v3-inpaint-v1',
+  );
+  const plan = await f.service.prepareQueue(
+    id,
+    result.snapshot.revision,
+    [scene.id],
+    1,
+    0,
+  );
+  const queued = await f.service.runQueue(plan.ticket, true);
+  assert.equal(queued.queue.items[0].status, 'done');
+  for (const bytes of f.bodies) {
+    const body = JSON.parse(Buffer.from(bytes));
+    assert.equal(body.action, 'infill');
+    assert.equal(
+      hash(Buffer.from(body.parameters.image, 'base64')),
+      source.asset.uploadHash,
+    );
+    assert.equal(
+      hash(Buffer.from(body.parameters.mask, 'base64')),
+      mask.asset.uploadHash,
+    );
+    assert.deepEqual(
+      await sharp(Buffer.from(body.parameters.mask, 'base64'))
+        .greyscale()
+        .raw()
+        .toBuffer(),
+      pixels,
+    );
+  }
+  const copy = f.store.create(f.content, id);
+  assert.deepEqual(
+    f.store.referenceImage(copy.project.id, scene.id, 'inpaintMask'),
+    mask.preview,
+  );
+  assert.equal(f.store.open(id).project.images.length, 2);
+});
