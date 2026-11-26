@@ -1185,7 +1185,7 @@ app.on('web-contents-created', (_event, contents) => {
         await until(() => evaluate("document.querySelector('[data-testid=metadata-dialog]')?.open && !!document.querySelector('[data-testid=apply-metadata]')"));
         await click('[aria-label="메타데이터 창 닫기"]');
         assert.equal(requests,1);
-        checks.push('canvas actions expose original PNG download and local metadata reuse without another generation request');
+        checks.push('gallery has the sole original PNG save control; canvas imports metadata without another generation request');
         await until(() =>
           evaluate(
             "!document.querySelector('#live-steps').matches(':disabled')",

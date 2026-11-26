@@ -17,7 +17,7 @@ const generationCharacterMode = process.argv[3] === 'generation-characters';
 const generationErrorMode = process.argv[3] === 'generation-errors';
 const generationQueueMode = process.argv[3] === 'generation-queue';
 const generationCases = new Map([
-  ['generation', { requests: 3, checks: 21 }],
+  ['generation', { requests: 3, checks: 33 }],
   ['generation-queue', { requests: 13, checks: 10 }],
   ['generation-errors', { requests: 4, checks: 8 }],
   ['generation-characters', { requests: 3, checks: 8 }],
