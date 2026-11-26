@@ -6,6 +6,10 @@
 
 ## D-077. 바이브 에디터와 작업실의 V3 자료 가져오기
 
+#55 리뷰 후속(`267c637` 기준). 컷 응답 전체를 감싼 JSON 코드 블록 한 개는 바깥 표시를 벗긴 뒤 기존 컷 검증을 거친다. 앞뒤 설명이나 여러 블록을 조합해서 컷을 추출하지 않는다. OpenRouter 키 설정에는 무료·유료 모델별 학습 공급자 제외 방법을 표시한다. [OpenRouter 공급자 정책](https://openrouter.ai/docs/guides/privacy/provider-logging)
+
+Vertex의 Gemini 2.5 텍스트 모델이 지원 종료되어, 저장한 모델이 없는 경우 Express 공식 예제의 `gemini-3.5-flash`를 사용한다. 사용자가 지정한 모델은 모델 선택 화면에서 직접 바꿀 수 있다. OpenAI의 `gpt-4.1-mini`는 2027-01-14 종료 예정으로 후속 교체 대상이다. [Google 모델 수명표](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/model-versions) · [Vertex Express 호출 예제](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/samples/googlegenaisdk-vertexai-express-mode) · [OpenAI 지원 종료 일정](https://developers.openai.com/api/docs/deprecations)
+
 기준은 #54의 `9fdb3f8`이다. 공급자와 모델을 바꾸거나 응답을 확인하려고 생성 설정을 펼칠 필요가 없도록, 작업실 상단에 바이브 에디터를 두고 키 관리는 ‘API 토큰·연결 모드’로 모은다. 에디터에서 설정을 열고 돌아와도 작성 중인 요청을 유지한다. 컷 초안은 확인한 뒤 조합에 추가하며 추가한 묶음은 후속 편집 전에 되돌릴 수 있다.
 
 Gemini, Vertex AI Express, OpenAI, Anthropic, OpenRouter는 공급자별 보관소와 고정 API 주소를 사용한다. Google 두 서비스의 키도 각각 등록한다. Vertex는 Express API 키, OpenRouter는 공급자/모델 ID와 변형 접미사를 받는다. 모델 선택과 모델 ID만 화면 설정에 저장한다. 설정의 응답 확인은 지정한 모델로 간단한 컷을 한 번 요청하며 이용료가 발생할 수 있다. [Vertex AI Express API](https://cloud.google.com/vertex-ai/generative-ai/docs/start/express-mode/vertex-ai-express-mode-api-reference) · [OpenRouter Chat Completions](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request)

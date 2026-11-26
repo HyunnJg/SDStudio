@@ -21,7 +21,7 @@ export const providerLabels: Record<Provider, string> = {
 };
 export const defaultModels: Record<Provider, string> = {
   gemini: 'gemini-flash-latest',
-  vertex: 'gemini-2.5-flash',
+  vertex: 'gemini-3.5-flash',
   openrouter: 'openai/gpt-4.1-mini',
   openai: 'gpt-4.1-mini',
   anthropic: 'claude-sonnet-4-6',

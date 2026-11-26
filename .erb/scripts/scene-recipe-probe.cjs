@@ -191,6 +191,27 @@ module.exports = async ({ evaluate, click, fill, until, checks, requests }) => {
   await click(assistant + ' fieldset button');
   await click('.vibe-api-settings summary');
   const keys = '[data-testid=provider-key-settings]';
+  const provider = '.vibe-api-settings .vibe-model-fields select';
+  await select(provider, 'vertex');
+  assert.equal(
+    await evaluate(
+      "document.querySelectorAll('.vibe-api-settings .vibe-model-fields select')[1].value",
+    ),
+    'gemini-3.5-flash',
+  );
+  await select(provider, 'openrouter');
+  assert.match(
+    await evaluate(
+      "document.querySelector('[data-testid=provider-key-settings]').textContent",
+    ),
+    /Privacy 설정에서 무료 모델과 유료 모델/,
+  );
+  await select(provider, 'gemini');
+  await until(() =>
+    evaluate(
+      "!document.querySelector('[data-testid=provider-key-settings]').disabled",
+    ),
+  );
   await fill(keys + ' input[type=password]', 'pst-synthetic-test-only');
   await click(keys + ' button');
   await until(() =>

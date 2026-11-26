@@ -57,7 +57,8 @@ function validRequest(r: CutRequest) {
 }
 
 function parseSuggestion(text: string): CutSuggestion {
-  const data = JSON.parse(text);
+  const fence = /^```(?:json)?[ \t]*\r?\n([\s\S]*)\r?\n```$/i.exec(text.trim());
+  const data = JSON.parse(fence ? fence[1] : text);
   if (
     !Number.isInteger(data?.repeats) ||
     data.repeats < 0 ||

@@ -189,7 +189,7 @@ test('oversized, malformed and rate limited replies produce only local error mes
 test('selected provider binds its own key, exact model, endpoint, and reply format', async () => {
   const plan = { cuts, repeats: 2 };
   for (const [provider, model, origin] of [
-    ['vertex', 'gemini-2.5-flash', 'https://aiplatform.googleapis.com'],
+    ['vertex', 'gemini-3.5-flash', 'https://aiplatform.googleapis.com'],
     ['openai', 'gpt-4.1-mini', 'https://api.openai.com'],
     ['anthropic', 'claude-sonnet-4-6', 'https://api.anthropic.com'],
     ['openrouter', 'vendor/custom-model:free', 'https://openrouter.ai'],
@@ -240,6 +240,35 @@ test('selected provider binds its own key, exact model, endpoint, and reply form
     if (provider !== 'vertex') assert.equal(result.responseModel, model);
   }
 });
+test('Anthropic and OpenRouter accept one fenced JSON plan and still validate the entire response', async () => {
+  const plan = { cuts, repeats: 2 };
+  const json = JSON.stringify(plan);
+  const fenced = '```json\n' + json + '\n```';
+  for (const provider of ['anthropic', 'openrouter']) {
+    for (const [content, ok] of [
+      [fenced, true],
+      ['  ```\r\n' + json + '\r\n```  ', true],
+      ['Here is a plan:\n' + fenced, false],
+      [fenced + '\nextra text', false],
+      [fenced + '\n' + fenced, false],
+      ['```json\n' + json, false],
+      ['```json\n{"cuts":[],"repeats":1}\n```', false],
+    ]) {
+      const response =
+        provider === 'anthropic'
+          ? {
+              stop_reason: 'end_turn',
+              content: [{ type: 'text', text: content }],
+            }
+          : { choices: [{ finish_reason: 'stop', message: { content } }] };
+      const suggest = handler({ send: async () => Response.json(response) });
+      const result = await suggest({ ...request, provider });
+      assert.equal(result.ok, ok);
+      assert.deepEqual(result.suggestion, ok ? plan : undefined);
+    }
+  }
+});
+
 test('invalid model paths and recognized keys for a different provider are rejected locally', async () => {
   let calls = 0;
   for (const [provider, model, key] of [

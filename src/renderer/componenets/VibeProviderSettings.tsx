@@ -58,7 +58,7 @@ export function ModelFields({
     defaultModels[choice.provider],
     ...{
       gemini: ['gemini-flash-lite-latest', 'gemini-pro-latest'],
-      vertex: ['gemini-2.5-pro', 'gemini-2.5-flash-lite'],
+      vertex: [],
       openai: ['gpt-4.1', 'gpt-4o-mini'],
       anthropic: ['claude-haiku-4-5', 'claude-opus-4-6'],
       openrouter: ['anthropic/claude-sonnet-4.6', 'google/gemini-2.5-flash'],
@@ -176,6 +176,12 @@ function KeyControls({
     <fieldset disabled={busy} data-testid="provider-key-settings">
       <legend>{providerLabels[provider]} 연결</legend>
       {provider === 'gemini' && <PaidKeyNotice />}
+      {provider === 'openrouter' && (
+        <p>
+          프롬프트를 학습에 사용하는 공급자를 제외하려면 OpenRouter 계정의
+          Privacy 설정에서 무료 모델과 유료 모델의 학습 허용을 각각 꺼 주세요.
+        </p>
+      )}
       {provider === 'vertex' && (
         <small>Vertex AI Express 모드에서 발급한 API 키를 입력하세요.</small>
       )}
