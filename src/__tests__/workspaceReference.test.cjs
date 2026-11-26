@@ -53,7 +53,7 @@ for (const [role, same, expected] of [
   const f = await fixture(t), scene = structuredClone(f.content.scenes[0]);
   scene.draft.reference = { ...f.reference, role, preferSameOutfit: same, strength: 3.5 };
   const bytes = f.store.referenceBytes(f.current.project.id, scene.draft.reference);
-  const b = bindBasicGeneration(scene, () => 12345, bytes);
+  const b = bindBasicGeneration(scene, () => 12345, {reference:bytes});
   assert.equal(referenceDescription(scene.draft.reference), expected);
   assert.equal(b.bindingId, 'nai-v5-reference-v1');
   assert.deepEqual(b.request.parameters.director_reference_descriptions, [{ caption: { base_caption: expected, char_captions: [] }, legacy_uc: false }]);
@@ -73,7 +73,7 @@ test('malformed reference options and V4.5 reference never fall back to an unref
   for (const extra of [{ strength: 5.1 }, { strength: NaN }, { strength: -0.1 }, { role: 'vibe' }, { role: 'outfit', preferSameOutfit: true }, { path: 'private' }])
     assert.throws(() => validateReference({ ...f.reference, ...extra }));
   const scene = structuredClone(f.content.scenes[0]); scene.draft.family = 'v4.5';
-  assert.throws(() => bindBasicGeneration(scene, () => 1, f.original), { message: 'UNSUPPORTED_DRAFT' });
+  assert.throws(() => bindBasicGeneration(scene, () => 1, {reference:f.original}), { message: 'UNSUPPORTED_DRAFT' });
 });
 test('invalid/oversized source and missing reference UUID are rejected locally', async (t) => {
   const f = await fixture(t);
@@ -242,9 +242,9 @@ test('variation queue uses the same approved body/seed; changed strength or brok
   assert.equal(f.bodies.length, 2);
 });
 
-test('invalid or mixed variation, mismatched shape and unsupported family cannot silently generate', async t => {
+test('missing reference bytes, invalid variation, mismatched shape and unsupported family cannot silently generate', async t => {
   const f = await variationFixture(t);
-  const bind = (patch) => bindBasicGeneration({...f.scene, draft: {...f.scene.draft, ...patch}}, () => 0, f.original);
+  const bind = (patch) => bindBasicGeneration({...f.scene, draft: {...f.scene.draft, ...patch}}, () => 0, {img2img:f.original});
   for (const patch of [{reference:f.reference}, {resolution:'square'}, {family:'v4.5'}, {img2img:{...f.scene.draft.img2img, noise:1.01}}, {img2img:{...f.scene.draft.img2img, strength:NaN}}]) {
     assert.throws(() => bind(patch));
   }
@@ -375,3 +375,42 @@ for (const format of ['webp', 'jpeg', 'png']) {
     },
   );
 }
+
+test('combined V5 variation and reference persist independently and keep their own bytes in a queued request', async t => {
+  const f = await variationFixture(t);
+  f.scene.draft.reference = f.reference;
+  const saved = f.store.save(f.id, f.saved.revision, f.content);
+  assert.equal(saved.project.version, 9);
+  assert.throws(() => validateWorkspaceProject({...saved.project, version:8}), {code:'PROJECT_CORRUPT'});
+  const plan = await f.service.prepareQueue(f.id, saved.revision, [f.scene.id], 1);
+  assert.deepEqual(plan.settings[0].img2img, {strength:0.45, noise:0.1});
+  assert.equal(plan.settings[0].reference.uploadHash, f.reference.uploadHash);
+  await f.service.runQueue(plan.ticket, true);
+  assert.equal(f.bodies.length, 1);
+  const {action, parameters} = JSON.parse(Buffer.from(f.bodies[0]));
+  assert.equal(action,'img2img');
+  assert.notEqual(f.asset.uploadHash, f.reference.uploadHash);
+  assert.equal(hash(Buffer.from(parameters.image,'base64')), f.asset.uploadHash);
+  assert.deepEqual(parameters.director_reference_images, [Buffer.from(f.store.referenceImage(f.id,f.scene.id,'reference')).toString('base64')]);
+  const current = f.store.open(f.id);
+  assert.deepEqual(current.project.images[0].binding,{id:'nai-v5-img2img-reference-v1',requestHash:hash(f.bodies[0])});
+  const copy = f.store.copy(f.id,current.revision,f.content);
+  for (const purpose of ['reference','img2img']) {
+    assert.equal(hash(f.store.referenceImage(copy.project.id,f.scene.id,purpose)),f.scene.draft[purpose].uploadHash);
+  }
+  const single = await f.service.prepare(f.id,current.revision,f.scene.id);
+  fs.unlinkSync(f.file(f.reference.uploadHash));
+  await assert.rejects(f.service.run(single.ticket,true),{code:'PROJECT_CORRUPT'});
+  assert.equal(f.bodies.length,1);
+});
+
+test('combined images over the serialized 8 MiB limit cannot obtain a single or queue ticket', async t => {
+  const f = await variationFixture(t);
+  f.scene.draft.reference = f.reference;
+  const saved = f.store.save(f.id,f.saved.revision,f.content);
+  // Isolate the wire-size check from PNG encoding and disk quotas.
+  f.store.referenceBytes = () => Buffer.alloc(4 * 1024 * 1024);
+  await assert.rejects(f.service.prepare(f.id,saved.revision,f.scene.id), {code:'GENERATION_BODY_LIMIT'});
+  await assert.rejects(f.service.prepareQueue(f.id,saved.revision,[f.scene.id],1), {code:'GENERATION_BODY_LIMIT'});
+  assert.equal(f.bodies.length,0);
+});

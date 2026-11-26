@@ -798,8 +798,8 @@ export class ProjectStore {
     projectCheck(this.history(id).length < 1000, 'PROJECT_HISTORY_LIMIT');
     if (value !== undefined) {
       const input = validateImageInput(value);
-      const asset = input.draft.reference ?? input.draft.img2img;
-      if (asset) this.referenceBytes(id, asset);
+      for (const asset of [input.draft.reference, input.draft.img2img])
+        if (asset) this.referenceBytes(id, asset);
       encode({
         ...snapshot.project,
         version: Math.max(
@@ -842,8 +842,8 @@ export class ProjectStore {
     }
     return this.update(id, revision, (current, folder) => {
       projectCheck(current.scenes.some((s) => s.id === info.sceneId));
-      const asset = info.draft.reference ?? info.draft.img2img;
-      if (asset) this.referenceBytes(id, asset);
+      for (const asset of [info.draft.reference, info.draft.img2img])
+        if (asset) this.referenceBytes(id, asset);
       const sha256 = hash(png);
       const image = { ...info, id: imageId, sha256, pngBytes: png.length };
       const next = {
@@ -946,12 +946,21 @@ export class ProjectStore {
     syncDirectory(target);
   }
 
-  referenceImage(id: string, sceneId: string): Uint8Array {
+  referenceImage(
+    id: string,
+    sceneId: string,
+    purpose?: ImagePurpose,
+  ): Uint8Array {
     const snapshot = this.readManifest(id);
     const draft = snapshot.project.scenes.find(
       (scene) => scene.id === sceneId,
     )?.draft;
-    const reference = draft?.reference ?? draft?.img2img;
+    projectCheck(
+      purpose === undefined || purpose === 'reference' || purpose === 'img2img',
+    );
+    const reference = purpose
+      ? draft?.[purpose]
+      : (draft?.reference ?? draft?.img2img);
     projectCheck(reference, 'PROJECT_NOT_FOUND');
     return this.referenceBytes(id, reference);
   }

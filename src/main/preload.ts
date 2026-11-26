@@ -100,8 +100,13 @@ const electronHandler = {
         png,
         purpose,
       ),
-    referenceImage: (id, sceneId) =>
-      ipcRenderer.invoke('workspace-generation-reference-image', id, sceneId),
+    referenceImage: (id, sceneId, purpose) =>
+      ipcRenderer.invoke(
+        'workspace-generation-reference-image',
+        id,
+        sceneId,
+        purpose,
+      ),
     status: () => ipcRenderer.invoke('workspace-generation-status'),
     prepare: (id, revision, sceneId) =>
       ipcRenderer.invoke('workspace-generation-prepare', id, revision, sceneId),
@@ -144,16 +149,25 @@ const electronHandler = {
       ipcRenderer.invoke('workspace-generation-image', id, imageId),
   } satisfies GenerationClient,
   projects: {
-    resultPicks: (id) => ipcRenderer.invoke('workspace-project-result-picks', id),
+    resultPicks: (id) =>
+      ipcRenderer.invoke('workspace-project-result-picks', id),
     setResultPicks: (id, revision, ids, picked) =>
-      ipcRenderer.invoke('workspace-project-set-result-picks', id, revision, ids, picked),
-    exportResults: (id, ids) => ipcRenderer.invoke('workspace-project-export-results', id, ids),
+      ipcRenderer.invoke(
+        'workspace-project-set-result-picks',
+        id,
+        revision,
+        ids,
+        picked,
+      ),
+    exportResults: (id, ids) =>
+      ipcRenderer.invoke('workspace-project-export-results', id, ids),
     restartStorage: () =>
       ipcRenderer.invoke('workspace-project-restart-storage'),
     list: () => ipcRenderer.invoke('workspace-project-list'),
     listTrash: () => ipcRenderer.invoke('workspace-project-list-trash'),
     trashProject: (id) => ipcRenderer.invoke('workspace-project-trash', id),
-    purgeProject: (id, confirmed) => ipcRenderer.invoke('workspace-project-purge', id, confirmed),
+    purgeProject: (id, confirmed) =>
+      ipcRenderer.invoke('workspace-project-purge', id, confirmed),
     restoreProject: (id) => ipcRenderer.invoke('workspace-project-restore', id),
     emptyResultTrash: (id, revision, confirmed) =>
       ipcRenderer.invoke(

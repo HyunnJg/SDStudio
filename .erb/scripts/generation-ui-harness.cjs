@@ -82,7 +82,11 @@ const server = http.createServer(async (request, response) => {
     assert.equal(parsed.parameters.strength, 0.4);
     assert.equal(parsed.parameters.noise, 0.1);
     assert.equal(parsed.parameters.extra_noise_seed, parsed.parameters.seed);
-    assert.equal(parsed.parameters.director_reference_images, undefined);
+    if (number === 1) assert.equal(parsed.parameters.director_reference_images, undefined);
+    else {
+      assert.equal(parsed.parameters.director_reference_images.length, 1);
+      assert.notEqual(parsed.parameters.director_reference_images[0],parsed.parameters.image);
+    }
     const source = Buffer.from(parsed.parameters.image, 'base64');
     assert.equal(source.readUInt32BE(16), 832);
     assert.equal(source.readUInt32BE(20), 1216);
@@ -1031,10 +1035,11 @@ app.on('web-contents-created', (_event, contents) => {
           assert.equal(await evaluate("document.querySelectorAll('.gallery-mark[data-picked=true]').length"), 1);
           assert.equal(data.value.project.version,6);assert.equal(data.value.project.trashedImageIds.length,1);assert.equal(await evaluate("document.querySelectorAll('[data-image-id]').length"),1);checks.push('new PID restores v6 visibility and original bytes without resurrecting a hidden image'); }
         if (img2img) {
-          assert.equal(data.value.project.version, 8);
+          assert.equal(data.value.project.version, 9);
           await until(() => evaluate("document.querySelector('[data-testid=reference-panel] img')?.naturalWidth===832"));
           assert.equal(await evaluate("document.querySelector('#variation-noise').value"), '0.1');
-          checks.push('new PID restores both results, the img2img preview and noise');
+          await until(() => evaluate("Array.from(document.querySelectorAll('[data-testid=reference-panel] img')).filter(img=>img.naturalWidth>0).length===2"));
+          checks.push('new PID restores both results, independent img2img and reference previews and noise');
         }
         if (process.env.SDSTUDIO_REFERENCE_SMOKE === '1') {
           assert.equal(data.value.project.version, 5);

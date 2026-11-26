@@ -186,22 +186,26 @@ export class WorkspaceGeneration {
     }
   }
 
-  async referenceImage(id: string, sceneId: string): Promise<Uint8Array> {
+  async referenceImage(
+    id: string,
+    sceneId: string,
+    purpose?: ImagePurpose,
+  ): Promise<Uint8Array> {
     if (!this.options.store.referenceImage)
       throw new GenerationError('INVALID_INPUT');
-    return this.options.store.referenceImage(id, sceneId);
+    return this.options.store.referenceImage(id, sceneId, purpose);
   }
 
-  private async inputImage(id: string, scene: WorkspaceScene) {
-    const asset = scene.draft.reference ?? scene.draft.img2img;
-    if (asset) {
-      if (scene.draft.family !== 'v5')
-        throw new GenerationError('UNSUPPORTED_DRAFT');
-      if (!this.options.store.referenceBytes)
-        throw new GenerationError('INVALID_INPUT');
-      return this.options.store.referenceBytes(id, asset);
-    }
-    return undefined;
+  private async inputImages(id: string, scene: WorkspaceScene) {
+    const { reference, img2img, family } = scene.draft;
+    if (!reference && !img2img) return {};
+    if (family !== 'v5') throw new GenerationError('UNSUPPORTED_DRAFT');
+    const { store } = this.options;
+    if (!store.referenceBytes) throw new GenerationError('INVALID_INPUT');
+    return {
+      reference: reference && (await store.referenceBytes(id, reference)),
+      img2img: img2img && (await store.referenceBytes(id, img2img)),
+    };
   }
 
   private async bind(
@@ -212,27 +216,25 @@ export class WorkspaceGeneration {
     return bindBasicGeneration(
       scene,
       chooseSeed,
-      await this.inputImage(id, scene),
+      await this.inputImages(id, scene),
     );
   }
 
   private static imageSettings(scene: WorkspaceScene) {
-    if (scene.draft.img2img) {
-      const { strength, noise } = scene.draft.img2img;
-      return { img2img: { strength, noise } };
-    }
+    const v = scene.draft.img2img;
     const r = scene.draft.reference;
-    return r
-      ? {
-          reference: {
-            id: r.id,
-            uploadHash: r.uploadHash,
-            role: r.role,
-            strength: r.strength,
-            preferSameOutfit: r.preferSameOutfit,
-          },
-        }
-      : {};
+    return {
+      ...(v && { img2img: { strength: v.strength, noise: v.noise } }),
+      ...(r && {
+        reference: {
+          id: r.id,
+          uploadHash: r.uploadHash,
+          role: r.role,
+          strength: r.strength,
+          preferSameOutfit: r.preferSameOutfit,
+        },
+      }),
+    };
   }
 
   async prepare(
@@ -272,7 +274,7 @@ export class WorkspaceGeneration {
       const { request, input } = bound;
       const body = Uint8Array.from(Buffer.from(JSON.stringify(request)));
       if (body.byteLength > GENERATION_BODY_LIMIT)
-        throw new GenerationError('QUEUE_LIMIT');
+        throw new GenerationError('GENERATION_BODY_LIMIT');
       input.binding = {
         id: bound.bindingId,
         requestHash: createHash('sha256').update(body).digest('hex'),
@@ -650,7 +652,7 @@ export class WorkspaceGeneration {
       );
       for (let sceneIndex = 0; sceneIndex < scenes.length; sceneIndex += 1) {
         const scene = scenes[sceneIndex];
-        const image = await this.inputImage(id, scene);
+        const image = await this.inputImages(id, scene);
         for (let repeat = 1; repeat <= repeats; repeat += 1) {
           const index = (repeat - 1) * scenes.length + sceneIndex;
           let bound;
@@ -675,7 +677,7 @@ export class WorkspaceGeneration {
           const { seed } = bound.input;
           const body = Buffer.from(JSON.stringify(bound.request));
           if (body.byteLength > GENERATION_BODY_LIMIT)
-            throw new GenerationError('QUEUE_LIMIT');
+            throw new GenerationError('GENERATION_BODY_LIMIT');
           bound.input.binding = {
             id: bound.bindingId,
             requestHash: createHash('sha256').update(body).digest('hex'),

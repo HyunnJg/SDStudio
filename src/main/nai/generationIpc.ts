@@ -47,8 +47,8 @@ export function registerGeneration(
     (id, revision, png, purpose) =>
       service.importReference(id, revision, png, purpose),
   );
-  handle('workspace-generation-reference-image', (id, sceneId) =>
-    service.referenceImage(id, sceneId),
+  handle('workspace-generation-reference-image', (id, sceneId, purpose) =>
+    service.referenceImage(id, sceneId, purpose),
   );
   handle('workspace-generation-status', () => service.status());
   handle('workspace-generation-prepare', (id, revision, sceneId) =>
