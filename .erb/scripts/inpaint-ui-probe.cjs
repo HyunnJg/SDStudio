@@ -45,8 +45,14 @@ module.exports = async ({
     ),
   );
   async function button(label) {
-    await evaluate(
-      `[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===${JSON.stringify(label)}).click()`,
+    await until(() =>
+      evaluate(`(() => {
+        const target = [...document.querySelectorAll('button:enabled')]
+          .find(b => b.textContent.trim() === ${JSON.stringify(label)});
+        if (!target) return false;
+        target.click();
+        return true;
+      })()`),
     );
   }
   async function dot() {
