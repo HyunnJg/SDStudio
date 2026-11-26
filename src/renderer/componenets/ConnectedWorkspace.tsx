@@ -60,11 +60,7 @@ import {
   REFERENCE_COST_NOTICE,
   VARIATION_DEFAULTS,
 } from '../../workspaceReference';
-import type {
-  ImagePurpose,
-  WorkspaceReference,
-  WorkspaceVariation,
-} from '../../workspaceReference';
+import type { ImagePurpose } from '../../workspaceReference';
 import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
 import {
   V5_CHARACTER_LIMIT,
@@ -390,15 +386,16 @@ export default function ConnectedWorkspace({
       draft: { ...previous.draft, ...value },
     }));
   };
-  const setSceneImage = (image?: WorkspaceReference | WorkspaceVariation) => {
+  const setSceneImage = <K extends ImagePurpose>(
+    purpose: K,
+    image?: WorkspaceDraft[K],
+  ) => {
     setSinglePlan(undefined);
     setQueuePlan(undefined);
     setState((previous) => {
       const draft = { ...previous.draft };
-      delete draft.reference;
-      delete draft.img2img;
-      if (image && 'role' in image) draft.reference = image;
-      else if (image) draft.img2img = image;
+      if (image) draft[purpose] = image;
+      else delete draft[purpose];
       return { ...previous, draft };
     });
   };
@@ -455,14 +452,14 @@ export default function ConnectedWorkspace({
         bytes: imported.preview,
       });
       if (purpose === 'img2img')
-        setSceneImage({
+        setSceneImage(purpose, {
           ...imported.asset,
           strength:
             state.draft.img2img?.strength ?? VARIATION_DEFAULTS.strength,
           noise: state.draft.img2img?.noise ?? VARIATION_DEFAULTS.noise,
         });
       else
-        setSceneImage({
+        setSceneImage(purpose, {
           ...imported.asset,
           role: state.draft.reference?.role ?? 'character',
           strength: state.draft.reference?.strength ?? 1,
@@ -1022,8 +1019,8 @@ export default function ConnectedWorkspace({
                 onFile={async (file) => receiveImage(file)}
                 onChoose={chooseImage}
                 variation={state.draft.img2img}
-                onVariation={setSceneImage}
-                onChange={setSceneImage}
+                onVariation={(asset) => setSceneImage('img2img', asset)}
+                onChange={(asset) => setSceneImage('reference', asset)}
               />
               {mismatchedVariation && variation && (
                 <p role="status">

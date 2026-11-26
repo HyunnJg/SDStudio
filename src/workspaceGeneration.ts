@@ -18,6 +18,7 @@ export type GenerationCode =
   | 'UNSUPPORTED_DRAFT'
   | 'RESULT_SAVE_FAILED'
   | 'QUEUE_LIMIT'
+  | 'GENERATION_BODY_LIMIT'
   | 'QUEUE_INPUT_CHANGED';
 export interface GenerationFailure {
   ok: false;
@@ -107,6 +108,7 @@ export interface GenerationClient {
   referenceImage(
     id: string,
     sceneId: string,
+    purpose?: ImagePurpose,
   ): Promise<GenerationReply<Uint8Array>>;
   status(): Promise<GenerationReply<{ active: boolean; pending: boolean }>>;
   prepare(

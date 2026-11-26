@@ -40,10 +40,12 @@ module.exports = async ({
   await click('[data-testid=image-use-metadata]');
   await until(() =>
     evaluate(
-      "document.querySelector('[data-testid=metadata-dialog] pre')?.textContent === 'webp xmp fixture'",
+      "!!document.querySelector('[data-import-field=prompt]:checked')",
     ),
   );
-  await click('[data-testid=metadata-dialog] header button');
+  await click('[data-testid=apply-metadata]');
+  await until(() => evaluate("document.querySelector('#live-prompt').value === 'webp xmp fixture'"));
+  await click('[data-testid=undo-metadata]');
   assert.equal(requestCount(), 0);
   checks.push('WebP XMP prompt previews locally without a generation request');
   const {
@@ -60,10 +62,12 @@ module.exports = async ({
   await click('[data-testid=image-use-metadata]');
   await until(() =>
     evaluate(
-      "document.querySelector('[data-testid=metadata-dialog] pre')?.textContent === 'webp alpha fixture'",
+      "!!document.querySelector('[data-import-field=prompt]:checked')",
     ),
   );
-  await click('[data-testid=metadata-dialog] header button');
+  await click('[data-testid=apply-metadata]');
+  await until(() => evaluate("document.querySelector('#live-prompt').value === 'webp alpha fixture'"));
+  await click('[data-testid=undo-metadata]');
   assert.equal(requestCount(), 0);
   checks.push(
     'WebP retaining stealth alpha bits previews the original caption without a request',
@@ -124,7 +128,19 @@ module.exports = async ({
     ),
   );
   assert.equal(requestCount(), 1);
+  await pick(original, 'jpeg');
+  await click('[data-testid=image-use-reference]');
+  const bothReady = () => evaluate("document.querySelectorAll('[data-testid=reference-panel] img').length === 2 && !document.querySelector('[data-testid=prepare-generation]').disabled");
+  await until(bothReady);
+  await click('[data-testid=remove-reference]');
+  assert.equal(await evaluate("document.querySelector('#variation-strength').value"), '0.4');
+  await pick(original, 'jpeg');
+  await click('[data-testid=image-use-reference]');
+  await until(bothReady);
   await click('[data-testid=prepare-generation]');
+  await until(() => evaluate("!!document.querySelector('[data-testid=single-reference-cost]')"));
+  assert.equal(requestCount(), 1);
+  await click('[data-testid=send-high-steps]');
   await until(async () => (await open()).images.length === 2);
   const second = (await open()).images[1];
   assert.equal(second.draft.img2img.sourceHash, first.sha256);
@@ -133,6 +149,7 @@ module.exports = async ({
     first.draft.img2img.sourceHash,
   );
   assert.notEqual(second.id, first.id);
+  assert.equal(second.binding.id,'nai-v5-img2img-reference-v1');
   assert.equal(requestCount(), 2);
   checks.push(
     'reusing the canvas result creates a second independent record and preserves the first',

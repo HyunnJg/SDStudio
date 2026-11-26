@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GenerationClient } from '../../workspaceGeneration';
 import type {
+  ImagePurpose,
+  ReferenceAsset,
   WorkspaceReference,
   WorkspaceVariation,
   ReferenceRole,
@@ -25,25 +27,20 @@ interface Props {
   onChoose?: () => void;
   onChange: (reference: WorkspaceReference | undefined) => void;
 }
-export default function ConnectedReference({
-  reference,
-  variation,
-  onVariation,
+function ImagePreview({
+  asset,
+  purpose,
   projectId,
   sceneId,
-  family,
-  locked,
   preview,
   client,
-  onFile,
-  onChange,
-  onChoose = undefined,
-}: Props) {
-  const file = useRef<HTMLInputElement>(null);
+}: Pick<Props, 'projectId' | 'sceneId' | 'preview' | 'client'> & {
+  asset: ReferenceAsset;
+  purpose: ImagePurpose;
+}) {
   const [url, setURL] = useState('');
   const [unavailable, setUnavailable] = useState(false);
-  const asset = reference ?? variation;
-  const hash = asset?.uploadHash;
+  const hash = asset.uploadHash;
   useEffect(() => {
     let alive = true;
     let objectURL = '';
@@ -54,7 +51,7 @@ export default function ConnectedReference({
       if (preview && preview.hash === hash)
         bytes = Promise.resolve(preview.bytes);
       else if (projectId)
-        bytes = client.referenceImage(projectId, sceneId).then((r) => {
+        bytes = client.referenceImage(projectId, sceneId, purpose).then((r) => {
           if (!r.ok) throw new Error(r.code);
           return r.value;
         });
@@ -76,7 +73,38 @@ export default function ConnectedReference({
       alive = false;
       if (objectURL) URL.revokeObjectURL(objectURL);
     };
-  }, [projectId, sceneId, hash, preview, client]);
+  }, [projectId, sceneId, hash, preview, client, purpose]);
+  const label = purpose === 'img2img' ? '변형 원본' : '레퍼런스';
+  return (
+    <div>
+      {url && <img src={url} alt={`${label} 전송용 미리보기`} />}
+      {unavailable && (
+        <p role="alert">
+          미리보기를 읽지 못했습니다. 이미지를 다시 선택하세요.
+        </p>
+      )}
+      <small>
+        {label} · {asset.width}×{asset.height}
+      </small>
+    </div>
+  );
+}
+
+export default function ConnectedReference({
+  reference,
+  variation,
+  onVariation,
+  projectId,
+  sceneId,
+  family,
+  locked,
+  preview,
+  client,
+  onFile,
+  onChange,
+  onChoose = undefined,
+}: Props) {
+  const file = useRef<HTMLInputElement>(null);
   return (
     <section
       className="connected-reference"
@@ -97,8 +125,8 @@ export default function ConnectedReference({
         <strong>이미지 입력</strong>
         <small>
           {reference && '참조 1 · +5 Anlas/회'}
-          {variation && '이미지 변형'}
-          {!asset && '이미지'}
+          {variation && (reference ? ' · 이미지 변형' : '이미지 변형')}
+          {!reference && !variation && '이미지'}
         </small>
       </header>
 
@@ -121,7 +149,7 @@ export default function ConnectedReference({
         disabled={locked}
         onClick={() => (onChoose ? onChoose() : file.current?.click())}
       >
-        {asset ? '이미지 바꾸기' : '+ 이미지 추가'}
+        + 이미지 추가
       </button>
       {family !== 'v5' && reference && (
         <p role="status">
@@ -129,32 +157,16 @@ export default function ConnectedReference({
           {reference && ' 참조를 해제하거나 V5로 전환해야 생성할 수 있습니다.'}
         </p>
       )}
-      {asset && (
-        <>
-          {url && (
-            <img
-              src={url}
-              alt={
-                variation
-                  ? '변형 원본의 전송용 미리보기'
-                  : '전송용 참조 이미지 미리보기'
-              }
-            />
-          )}
-          {unavailable && (
-            <p role="alert">
-              {variation
-                ? '변형 원본을 읽지 못했습니다. 이미지를 다시 선택하세요.'
-                : '참조를 읽지 못했습니다. 다시 선택해 주세요. 참조 없이 자동 생성하지 않습니다.'}
-            </p>
-          )}
-          <small>
-            {asset.width}×{asset.height} · 중앙 자르기
-          </small>
-        </>
-      )}
       {variation && (
         <fieldset disabled={locked}>
+          <ImagePreview
+            projectId={projectId}
+            sceneId={sceneId}
+            preview={preview}
+            client={client}
+            asset={variation}
+            purpose="img2img"
+          />
           {family !== 'v5' && (
             <p>이미지 변형은 V5 Full에서 사용할 수 있습니다.</p>
           )}
@@ -182,6 +194,14 @@ export default function ConnectedReference({
       )}
       {reference && (
         <>
+          <ImagePreview
+            projectId={projectId}
+            sceneId={sceneId}
+            preview={preview}
+            client={client}
+            asset={reference}
+            purpose="reference"
+          />
           <label htmlFor="reference-role">
             참조 대상
             <select

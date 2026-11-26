@@ -15,14 +15,15 @@ import {
 export function bindBasicGeneration(
   scene: WorkspaceScene,
   random = () => randomInt(4294967296),
-  inputPNG: Uint8Array | undefined = undefined,
+  images: { reference?: Uint8Array; img2img?: Uint8Array } = {},
 ) {
   const d = scene.draft;
   const v5 = d.family === 'v5';
   const reference = d.reference ? validateReference(d.reference) : undefined;
-  if (reference && (!v5 || !inputPNG)) throw new Error('UNSUPPORTED_DRAFT');
+  if (reference && (!v5 || !images.reference))
+    throw new Error('UNSUPPORTED_DRAFT');
   const variation = d.img2img ? validateVariation(d.img2img) : undefined;
-  if (variation && (!v5 || reference || !inputPNG))
+  if (variation && (!v5 || !images.img2img))
     throw new Error('UNSUPPORTED_DRAFT');
   const enabledCharacters = d.characters.filter((c) => c.enabled);
   if (
@@ -122,10 +123,10 @@ export function bindBasicGeneration(
       sampler: 'k_euler_ancestral',
       noise_schedule: 'karras',
       cfg_rescale: 0,
-      ...(reference && inputPNG
+      ...(reference && images.reference
         ? {
             director_reference_images: [
-              Buffer.from(inputPNG).toString('base64'),
+              Buffer.from(images.reference).toString('base64'),
             ],
             director_reference_descriptions: [
               {
@@ -141,9 +142,9 @@ export function bindBasicGeneration(
             director_reference_secondary_strength_values: [0],
           }
         : {}),
-      ...(variation && inputPNG
+      ...(variation && images.img2img
         ? {
-            image: Buffer.from(inputPNG).toString('base64'),
+            image: Buffer.from(images.img2img).toString('base64'),
             strength: variation.strength,
             noise: variation.noise,
           }
@@ -184,6 +185,7 @@ export function bindBasicGeneration(
   if (v5) bindingId = 'nai-v5-full-v1';
   if (v5 && characters.length) bindingId = 'nai-v5-characters-auto-v1';
   if (reference) bindingId = 'nai-v5-reference-v1';
-  if (variation) bindingId = 'nai-v5-img2img-v1';
+  if (variation)
+    bindingId = reference ? 'nai-v5-img2img-reference-v1' : 'nai-v5-img2img-v1';
   return { request, input, bindingId, characterCount: characters.length };
 }

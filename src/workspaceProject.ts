@@ -62,7 +62,8 @@ export interface ImageBinding {
     | 'nai-v5-full-v1'
     | 'nai-v5-characters-auto-v1'
     | 'nai-v5-reference-v1'
-    | 'nai-v5-img2img-v1';
+    | 'nai-v5-img2img-v1'
+    | 'nai-v5-img2img-reference-v1';
   requestHash: string;
 }
 export interface ProjectImage {
@@ -83,7 +84,7 @@ export type ProjectImageInput = Omit<
 >;
 export interface WorkspaceProject extends ProjectContent {
   format: typeof PROJECT_FORMAT;
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   id: string;
   images: ProjectImage[];
   trashedImageIds?: string[];
@@ -109,7 +110,12 @@ export type ProjectReply<T> =
   { ok: true; value: T } | { ok: false; code: ProjectErrorCode };
 export interface ProjectClient {
   resultPicks(id: string): Promise<ProjectReply<string[]>>;
-  setResultPicks(id: string, revision: string, ids: string[], picked: boolean): Promise<ProjectReply<string[]>>;
+  setResultPicks(
+    id: string,
+    revision: string,
+    ids: string[],
+    picked: boolean,
+  ): Promise<ProjectReply<string[]>>;
   exportResults(id: string, imageIds: string[]): Promise<ProjectReply<boolean>>;
   restartStorage(): Promise<ProjectReply<void>>;
   list(): Promise<ProjectReply<ProjectListing[]>>;
@@ -257,7 +263,7 @@ export function projectReferences(
   images: readonly ProjectImageInput[] = [],
 ): (WorkspaceReference | WorkspaceVariation)[] {
   return [...content.scenes.map((s) => s.draft), ...images.map((i) => i.draft)]
-    .map((d) => d.reference ?? d.img2img)
+    .flatMap((d) => [d.reference, d.img2img])
     .filter((asset) => asset !== undefined);
 }
 export function referenceAssetBytes(project: WorkspaceProject): number {
@@ -303,9 +309,7 @@ function draft(value: unknown): number {
     'guidance',
   ]);
   choice(d.family, ['v4.5', 'v5']);
-  projectCheck(
-    !(optional.includes('reference') && optional.includes('img2img')),
-  );
+
   if (optional.includes('img2img')) validateVariation(d.img2img);
   if (optional.includes('reference')) validateReference(d.reference);
   if (optional.includes('qualityTags'))
@@ -407,10 +411,14 @@ export function validateImageInput(value: unknown): ProjectImageInput {
         'nai-v5-characters-auto-v1',
         'nai-v5-reference-v1',
         'nai-v5-img2img-v1',
+        'nai-v5-img2img-reference-v1',
       ].includes(String(binding.id)),
     );
     projectCheck(
-      (binding.id === 'nai-v5-img2img-v1') === !!sourceDraft.img2img,
+      (binding.id === 'nai-v5-img2img-reference-v1') ===
+        !!(sourceDraft.reference && sourceDraft.img2img) &&
+        (binding.id === 'nai-v5-img2img-v1') ===
+          !!(sourceDraft.img2img && !sourceDraft.reference),
     );
     projectHash(binding.requestHash);
   }
@@ -419,7 +427,14 @@ export function validateImageInput(value: unknown): ProjectImageInput {
 export function requiredProjectVersion(
   content: ProjectContent,
   images: readonly ProjectImageInput[] = [],
-): 1 | 2 | 3 | 4 | 5 | 7 | 8 {
+): 1 | 2 | 3 | 4 | 5 | 7 | 8 | 9 {
+  if (
+    content.scenes.some(
+      (entry) => entry.draft.reference && entry.draft.img2img,
+    ) ||
+    images.some((entry) => entry.draft.reference && entry.draft.img2img)
+  )
+    return 9;
   if (
     projectReferences(content, images).some(
       (r) => r.sourceFormat || r.uploadBytes > 2 * 1024 * 1024,
@@ -469,7 +484,8 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
       v.version === 5 ||
       v.version === 6 ||
       v.version === 7 ||
-      v.version === 8,
+      v.version === 8 ||
+      v.version === 9,
     'PROJECT_VERSION',
   );
   try {
