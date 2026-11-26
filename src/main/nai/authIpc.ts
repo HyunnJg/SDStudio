@@ -34,6 +34,7 @@ export function registerNaiAuth(
   store: NaiTokenStore,
   offline: () => boolean,
   trusted: (event: IpcMainInvokeEvent) => boolean,
+  namespace: 'nai-auth' | 'gemini-auth' = 'nai-auth',
 ): void {
   const handle = (
     channel: string,
@@ -55,10 +56,10 @@ export function registerNaiAuth(
       }
     });
   };
-  handle('nai-auth-status', () => store.status());
-  handle('nai-auth-set', (token, remember) => store.set(token, remember));
-  handle('nai-auth-clear', () => store.clear());
-  handle('nai-auth-check', async () => {
+  handle(`${namespace}-status`, () => store.status());
+  handle(`${namespace}-set`, (token, remember) => store.set(token, remember));
+  handle(`${namespace}-clear`, () => store.clear());
+  handle(`${namespace}-check`, async () => {
     await store.read();
     return { ...(await store.status()), locallyReadable: true };
   });

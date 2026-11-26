@@ -183,4 +183,23 @@ module.exports = async ({ evaluate, click, fill, until, checks, requests }) => {
     'legacy recipe stays readable; named cut, paragraph replacement and I2I strength reload into queue confirmation without a send',
   );
   await click('[data-testid=queue-confirm] button:last-of-type');
+  await select(panel + ' select', ' ');
+  await fill('#live-repeats', '1');
+  await click(panel + ' fieldset > details > summary');
+  const assistant = '[data-testid=recipe-assistant]';
+  await fill(assistant + ' input[type=password]', 'synthetic-gemini-key');
+  await click(assistant + ' details button');
+  await fill(assistant + ' textarea', '표정 세 컷, 각 두 장');
+  await click(assistant + ' > button');
+  await until(() => evaluate("document.querySelectorAll('[data-testid=recipe-assistant] li').length === 3"));
+  assert.equal(await evaluate("document.querySelector('#live-repeats').value"), '1');
+  await click(assistant + ' > button:last-of-type');
+  assert.equal(await evaluate("document.querySelector('#live-repeats').value"), '2');
+  await fill(panel + ' > fieldset > fieldset:last-of-type textarea', 'relieved, soft smile');
+  await click('[data-testid=prepare-recipe]');
+  await until(() => evaluate("!!document.querySelector('[data-testid=queue-confirm]')"));
+  assert.match(await evaluate("document.querySelector('[data-testid=prepare-recipe]').textContent"), /6장/);
+  assert.equal(requests(), 2);
+  checks.push('Gemini key entry, three proposed cuts, explicit apply, editable character text and six-image queue review without extra generation');
+  await click('[data-testid=queue-confirm] button:last-of-type');
 };

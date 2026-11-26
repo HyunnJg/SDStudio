@@ -294,9 +294,10 @@ test('main network and session inventory changes require an explicit offline rev
     }
   }
   scan(root);
-  // Node fetch belongs to localAI; net is its port-probe server. Entry IPCs are guarded.
+  // Gemini checks before key access and again before fetch. LocalAI also guards its entry IPCs.
   // This inventory is a review tripwire, not a network sandbox or data-flow proof.
   assert.deepEqual(findings.sort(), [
+    'geminiCuts.ts:fetch',
     'localai.ts:fetch',
     'localai.ts:fetch',
     'main.ts:net.createServer',

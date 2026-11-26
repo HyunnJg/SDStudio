@@ -1,5 +1,6 @@
 import { characterLimit } from '../../workspaceCatalog';
 import type { PromptPreset } from '../../promptLibrary';
+import type { SuggestedCut } from '../../recipeAssistant';
 import type { WorkspaceDraft, WorkspaceScene } from '../preview/workspaceDraft';
 
 export interface SceneRecipe {
@@ -25,6 +26,41 @@ export const blankRecipe = (): SceneRecipe => ({
   characterIds: [],
   situations: [{ name: '', setting: '', emotion: '' }],
 });
+
+export function recipeHasPlaceholder(rows: SceneRecipe['situations']) {
+  const [row] = rows;
+  return (
+    rows.length === 1 &&
+    !row.cutMode &&
+    !row.name &&
+    !row.setting &&
+    !row.emotion &&
+    !row.characterId &&
+    row.included !== false
+  );
+}
+
+export function appendSuggestedCuts(
+  recipe: SceneRecipe,
+  cuts: SuggestedCut[],
+  useCharacter: boolean,
+): SceneRecipe {
+  const existing = recipeHasPlaceholder(recipe.situations)
+    ? []
+    : recipe.situations;
+  if (!cuts.length || existing.length + cuts.length > 60)
+    throw Error('조합의 컷은 최대 60개입니다.');
+  return {
+    ...recipe,
+    situations: [
+      ...existing,
+      ...cuts.map((cut) => ({
+        ...cut,
+        ...(useCharacter && cut.emotion ? { cutMode: 'append' as const } : {}),
+      })),
+    ],
+  };
+}
 
 export function validCutStrength(value: string) {
   return (

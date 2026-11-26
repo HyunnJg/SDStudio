@@ -8,6 +8,20 @@ const { png } = require('../../src/__tests__/fixtures/nai/png.cjs');
 const JSZip = require('jszip');
 const expectedPNG = png();
 const phase = process.env.SDSTUDIO_GENERATION_PHASE;
+if (phase === 'recipe') {
+  global.fetch = async (url, options) => {
+    assert.equal(new URL(url).origin, 'https://generativelanguage.googleapis.com');
+    assert.equal(options.headers['x-goog-api-key'], 'synthetic-gemini-key');
+    const input = JSON.parse(JSON.parse(options.body).contents[0].parts[0].text);
+    assert.deepEqual(input, { instruction: '표정 세 컷, 각 두 장', style: '', characters: [] });
+    const cuts = ['tense', 'smile', 'relieved'].map((emotion) => ({
+      name: emotion, setting: 'courtyard', emotion,
+    }));
+    return Response.json({ candidates: [{ finishReason: 'STOP', content: {
+      parts: [{ text: JSON.stringify({ cuts, repeats: 2 }) }],
+    } }] });
+  };
+}
 const profile = process.env.SDSTUDIO_USER_DATA_DIR;
 const checks = [],
   remote = [],

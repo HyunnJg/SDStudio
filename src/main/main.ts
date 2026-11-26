@@ -14,6 +14,7 @@ import { usesDevelopmentAssets, resolvePreloadPath, startDesktop } from './deskt
 import { createRuntimeOptions } from '../runtimeOptions';
 import { installOfflineRequestGuard } from './offlineNetwork';
 import { NaiTokenStore } from './nai/tokenStore';
+import registerGeminiCuts from './geminiCuts';
 import { registerNaiAuth, isTrustedAuthFrame } from './nai/authIpc';
 import { WorkspaceGeneration } from './nai/workspaceGeneration';
 import { registerGeneration } from './nai/generationIpc';
@@ -986,14 +987,17 @@ if (!gotTheLock) {
         path.join(app.getPath('userData'), 'auth', 'novelai-token.v1.json'),
         safeStorage,
       );
-      registerNaiAuth(
-        ipcMain,
-        tokenStore,
-        () => runtimeOptions.offline,
-        (event) => isTrustedAuthFrame(
-          event, mainWindow?.webContents, resolveHtmlPath('index.html'),
-        ),
+      const trustedFrame = (event: Electron.IpcMainInvokeEvent) =>
+        isTrustedAuthFrame(event, mainWindow?.webContents, resolveHtmlPath('index.html'));
+      const offline = () => runtimeOptions.offline;
+      const geminiKeys = new NaiTokenStore(
+        path.join(app.getPath('userData'), 'auth', 'gemini-key.v1.json'),
+        safeStorage, process.platform, 'sdstudio-gemini-key',
       );
+      registerNaiAuth(ipcMain, tokenStore, offline, trustedFrame);
+      registerNaiAuth(ipcMain, geminiKeys, offline, trustedFrame, 'gemini-auth');
+      registerGeminiCuts(ipcMain, () => geminiKeys.read(), offline, trustedFrame);
+      app.on('will-quit', () => geminiKeys.lock());
       const projectService = new ProjectService(app.getPath('userData'),
         usesDevelopmentAssets(app.isPackaged, process.env.NODE_ENV)
           ? path.join(__dirname, 'projects/projectWorker.ts') : path.join(__dirname, 'projectWorker.js'));

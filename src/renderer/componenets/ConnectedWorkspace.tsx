@@ -1603,6 +1603,11 @@ export default function ConnectedWorkspace({
                 draft: state.draft,
               }}
               repeats={Number(repeats)}
+              online={!runtimeOptions.offline}
+              onRepeats={(count) => {
+                setRepeats(String(count));
+                setQueuePlan(undefined);
+              }}
               sources={state.scenes.map((s) =>
                 s.id === state.selectedSceneId
                   ? { ...s, draft: state.draft }

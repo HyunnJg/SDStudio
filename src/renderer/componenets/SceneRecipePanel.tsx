@@ -1,9 +1,13 @@
 /* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "either" }] */
 import { useState } from 'react';
+import RecipeAssistant from './RecipeAssistant';
+import { characterLimit } from '../../workspaceCatalog';
 import type { PromptPreset } from '../../promptLibrary';
 import type { WorkspaceScene } from '../preview/workspaceDraft';
 import {
   blankRecipe,
+  appendSuggestedCuts,
+  recipeHasPlaceholder,
   buildRecipeScenes,
   validRecipe,
   validCutStrength,
@@ -28,6 +32,8 @@ export default function SceneRecipePanel({
   presets,
   base,
   repeats,
+  onRepeats,
+  online,
   sources,
   disabled,
   canPrepare,
@@ -38,10 +44,14 @@ export default function SceneRecipePanel({
   sources: WorkspaceScene[];
   canPrepare: boolean;
   repeats: number;
+  onRepeats: (count: number) => void;
+  online: boolean;
   disabled: boolean;
   onCreate: (scenes: WorkspaceScene[]) => void;
 }) {
   const [recipe, setRecipe] = useState(blankRecipe);
+  const [loaded, setLoaded] = useState(0);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [saved, setSaved] = useState<SceneRecipe[]>(() => {
     try {
       return readRecipes();
@@ -64,21 +74,17 @@ export default function SceneRecipePanel({
     });
   const addCut = () => {
     const row: Row = { name: '', setting: '', emotion: '', cutMode: 'append' };
-    const first = recipe.situations[0];
-    const empty =
-      recipe.situations.length === 1 &&
-      !first.cutMode &&
-      !first.name &&
-      !first.setting &&
-      !first.emotion &&
-      !first.characterId &&
-      first.included !== false;
+    const empty = recipeHasPlaceholder(recipe.situations);
     edit({ situations: empty ? [row] : [...recipe.situations, row] });
   };
   const actors = base.draft.characters.filter(
     (c) => c.enabled && c.prompt.trim(),
   );
   const currentActor = resolveCutActor(actors, recipe.cutActorId);
+  const styleName = visible.find((p) => p.id === recipe.styleId)?.name ?? '';
+  const characterNames = visible
+    .filter((p) => recipe.characterIds.includes(p.id))
+    .map((p) => p.name);
   let sourcePrompt = currentActor?.prompt;
   if (recipe.characterIds.length) {
     sourcePrompt =
@@ -127,6 +133,7 @@ export default function SceneRecipePanel({
             onChange={(e) => {
               const r = saved.find((s) => s.name === e.target.value);
               setRecipe(r ?? blankRecipe());
+              setLoaded((n) => n + 1);
               setError('');
             }}
           >
@@ -239,6 +246,38 @@ export default function SceneRecipePanel({
               </select>
             </label>
           )}
+        {online && window.electron?.recipeAssistant && (
+          <details onToggle={(e) => setAssistantOpen(e.currentTarget.open)}>
+            <summary>말로 컷 추가</summary>
+            {assistantOpen && (
+              <RecipeAssistant
+                key={JSON.stringify([
+                  loaded,
+                  base.id,
+                  recipe.styleId,
+                  recipe.characterIds,
+                  recipe.cutActorId,
+                  styleName,
+                  characterNames,
+                ])}
+                style={styleName}
+                characters={characterNames}
+                room={
+                  recipeHasPlaceholder(recipe.situations)
+                    ? 60
+                    : 60 - recipe.situations.length
+                }
+                onApply={(plan) => {
+                  const useCharacter =
+                    !!characterLimit(base.draft) &&
+                    !!(actors.length || recipe.characterIds.length);
+                  edit(appendSuggestedCuts(recipe, plan.cuts, useCharacter));
+                  if (plan.repeats) onRepeats(plan.repeats);
+                }}
+              />
+            )}
+          </details>
+        )}
         {recipe.situations.map((row, i) => (
           // Rows are controlled inputs with no component-local state.
           // eslint-disable-next-line react/no-array-index-key
@@ -257,7 +296,7 @@ export default function SceneRecipePanel({
               </label>
             )}
             {(['name', 'setting', 'emotion'] as const)
-              .filter((key) => !row.cutMode || key === 'name')
+              .filter((key) => !row.cutMode || key !== 'emotion')
               .map((key) => (
                 <label key={key}>
                   {

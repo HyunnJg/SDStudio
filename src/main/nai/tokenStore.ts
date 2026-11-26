@@ -27,6 +27,7 @@ export class NaiTokenStore {
     private readonly file: string,
     private readonly encryption: Encryption,
     private readonly platform = process.platform,
+    private readonly format = 'sdstudio-nai-token',
   ) {}
 
   private guard(generation: number): void {
@@ -85,7 +86,7 @@ export class NaiTokenStore {
       const value = JSON.parse(bytes.toString('utf8'));
       if (value.version !== 1) throw new NaiError('STORE_VERSION');
       if (
-        value.format !== 'sdstudio-nai-token' ||
+        value.format !== this.format ||
         typeof value.ciphertext !== 'string' ||
         !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
           value.ciphertext,
@@ -205,7 +206,7 @@ export class NaiTokenStore {
       fs.writeFileSync(
         temporary,
         JSON.stringify({
-          format: 'sdstudio-nai-token',
+          format: this.format,
           version: 1,
           ciphertext: encrypted.toString('base64'),
         }),

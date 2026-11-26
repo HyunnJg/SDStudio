@@ -2,6 +2,7 @@
 /* eslint no-unused-vars: off */
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import type { NaiAuthResult } from '../naiAuth';
+import type { CutRequest, CutResult } from '../recipeAssistant';
 import type { GenerationClient } from '../workspaceGeneration';
 import type { ProjectClient } from '../workspaceProject';
 import type { LibraryClient } from '../promptLibrary';
@@ -52,6 +53,16 @@ export type Channels =
   | 'lookup-tag';
 
 const electronHandler = {
+  recipeAssistant: {
+    status: (): Promise<NaiAuthResult> =>
+      ipcRenderer.invoke('gemini-auth-status'),
+    setKey: (key: string, remember: boolean): Promise<NaiAuthResult> =>
+      ipcRenderer.invoke('gemini-auth-set', key, remember),
+    clear: (): Promise<NaiAuthResult> =>
+      ipcRenderer.invoke('gemini-auth-clear'),
+    suggest: (request: CutRequest): Promise<CutResult> =>
+      ipcRenderer.invoke('gemini-suggest-cuts', request),
+  },
   promptLibrary: {
     read: () => ipcRenderer.invoke('prompt-library-read'),
     save: (revision, content, id) =>
