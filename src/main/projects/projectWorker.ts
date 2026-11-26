@@ -11,6 +11,7 @@ const operations = [
   'listTrash',
   'trashProject',
   'restoreProject',
+  'purgeProject',
   'emptyResultTrash',
   'resultPicks',
   'setResultPicks',

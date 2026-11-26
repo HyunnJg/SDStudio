@@ -290,3 +290,38 @@ test('empty preserves v7 and an img2img source and crop used only by a recoverab
   assert.deepEqual(f.store.referenceImage(recovered.project.id, scene.id), upload);
   assert.deepEqual(f.store.image(recovered.project.id, f.image.id), Uint8Array.from(png()));
 });
+
+test('permanent deletion requires a confirmed trash UUID and preserves other projects', t => {
+ const f=fixture(t),other=f.store.copy(f.id,f.snapshot.revision,f.content);
+ assert.throws(()=>f.store.purgeProject(f.id,true),{code:'PROJECT_NOT_FOUND'});
+ f.store.trashProject(f.id);
+ for(const confirmed of [false,undefined,1]) assert.throws(()=>f.store.purgeProject(f.id,confirmed),{code:'PROJECT_INPUT'});
+ assert.throws(()=>f.store.purgeProject('../outside',true),{code:'PROJECT_INPUT'});
+ assert.equal(f.store.listTrash().length,1);
+ f.store.purgeProject(f.id,true);
+ assert.deepEqual(f.store.listTrash(),[]);
+ assert.deepEqual(f.store.open(other.project.id),other);
+ assert.throws(()=>f.store.restoreProject(f.id),{code:'PROJECT_NOT_FOUND'});
+});
+
+test('interrupted permanent deletion remains finishable after restart and cannot restore a partial project', t => {
+ const f=fixture(t);
+ f.store.trashProject(f.id);
+ fs.renameSync(f.trash,path.join(path.dirname(f.trash),'deleting-'+f.id));
+ const reopened=new ProjectStore(f.profile);
+ assert.deepEqual(reopened.listTrash(),[{id:f.id,deleting:true}]);
+ assert.throws(()=>reopened.restoreProject(f.id),{code:'PROJECT_NOT_FOUND'});
+ reopened.purgeProject(f.id,true);
+ assert.deepEqual(reopened.listTrash(),[]);
+});
+
+test('purging a trash directory containing a link leaves the external target intact', {skip:process.platform==='win32'}, t => {
+ const f=fixture(t);
+ f.store.trashProject(f.id);
+ const outside=fs.mkdtempSync(path.join(os.tmpdir(),'sdstudio-purge-external-'));
+ t.after(()=>fs.rmSync(outside,{force:true,recursive:true}));
+ fs.writeFileSync(path.join(outside,'keep'),'keep');
+ fs.symlinkSync(outside,path.join(f.trash,'external'));
+ f.store.purgeProject(f.id,true);
+ assert.equal(fs.readFileSync(path.join(outside,'keep'),'utf8'),'keep');
+});

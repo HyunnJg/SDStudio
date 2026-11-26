@@ -990,6 +990,18 @@ app.on('web-contents-created', (_event, contents) => {
         assert.equal(requests,0,'offline metadata import is local and never sends');
         await require('./prompt-library-ui-probe.cjs')({ contents, evaluate, click, fill, until, checks });
         assert.equal(requests, 0, 'offline library never sends a generation request');
+        const draftBeforeLegacy = await evaluate("document.querySelector('#live-prompt').value");
+        await evaluate("Array.from(document.querySelectorAll('.connected-menu button')).find(b=>b.textContent==='V3 프롬프트 조각').click()");
+        await until(()=>evaluate("!!document.querySelector('[data-testid=open-preview]')"));
+        assert.equal(await evaluate("document.querySelector('[data-testid=open-preview]').textContent"), '작업실로 돌아가기');
+        if (await evaluate('!!window.curSession')) {
+          assert.equal(await evaluate("[...document.querySelectorAll('button.back-sky')].some(b=>b.textContent==='프롬프트조각')"),true);
+        }
+        await click('[data-testid=open-preview]');
+        await until(()=>evaluate("!!document.querySelector('#live-prompt')"));
+        assert.equal(await evaluate("document.querySelector('#live-prompt').value"),draftBeforeLegacy);
+        checks.push('V3 pieces entry returns to the same workspace draft without generation');
+
       } else if (phase === 'reopen') {
         const library = await evaluate('window.electron.promptLibrary.read()');
         if (process.env.SDSTUDIO_LIBRARY_REOPEN === '1') { assert.equal(library.ok, true); assert.equal(library.value.entries.length, 3); checks.push('new PID reopens the persisted prompt library without a generation request'); }
@@ -1167,7 +1179,8 @@ app.on('web-contents-created', (_event, contents) => {
         checks.push(
           'actual Electron session transport accepts unknown MIME ZIP, worker persists original alpha/metadata PNG, renderer decodes it',
         );
-        assert.ok(await evaluate("document.querySelector('[data-testid=result-download]').href.startsWith('blob:') && document.querySelector('[data-testid=result-download]').download.endsWith('.png')"));
+        assert.equal(await evaluate("document.querySelectorAll('[data-testid=gallery-save]').length"), 1);
+        assert.equal(await evaluate("!!document.querySelector('[data-testid=result-download]')"), false);
         await click('[data-testid=result-use-metadata]');
         await until(() => evaluate("document.querySelector('[data-testid=metadata-dialog]')?.open && !!document.querySelector('[data-testid=apply-metadata]')"));
         await click('[aria-label="메타데이터 창 닫기"]');

@@ -93,7 +93,7 @@ module.exports = async ({ contents, evaluate, click, until, checks }) => {
         await evaluate(
           "document.querySelector('[data-testid=metadata-dialog]').textContent",
         )
-      ).includes('최종 태그가 포함된 원문'),
+      ).includes('자동 추가를 끕니다'),
     );
     for (const field of [
       'prompt',
@@ -139,13 +139,8 @@ module.exports = async ({ contents, evaluate, click, until, checks }) => {
       "document.querySelector('[data-testid=metadata-dialog]').textContent",
     ),
   );
-  assert.ok(
-    (
-      await evaluate(
-        "document.querySelector('[data-testid=metadata-dialog]').textContent",
-      )
-    ).includes('알파 채널'),
-  );
+  assert.equal(await evaluate("document.querySelectorAll('[data-testid=metadata-dialog] pre, [data-testid=metadata-dialog] code').length"), 0);
+  assert.equal(await evaluate("document.querySelectorAll('[data-import-field]:checked').length"), 5);
   const window = BrowserWindow.fromWebContents(contents);
   window.setMinimumSize(360, 500);
   window.setSize(390, 844);

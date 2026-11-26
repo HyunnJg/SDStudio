@@ -19,6 +19,8 @@ module.exports = async ({ contents, evaluate, click, fill, until, checks }) => {
   await waitReady();
   assert.equal(await evaluate("document.querySelector('#live-prompt').value"), before[0]);
   assert.ok((await evaluate("document.querySelector('[data-testid=library-save-state]').textContent")).includes('저장됨'));
+  assert.ok((await evaluate("document.querySelector('.workspace-saved-presets').textContent")).includes('Synthetic library main'));
+  assert.equal(await evaluate("!!document.querySelector('.connected-input .preset-chip')"),false);
   await click('[data-testid=library-apply]');
   await until(() => evaluate("document.querySelector('#live-prompt').value==='synthetic reusable garden'"));
   assert.ok((await evaluate("document.querySelector('[data-testid=applied-main-preset]').textContent")).includes('Synthetic library main'));
