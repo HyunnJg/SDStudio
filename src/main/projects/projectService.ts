@@ -44,6 +44,8 @@ export class ProjectService implements ProjectOperations {
       | 'trashProject'
       | 'restoreProject'
       | 'emptyResultTrash'
+      | 'resultPicks'
+      | 'setResultPicks'
       | 'setImageDeleted'
       | 'create'
       | 'open'
@@ -184,6 +186,14 @@ export class ProjectService implements ProjectOperations {
 
   setImageDeleted(...args: Parameters<ProjectStore['setImageDeleted']>) {
     return this.call('setImageDeleted', args);
+  }
+
+  resultPicks(id: string) {
+    return this.call('resultPicks', [id]);
+  }
+
+  setResultPicks(...args: Parameters<ProjectStore['setResultPicks']>) {
+    return this.call('setResultPicks', args);
   }
 
   readManifest(id: string) {

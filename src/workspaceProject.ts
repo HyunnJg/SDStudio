@@ -107,6 +107,8 @@ export interface ProjectListing {
 export type ProjectReply<T> =
   { ok: true; value: T } | { ok: false; code: ProjectErrorCode };
 export interface ProjectClient {
+  resultPicks(id: string): Promise<ProjectReply<string[]>>;
+  setResultPicks(id: string, revision: string, ids: string[], picked: boolean): Promise<ProjectReply<string[]>>;
   exportResults(id: string, imageIds: string[]): Promise<ProjectReply<boolean>>;
   restartStorage(): Promise<ProjectReply<void>>;
   list(): Promise<ProjectReply<ProjectListing[]>>;

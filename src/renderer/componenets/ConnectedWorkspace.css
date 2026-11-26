@@ -952,4 +952,4 @@
 .gallery-export small { flex-basis:100%; }
 .connected-thumbnail { position:relative; }
 .gallery-mark { position:absolute; top:8px; left:8px; width:20px; height:20px; display:grid; place-items:center; background:var(--pw-panel); color:var(--pw-text); border:1px solid var(--pw-muted); border-radius:4px; }
-.connected-thumbnail[aria-pressed='true'] .gallery-mark { background:var(--pw-accent); color:var(--pw-bg); }
+.gallery-mark[data-picked='true'] { background:var(--pw-accent); color:var(--pw-bg); }

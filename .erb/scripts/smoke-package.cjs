@@ -23,7 +23,7 @@ const generationCases = new Map([
   ['generation-characters', { requests: 3, checks: 8 }],
   ['generation-img2img', { requests: 2, checks: 7 }],
   ['generation-reference', { requests: 3, checks: 6 }],
-  ['generation-trash', { requests: 2, checks: 12 }],
+  ['generation-trash', { requests: 2, checks: 13 }],
 ]);
 const generationCase = generationCases.get(process.argv[3]);
 const generationMode = !!generationCase;

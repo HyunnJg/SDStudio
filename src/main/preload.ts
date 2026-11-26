@@ -144,6 +144,9 @@ const electronHandler = {
       ipcRenderer.invoke('workspace-generation-image', id, imageId),
   } satisfies GenerationClient,
   projects: {
+    resultPicks: (id) => ipcRenderer.invoke('workspace-project-result-picks', id),
+    setResultPicks: (id, revision, ids, picked) =>
+      ipcRenderer.invoke('workspace-project-set-result-picks', id, revision, ids, picked),
     exportResults: (id, ids) => ipcRenderer.invoke('workspace-project-export-results', id, ids),
     restartStorage: () =>
       ipcRenderer.invoke('workspace-project-restart-storage'),

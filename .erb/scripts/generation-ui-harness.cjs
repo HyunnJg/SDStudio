@@ -1014,7 +1014,10 @@ app.on('web-contents-created', (_event, contents) => {
           `window.electron.projects.open('${restored.id}')`,
         );
         assert.equal(data.value.project.images.length, (img2img || process.env.SDSTUDIO_TRASH_SMOKE === '1') ? 2 : 1);
-        if (process.env.SDSTUDIO_TRASH_SMOKE === '1') { assert.equal(data.value.project.version,6);assert.equal(data.value.project.trashedImageIds.length,1);assert.equal(await evaluate("document.querySelectorAll('[data-image-id]').length"),1);checks.push('new PID restores v6 visibility and original bytes without resurrecting a hidden image'); }
+        if (process.env.SDSTUDIO_TRASH_SMOKE === '1') {
+          await until(() => evaluate("document.querySelector('.gallery-export button[aria-pressed]')?.textContent.includes('(1)')"));
+          assert.equal(await evaluate("document.querySelectorAll('.gallery-mark[data-picked=true]').length"), 1);
+          assert.equal(data.value.project.version,6);assert.equal(data.value.project.trashedImageIds.length,1);assert.equal(await evaluate("document.querySelectorAll('[data-image-id]').length"),1);checks.push('new PID restores v6 visibility and original bytes without resurrecting a hidden image'); }
         if (img2img) {
           assert.equal(data.value.project.version, 8);
           await until(() => evaluate("document.querySelector('[data-testid=reference-panel] img')?.naturalWidth===832"));

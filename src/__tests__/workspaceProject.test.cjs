@@ -294,7 +294,7 @@ test('offline local IPC checks trust before storage and returns fixed codes with
     await handlers.get('workspace-project-open')({}, '../../synthetic-private'),
     { ok: false, code: 'PROJECT_INPUT' },
   );
-  assert.equal(handlers.size, 13);
+  assert.equal(handlers.size, 15);
   assert.ok(handlers.has('workspace-project-empty-result-trash'));
   assert.equal(handlers.has('workspace-project-import-png'), false);
 });
