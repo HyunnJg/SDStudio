@@ -1,5 +1,5 @@
 /* eslint react/require-default-props: ["error", {"functions": "defaultArguments"}] */
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   ProjectController,
   projectErrorMessage,
@@ -23,10 +23,36 @@ export default function WorkspaceProjectControls({
     controller.subscribe,
     controller.getSnapshot,
   );
+  const [query, setQuery] = useState('');
+  const [deleteId, setDeleteId] = useState('');
+  useEffect(() => {
+    setQuery('');
+    setDeleteId('');
+  }, [state.panel, state.showTrash]);
+  const label = (p: (typeof state.projects)[number]) =>
+    p.name ?? `프로젝트 ${p.id.slice(0, 8)}`;
+  const matches = state.projects
+    .filter((p) =>
+      `${label(p)} ${p.id}`
+        .toLocaleLowerCase()
+        .includes(query.trim().toLocaleLowerCase()),
+    )
+    .sort(
+      (a, b) =>
+        Number(b.id === state.id) - Number(a.id === state.id) ||
+        label(a).localeCompare(label(b), 'ko', { numeric: true }),
+    );
+  const emptyList = state.showTrash
+    ? '휴지통이 비었습니다.'
+    : '저장된 프로젝트가 없습니다.';
+  const search = useRef<HTMLInputElement>(null);
   const panel = useRef<HTMLDialogElement>(null);
   const confirm = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    if (state.panel && !panel.current?.open) panel.current?.showModal();
+    if (state.panel && panel.current && !panel.current.open) {
+      panel.current.showModal();
+      search.current?.focus();
+    }
     if (!state.panel && panel.current?.open) panel.current.close();
   }, [state.panel]);
   useEffect(() => {
@@ -44,7 +70,7 @@ export default function WorkspaceProjectControls({
         }}
         disabled={locked || unavailable}
       >
-        다른 이름으로 저장
+        결과 포함 복제
       </button>
       <button
         type="button"
@@ -123,7 +149,7 @@ export default function WorkspaceProjectControls({
             }}
             disabled={locked || unavailable}
           >
-            열기
+            프로젝트 열기
           </button>
           {connected ? (
             <details className="connected-menu connected-project-menu">
@@ -195,8 +221,33 @@ export default function WorkspaceProjectControls({
               controller.closePanel();
             }}
           >
-            <h2>{state.showTrash ? '프로젝트 휴지통' : '프로젝트'}</h2>
-            <nav aria-label="프로젝트 목록 종류">
+            <header className="project-picker-header">
+              <h2>프로젝트 열기</h2>
+              <button
+                type="button"
+                data-testid="project-dialog-close"
+                onClick={() => controller.closePanel()}
+                disabled={!!state.operation}
+              >
+                닫기
+              </button>
+            </header>
+            <input
+              type="search"
+              ref={search}
+              className="project-search"
+              aria-label="프로젝트 검색"
+              placeholder="이름 또는 ID로 검색"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setDeleteId('');
+              }}
+            />
+            <nav
+              className="project-picker-tools"
+              aria-label="프로젝트 목록 종류"
+            >
               <button
                 type="button"
                 data-testid="project-active-tab"
@@ -215,71 +266,101 @@ export default function WorkspaceProjectControls({
               >
                 휴지통
               </button>
+              {!state.showTrash && (
+                <button
+                  type="button"
+                  disabled={locked || !!state.operation}
+                  onClick={() => controller.newProject()}
+                >
+                  새 프로젝트
+                </button>
+              )}
+              <button
+                type="button"
+                aria-label="목록 새로 고침"
+                title="목록 새로 고침"
+                disabled={!!state.operation}
+                onClick={() => controller.list(state.showTrash)}
+              >
+                ↻
+              </button>
             </nav>
-            <button
-              type="button"
-              onClick={() => {
-                controller.list(state.showTrash);
-              }}
-              disabled={!!state.operation}
-            >
-              목록 새로 확인
-            </button>
             <div className="project-list">
-              {state.projects.map((p) => (
+              {matches.map((p) => (
                 <article key={p.id}>
-                  <strong>{p.name ?? `프로젝트 ${p.id.slice(0, 8)}`}</strong>
-                  {p.error && <p>{projectErrorMessage(p.error)}</p>}
                   {state.showTrash ? (
-                    <button
-                      type="button"
-                      data-project-restore={p.id}
-                      disabled={!!state.operation}
-                      onClick={() => controller.restoreProject(p.id)}
-                    >
-                      복원
-                    </button>
+                    <>
+                      <strong>{label(p)}</strong>
+                      <button
+                        type="button"
+                        data-project-restore={p.id}
+                        disabled={!!state.operation}
+                        onClick={() => controller.restoreProject(p.id)}
+                      >
+                        복원
+                      </button>
+                    </>
                   ) : (
                     <>
                       <button
+                        className="project-open-row"
                         type="button"
                         data-project-open={p.id}
-                        onClick={() => {
-                          controller.open(p.id);
-                        }}
+                        onClick={() => controller.open(p.id)}
                         disabled={!!state.operation}
                       >
-                        열기
+                        <strong>{label(p)}</strong>
+                        <small>
+                          {p.id === state.id ? '현재 프로젝트 · ' : ''}
+                          {p.id.slice(0, 8)}
+                        </small>
                       </button>
-                      <button
-                        type="button"
-                        data-project-history={p.id}
-                        onClick={() => {
-                          controller.inspect(p.id);
-                        }}
-                        disabled={!!state.operation}
-                      >
-                        이력 확인
-                      </button>
-                      <button
-                        type="button"
-                        data-project-trash={p.id}
-                        disabled={locked || !!state.operation}
-                        onClick={() => controller.trashProject(p.id)}
-                      >
-                        휴지통으로
-                      </button>
+                      <details className="project-row-actions">
+                        <summary aria-label={`${label(p)} 관리`}>관리</summary>
+                        <button
+                          type="button"
+                          data-project-history={p.id}
+                          disabled={!!state.operation}
+                          onClick={() => controller.inspect(p.id)}
+                        >
+                          이력 확인
+                        </button>
+                        <button
+                          type="button"
+                          data-project-trash={p.id}
+                          disabled={locked || !!state.operation}
+                          onClick={() => setDeleteId(p.id)}
+                        >
+                          삭제
+                        </button>
+                      </details>
+                      {deleteId === p.id && (
+                        <div className="project-delete-check">
+                          <span>이 프로젝트를 휴지통으로 옮길까요?</span>
+                          <button type="button" onClick={() => setDeleteId('')}>
+                            취소
+                          </button>
+                          <button
+                            type="button"
+                            data-project-trash-confirm={p.id}
+                            disabled={locked || !!state.operation}
+                            onClick={() => {
+                              setDeleteId('');
+                              controller.trashProject(p.id);
+                            }}
+                          >
+                            휴지통으로 이동
+                          </button>
+                        </div>
+                      )}
                     </>
                   )}
+                  {p.error && <p>{projectErrorMessage(p.error)}</p>}
                 </article>
               ))}
             </div>
-            {state.projects.length === 0 && (
-              <p>
-                {state.showTrash
-                  ? '휴지통이 비었습니다.'
-                  : '저장된 프로젝트가 없습니다.'}
-              </p>
+            {matches.length === 0 && (
+              <p>{query.trim() ? '검색 결과가 없습니다.' : emptyList}</p>
             )}
             {state.showTrash && (
               <small>원본 이미지와 이력은 함께 보관됩니다.</small>
@@ -310,14 +391,6 @@ export default function WorkspaceProjectControls({
             {state.error && (
               <p role="alert">{projectErrorMessage(state.error)}</p>
             )}
-            <button
-              type="button"
-              data-testid="project-dialog-close"
-              onClick={() => controller.closePanel()}
-              disabled={!!state.operation}
-            >
-              닫기
-            </button>
           </dialog>
           <dialog
             className="workspace-project-dialog"

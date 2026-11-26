@@ -24,6 +24,30 @@ module.exports=async({contents,evaluate,click,fill,until,checks,profile,requestC
  const before=await snapshot(), latest=before.project.images.at(-1),bytes=fs.readFileSync(path.join(folder,'images',latest.sha256+'.png'));
  assert.notEqual(await evaluate("document.querySelector('[data-testid=result-download]').download"),filename1);
  checks.push('two fixed-seed results have distinct download names; main rejects project mutations while generation is in flight');
+ const { dialog } = require('electron');
+ const chooseFile = dialog.showSaveDialog;
+ const exportDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'sdstudio-gallery-smoke-'));
+ const exported = path.join(exportDir,'selected.zip');
+ try {
+  dialog.showSaveDialog = async () => ({canceled:false,filePath:exported});
+  await click('.gallery-export button[aria-pressed]');
+  await click(`[data-image-id="${latest.id}"]`);
+  assert.equal(await evaluate("document.querySelector('[data-testid=gallery-save]').textContent"),'PNG 저장');
+  await click(`[data-image-id="${before.project.images[0].id}"]`);
+  await until(()=>evaluate("document.querySelector('[data-testid=gallery-save]').textContent.includes('2장')"));
+  await click('[data-testid=gallery-save]');
+  await until(()=>fs.existsSync(exported));
+  const archive=await require('jszip').loadAsync(fs.readFileSync(exported),{checkCRC32:true});
+  for(const [index, item] of Object.values(archive.files).entries()){
+    const image=before.project.images[index];
+    assert.ok(item.name.endsWith(image.id+'.png'));
+    assert.deepEqual(await item.async('nodebuffer'),fs.readFileSync(path.join(folder,'images',image.sha256+'.png')));
+  }
+  assert.equal(Object.keys(archive.files).length,2);
+  await until(()=>evaluate("!document.querySelector('[data-testid=gallery-save]').disabled"));
+  await click('.gallery-export button[aria-pressed]');
+  checks.push('gallery selection exports two same-seed original PNG records through a native-save dialog stub');
+ } finally { dialog.showSaveDialog=chooseFile;fs.rmSync(exportDir,{recursive:true,force:true}); }
  const channel='workspace-project-image-deleted',handler=ipcMain._invokeHandlers.get(channel);
  ipcMain.removeHandler(channel);ipcMain.handle(channel,async()=>({ok:false,code:'PROJECT_SERVICE_STOPPED'}));
  try {
@@ -48,16 +72,22 @@ module.exports=async({contents,evaluate,click,fill,until,checks,profile,requestC
  checks.push('canvas trash removes only the visible record; immediate undo and persisted trash dialog restore originals without another request');
  const savedBytes=fs.readFileSync(path.join(folder,'project.json'));
  await fill('#live-prompt','unsaved synthetic draft');await click('[data-testid=project-list]');await until(()=>evaluate(`!!document.querySelector('[data-project-trash="${id}"]')`));
- await click(`[data-project-trash="${id}"]`);await until(()=>evaluate("document.querySelector('[data-testid=project-confirm]')?.open"));
+ await fill('.project-search','no-matching-synthetic-project');
+ await until(()=>evaluate("document.querySelector('.project-list').children.length===0"));
+ await fill('.project-search','Synthetic trash');
+ await until(()=>evaluate(`!!document.querySelector('[data-project-open="${id}"]')`));
+ await click('.project-row-actions summary');
+ checks.push('filtering the picker hides unmatched projects and finds a saved project by name');
+ await click(`[data-project-trash="${id}"]`);await click(`[data-project-trash-confirm="${id}"]`);await until(()=>evaluate("document.querySelector('[data-testid=project-confirm]')?.open"));
  await click('[data-testid=project-confirm-cancel]');assert.equal(fs.existsSync(folder),true);assert.equal(fs.existsSync(trash),false);
- await click(`[data-project-trash="${id}"]`);await until(()=>evaluate("document.querySelector('[data-testid=project-confirm]')?.open"));await click('[data-testid=project-confirm-discard]');
+ await click(`[data-project-trash="${id}"]`);await click(`[data-project-trash-confirm="${id}"]`);await until(()=>evaluate("document.querySelector('[data-testid=project-confirm]')?.open"));await click('[data-testid=project-confirm-discard]');
  await until(()=>fs.existsSync(trash)&&!fs.existsSync(folder));await until(()=>evaluate("!!document.querySelector('[data-testid=undo-project-trash]')"));
  assert.deepEqual(fs.readFileSync(path.join(trash,'project.json')),savedBytes);assert.deepEqual(fs.readFileSync(path.join(trash,'images',latest.sha256+'.png')),bytes);
  await until(()=>evaluate("!document.querySelector('[data-testid=undo-project-trash]').disabled"));await click('[data-testid=undo-project-trash]');
  await until(()=>fs.existsSync(folder)&&!fs.existsSync(trash));await until(()=>evaluate("document.querySelector('[data-testid=generated-png]')?.naturalWidth===2"));await idle();
  assert.equal(await evaluate("document.querySelector('#live-prompt').value"),'synthetic illustration');
  checks.push('dirty project trash can be cancelled; explicit discard moves its intact directory, and undo restores/reopens the saved identity');
- await click('[data-testid=project-list]');await until(()=>evaluate(`!!document.querySelector('[data-project-trash="${id}"]')`));await click(`[data-project-trash="${id}"]`);
+ await click('[data-testid=project-list]');await until(()=>evaluate(`!!document.querySelector('[data-project-trash="${id}"]')`));await click(`[data-project-trash="${id}"]`);await click(`[data-project-trash-confirm="${id}"]`);
  await until(()=>fs.existsSync(trash));await until(()=>evaluate("!document.querySelector('[data-testid=project-list]').disabled"));await click('[data-testid=project-list]');await click('[data-testid=project-trash-tab]');
  await until(()=>evaluate(`!!document.querySelector('[data-project-restore="${id}"]')`));await click(`[data-project-restore="${id}"]`);await until(()=>!fs.existsSync(trash));
  await until(()=>evaluate("!document.querySelector('[data-testid=project-active-tab]').disabled"));await click('[data-testid=project-active-tab]');await until(()=>evaluate(`!!document.querySelector('[data-project-open="${id}"]')`));await click(`[data-project-open="${id}"]`);

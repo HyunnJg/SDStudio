@@ -21,6 +21,7 @@ import { createNaiTransport } from './nai/electronTransport';
 import { firstGenerationObserver } from './nai/generationDiagnostics';
 import { ProjectService } from './projects/projectService';
 import { ProjectCloseCoordinator } from './projects/projectClose';
+import registerResultExport from './projects/resultExport';
 import { registerProjects } from './projects/projectIpc';
 import { PromptLibraryStore } from './prompts/promptLibraryStore';
 import { registerPromptLibrary } from './prompts/promptLibraryIpc';
@@ -1005,6 +1006,13 @@ if (!gotTheLock) {
       registerGeneration(ipcMain, workspaceGeneration, (event) => isTrustedAuthFrame(event, mainWindow?.webContents, resolveHtmlPath('index.html')));
       app.on('will-quit', () => workspaceGeneration?.cancel());
       app.on('will-quit', () => projectService.close());
+      registerResultExport(ipcMain, projectService, app.getPath('userData'),
+        event => isTrustedAuthFrame(event, mainWindow?.webContents, resolveHtmlPath('index.html')),
+        async (defaultPath, extension) => {
+          if (!mainWindow) return undefined;
+          const result = await dialog.showSaveDialog(mainWindow, { defaultPath, filters: [{ name: extension.toUpperCase(), extensions: [extension] }] });
+          return result.canceled ? undefined : result.filePath;
+        });
       registerProjects(
         ipcMain,
         projectService,

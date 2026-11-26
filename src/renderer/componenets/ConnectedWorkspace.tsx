@@ -1578,6 +1578,8 @@ export default function ConnectedWorkspace({
             </header>
             <div className="connected-sidebar-panel">
               <ConnectedImageHistory
+                key={view.id}
+                exportResults={projects.exportResults}
                 client={client}
                 projectId={view.id}
                 images={images}

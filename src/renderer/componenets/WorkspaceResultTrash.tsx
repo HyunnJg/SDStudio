@@ -51,6 +51,10 @@ export default function WorkspaceResultTrash({
           결과 자리 {report.removedResults}개 확보 · PNG 파일{' '}
           {report.deletedFiles}개 정리 ({report.deletedBytes.toLocaleString()}
           바이트)
+          {report.removedResults > 0 &&
+            report.deletedBytes === 0 &&
+            !report.cleanupIncomplete &&
+            ' · 이력 복구용 PNG 보존'}
           {report.cleanupIncomplete && ' · 일부 파일 정리 보류'}
         </p>
       )}

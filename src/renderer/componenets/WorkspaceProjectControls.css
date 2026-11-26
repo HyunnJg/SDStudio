@@ -108,3 +108,14 @@
   background: #17212b;
   color: #e6edf1;
 }
+
+.project-picker-header,.project-picker-tools,.workspace-project-dialog .project-list article { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.project-picker-header { justify-content:space-between; }
+.project-picker-tools { margin:8px 0; }
+.project-picker-tools button[aria-pressed="true"] { font-weight:700; border-color:currentColor; }
+.project-picker-tools button:last-child { margin-left:auto; }
+.project-search { width:100%; padding:9px 12px; margin-top:12px; color:inherit; background:transparent; border:1px solid #617181; border-radius:5px; }
+.workspace-project-dialog .project-open-row { flex:1; text-align:left; min-width:0; overflow-wrap:anywhere; }
+.project-open-row small { opacity:.75; }
+.project-row-actions summary { cursor:pointer; padding:8px; }
+.project-delete-check,.workspace-project-dialog .project-list article p { flex-basis:100%; }
