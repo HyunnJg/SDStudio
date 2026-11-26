@@ -1,5 +1,6 @@
 import type { IpcMain, IpcMainInvokeEvent, WebContents } from 'electron';
 import type { NaiAuthResult } from '../../naiAuth';
+import { isNovelAiToken } from '../../recipeAssistant';
 import { NaiError } from './errors';
 import { NaiTokenStore } from './tokenStore';
 
@@ -57,7 +58,11 @@ export function registerNaiAuth(
     });
   };
   handle(`${namespace}-status`, () => store.status());
-  handle(`${namespace}-set`, (token, remember) => store.set(token, remember));
+  handle(`${namespace}-set`, (token, remember) => {
+    if (namespace === 'gemini-auth' && isNovelAiToken(token))
+      throw new NaiError('WRONG_PROVIDER');
+    return store.set(token, remember);
+  });
   handle(`${namespace}-clear`, () => store.clear());
   handle(`${namespace}-check`, async () => {
     await store.read();

@@ -1,4 +1,5 @@
 import type { NaiErrorCode, NaiTokenStatus } from '../../naiAuth';
+import { wrongGeminiKeyMessage } from '../../recipeAssistant';
 
 export function prepareTokenInput(raw: string) {
   const token = raw.trim();
@@ -18,6 +19,7 @@ export function tokenStatusLabel(status?: NaiTokenStatus): string {
 
 export function authErrorMessage(code: NaiErrorCode): string {
   const messages: Partial<Record<NaiErrorCode, string>> = {
+    WRONG_PROVIDER: wrongGeminiKeyMessage,
     INVALID_INPUT:
       '토큰을 확인해 주세요. 중간 공백·줄바꿈 없이 토큰 전체를 입력해야 합니다.',
     OFFLINE: '오프라인 모드에서는 토큰을 확인하거나 변경할 수 없습니다.',

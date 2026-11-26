@@ -1,3 +1,9 @@
+export const wrongGeminiKeyMessage =
+  'NovelAI 토큰을 입력했습니다. Google AI Studio에서 발급한 Gemini API 키를 입력하세요.';
+
+export const isNovelAiToken = (value: unknown) =>
+  typeof value === 'string' && /^pst-/i.test(value);
+
 export interface CutRequest {
   instruction: string;
   style: string;

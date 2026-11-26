@@ -187,8 +187,12 @@ module.exports = async ({ evaluate, click, fill, until, checks, requests }) => {
   await fill('#live-repeats', '1');
   await click(panel + ' fieldset > details > summary');
   const assistant = '[data-testid=recipe-assistant]';
+  await fill(assistant + ' input[type=password]', 'pst-synthetic-test-only');
+  await click(assistant + ' details button');
+  await until(() => evaluate("document.querySelector('[data-testid=recipe-assistant] [role=status]')?.textContent.includes('NovelAI')"));
   await fill(assistant + ' input[type=password]', 'synthetic-gemini-key');
   await click(assistant + ' details button');
+  await until(() => evaluate("!document.querySelector('[data-testid=recipe-assistant] details').open && document.querySelector('#gemini-billing-notice').checkVisibility()"));
   await fill(assistant + ' textarea', '표정 세 컷, 각 두 장');
   await click(assistant + ' > button');
   await until(() => evaluate("document.querySelectorAll('[data-testid=recipe-assistant] li').length === 3"));

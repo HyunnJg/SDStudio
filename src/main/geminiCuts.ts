@@ -1,5 +1,6 @@
 import type { IpcMain, IpcMainInvokeEvent } from 'electron';
 import type { CutRequest, CutResult, CutSuggestion } from '../recipeAssistant';
+import { isNovelAiToken, wrongGeminiKeyMessage } from '../recipeAssistant';
 
 const endpoint =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
@@ -100,6 +101,8 @@ export default function registerGeminiCuts(
       try {
         const key = await readKey();
         if (!allowed()) throw Error();
+        if (isNovelAiToken(key))
+          return { ok: false, message: wrongGeminiKeyMessage };
         message = 'Gemini에 연결하지 못했거나 시간이 초과됐습니다.';
         const response = await send(endpoint, {
           method: 'POST',
@@ -159,7 +162,14 @@ export default function registerGeminiCuts(
         }
         const reply = JSON.parse(Buffer.concat(chunks).toString('utf8'));
         const candidate = reply?.candidates?.[0];
-        if (candidate?.finishReason !== 'STOP' || !allowed()) throw Error();
+        if (!allowed()) throw Error();
+        if (candidate?.finishReason === 'MAX_TOKENS')
+          return {
+            ok: false,
+            message:
+              'Gemini 출력 한도에 도달했습니다. 컷 수를 줄여 나누어 요청하세요.',
+          };
+        if (candidate?.finishReason !== 'STOP') throw Error();
         const parts = candidate.content.parts.filter(
           (p: { thought?: boolean }) => !p.thought,
         );

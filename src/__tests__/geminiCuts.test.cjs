@@ -144,9 +144,31 @@ test('offline, untrusted, invalid and duplicate calls cannot start a provider re
   assert.equal((await first).ok, true);
 });
 
-test('truncated, oversized, malformed and rate limited replies produce only local error messages', async () => {
+test('an older Gemini store containing a NovelAI token cannot send a request', async () => {
+  let sends = 0;
+  const result = await handler({
+    read: async () => 'pst-synthetic-test-only',
+    send: async () => {
+      sends++;
+      return reply({ cuts, repeats: 2 });
+    },
+  })();
+  assert.equal(result.ok, false);
+  assert.match(result.message, /NovelAI/);
+  assert.equal(sends, 0);
+});
+
+test('a truncated response prompts smaller batches and supplies no partial cuts', async () => {
+  const result = await handler({
+    send: async () => reply({ cuts, repeats: 2 }, 'MAX_TOKENS'),
+  })();
+  assert.equal(result.ok, false);
+  assert.match(result.message, /컷 수를 줄여/);
+  assert.equal(result.suggestion, undefined);
+});
+
+test('oversized, malformed and rate limited replies produce only local error messages', async () => {
   for (const response of [
-    reply({ cuts, repeats: 0 }, 'MAX_TOKENS'),
     reply({ cuts: [], repeats: 2 }),
     reply({ cuts, repeats: -1 }),
     reply({ cuts: [{ name: 'x', emotion: '', setting: '' }], repeats: 1 }),

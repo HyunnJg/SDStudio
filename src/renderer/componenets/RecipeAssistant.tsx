@@ -62,6 +62,14 @@ export default function RecipeAssistant({
       aria-label="Gemini 컷 초안"
       data-testid="recipe-assistant"
     >
+      <p id="gemini-billing-notice">
+        <strong>
+          결제가 활성화된 Google Cloud 프로젝트의 Gemini API 키 사용을
+          권장합니다.
+        </strong>{' '}
+        무료 이용 시 요청문과 응답이 Google 서비스 개선에 쓰이고 사람이 검토할
+        수 있습니다.
+      </p>
       <details open={!status?.configured || undefined}>
         <summary>
           Gemini API 키 {status?.configured ? '설정됨' : '설정'}
@@ -70,6 +78,7 @@ export default function RecipeAssistant({
           Gemini API 키
           <input
             type="password"
+            aria-describedby="gemini-billing-notice"
             ref={key}
             autoComplete="off"
             spellCheck={false}
