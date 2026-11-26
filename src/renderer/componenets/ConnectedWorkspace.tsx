@@ -622,6 +622,8 @@ export default function ConnectedWorkspace({
           mayHaveReachedServer: false,
         });
       setQueue(current.queue);
+      // The first save assigns a project ID and clears the transient scene selection.
+      if (!view.id && !remaining) setSceneIds(selectedIds);
       setQueuePlan(prepared);
       setPhase('confirm');
     } catch (error) {
