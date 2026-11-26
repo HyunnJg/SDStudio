@@ -14,6 +14,10 @@ import {
   providerLabels,
 } from '../recipeAssistant';
 
+import { googleProvider, parseExtraBody, serviceTiers } from '../vibeOptions';
+import readVibeJSON from './vibeResponse';
+import { vertexAuthorization } from './vertexAccount';
+
 const instruction = [
   'Draft editable NovelAI image cuts for the user. Preserve requested order and pairs.',
   'Use Korean cut names. Write concise English image tags for setting (background, composition) and emotion (expression, pose). Either can be empty.',
@@ -92,6 +96,9 @@ function makeCutRequest(
   model: string,
   key: string,
   input: string,
+  extra: Record<string, unknown>,
+  tier: string,
+  project?: string,
 ): {
   url: string;
   headers: Record<string, string>;
@@ -110,6 +117,8 @@ function makeCutRequest(
         model,
         ...(provider === 'openai' ? { store: false } : {}),
         max_completion_tokens: 8192,
+        ...extra,
+        ...(tier ? { service_tier: tier } : {}),
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: instruction + format },
@@ -124,23 +133,39 @@ function makeCutRequest(
       body: {
         model,
         max_tokens: 8192,
+        ...extra,
+        ...(tier ? { speed: tier } : {}),
         system: instruction + format,
         messages: [{ role: 'user', content: input }],
       },
     };
+  let root = 'https://generativelanguage.googleapis.com/v1beta';
+  if (provider === 'vertex')
+    root = 'https://aiplatform.googleapis.com/v1/publishers/google';
+  if (project)
+    root = `https://aiplatform.googleapis.com/v1/projects/${project}/locations/global/publishers/google`;
   return {
-    url:
-      provider === 'vertex'
-        ? `https://aiplatform.googleapis.com/v1/publishers/google/models/${model}:generateContent`
-        : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-    headers: { 'x-goog-api-key': key },
+    url: `${root}/models/${model}:generateContent`,
+    headers: project
+      ? {
+          Authorization: `Bearer ${key}`,
+          ...(tier
+            ? {
+                'X-Vertex-AI-LLM-Request-Type': 'shared',
+                'X-Vertex-AI-LLM-Shared-Request-Type': tier,
+              }
+            : {}),
+        }
+      : { 'x-goog-api-key': key },
     body: {
+      ...(provider === 'gemini' && tier ? { serviceTier: tier } : {}),
       systemInstruction: { parts: [{ text: instruction }] },
       contents: [{ role: 'user', parts: [{ text: input }] }],
       generationConfig: {
         responseMimeType: 'application/json',
         responseSchema: schema,
         maxOutputTokens: 8192,
+        ...extra,
       },
     },
   };
@@ -201,6 +226,21 @@ export default function registerGeminiCuts(
       const model = r.model === undefined ? defaultModels[provider] : r.model;
       if (!validModelId(model, provider))
         return { ok: false, message: '모델 ID를 확인하세요.' };
+      const tier = r.tier === undefined ? '' : r.tier;
+      if (tier !== '' && !serviceTiers(provider, model).includes(tier))
+        return {
+          ok: false,
+          message: '선택한 모델이 지원하는 처리 등급을 확인하세요.',
+        };
+      let extra;
+      try {
+        extra = parseExtraBody(
+          provider,
+          r.extraBody === undefined ? '' : r.extraBody,
+        );
+      } catch (error) {
+        return { ok: false, message: (error as Error).message };
+      }
       const label = providerLabels[provider];
       if (busy) return { ok: false, message: '이전 컷 요청을 처리 중입니다.' };
       busy = true;
@@ -216,11 +256,28 @@ export default function registerGeminiCuts(
           style: r.style,
           characters: r.characters,
         });
-        const spec = makeCutRequest(provider, model, key, input);
+        const signal = AbortSignal.timeout(tier === 'flex' ? 600_000 : 60_000);
+        let account;
+        if (provider === 'vertexAccount') {
+          message =
+            'Vertex 서비스 계정 인증에 실패했습니다. 개인 키와 계정 상태를 확인하세요.';
+          account = await vertexAuthorization(key, send, signal);
+          if (!allowed()) throw Error();
+          message = 'Vertex 연결에 실패했거나 시간이 초과됐습니다.';
+        }
+        const spec = makeCutRequest(
+          provider,
+          model,
+          account?.token ?? key,
+          input,
+          extra,
+          tier,
+          account?.project,
+        );
         const response = await send(spec.url, {
           method: 'POST',
           redirect: 'error',
-          signal: AbortSignal.timeout(60_000),
+          signal,
           headers: { 'Content-Type': 'application/json', ...spec.headers },
           body: JSON.stringify(spec.body),
         });
@@ -228,27 +285,11 @@ export default function registerGeminiCuts(
           await response.body?.cancel();
           return {
             ok: false,
-            message: `${label} 요청 실패 (HTTP ${response.status}). 키 권한과 사용 한도를 확인하세요.`,
+            message: `${label} 요청 실패 (HTTP ${response.status}). ${response.status === 400 || response.status === 404 ? '모델 ID, 처리 등급과 추가 요청값을 확인하세요.' : '키 권한과 사용 한도를 확인하세요.'}`,
           };
         }
         message = `${label} 응답을 받았으나 컷 형식을 읽지 못했습니다. 요청문을 확인하세요.`;
-        const reader = response.body?.getReader();
-        if (!reader) throw Error();
-        const chunks: Uint8Array[] = [];
-        let size = 0;
-        for (;;) {
-          // eslint-disable-next-line no-await-in-loop
-          const chunk = await reader.read();
-          if (chunk.done) break;
-          size += chunk.value.length;
-          if (size > 256 * 1024) {
-            // eslint-disable-next-line no-await-in-loop
-            await reader.cancel();
-            throw Error();
-          }
-          chunks.push(chunk.value);
-        }
-        const reply = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        const reply = await readVibeJSON(response, 256 * 1024);
         if (!allowed()) throw Error();
         const output = extractCutText(provider, reply);
         if (output.limited)
@@ -257,8 +298,29 @@ export default function registerGeminiCuts(
             message: `${label} 출력 한도에 도달했습니다. 컷 수를 줄여 나누어 요청하세요.`,
           };
         const reported = reply.modelVersion ?? reply.model;
+        const serving = googleProvider(provider)
+          ? (reply.usageMetadata?.trafficType ??
+            response.headers.get('x-gemini-service-tier'))
+          : (reply.service_tier ??
+            reply.usage?.speed ??
+            reply.usage?.service_tier);
         return {
           ok: true,
+          ...([
+            'standard',
+            'standard_only',
+            'default',
+            'fast',
+            'priority',
+            'flex',
+            'ultrafast',
+            'ON_DEMAND',
+            'ON_DEMAND_PRIORITY',
+            'ON_DEMAND_FLEX',
+            'PROVISIONED_THROUGHPUT',
+          ].includes(serving)
+            ? { servedTier: serving }
+            : {}),
           suggestion: parseSuggestion(output.text),
           httpStatus: response.status,
           ...(validModelId(reported, provider)

@@ -14,6 +14,7 @@ import { usesDevelopmentAssets, resolvePreloadPath, startDesktop } from './deskt
 import { createRuntimeOptions } from '../runtimeOptions';
 import { installOfflineRequestGuard } from './offlineNetwork';
 import { NaiTokenStore } from './nai/tokenStore';
+import { normalizeVertexAccount } from './vertexAccount';
 import { PROVIDERS } from '../recipeAssistant';
 import type { Provider } from '../recipeAssistant';
 import registerGeminiCuts from './geminiCuts';
@@ -998,6 +999,7 @@ if (!gotTheLock) {
         const store = new NaiTokenStore(
           path.join(app.getPath('userData'), 'auth', `${provider}-key.v1.json`),
           safeStorage, process.platform, `sdstudio-${provider}-key`,
+          provider === 'vertexAccount' ? normalizeVertexAccount : undefined,
         );
         keys.set(provider, store);
         registerNaiAuth(ipcMain, store, offline, trustedFrame, `${provider}-auth`);

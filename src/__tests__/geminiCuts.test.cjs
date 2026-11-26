@@ -290,3 +290,161 @@ test('invalid model paths and recognized keys for a different provider are rejec
   }
   assert.equal(calls, 0);
 });
+
+test('a Vertex service account signs a short-lived assertion for Google and sends only its access token to the project endpoint', async () => {
+  const { generateKeyPairSync, verify } = require('node:crypto');
+  const { normalizeVertexAccount } = require('../main/vertexAccount');
+  const { privateKey, publicKey } = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+  });
+  const account = {
+    type: 'service_account',
+    project_id: 'demo-project',
+    client_email: 'studio@demo-project.iam.gserviceaccount.com',
+    private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }),
+    private_key_id: 'synthetic1',
+    client_id: 'unused',
+    universe_domain: 'googleapis.com',
+  };
+  const normalized = normalizeVertexAccount(JSON.stringify(account));
+  assert.ok(!normalized.includes('unused'));
+  assert.throws(() =>
+    normalizeVertexAccount(
+      JSON.stringify({ ...account, token_uri: 'https://example.test/token' }),
+    ),
+  );
+  assert.throws(() =>
+    normalizeVertexAccount(
+      JSON.stringify({ ...account, private_key: 'invalid' }),
+    ),
+  );
+  let calls = 0;
+  const suggest = handler({
+    read: async () => normalized,
+    send: async (url, options) => {
+      calls++;
+      if (calls === 1) {
+        assert.equal(url, 'https://oauth2.googleapis.com/token');
+        assert.equal(options.redirect, 'error');
+        const [header, payload, signature] = options.body
+          .get('assertion')
+          .split('.');
+        assert.equal(
+          JSON.parse(Buffer.from(header, 'base64url')).kid,
+          account.private_key_id,
+        );
+        const claims = JSON.parse(Buffer.from(payload, 'base64url'));
+        assert.equal(claims.aud, url);
+        assert.equal(claims.iss, account.client_email);
+        assert.equal(claims.exp - claims.iat, 3600);
+        assert.ok(
+          verify(
+            'RSA-SHA256',
+            Buffer.from(header + '.' + payload),
+            publicKey,
+            Buffer.from(signature, 'base64url'),
+          ),
+        );
+        return Response.json({
+          access_token: 'fake-access-token',
+          token_type: 'Bearer',
+        });
+      }
+      assert.equal(
+        url,
+        'https://aiplatform.googleapis.com/v1/projects/demo-project/locations/global/publishers/google/models/gemini-3.8-flash:generateContent',
+      );
+      assert.equal(options.headers.Authorization, 'Bearer fake-access-token');
+      assert.equal(
+        options.headers['X-Vertex-AI-LLM-Shared-Request-Type'],
+        'flex',
+      );
+      const b = JSON.parse(options.body);
+      assert.equal(b.generationConfig.topP, 0.9);
+      assert.equal(b.generationConfig.responseMimeType, 'application/json');
+      assert.doesNotMatch(options.body, /PRIVATE KEY|gserviceaccount/);
+      return reply({ cuts, repeats: 1 });
+    },
+  });
+  assert.ok(
+    (
+      await suggest({
+        ...request,
+        provider: 'vertexAccount',
+        tier: 'flex',
+        extraBody: '{"generationConfig":{"topP":0.9}}',
+      })
+    ).ok,
+  );
+  assert.equal(calls, 2);
+});
+
+test('tiers and body controls follow the selected provider and model before any credential read', async () => {
+  for (const [provider, model, tier, extraBody] of [
+    ['openai', 'gpt-6.2-astra', 'flex', '{}'],
+    ['anthropic', 'claude-haiku-5-5', 'fast', '{}'],
+    ['vertexAccount', 'gemini-4-neon', 'flex', '{}'],
+    [
+      'gemini',
+      'gemini-4-carbon',
+      'flex',
+      '{"generationConfig":{"responseSchema":{}}}',
+    ],
+    ['openrouter', 'openai/gpt-6-luna', 'flex', '{"messages":[]}'],
+    ['openai', 'gpt-6-luna', '', '{"store":true}'],
+    ['openai', 'gpt-6-luna', '', '{"temperature":"wrong"}'],
+    ['gemini', 'gemini-3.8-flash', '', '{'],
+  ]) {
+    let reads = 0;
+    const result = await handler({
+      read: async () => {
+        reads++;
+        return 'key';
+      },
+      send: async () => reply({ cuts, repeats: 1 }),
+    })({ ...request, provider, model, tier, extraBody });
+    assert.equal(result.ok, false);
+    assert.equal(reads, 0);
+  }
+  for (const [provider, model, tier, extra, expected] of [
+    [
+      'gemini',
+      'gemini-4-carbon',
+      'priority',
+      { generationConfig: { maxOutputTokens: 1234 } },
+      { serviceTier: 'priority' },
+    ],
+    [
+      'openai',
+      'gpt-6.2-sol',
+      'fast',
+      { reasoning_effort: 'low' },
+      { service_tier: 'fast', reasoning_effort: 'low' },
+    ],
+    [
+      'anthropic',
+      'claude-fable-5-2',
+      'fast',
+      { output_config: { effort: 'high' } },
+      { speed: 'fast', output_config: { effort: 'high' } },
+    ],
+    [
+      'openrouter',
+      'anthropic/claude-opus-5.5',
+      'priority',
+      { max_completion_tokens: 1024 },
+      { service_tier: 'priority', max_completion_tokens: 1024 },
+    ],
+  ]) {
+    let body;
+    await handler({
+      send: async (_, options) => {
+        body = JSON.parse(options.body);
+        return new Response(null, { status: 429 });
+      },
+    })({ ...request, provider, model, tier, extraBody: JSON.stringify(extra) });
+    for (const [k, v] of Object.entries(expected)) assert.deepEqual(body[k], v);
+    if (provider === 'gemini')
+      assert.equal(body.generationConfig.maxOutputTokens, 1234);
+  }
+});

@@ -4,6 +4,15 @@
 
 추가 결정 [D-067 이미지 입력과 반복 요청 간격](WORKSPACE_QUEUE.md#d-067-반복-요청-간격과-이미지-입력).
 
+## D-078. Vertex 서비스 계정과 모델별 처리 등급·요청 옵션
+
+기준은 PR #55의 `bc85f72`다. 변경 범위는 바이브 에디터의 자격증명 보관소, 모델 선택·요청 설정, 공급자 전송과 회귀 검사다.
+
+- Vertex Express 키와 서비스 계정을 별도로 보관한다. 서비스 계정은 JSON 붙여넣기, 파일, 개별 필드 입력을 받는다. 프로젝트 ID·서비스 계정 이메일·RSA 개인 키와 선택적인 키 ID를 추려 기존 OS 암호화 또는 이번 실행 보관소를 사용한다. 메인 프로세스가 Google OAuth에 RS256 서명을 제출하고 반환된 토큰으로 프로젝트의 global 모델 엔드포인트를 호출한다. [서비스 계정 OAuth](https://developers.google.com/identity/protocols/oauth2/service-account)
+- 최신 텍스트 모델을 기본 목록에 넣고 사용자가 직접 지정한 ID도 계속 읽는다. GPT-6.2 Astra·Sol은 Fast, GPT-6.1 Terra·6 Luna는 Flex·Fast를 선택할 수 있다. Claude Fable 5.2·Opus 5.5의 Fast는 Messages의 `speed`를 사용한다. [OpenAI 모델](https://developers.openai.com/api/docs/models) · [Flex](https://developers.openai.com/api/docs/guides/flex-processing) · [Fast](https://developers.openai.com/api/docs/guides/fast-mode) · [Claude 모델](https://platform.claude.com/docs/en/models/overview) · [Claude Fast](https://platform.claude.com/docs/en/build-with-claude/fast-mode)
+- Gemini API의 `serviceTier`, Vertex 프로젝트의 PayGo 헤더, OpenRouter의 `service_tier`를 구분한다. Gemini 4 계열의 Flex는 Gemini API에 표시하고, Vertex 서비스 계정에서는 3.8 Flash 등 문서에 등재된 모델에서 제공한다. OpenRouter 후보는 공개 모델·엔드포인트 카탈로그에서 확인했다. [Gemini Flex](https://ai.google.dev/gemini-api/docs/flex-inference) · [Vertex Flex](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/flex-paygo) · [Vertex Priority](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/priority-paygo) · [OpenRouter 처리 등급](https://openrouter.ai/docs/guides/features/service-tiers)
+- 처리 등급과 추가 JSON은 공급자·모델별로 기억한다. 컷 요청과 설정의 응답 확인에 같은 값을 사용한다. 출력 길이, 샘플링과 추론 옵션을 본문에 병합하고, 앱이 관리하는 입력 메시지·응답 형식·인증은 기존 경로를 사용한다. 공급자가 알려 준 실제 처리 등급을 성공 응답에 표시한다.
+
 ## D-077. 바이브 에디터와 작업실의 V3 자료 가져오기
 
 #55 리뷰 후속(`267c637` 기준). 컷 응답 전체를 감싼 JSON 코드 블록 한 개는 바깥 표시를 벗긴 뒤 기존 컷 검증을 거친다. 앞뒤 설명이나 여러 블록을 조합해서 컷을 추출하지 않는다. OpenRouter 키 설정에는 무료·유료 모델별 학습 공급자 제외 방법을 표시한다. [OpenRouter 공급자 정책](https://openrouter.ai/docs/guides/privacy/provider-logging)

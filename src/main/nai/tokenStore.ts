@@ -28,6 +28,7 @@ export class NaiTokenStore {
     private readonly encryption: Encryption,
     private readonly platform = process.platform,
     private readonly format = 'sdstudio-nai-token',
+    private readonly validate = validateToken,
   ) {}
 
   private guard(generation: number): void {
@@ -138,14 +139,14 @@ export class NaiTokenStore {
       if (typeof result.shouldReEncrypt !== 'boolean')
         throw new Error('Invalid provider result');
       // A rotation hint does not authorize rewriting an existing ciphertext on read.
-      return validateToken(result.result);
+      return this.validate(result.result);
     } catch {
       throw new NaiError('STORE_UNREADABLE');
     }
   }
 
   async set(value: unknown, remember: unknown): Promise<NaiTokenStatus> {
-    const token = validateToken(value);
+    const token = this.validate(value);
     if (typeof remember !== 'boolean') throw new NaiError('INVALID_INPUT');
     this.generation += 1;
     const { generation } = this;

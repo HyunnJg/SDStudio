@@ -38,7 +38,12 @@ export default function RecipeAssistant({
   useEffect(() => {
     setPlan(undefined);
     setMessage('');
-  }, [choice.provider, choice.model]);
+  }, [
+    choice.provider,
+    choice.model,
+    choice.options.tier,
+    choice.options.extraBody,
+  ]);
   const reset = () => {
     setPlan(undefined);
     setMessage('');
@@ -50,13 +55,15 @@ export default function RecipeAssistant({
       const result = await window.electron.recipeAssistant.suggest({
         provider: choice.provider,
         model: choice.model,
+        tier: choice.options.tier,
+        extraBody: choice.options.extraBody,
         instruction: request.trim(),
         style,
         characters,
       });
       if (result.ok) setPlan(result.suggestion);
       setMessage(
-        `${providerLabels[choice.provider]} · ${choice.model} · ${result.ok ? `HTTP ${result.httpStatus} 응답 완료 · ${result.responseModel ?? choice.model}` : result.message}`,
+        `${providerLabels[choice.provider]} · ${choice.model} · ${result.ok ? `HTTP ${result.httpStatus} 응답 완료 · ${result.responseModel ?? choice.model}${result.servedTier ? ` · ${result.servedTier}` : ''}` : result.message}`,
       );
     } catch {
       setMessage('응답을 받지 못했습니다.');
@@ -101,6 +108,7 @@ export default function RecipeAssistant({
         <label>
           컷 요청문
           <textarea
+            data-testid="cut-instruction"
             rows={4}
             maxLength={4096}
             value={request}
@@ -119,6 +127,7 @@ export default function RecipeAssistant({
           type="button"
           data-testid="request-vibe"
           disabled={
+            !!choice.optionError ||
             !request.trim() ||
             !room ||
             !validModelId(choice.model, choice.provider)

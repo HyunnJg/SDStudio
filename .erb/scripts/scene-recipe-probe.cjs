@@ -187,7 +187,7 @@ module.exports = async ({ evaluate, click, fill, until, checks, requests }) => {
   await fill('#live-repeats', '1');
   await click('[data-testid=open-vibe-editor]');
   const assistant = '[data-testid=recipe-assistant]';
-  await fill(assistant + ' textarea', '표정 세 컷, 각 두 장');
+  await fill('[data-testid=cut-instruction]', '표정 세 컷, 각 두 장');
   await click(assistant + ' fieldset button');
   await click('.vibe-api-settings summary');
   const keys = '[data-testid=provider-key-settings]';
@@ -197,7 +197,62 @@ module.exports = async ({ evaluate, click, fill, until, checks, requests }) => {
     await evaluate(
       "document.querySelectorAll('.vibe-api-settings .vibe-model-fields select')[1].value",
     ),
-    'gemini-3.5-flash',
+    'gemini-3.8-flash',
+  );
+  await select(provider, 'vertexAccount');
+  await until(() =>
+    evaluate(
+      "!document.querySelector('[data-testid=provider-key-settings]').disabled",
+    ),
+  );
+  const privateKey = require('node:crypto')
+    .generateKeyPairSync('rsa', { modulusLength: 2048 })
+    .privateKey.export({ type: 'pkcs8', format: 'pem' });
+  const fixtureAccount = {
+    project_id: 'smoke-project',
+    client_email: 'smoke@smoke-project.iam.gserviceaccount.com',
+    private_key: privateKey,
+  };
+  const savedAccount = async () => {
+    await click(keys + ' button');
+    await until(() =>
+      evaluate(
+        "document.querySelector('[data-testid=provider-key-settings] [role=status]').textContent.includes('보관했습니다')",
+      ),
+    );
+  };
+  await fill(
+    keys + ' textarea[name=json]',
+    JSON.stringify({
+      ...fixtureAccount,
+      type: 'service_account',
+      client_id: 'unused',
+    }),
+  );
+  await savedAccount();
+  assert.equal(
+    await evaluate("document.querySelector('[name=json]').value"),
+    '',
+  );
+  await select(keys + ' select', 'fields');
+  for (const [field, value] of Object.entries(fixtureAccount))
+    await fill(keys + ' [name=' + field + ']', value);
+  await savedAccount();
+  assert.equal(
+    await evaluate("document.querySelector('[name=private_key]').value"),
+    '',
+  );
+  await select(keys + ' select', 'file');
+  await evaluate(
+    `(()=>{const dt=new DataTransfer();dt.items.add(new File([${JSON.stringify(JSON.stringify(fixtureAccount))}], 'synthetic.json'));document.querySelector('[name=file]').files=dt.files;})()`,
+  );
+  await savedAccount();
+  assert.equal(
+    await evaluate("JSON.stringify(localStorage).includes('PRIVATE KEY')"),
+    false,
+  );
+  checks.push(
+    'Vertex service-account JSON paste, minimal fields and file each save through the main process and clear the credential inputs',
   );
   await select(provider, 'openrouter');
   assert.match(
@@ -226,10 +281,31 @@ module.exports = async ({ evaluate, click, fill, until, checks, requests }) => {
       "document.querySelector('[data-testid=provider-key-settings]').textContent.includes('키 보관 중') && document.querySelector('#gemini-billing-notice').checkVisibility()",
     ),
   );
+  const models =
+    '.vibe-api-settings .vibe-model-fields label:nth-child(2) select';
+  await select(models, 'gemini-3.8-flash');
+  await select('.vibe-api-settings [aria-label="처리 등급"]', 'flex');
+  await click('.vibe-api-settings .vibe-extra-body summary');
+  const extra = '.vibe-api-settings [aria-label="추가 요청값 JSON"]';
+  await fill(extra, '{"messages":[]}');
+  assert.ok(
+    await evaluate(
+      "!!document.querySelector('.vibe-api-settings [role=alert]')",
+    ),
+  );
+  await fill(extra, '{"generationConfig":{"topP":0.9}}');
+  await select(models, 'gemini-4-carbon');
+  assert.equal(
+    await evaluate(
+      'document.querySelector(\'.vibe-api-settings [aria-label="처리 등급"]\').value',
+    ),
+    '',
+  );
+  await select(models, 'gemini-3.8-flash');
   await click('[data-testid=nai-auth-dialog] header button');
   assert.equal(
     await evaluate(
-      "document.querySelector('[data-testid=recipe-assistant] textarea').value",
+      "document.querySelector('[data-testid=cut-instruction]').value",
     ),
     '표정 세 컷, 각 두 장',
   );

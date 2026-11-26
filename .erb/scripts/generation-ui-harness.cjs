@@ -12,7 +12,11 @@ if (phase === 'recipe') {
   global.fetch = async (url, options) => {
     assert.equal(new URL(url).origin, 'https://generativelanguage.googleapis.com');
     assert.equal(options.headers['x-goog-api-key'], 'synthetic-gemini-key');
-    const input = JSON.parse(JSON.parse(options.body).contents[0].parts[0].text);
+    const body = JSON.parse(options.body);
+    assert.equal(body.serviceTier, 'flex');
+    assert.equal(body.generationConfig.topP, 0.9);
+    assert.ok(new URL(url).pathname.endsWith('/gemini-3.8-flash:generateContent'));
+    const input = JSON.parse(body.contents[0].parts[0].text);
     assert.deepEqual(input, { instruction: '표정 세 컷, 각 두 장', style: '', characters: [] });
     const cuts = ['tense', 'smile', 'relieved'].map((emotion) => ({
       name: emotion, setting: 'courtyard', emotion,

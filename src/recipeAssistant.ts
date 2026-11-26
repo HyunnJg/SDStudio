@@ -7,6 +7,7 @@ export const isNovelAiToken = (value: unknown) =>
 export const PROVIDERS = [
   'gemini',
   'vertex',
+  'vertexAccount',
   'openai',
   'anthropic',
   'openrouter',
@@ -15,22 +16,25 @@ export type Provider = (typeof PROVIDERS)[number];
 export const providerLabels: Record<Provider, string> = {
   gemini: 'Google Gemini',
   vertex: 'Vertex AI (Express)',
+  vertexAccount: 'Vertex AI (서비스 계정)',
   openrouter: 'OpenRouter',
   openai: 'OpenAI',
   anthropic: 'Anthropic',
 };
 export const defaultModels: Record<Provider, string> = {
-  gemini: 'gemini-flash-latest',
-  vertex: 'gemini-3.5-flash',
-  openrouter: 'openai/gpt-4.1-mini',
-  openai: 'gpt-4.1-mini',
-  anthropic: 'claude-sonnet-4-6',
+  gemini: 'gemini-3.8-flash',
+  vertex: 'gemini-3.8-flash',
+  vertexAccount: 'gemini-3.8-flash',
+  openrouter: 'openai/gpt-6-luna',
+  openai: 'gpt-6-luna',
+  anthropic: 'claude-sonnet-5-5',
 };
 export function isProvider(value: unknown): value is Provider {
   return PROVIDERS.some((item) => item === value);
 }
 export function wrongProviderKey(p: Provider, key: unknown) {
   if (typeof key !== 'string') return false;
+  if (key.trimStart().startsWith('{')) return p !== 'vertexAccount';
   if (isNovelAiToken(key)) return true;
   if (key.startsWith('sk-or-')) return p !== 'openrouter';
   if (key.startsWith('sk-ant-')) return p !== 'anthropic';
@@ -51,6 +55,8 @@ export function validModelId(
 export interface CutRequest {
   provider?: Provider;
   model?: string;
+  tier?: string;
+  extraBody?: string;
   instruction: string;
   style: string;
   characters: string[];
@@ -74,5 +80,6 @@ export type CutResult =
       suggestion: CutSuggestion;
       httpStatus: number;
       responseModel?: string;
+      servedTier?: string;
     }
   | { ok: false; message: string };

@@ -1,5 +1,5 @@
 /* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "either" }] */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   defaultModels,
   isProvider,
@@ -11,6 +11,25 @@ import type { Provider } from '../../recipeAssistant';
 import type { NaiAuthResult, NaiTokenStatus } from '../../naiAuth';
 import { authErrorMessage } from '../auth/tokenInput';
 
+import {
+  extraFields,
+  googleProvider,
+  parseExtraBody,
+  serviceTiers,
+  vibeModels,
+} from '../../vibeOptions';
+import VertexAccountFields, { readAccountFields } from './VertexAccountFields';
+
+function readOptions(provider: Provider, model: string) {
+  const scope = `vibe.options.${provider}.${model}`;
+  const tier = localStorage.getItem(`${scope}.tier`) ?? '';
+  return {
+    scope,
+    tier: serviceTiers(provider, model).includes(tier) ? tier : '',
+    extraBody: localStorage.getItem(`${scope}.body`) ?? '',
+  };
+}
+
 export function useVibeModel() {
   const [provider, setProvider] = useState<Provider>(() => {
     const value = localStorage.getItem('vibe.provider');
@@ -19,12 +38,20 @@ export function useVibeModel() {
   const readModel = (p: Provider) =>
     localStorage.getItem(`vibe.model.${p}`) ?? defaultModels[p];
   const [model, setModel] = useState(() => readModel(provider));
+  const [options, setOptions] = useState(() => readOptions(provider, model));
+  let optionError = '';
+  try {
+    parseExtraBody(provider, options.extraBody);
+  } catch (error) {
+    optionError = (error as Error).message;
+  }
   useEffect(() => {
     const sync = () => {
       const selected = localStorage.getItem('vibe.provider');
       const source = isProvider(selected) ? selected : 'gemini';
       setProvider(source);
       setModel(readModel(source));
+      setOptions(readOptions(source, readModel(source)));
     };
     window.addEventListener('vibe-model-changed', sync);
     return () => window.removeEventListener('vibe-model-changed', sync);
@@ -32,6 +59,20 @@ export function useVibeModel() {
   return {
     provider,
     model,
+    options,
+    optionError,
+    changeOptions(tier: string, extraBody: string) {
+      setOptions({ ...options, tier, extraBody });
+      try {
+        parseExtraBody(provider, extraBody);
+      } catch {
+        return;
+      }
+      if (!validModelId(model, provider)) return;
+      localStorage.setItem(`${options.scope}.tier`, tier);
+      localStorage.setItem(`${options.scope}.body`, extraBody);
+      window.dispatchEvent(new Event('vibe-model-changed'));
+    },
     changeProvider(p: Provider) {
       localStorage.setItem('vibe.provider', p);
       setProvider(p);
@@ -40,6 +81,7 @@ export function useVibeModel() {
     },
     changeModel(id: string) {
       setModel(id);
+      setOptions(readOptions(provider, id));
       if (validModelId(id, provider)) {
         localStorage.setItem(`vibe.model.${provider}`, id);
         window.dispatchEvent(new Event('vibe-model-changed'));
@@ -54,16 +96,17 @@ export function ModelFields({
   choice: ReturnType<typeof useVibeModel>;
 }) {
   const [custom, setCustom] = useState(false);
-  const models = [
-    defaultModels[choice.provider],
-    ...{
-      gemini: ['gemini-flash-lite-latest', 'gemini-pro-latest'],
-      vertex: [],
-      openai: ['gpt-4.1', 'gpt-4o-mini'],
-      anthropic: ['claude-haiku-4-5', 'claude-opus-4-6'],
-      openrouter: ['anthropic/claude-sonnet-4.6', 'google/gemini-2.5-flash'],
-    }[choice.provider],
-  ];
+  const models = vibeModels(choice.provider);
+  const tiers = serviceTiers(choice.provider, choice.model);
+  const tierLabels: Record<string, string> = {
+    flex: 'Flex · 저비용, 대기 가능',
+    fast: 'Fast · 빠른 처리, 추가 요금',
+    priority: 'Priority · 우선 처리, 추가 요금',
+  };
+  let example = '{"max_completion_tokens":4096}';
+  if (googleProvider(choice.provider))
+    example = '{"generationConfig":{"topP":0.9}}';
+  if (choice.provider === 'anthropic') example = '{"max_tokens":4096}';
   const manual = custom || !models.includes(choice.model);
   return (
     <div className="vibe-model-fields">
@@ -110,6 +153,49 @@ export function ModelFields({
           />
         </label>
       )}
+      {tiers.length > 0 && (
+        <label>
+          처리 등급
+          <select
+            aria-label="처리 등급"
+            value={choice.options.tier}
+            onChange={(e) =>
+              choice.changeOptions(e.target.value, choice.options.extraBody)
+            }
+          >
+            <option value="">공급자 기본값</option>
+            {tiers.map((t) => (
+              <option key={t} value={t}>
+                {tierLabels[t]}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <details className="vibe-extra-body">
+        <summary>추가 요청값 (JSON)</summary>
+        <label>
+          요청 본문 옵션
+          <textarea
+            aria-label="추가 요청값 JSON"
+            rows={3}
+            maxLength={8192}
+            spellCheck={false}
+            placeholder={example}
+            value={choice.options.extraBody}
+            onChange={(e) =>
+              choice.changeOptions(choice.options.tier, e.target.value)
+            }
+          />
+        </label>
+        <small>
+          {googleProvider(choice.provider)
+            ? 'generationConfig 안에 입력'
+            : '사용할 수 있는 필드'}{' '}
+          · {extraFields(choice.provider).join(', ')}
+        </small>
+        {choice.optionError && <p role="alert">{choice.optionError}</p>}
+      </details>
     </div>
   );
 }
@@ -126,13 +212,9 @@ export function PaidKeyNotice() {
   );
 }
 
-function KeyControls({
-  provider,
-  model,
-}: {
-  provider: Provider;
-  model: string;
-}) {
+function KeyControls({ choice }: { choice: ReturnType<typeof useVibeModel> }) {
+  const { provider, model, options, optionError } = choice;
+  const account = useRef<HTMLFormElement>(null);
   const client = window.electron.providerKeys;
   const key = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<NaiTokenStatus>();
@@ -140,10 +222,18 @@ function KeyControls({
   const [busy, setBusy] = useState(true);
   const [message, setMessage] = useState('');
   const [confirm, setConfirm] = useState(false);
-  const update = (result: NaiAuthResult) => {
-    if (result.ok) setStatus(result.status);
-    else setMessage(authErrorMessage(result.code));
-  };
+  const update = useCallback(
+    (result: NaiAuthResult) => {
+      if (result.ok) setStatus(result.status);
+      else
+        setMessage(
+          provider === 'vertexAccount' && result.code === 'INVALID_INPUT'
+            ? '서비스 계정의 프로젝트 ID, 이메일, RSA 개인 키를 확인하세요.'
+            : authErrorMessage(result.code),
+        );
+    },
+    [provider],
+  );
   useEffect(() => {
     let alive = true;
     async function load() {
@@ -160,7 +250,7 @@ function KeyControls({
     return () => {
       alive = false;
     };
-  }, [client, provider]);
+  }, [client, provider, update]);
   const act = async (action: () => Promise<void>) => {
     setBusy(true);
     setMessage('');
@@ -194,10 +284,19 @@ function KeyControls({
           }[status?.storage ?? 'none']
         }
       </p>
-      <label>
-        API 키
-        <input type="password" ref={key} maxLength={4096} autoComplete="off" />
-      </label>
+      {provider === 'vertexAccount' ? (
+        <VertexAccountFields form={account} />
+      ) : (
+        <label>
+          API 키
+          <input
+            type="password"
+            ref={key}
+            maxLength={4096}
+            autoComplete="off"
+          />
+        </label>
+      )}
       <label className="nai-choice">
         <input
           type="checkbox"
@@ -213,12 +312,15 @@ function KeyControls({
           act(async () => {
             const result = await client.set(
               provider,
-              key.current?.value.trim() ?? '',
+              account.current
+                ? await readAccountFields(account.current)
+                : (key.current?.value.trim() ?? ''),
               remember,
             );
             update(result);
-            if (result.ok && key.current) {
-              key.current.value = '';
+            if (result.ok) {
+              if (key.current) key.current.value = '';
+              account.current?.reset();
               setMessage('키를 보관했습니다.');
             }
           })
@@ -246,19 +348,21 @@ function KeyControls({
           )}
           <button
             type="button"
-            disabled={!validModelId(model, provider)}
+            disabled={!!optionError || !validModelId(model, provider)}
             onClick={() =>
               act(async () => {
                 const result = await window.electron.recipeAssistant.suggest({
                   provider,
                   model,
+                  tier: options.tier,
+                  extraBody: options.extraBody,
                   style: '',
                   characters: [],
                   instruction: '한 컷. 맑은 하늘.',
                 });
                 setMessage(
                   result.ok
-                    ? `${result.responseModel ?? model} · HTTP ${result.httpStatus} 응답 확인`
+                    ? `${result.responseModel ?? model} · HTTP ${result.httpStatus} 응답 확인${result.servedTier ? ` · ${result.servedTier}` : ''}`
                     : `${model} · ${result.message}`,
                 );
               })
@@ -283,11 +387,7 @@ export default function VibeProviderSettings({
       <summary>바이브 에디터 API · 모델</summary>
       <fieldset disabled={disabled}>
         <ModelFields choice={choice} />
-        <KeyControls
-          key={choice.provider}
-          provider={choice.provider}
-          model={choice.model}
-        />
+        <KeyControls key={choice.provider} choice={choice} />
       </fieldset>
     </details>
   );

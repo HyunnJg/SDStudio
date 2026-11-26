@@ -111,6 +111,11 @@
   grid-template-columns: 1fr 2fr;
   gap: 10px;
 }
+.vibe-extra-body {
+  grid-column: 1 / -1;
+}
+.vibe-api-settings form,
+.vibe-api-settings form label,
 .vibe-model-fields label,
 .vibe-editor label {
   display: grid;
@@ -118,6 +123,9 @@
 }
 .vibe-model-fields input,
 .vibe-model-fields select,
+.vibe-api-settings textarea,
+.vibe-api-settings form input,
+.vibe-api-settings select,
 .vibe-editor textarea {
   width: 100%;
   min-width: 0;
