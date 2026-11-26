@@ -1,5 +1,6 @@
 /* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "either" }] */
-import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useRef, useState } from 'react';
 import RecipeAssistant from './RecipeAssistant';
 import { characterLimit } from '../../workspaceCatalog';
 import type { PromptPreset } from '../../promptLibrary';
@@ -33,7 +34,10 @@ export default function SceneRecipePanel({
   base,
   repeats,
   onRepeats,
-  online,
+  vibeOpen,
+  onVibeClose,
+  onSettings,
+  onReveal,
   sources,
   disabled,
   canPrepare,
@@ -45,13 +49,24 @@ export default function SceneRecipePanel({
   canPrepare: boolean;
   repeats: number;
   onRepeats: (count: number) => void;
-  online: boolean;
+  vibeOpen: boolean;
+  onVibeClose: () => void;
+  onSettings: () => void;
+  onReveal: () => void;
   disabled: boolean;
   onCreate: (scenes: WorkspaceScene[]) => void;
 }) {
   const [recipe, setRecipe] = useState(blankRecipe);
   const [loaded, setLoaded] = useState(0);
-  const [assistantOpen, setAssistantOpen] = useState(false);
+  const panel = useRef<HTMLDetailsElement>(null);
+  const [deleteName, setDeleteName] = useState('');
+  const [applied, setApplied] = useState<{
+    before: SceneRecipe;
+    after: SceneRecipe;
+    beforeRepeats: number;
+    afterRepeats: number;
+  }>();
+  const [storageName, setStorageName] = useState('');
   const [saved, setSaved] = useState<SceneRecipe[]>(() => {
     try {
       return readRecipes();
@@ -117,13 +132,19 @@ export default function SceneRecipePanel({
       items.push(recipe);
       localStorage.setItem(storageKey, JSON.stringify(items));
       setSaved(items);
+      setStorageName(recipe.name);
+      setDeleteName('');
       setError('');
     } catch {
       setError('조합을 저장할 수 없습니다.');
     }
   };
   return (
-    <details className="workspace-saved-presets" data-testid="scene-recipe">
+    <details
+      ref={panel}
+      className="workspace-saved-presets"
+      data-testid="scene-recipe"
+    >
       <summary>조합으로 예약</summary>
       <fieldset disabled={disabled}>
         <label>
@@ -133,6 +154,8 @@ export default function SceneRecipePanel({
             onChange={(e) => {
               const r = saved.find((s) => s.name === e.target.value);
               setRecipe(r ?? blankRecipe());
+              setStorageName(r?.name ?? '');
+              setDeleteName('');
               setLoaded((n) => n + 1);
               setError('');
             }}
@@ -146,6 +169,42 @@ export default function SceneRecipePanel({
             ))}
           </select>
         </label>
+        {storageName && (
+          <button
+            type="button"
+            data-testid="delete-recipe"
+            onClick={() => setDeleteName(storageName)}
+          >
+            저장한 조합 삭제
+          </button>
+        )}
+        {deleteName && (
+          <div role="group" aria-label="조합 삭제 확인">
+            <p>‘{deleteName}’을 저장 목록에서 삭제할까요?</p>
+            <button type="button" onClick={() => setDeleteName('')}>
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  const next = readRecipes().filter(
+                    (r) => r.name !== deleteName,
+                  );
+                  localStorage.setItem(storageKey, JSON.stringify(next));
+                  setSaved(next);
+                  setStorageName('');
+                  setDeleteName('');
+                  setError('');
+                } catch {
+                  setError('조합을 삭제할 수 없습니다.');
+                }
+              }}
+            >
+              삭제 확인
+            </button>
+          </div>
+        )}
         <label>
           조합 이름
           <input
@@ -246,37 +305,19 @@ export default function SceneRecipePanel({
               </select>
             </label>
           )}
-        {online && window.electron?.recipeAssistant && (
-          <details onToggle={(e) => setAssistantOpen(e.currentTarget.open)}>
-            <summary>말로 컷 추가</summary>
-            {assistantOpen && (
-              <RecipeAssistant
-                key={JSON.stringify([
-                  loaded,
-                  base.id,
-                  recipe.styleId,
-                  recipe.characterIds,
-                  recipe.cutActorId,
-                  styleName,
-                  characterNames,
-                ])}
-                style={styleName}
-                characters={characterNames}
-                room={
-                  recipeHasPlaceholder(recipe.situations)
-                    ? 60
-                    : 60 - recipe.situations.length
-                }
-                onApply={(plan) => {
-                  const useCharacter =
-                    !!characterLimit(base.draft) &&
-                    !!(actors.length || recipe.characterIds.length);
-                  edit(appendSuggestedCuts(recipe, plan.cuts, useCharacter));
-                  if (plan.repeats) onRepeats(plan.repeats);
-                }}
-              />
-            )}
-          </details>
+        {applied && applied.after === recipe && (
+          <button
+            type="button"
+            onClick={() => {
+              setRecipe(applied.before);
+              if (repeats === applied.afterRepeats)
+                onRepeats(applied.beforeRepeats);
+              setApplied(undefined);
+              setError('');
+            }}
+          >
+            방금 추가한 컷 되돌리기
+          </button>
         )}
         {recipe.situations.map((row, i) => (
           // Rows are controlled inputs with no component-local state.
@@ -320,7 +361,9 @@ export default function SceneRecipePanel({
                   <select
                     value={row.cutMode}
                     onChange={(e) =>
-                      editRow(i, { cutMode: e.target.value as Row['cutMode'] })
+                      editRow(i, {
+                        cutMode: e.target.value as Row['cutMode'],
+                      })
                     }
                   >
                     <option value="append">외형·복장 뒤에 문단 추가</option>
@@ -397,12 +440,15 @@ export default function SceneRecipePanel({
                 </select>
               </label>
             )}
-            {recipe.situations.length > 1 && (
+            {!recipeHasPlaceholder(recipe.situations) && (
               <button
                 type="button"
                 onClick={() =>
                   edit({
-                    situations: recipe.situations.filter((_, j) => j !== i),
+                    situations:
+                      recipe.situations.length === 1
+                        ? blankRecipe().situations
+                        : recipe.situations.filter((_, j) => j !== i),
                   })
                 }
               >
@@ -477,6 +523,48 @@ export default function SceneRecipePanel({
         </button>
         {error && <p role="alert">{error}</p>}
       </fieldset>
+      {vibeOpen &&
+        createPortal(
+          <RecipeAssistant
+            key={JSON.stringify([
+              loaded,
+              base.id,
+              recipe.styleId,
+              recipe.characterIds,
+              recipe.cutActorId,
+              styleName,
+              characterNames,
+            ])}
+            disabled={disabled}
+            onClose={onVibeClose}
+            onSettings={onSettings}
+            style={styleName}
+            characters={characterNames}
+            room={
+              recipeHasPlaceholder(recipe.situations)
+                ? 60
+                : 60 - recipe.situations.length
+            }
+            onApply={(plan) => {
+              const useCharacter =
+                !!characterLimit(base.draft) &&
+                !!(actors.length || recipe.characterIds.length);
+              const next = appendSuggestedCuts(recipe, plan.cuts, useCharacter);
+              setApplied({
+                before: recipe,
+                after: next,
+                beforeRepeats: repeats,
+                afterRepeats: plan.repeats || repeats,
+              });
+              setRecipe(next);
+              setError('');
+              if (panel.current) panel.current.open = true;
+              onReveal();
+              if (plan.repeats) onRepeats(plan.repeats);
+            }}
+          />,
+          document.querySelector('.connected-workspace') ?? document.body,
+        )}
     </details>
   );
 }

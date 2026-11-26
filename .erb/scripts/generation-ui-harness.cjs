@@ -23,6 +23,22 @@ if (phase === 'recipe') {
   };
 }
 const profile = process.env.SDSTUDIO_USER_DATA_DIR;
+if (phase === 'recipe') {
+  const legacy = path.join(profile, 'SDStudio');
+  const name = 'Bridge';
+  const scene = { type: 'scene', name: 'Test', resolution: 'portrait', slots: [], mains: ['favorite.png'], imageMap: ['favorite.png'] };
+  const inpaint = { type: 'inpaint', workflowType: 'SDInpaint', name: 'Retouch', resolution: 'portrait', mains: [], imageMap: ['output.png'] };
+  const fixture = { version: 1, name, presets: {}, presetShareds: {}, scenes: { Test: scene }, inpaints: { Retouch: inpaint }, library: { Sky: { version: 1, name: 'Sky', pieces: [{ name:'weather', prompt:'rain' }] } } };
+  for (const [file, content] of [
+    ['projects/Bridge.json', JSON.stringify(fixture)],
+    ['outs/Bridge/Test/favorite.png', expectedPNG],
+    ['inpaints/Bridge/Retouch/output.png', expectedPNG],
+  ]) {
+    const target = path.join(legacy, file);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content);
+  }
+}
 const checks = [],
   remote = [],
   errors = [];

@@ -1,8 +1,9 @@
 // Disable no-unused-vars, broken for spread args
 /* eslint no-unused-vars: off */
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
+import { isProvider } from '../recipeAssistant';
 import type { NaiAuthResult } from '../naiAuth';
-import type { CutRequest, CutResult } from '../recipeAssistant';
+import type { CutRequest, CutResult, Provider } from '../recipeAssistant';
 import type { GenerationClient } from '../workspaceGeneration';
 import type { ProjectClient } from '../workspaceProject';
 import type { LibraryClient } from '../promptLibrary';
@@ -52,7 +53,30 @@ export type Channels =
   | 'copy-image-to-clipboard'
   | 'lookup-tag';
 
+function providerAuth(
+  provider: Provider,
+  operation: 'status' | 'set' | 'clear',
+  ...args: unknown[]
+) {
+  if (!isProvider(provider))
+    return Promise.resolve({
+      ok: false as const,
+      code: 'INVALID_INPUT' as const,
+    });
+  return ipcRenderer.invoke(`${provider}-auth-${operation}`, ...args);
+}
 const electronHandler = {
+  providerKeys: {
+    status: (provider: Provider): Promise<NaiAuthResult> =>
+      providerAuth(provider, 'status'),
+    set: (
+      provider: Provider,
+      key: string,
+      remember: boolean,
+    ): Promise<NaiAuthResult> => providerAuth(provider, 'set', key, remember),
+    clear: (provider: Provider): Promise<NaiAuthResult> =>
+      providerAuth(provider, 'clear'),
+  },
   recipeAssistant: {
     status: (): Promise<NaiAuthResult> =>
       ipcRenderer.invoke('gemini-auth-status'),

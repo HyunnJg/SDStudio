@@ -94,3 +94,46 @@
 .nai-auth .nai-confirm button + button {
   margin-left: 8px;
 }
+
+.vibe-editor {
+  width: min(650px, calc(100vw - 24px));
+}
+.vibe-editor fieldset,
+.vibe-api-settings fieldset {
+  display: grid;
+  gap: 0.65rem;
+}
+.vibe-api-settings {
+  margin-block: 12px;
+}
+.vibe-model-fields {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 10px;
+}
+.vibe-model-fields label,
+.vibe-editor label {
+  display: grid;
+  gap: 4px;
+}
+.vibe-model-fields input,
+.vibe-model-fields select,
+.vibe-editor textarea {
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  color: inherit;
+  border: 1px solid #8291a5;
+  border-radius: 6px;
+  padding: 8px;
+}
+.vibe-model-fields option {
+  color: #192535;
+}
+.vibe-editor ol {
+  list-style: decimal inside;
+}
+.vibe-editor li {
+  padding-block: 4px;
+  overflow-wrap: anywhere;
+}

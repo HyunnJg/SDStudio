@@ -1,9 +1,19 @@
 import type { IpcMain, IpcMainInvokeEvent } from 'electron';
-import type { CutRequest, CutResult, CutSuggestion } from '../recipeAssistant';
-import { isNovelAiToken, wrongGeminiKeyMessage } from '../recipeAssistant';
+import type {
+  CutRequest,
+  CutResult,
+  CutSuggestion,
+  Provider,
+} from '../recipeAssistant';
+import {
+  defaultModels,
+  wrongProviderKey,
+  wrongGeminiKeyMessage,
+  isProvider,
+  validModelId,
+  providerLabels,
+} from '../recipeAssistant';
 
-const endpoint =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
 const instruction = [
   'Draft editable NovelAI image cuts for the user. Preserve requested order and pairs.',
   'Use Korean cut names. Write concise English image tags for setting (background, composition) and emotion (expression, pose). Either can be empty.',
@@ -76,9 +86,98 @@ function parseSuggestion(text: string): CutSuggestion {
   return { repeats: data.repeats, cuts };
 }
 
+function makeCutRequest(
+  provider: Provider,
+  model: string,
+  key: string,
+  input: string,
+): {
+  url: string;
+  headers: Record<string, string>;
+  body: object;
+} {
+  const format =
+    ' Return only JSON {"cuts":[{"name":"...","setting":"...","emotion":"..."}],"repeats":0}, with no markdown.';
+  if (provider === 'openai' || provider === 'openrouter')
+    return {
+      url:
+        provider === 'openrouter'
+          ? 'https://openrouter.ai/api/v1/chat/completions'
+          : 'https://api.openai.com/v1/chat/completions',
+      headers: { Authorization: `Bearer ${key}` },
+      body: {
+        model,
+        ...(provider === 'openai' ? { store: false } : {}),
+        max_completion_tokens: 8192,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: instruction + format },
+          { role: 'user', content: input },
+        ],
+      },
+    };
+  if (provider === 'anthropic')
+    return {
+      url: 'https://api.anthropic.com/v1/messages',
+      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: {
+        model,
+        max_tokens: 8192,
+        system: instruction + format,
+        messages: [{ role: 'user', content: input }],
+      },
+    };
+  return {
+    url:
+      provider === 'vertex'
+        ? `https://aiplatform.googleapis.com/v1/publishers/google/models/${model}:generateContent`
+        : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    headers: { 'x-goog-api-key': key },
+    body: {
+      systemInstruction: { parts: [{ text: instruction }] },
+      contents: [{ role: 'user', parts: [{ text: input }] }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: schema,
+        maxOutputTokens: 8192,
+      },
+    },
+  };
+}
+
+function extractCutText(provider: Provider, reply: any) {
+  if (provider === 'openai' || provider === 'openrouter') {
+    const item = reply?.choices?.[0];
+    if (item?.finish_reason === 'length') return { limited: true, text: '' };
+    if (item?.finish_reason !== 'stop' || item.message?.refusal) throw Error();
+    return { limited: false, text: item.message.content };
+  }
+  if (provider === 'anthropic') {
+    if (reply?.stop_reason === 'max_tokens') return { limited: true, text: '' };
+    if (reply?.stop_reason !== 'end_turn') throw Error();
+    return {
+      limited: false,
+      text: reply.content
+        .filter((p: { type: string }) => p.type === 'text')
+        .map((p: { text: string }) => p.text)
+        .join(''),
+    };
+  }
+  const item = reply?.candidates?.[0];
+  if (item?.finishReason === 'MAX_TOKENS') return { limited: true, text: '' };
+  if (item?.finishReason !== 'STOP') throw Error();
+  return {
+    limited: false,
+    text: item.content.parts
+      .filter((p: { thought?: boolean }) => !p.thought)
+      .map((p: { text: string }) => p.text)
+      .join(''),
+  };
+}
+
 export default function registerGeminiCuts(
   ipc: Pick<IpcMain, 'handle'>,
-  readKey: () => Promise<string>,
+  readKey: (provider: Provider) => Promise<string>,
   offline: () => boolean,
   trusted: (e: IpcMainInvokeEvent) => boolean,
   send: typeof fetch = (url, options) => fetch(url, options),
@@ -95,55 +194,43 @@ export default function registerGeminiCuts(
           ok: false,
           message: '요청문과 선택한 프리셋 이름을 확인하세요.',
         };
+      const provider = r.provider === undefined ? 'gemini' : r.provider;
+      if (!isProvider(provider))
+        return { ok: false, message: '지원하는 공급자를 선택하세요.' };
+      const model = r.model === undefined ? defaultModels[provider] : r.model;
+      if (!validModelId(model, provider))
+        return { ok: false, message: '모델 ID를 확인하세요.' };
+      const label = providerLabels[provider];
       if (busy) return { ok: false, message: '이전 컷 요청을 처리 중입니다.' };
       busy = true;
-      let message = 'Gemini API 키를 읽을 수 없습니다. 키 설정을 확인하세요.';
+      let message = `${label} API 키를 읽을 수 없습니다. 메뉴의 API 설정을 확인하세요.`;
       try {
-        const key = await readKey();
+        const key = await readKey(provider);
         if (!allowed()) throw Error();
-        if (isNovelAiToken(key))
+        if (wrongProviderKey(provider, key))
           return { ok: false, message: wrongGeminiKeyMessage };
-        message = 'Gemini에 연결하지 못했거나 시간이 초과됐습니다.';
-        const response = await send(endpoint, {
+        message = `${label} 연결에 실패했거나 시간이 초과됐습니다.`;
+        const input = JSON.stringify({
+          instruction: r.instruction,
+          style: r.style,
+          characters: r.characters,
+        });
+        const spec = makeCutRequest(provider, model, key, input);
+        const response = await send(spec.url, {
           method: 'POST',
           redirect: 'error',
           signal: AbortSignal.timeout(60_000),
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': key,
-          },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: instruction }] },
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  {
-                    text: JSON.stringify({
-                      instruction: r.instruction,
-                      style: r.style,
-                      characters: r.characters,
-                    }),
-                  },
-                ],
-              },
-            ],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              responseSchema: schema,
-              maxOutputTokens: 8192,
-            },
-          }),
+          headers: { 'Content-Type': 'application/json', ...spec.headers },
+          body: JSON.stringify(spec.body),
         });
         if (!response.ok) {
           await response.body?.cancel();
           return {
             ok: false,
-            message: `Gemini 요청 실패 (HTTP ${response.status}). 키 권한과 사용 한도를 확인하세요.`,
+            message: `${label} 요청 실패 (HTTP ${response.status}). 키 권한과 사용 한도를 확인하세요.`,
           };
         }
-        message =
-          '완성된 컷 목록을 받지 못했습니다. 요청을 줄이거나 다시 작성해 주세요.';
+        message = `${label} 응답을 받았으나 컷 형식을 읽지 못했습니다. 요청문을 확인하세요.`;
         const reader = response.body?.getReader();
         if (!reader) throw Error();
         const chunks: Uint8Array[] = [];
@@ -161,23 +248,21 @@ export default function registerGeminiCuts(
           chunks.push(chunk.value);
         }
         const reply = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-        const candidate = reply?.candidates?.[0];
         if (!allowed()) throw Error();
-        if (candidate?.finishReason === 'MAX_TOKENS')
+        const output = extractCutText(provider, reply);
+        if (output.limited)
           return {
             ok: false,
-            message:
-              'Gemini 출력 한도에 도달했습니다. 컷 수를 줄여 나누어 요청하세요.',
+            message: `${label} 출력 한도에 도달했습니다. 컷 수를 줄여 나누어 요청하세요.`,
           };
-        if (candidate?.finishReason !== 'STOP') throw Error();
-        const parts = candidate.content.parts.filter(
-          (p: { thought?: boolean }) => !p.thought,
-        );
+        const reported = reply.modelVersion ?? reply.model;
         return {
           ok: true,
-          suggestion: parseSuggestion(
-            parts.map((p: { text: string }) => p.text).join(''),
-          ),
+          suggestion: parseSuggestion(output.text),
+          httpStatus: response.status,
+          ...(validModelId(reported, provider)
+            ? { responseModel: reported }
+            : {}),
         };
       } catch {
         return { ok: false, message };

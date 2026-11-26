@@ -14,6 +14,8 @@ import { usesDevelopmentAssets, resolvePreloadPath, startDesktop } from './deskt
 import { createRuntimeOptions } from '../runtimeOptions';
 import { installOfflineRequestGuard } from './offlineNetwork';
 import { NaiTokenStore } from './nai/tokenStore';
+import { PROVIDERS } from '../recipeAssistant';
+import type { Provider } from '../recipeAssistant';
 import registerGeminiCuts from './geminiCuts';
 import { registerNaiAuth, isTrustedAuthFrame } from './nai/authIpc';
 import { WorkspaceGeneration } from './nai/workspaceGeneration';
@@ -990,14 +992,18 @@ if (!gotTheLock) {
       const trustedFrame = (event: Electron.IpcMainInvokeEvent) =>
         isTrustedAuthFrame(event, mainWindow?.webContents, resolveHtmlPath('index.html'));
       const offline = () => runtimeOptions.offline;
-      const geminiKeys = new NaiTokenStore(
-        path.join(app.getPath('userData'), 'auth', 'gemini-key.v1.json'),
-        safeStorage, process.platform, 'sdstudio-gemini-key',
-      );
       registerNaiAuth(ipcMain, tokenStore, offline, trustedFrame);
-      registerNaiAuth(ipcMain, geminiKeys, offline, trustedFrame, 'gemini-auth');
-      registerGeminiCuts(ipcMain, () => geminiKeys.read(), offline, trustedFrame);
-      app.on('will-quit', () => geminiKeys.lock());
+      const keys = new Map<Provider, NaiTokenStore>();
+      for (const provider of PROVIDERS) {
+        const store = new NaiTokenStore(
+          path.join(app.getPath('userData'), 'auth', `${provider}-key.v1.json`),
+          safeStorage, process.platform, `sdstudio-${provider}-key`,
+        );
+        keys.set(provider, store);
+        registerNaiAuth(ipcMain, store, offline, trustedFrame, `${provider}-auth`);
+        app.on('will-quit', () => store.lock());
+      }
+      registerGeminiCuts(ipcMain, provider => keys.get(provider)!.read(), offline, trustedFrame);
       const projectService = new ProjectService(app.getPath('userData'),
         usesDevelopmentAssets(app.isPackaged, process.env.NODE_ENV)
           ? path.join(__dirname, 'projects/projectWorker.ts') : path.join(__dirname, 'projectWorker.js'));

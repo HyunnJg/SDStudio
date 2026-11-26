@@ -4,6 +4,14 @@
 
 추가 결정 [D-067 이미지 입력과 반복 요청 간격](WORKSPACE_QUEUE.md#d-067-반복-요청-간격과-이미지-입력).
 
+## D-077. 바이브 에디터와 작업실의 V3 자료 가져오기
+
+기준은 #54의 `9fdb3f8`이다. 공급자와 모델을 바꾸거나 응답을 확인하려고 생성 설정을 펼칠 필요가 없도록, 작업실 상단에 바이브 에디터를 두고 키 관리는 ‘API 토큰·연결 모드’로 모은다. 에디터에서 설정을 열고 돌아와도 작성 중인 요청을 유지한다. 컷 초안은 확인한 뒤 조합에 추가하며 추가한 묶음은 후속 편집 전에 되돌릴 수 있다.
+
+Gemini, Vertex AI Express, OpenAI, Anthropic, OpenRouter는 공급자별 보관소와 고정 API 주소를 사용한다. Google 두 서비스의 키도 각각 등록한다. Vertex는 Express API 키, OpenRouter는 공급자/모델 ID와 변형 접미사를 받는다. 모델 선택과 모델 ID만 화면 설정에 저장한다. 설정의 응답 확인은 지정한 모델로 간단한 컷을 한 번 요청하며 이용료가 발생할 수 있다. [Vertex AI Express API](https://cloud.google.com/vertex-ai/generative-ai/docs/start/express-mode/vertex-ai-express-mode-api-reference) · [OpenRouter Chat Completions](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request)
+
+씬 제거와 저장한 조합 삭제는 별도 조작으로 제공한다. 씬을 제거해도 생성 결과는 프로젝트에 보관한다. 적용 직후의 프리셋은 원래 입력으로 되돌릴 수 있다. V3 세션의 조각은 현재 씬으로 병합하고 이름이 겹치면 기존 조각을 유지한다. V3 선별 이미지와 인페인팅 결과는 작업실 이미지 입력으로 가져와 용도를 선택한다. 원본 세션의 마스크 편집은 V3 인페인팅 화면을 사용한다.
+
 ## D-076. 한국어 요청으로 편집 가능한 컷 초안을 받는다
 
 사용자가 선택한 화풍·인물을 그대로 쓰면서 장면별 차이만 입력할 수 있도록 조합 편집기에 ‘말로 컷 추가’를 둔다. 첫 공급자는 Gemini Flash다. 메인 프로세스에서 요청문과 선택한 프리셋 이름을 Google에 보낸다. 키는 NovelAI와 별도 파일·봉투 형식을 사용하며 이번 실행 보관과 OS 암호화 보관을 선택할 수 있다. 오프라인에서는 호출할 수 없다. [Google의 구조화된 출력](https://ai.google.dev/gemini-api/docs/structured-output)

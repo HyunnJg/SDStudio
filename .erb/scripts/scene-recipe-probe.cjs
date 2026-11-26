@@ -185,25 +185,154 @@ module.exports = async ({ evaluate, click, fill, until, checks, requests }) => {
   await click('[data-testid=queue-confirm] button:last-of-type');
   await select(panel + ' select', ' ');
   await fill('#live-repeats', '1');
-  await click(panel + ' fieldset > details > summary');
+  await click('[data-testid=open-vibe-editor]');
   const assistant = '[data-testid=recipe-assistant]';
-  await fill(assistant + ' input[type=password]', 'pst-synthetic-test-only');
-  await click(assistant + ' details button');
-  await until(() => evaluate("document.querySelector('[data-testid=recipe-assistant] [role=status]')?.textContent.includes('NovelAI')"));
-  await fill(assistant + ' input[type=password]', 'synthetic-gemini-key');
-  await click(assistant + ' details button');
-  await until(() => evaluate("!document.querySelector('[data-testid=recipe-assistant] details').open && document.querySelector('#gemini-billing-notice').checkVisibility()"));
   await fill(assistant + ' textarea', '표정 세 컷, 각 두 장');
-  await click(assistant + ' > button');
-  await until(() => evaluate("document.querySelectorAll('[data-testid=recipe-assistant] li').length === 3"));
-  assert.equal(await evaluate("document.querySelector('#live-repeats').value"), '1');
-  await click(assistant + ' > button:last-of-type');
-  assert.equal(await evaluate("document.querySelector('#live-repeats').value"), '2');
-  await fill(panel + ' > fieldset > fieldset:last-of-type textarea', 'relieved, soft smile');
+  await click(assistant + ' fieldset button');
+  await click('.vibe-api-settings summary');
+  const keys = '[data-testid=provider-key-settings]';
+  await fill(keys + ' input[type=password]', 'pst-synthetic-test-only');
+  await click(keys + ' button');
+  await until(() =>
+    evaluate(
+      "document.querySelector('[data-testid=provider-key-settings] [role=status]').textContent.includes('NovelAI')",
+    ),
+  );
+  await fill(keys + ' input[type=password]', 'synthetic-gemini-key');
+  await click(keys + ' button');
+  await until(() =>
+    evaluate(
+      "document.querySelector('[data-testid=provider-key-settings]').textContent.includes('키 보관 중') && document.querySelector('#gemini-billing-notice').checkVisibility()",
+    ),
+  );
+  await click('[data-testid=nai-auth-dialog] header button');
+  assert.equal(
+    await evaluate(
+      "document.querySelector('[data-testid=recipe-assistant] textarea').value",
+    ),
+    '표정 세 컷, 각 두 장',
+  );
+  await click('[data-testid=request-vibe]');
+  await until(() =>
+    evaluate(
+      "document.querySelectorAll('[data-testid=recipe-assistant] li').length === 3",
+    ),
+  );
+  assert.equal(
+    await evaluate("document.querySelector('#live-repeats').value"),
+    '1',
+  );
+  await click('[data-testid=apply-vibe]');
+  assert.equal(
+    await evaluate("document.querySelector('#live-repeats').value"),
+    '2',
+  );
+  await fill(
+    panel + ' > fieldset > fieldset:last-of-type textarea',
+    'relieved, soft smile',
+  );
   await click('[data-testid=prepare-recipe]');
-  await until(() => evaluate("!!document.querySelector('[data-testid=queue-confirm]')"));
-  assert.match(await evaluate("document.querySelector('[data-testid=prepare-recipe]').textContent"), /6장/);
+  await until(() =>
+    evaluate("!!document.querySelector('[data-testid=queue-confirm]')"),
+  );
+  assert.match(
+    await evaluate(
+      "document.querySelector('[data-testid=prepare-recipe]').textContent",
+    ),
+    /6장/,
+  );
   assert.equal(requests(), 2);
-  checks.push('Gemini key entry, three proposed cuts, explicit apply, editable character text and six-image queue review without extra generation');
+  checks.push(
+    'Gemini key entry, three proposed cuts, explicit apply, editable character text and six-image queue review without extra generation',
+  );
   await click('[data-testid=queue-confirm] button:last-of-type');
+  await select(panel + ' select', 'Named cuts');
+  await click('[data-testid=delete-recipe]');
+  await click('[aria-label="조합 삭제 확인"] button:last-child');
+  const stored = await evaluate(
+    "JSON.parse(localStorage.getItem('sdstudio.scene-recipes.v2')).map(row => row.name)",
+  );
+  assert.ok(!stored.includes('Named cuts') && stored.includes('Legacy'));
+  const count = await evaluate("document.querySelector('#live-scene').length");
+  await click('[data-testid=manage-scene]');
+  await click('[data-testid=remove-scene]');
+  await click('[data-testid=remove-scene-confirm]');
+  assert.equal(
+    await evaluate("document.querySelector('#live-scene').length"),
+    count - 1,
+  );
+  checks.push(
+    'removed one saved recipe and one workspace scene with confirmation',
+  );
+
+  const bridge = 'dialog[aria-label="V3 자료 가져오기"]';
+  await click('.connected-menu summary');
+  for (const [type, scene, name] of [
+    ['scene', 'Test', 'favorite.png'],
+    ['inpaint', 'Retouch', 'output.png'],
+  ]) {
+    await click('[data-testid=open-legacy-import]');
+    await until(() =>
+      evaluate(
+        "!!document.querySelector('dialog[aria-label=\"V3 자료 가져오기\"] select option[value=Bridge]') || Array.from(document.querySelectorAll('dialog[aria-label=\"V3 자료 가져오기\"] select option')).some(o=>o.value==='Bridge')",
+      ),
+    );
+    await select(bridge + ' select', 'Bridge');
+    await until(() =>
+      evaluate(
+        '!!document.querySelector(\'dialog[aria-label="V3 자료 가져오기"] fieldset\')',
+      ),
+    );
+    if (type === 'scene') {
+      await select(bridge + ' fieldset select', 'Sky');
+      await click(bridge + ' fieldset button');
+      await until(() =>
+        evaluate(
+          "document.querySelector('dialog[aria-label=\"V3 자료 가져오기\"] [role=status]').textContent.includes('1개 추가')",
+        ),
+      );
+      await click(bridge + ' fieldset button');
+      assert.match(
+        await evaluate(
+          'document.querySelector(\'dialog[aria-label="V3 자료 가져오기"] [role=status]\').textContent',
+        ),
+        /같은 이름 1개 유지/,
+      );
+    }
+    await select(
+      bridge + ' fieldset:last-of-type select',
+      JSON.stringify([type, scene, name]),
+    );
+    await click(bridge + ' fieldset:last-of-type button');
+    await until(() =>
+      evaluate("!!document.querySelector('[data-testid=image-choice]')"),
+    );
+    assert.equal(
+      await evaluate(
+        "document.querySelector('.workspace-image-filename').textContent",
+      ),
+      name,
+    );
+    await click('[data-testid=image-choice] header button');
+  }
+  checks.push(
+    'V3 session pieces merge once; favorite and inpaint PNGs both reached the workspace image picker',
+  );
+  await click('[data-testid=project-save]');
+  await until(() =>
+    evaluate(
+      "!document.querySelector('[data-testid=project-dirty]').textContent.includes('미저장')",
+    ),
+  );
+  const projects = await evaluate('window.electron.projects.list()');
+  const manifest = require('node:path').join(
+    process.env.SDSTUDIO_USER_DATA_DIR,
+    'projects-v1',
+    projects.value[0].id,
+    'project.json',
+  );
+  const saved = JSON.parse(require('node:fs').readFileSync(manifest));
+  assert.equal(saved.images.length, 2);
+  assert.equal(saved.scenes.length, count - 1);
+  checks.push('saved remaining scenes and both original results after removal');
 };

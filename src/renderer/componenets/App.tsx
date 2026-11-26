@@ -376,7 +376,7 @@ export const App = observer(() => {
         return backend.renderDraftPreview(request, scenario);
       }} />
   ) : window.electron && previewOpen ? (
-    <ConnectedWorkspace state={workspace} setState={setWorkspace} project={project}
+    <ConnectedWorkspace legacySession={appState.curSession ?? undefined} state={workspace} setState={setWorkspace} project={project}
       projectLocked={!!projectView.operation || projectClosing} darkMode={darkMode}
       onBusyChange={value => { singlePreviewBusy.current = value; }}
       onOpenLegacy={tool => { setLegacyTool(tool); setPreviewOpen(false); }} onOpenAuth={() => setAuthOpen(true)}

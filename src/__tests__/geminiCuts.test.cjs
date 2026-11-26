@@ -78,7 +78,11 @@ test('Gemini receives only selected labels and instruction, and returns editable
     reference: 'private-image',
     prompt: 'private appearance',
   });
-  assert.deepEqual(result, { ok: true, suggestion: { cuts, repeats: 2 } });
+  assert.deepEqual(result, {
+    ok: true,
+    suggestion: { cuts, repeats: 2 },
+    httpStatus: 200,
+  });
   const recipe = appendSuggestedCuts(
     blankRecipe(),
     result.suggestion.cuts,
@@ -180,4 +184,80 @@ test('oversized, malformed and rate limited replies produce only local error mes
     assert.doesNotMatch(result.message, /sensitive/);
     if (response.status === 429) assert.match(result.message, /429/);
   }
+});
+
+test('selected provider binds its own key, exact model, endpoint, and reply format', async () => {
+  const plan = { cuts, repeats: 2 };
+  for (const [provider, model, origin] of [
+    ['vertex', 'gemini-2.5-flash', 'https://aiplatform.googleapis.com'],
+    ['openai', 'gpt-4.1-mini', 'https://api.openai.com'],
+    ['anthropic', 'claude-sonnet-4-6', 'https://api.anthropic.com'],
+    ['openrouter', 'vendor/custom-model:free', 'https://openrouter.ai'],
+  ]) {
+    const key = 'fixture-' + provider;
+    const suggest = handler({
+      read: async (selected) => {
+        assert.equal(selected, provider);
+        return key;
+      },
+      send: async (url, options) => {
+        assert.equal(new URL(url).origin, origin);
+        assert.equal(options.redirect, 'error');
+        const body = JSON.parse(options.body);
+        if (provider === 'vertex') {
+          assert.equal(
+            new URL(url).pathname,
+            '/v1/publishers/google/models/' + model + ':generateContent',
+          );
+          assert.equal(options.headers['x-goog-api-key'], key);
+          return reply(plan);
+        }
+        assert.equal(body.model, model);
+        if (provider === 'anthropic') {
+          assert.equal(options.headers['x-api-key'], key);
+          return Response.json({
+            model,
+            stop_reason: 'end_turn',
+            content: [{ type: 'text', text: JSON.stringify(plan) }],
+          });
+        }
+        assert.equal(options.headers.Authorization, 'Bearer ' + key);
+        return Response.json({
+          model,
+          choices: [
+            {
+              finish_reason: 'stop',
+              message: { content: JSON.stringify(plan) },
+            },
+          ],
+        });
+      },
+    });
+    const result = await suggest({ ...request, provider, model });
+    assert.equal(result.ok, true);
+    assert.equal(result.httpStatus, 200);
+    assert.deepEqual(result.suggestion, plan);
+    if (provider !== 'vertex') assert.equal(result.responseModel, model);
+  }
+});
+test('invalid model paths and recognized keys for a different provider are rejected locally', async () => {
+  let calls = 0;
+  for (const [provider, model, key] of [
+    ['vertex', '../x', 'key'],
+    ['openrouter', 'a/b?x=y', 'key'],
+    ['openai', 'gpt-4.1', 'sk-or-test'],
+    ['anthropic', 'abc', 'sk-openai-test'],
+    ['openrouter', 'google/model', 'sk-ant-test'],
+    ['gemini', 'test', 'sk-or-test'],
+  ]) {
+    const result = await handler({
+      read: async () => key,
+      send: async () => {
+        calls++;
+        return reply({ cuts, repeats: 0 });
+      },
+    })({ ...request, provider, model });
+    assert.equal(result.ok, false);
+  }
+  assert.equal(calls, 0);
 });

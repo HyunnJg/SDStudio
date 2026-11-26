@@ -8,6 +8,8 @@ import {
   Dispatch,
   SetStateAction,
 } from 'react';
+import LegacyWorkspaceImport from './LegacyWorkspaceImport';
+import type { Session } from '../models/types';
 import PromptPiecePanel from './PromptPiecePanel';
 import ModelSizeControls from './ModelSizeControls';
 import {
@@ -93,6 +95,7 @@ function unwrap<T>(reply: GenerationReply<T>): T {
   return reply.value;
 }
 interface Props {
+  legacySession: Session | undefined;
   state: WorkspaceState;
   setState: Dispatch<SetStateAction<WorkspaceState>>;
   project: ProjectController;
@@ -108,6 +111,7 @@ interface Props {
 let referenceCostAcknowledged = false;
 
 export default function ConnectedWorkspace({
+  legacySession,
   state,
   setState,
   project,
@@ -222,6 +226,13 @@ export default function ConnectedWorkspace({
   }>();
   const [imageChoice, setImageChoice] = useState<File>();
   const [presets, setPresets] = useState<PromptPreset[]>([]);
+  const [presetUndo, setPresetUndo] = useState<{
+    scene: string;
+    epoch: number;
+    before: WorkspaceDraft;
+    after: string;
+    name: string;
+  }>();
   const [uses, setUses] = useState<
     (PresetUse & {
       sceneId: string;
@@ -269,6 +280,14 @@ export default function ConnectedWorkspace({
     setLibraryRequest(undefined);
   }, [view.id, state.selectedSceneId, state.draft.family]);
   const [promptTab, setPromptTab] = useState<'prompt' | 'negative'>('prompt');
+  const [vibeOpen, setVibeOpen] = useState(false);
+  const [legacyImport, setLegacyImport] = useState(false);
+  const [removeId, setRemoveId] = useState('');
+  useEffect(() => {
+    setVibeOpen(false);
+    setLegacyImport(false);
+    setRemoveId('');
+  }, [state.selectedSceneId, view.inputEpoch]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobilePane, setMobilePane] = useState<'input' | 'result'>('input');
   const queueConfirmation = useRef<HTMLElement>(null);
@@ -893,6 +912,14 @@ export default function ConnectedWorkspace({
         <nav aria-label="작업실 화면">
           <button
             type="button"
+            data-testid="open-vibe-editor"
+            disabled={locked || runtimeOptions.offline}
+            onClick={() => setVibeOpen(true)}
+          >
+            바이브 에디터
+          </button>
+          <button
+            type="button"
             data-testid="open-prompt-library"
             disabled={locked}
             onClick={() => setLibraryRequest({ kind: 'main' })}
@@ -925,6 +952,14 @@ export default function ConnectedWorkspace({
               </button>
               <button type="button" onClick={onToggleTheme}>
                 테마 전환
+              </button>
+              <button
+                type="button"
+                disabled={locked}
+                data-testid="open-legacy-import"
+                onClick={() => setLegacyImport(true)}
+              >
+                V3 자료 가져오기
               </button>
               <button
                 type="button"
@@ -983,6 +1018,103 @@ export default function ConnectedWorkspace({
                   ))}
                 </select>
               </div>
+              <details>
+                <summary data-testid="manage-scene">씬 관리</summary>
+                <button
+                  type="button"
+                  disabled={
+                    state.scenes.length === 1 ||
+                    !!queuePlan ||
+                    !!singlePlan ||
+                    !!queue?.items.some(
+                      (item) =>
+                        item.status === 'pending' &&
+                        item.sceneId === state.selectedSceneId,
+                    )
+                  }
+                  data-testid="remove-scene"
+                  onClick={() => setRemoveId(state.selectedSceneId)}
+                >
+                  현재 씬 제거
+                </button>
+                {state.scenes.length === 1 && (
+                  <small>프로젝트에는 편집할 씬이 하나 필요합니다.</small>
+                )}
+                {removeId === state.selectedSceneId && (
+                  <div>
+                    <p>
+                      ‘{state.scenes.find((s) => s.id === removeId)?.name}’을
+                      편집 목록에서 제거할까요? 생성한 결과는 보관됩니다.
+                    </p>
+                    <button type="button" onClick={() => setRemoveId('')}>
+                      취소
+                    </button>
+                    <button
+                      data-testid="remove-scene-confirm"
+                      type="button"
+                      disabled={
+                        !!queuePlan ||
+                        !!singlePlan ||
+                        !!queue?.items.some(
+                          (item) =>
+                            item.status === 'pending' &&
+                            item.sceneId === removeId,
+                        )
+                      }
+                      onClick={() => {
+                        setState((old) => {
+                          const next = old.scenes.find(
+                            (item) => item.id !== removeId,
+                          );
+                          if (!next || old.selectedSceneId !== removeId)
+                            return old;
+                          const switched = selectWorkspaceScene(old, next.id);
+                          return {
+                            ...switched,
+                            scenes: switched.scenes.filter(
+                              (item) => item.id !== removeId,
+                            ),
+                          };
+                        });
+                        setSinglePlan(undefined);
+                        setQueuePlan(undefined);
+                        setRemoveId('');
+                      }}
+                    >
+                      제거 확인
+                    </button>
+                  </div>
+                )}
+                {presetUndo?.scene === state.selectedSceneId &&
+                  presetUndo.epoch === view.inputEpoch &&
+                  presetUndo.after === JSON.stringify(state.draft) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const { before } = presetUndo;
+                        setState((old) => ({
+                          ...old,
+                          draft: before,
+                          selectedCharacter: before.characters.some(
+                            (c) => c.id === old.selectedCharacter,
+                          )
+                            ? old.selectedCharacter
+                            : (before.characters[0]?.id ?? ''),
+                        }));
+                        setUses((old) =>
+                          old.filter(
+                            (u) => u.sceneId !== state.selectedSceneId,
+                          ),
+                        );
+                        setPresetUndo(undefined);
+                        setQueuePlan(undefined);
+                        setSinglePlan(undefined);
+                      }}
+                    >
+                      ‘{presetUndo.name}’ 적용 되돌리기
+                    </button>
+                  )}
+              </details>
               <div className="connected-model-settings">
                 <ModelSizeControls
                   key={state.selectedSceneId}
@@ -1603,7 +1735,13 @@ export default function ConnectedWorkspace({
                 draft: state.draft,
               }}
               repeats={Number(repeats)}
-              online={!runtimeOptions.offline}
+              vibeOpen={vibeOpen}
+              onVibeClose={() => setVibeOpen(false)}
+              onSettings={onOpenAuth}
+              onReveal={() => {
+                setSidebarOpen(true);
+                setMobilePane('result');
+              }}
               onRepeats={(count) => {
                 setRepeats(String(count));
                 setQueuePlan(undefined);
@@ -1786,6 +1924,21 @@ export default function ConnectedWorkspace({
           setMessage('');
         }}
       />
+      {legacyImport && (
+        <LegacyWorkspaceImport
+          key={JSON.stringify([
+            view.inputEpoch,
+            state.selectedSceneId,
+            legacySession?.name,
+          ])}
+          session={legacySession}
+          pieces={state.draft.pieces ?? []}
+          onPieces={(pieces) => patch({ pieces })}
+          onImage={receiveImage}
+          disabled={locked}
+          onClose={() => setLegacyImport(false)}
+        />
+      )}
       {libraryRequest && (
         <PromptLibrary
           key={`${view.id ?? 'draft'}:${state.selectedSceneId}`}
@@ -1804,6 +1957,17 @@ export default function ConnectedWorkspace({
           onLibraryChange={acceptLibrary}
           onApply={(draft, characterId, preset) => {
             if (locked) return;
+            setPresetUndo(
+              preset
+                ? {
+                    scene: state.selectedSceneId,
+                    epoch: view.inputEpoch,
+                    before: structuredClone(state.draft),
+                    after: JSON.stringify(draft),
+                    name: preset.name,
+                  }
+                : undefined,
+            );
             setSinglePlan(undefined);
             setQueuePlan(undefined);
             setState((previous) => ({
