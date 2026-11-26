@@ -46,6 +46,41 @@ test('two characters and two paired settings become four named independent queue
   assert.throws(() => buildRecipeScenes(recipe, base, [], 4, randomUUID));
   assert.throws(() => buildRecipeScenes(recipe, base, presets, 3, randomUUID));
 });
+test('cut preparation rejects ambiguous targets, missing I2I and unsafe paragraph replacement', () => {
+  const actor = {
+    id: 'actor',
+    enabled: true,
+    prompt: 'hair and clothing',
+    negativePrompt: '',
+    cell: { row: 2, column: 2 },
+  };
+  const draft = { ...base.draft, characters: [actor] };
+  const cut = {
+    name: 'shot',
+    setting: '',
+    emotion: 'overhead view',
+    cutMode: 'append',
+  };
+  const make = (row, characters = [actor]) =>
+    buildRecipeScenes(
+      { name: 'shots', styleId: '', characterIds: [], situations: [row] },
+      { ...base, draft: { ...draft, characters } },
+      [],
+      1,
+      randomUUID,
+    );
+  assert.equal(
+    make(cut)[0].draft.characters[0].prompt,
+    'hair and clothing\n\noverhead view',
+  );
+  assert.throws(() => make({ ...cut, cutMode: 'replace' }), /빈 줄/);
+  assert.throws(() => make(cut, [actor, { ...actor, id: 'another' }]), /카드/);
+  assert.throws(() => make(cut, []), /카드/);
+  assert.throws(() => make({ ...cut, img2imgStrength: '0' }), /변형 원본/);
+  for (const invalid of ['1.01', '-0.1', 'NaN', '0x1'])
+    assert.throws(() => make({ ...cut, img2imgStrength: invalid }));
+  assert.deepEqual(make({ ...cut, included: false }), []);
+});
 test('model IDs, caption generations, sizes and medium effort constraints agree', () => {
   for (const model of Object.keys(MODELS)) {
     const draft = {

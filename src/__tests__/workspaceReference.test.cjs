@@ -218,6 +218,87 @@ test('V5 variation binds only the target-size derivative, preserves source and a
   assert.equal(hash(f.store.referenceImage(next.project.id, f.scene.id)), f.asset.uploadHash);
 });
 
+test('queued character cuts keep the selected identity, reference and noise while overriding only the cut strength', async (t) => {
+  const { buildRecipeScenes } = require('../renderer/generation/sceneRecipe');
+  const { randomUUID } = require('node:crypto');
+  const f = await variationFixture(t);
+  const fixed = 'silver hair\r\n\r\nnavy coat';
+  const actor = {
+    id: 'actor',
+    enabled: true,
+    prompt: fixed + '\r\n\r\nold pose\r\n',
+    negativePrompt: 'hat',
+    cell: { row: 2, column: 2 },
+  };
+  f.scene.draft.characters = [
+    { ...actor, id: 'other', prompt: 'other actor' },
+    actor,
+  ];
+  f.scene.draft.reference = f.reference;
+  const row = {
+    name: 'table',
+    setting: '',
+    emotion: 'reading a map, seated',
+    cutMode: 'replace',
+  };
+  const recipe = {
+    name: 'shots',
+    styleId: '',
+    characterIds: [],
+    cutActorId: 'actor',
+    situations: [
+      { ...row, img2imgStrength: '0' },
+      { ...row, name: 'skip', included: false },
+      { ...row, name: 'wave', emotion: 'waving', img2imgStrength: '0.90' },
+      { ...row, name: 'inherit', emotion: 'listening' },
+    ],
+  };
+  const original = structuredClone(f.scene);
+  const scenes = buildRecipeScenes(recipe, f.scene, [], 3, randomUUID);
+  assert.deepEqual(f.scene, original);
+  const saved = f.store.save(f.id, f.saved.revision, {
+    ...f.content,
+    scenes: [...f.content.scenes, ...scenes],
+  });
+  const plan = await f.service.prepareQueue(
+    f.id,
+    saved.revision,
+    scenes.map((s) => s.id),
+    1,
+    0,
+  );
+  assert.equal(f.bodies.length, 0);
+  const result = await f.service.runQueue(plan.ticket, true);
+  assert.deepEqual(
+    result.queue.items.map((i) => i.status),
+    ['done', 'done', 'done'],
+  );
+  const expectedCuts = [row.emotion, 'waving', 'listening'];
+  f.bodies.forEach((bytes, i) => {
+    const request = JSON.parse(Buffer.from(bytes));
+    assert.equal(request.parameters.strength, [0, 0.9, 0.45][i]);
+    assert.equal(request.parameters.noise, 0.1);
+    assert.equal(request.parameters.director_reference_images.length, 1);
+    assert.equal(
+      request.parameters.v4_prompt.caption.base_caption,
+      scenes[i].draft.prompt +
+        ', ' +
+        require('../workspaceGenerationSettings').V5_QUALITY_TAGS.standard,
+    );
+    assert.deepEqual(
+      request.parameters.v4_prompt.caption.char_captions.map(
+        (c) => c.char_caption,
+      ),
+      ['other actor', fixed + '\r\n\r\n' + expectedCuts[i]],
+    );
+    assert.equal(
+      request.parameters.v4_negative_prompt.caption.char_captions[1]
+        .char_caption,
+      'hat',
+    );
+  });
+});
+
 test('variation queue uses the same approved body/seed; changed strength or broken asset stops before send', async t => {
   const f = await variationFixture(t);
   const plan = await f.service.prepareQueue(f.id, f.saved.revision, [f.scene.id], 2);

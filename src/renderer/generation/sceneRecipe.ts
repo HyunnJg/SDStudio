@@ -6,12 +6,16 @@ export interface SceneRecipe {
   name: string;
   styleId: string;
   characterIds: string[];
+  cutActorId?: string;
   referenceByCharacter?: Record<string, string>;
   situations: {
     name: string;
     setting: string;
     emotion: string;
     characterId?: string;
+    cutMode?: 'append' | 'replace';
+    img2imgStrength?: string;
+    included?: boolean;
   }[];
 }
 
@@ -22,6 +26,31 @@ export const blankRecipe = (): SceneRecipe => ({
   situations: [{ name: '', setting: '', emotion: '' }],
 });
 
+export function validCutStrength(value: string) {
+  return (
+    typeof value === 'string' &&
+    (value === '' ||
+      (/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(value) && Number(value) <= 1))
+  );
+}
+
+// A cut follows a blank line. A single-paragraph identity has no replaceable suffix.
+export function cutParagraphStart(prompt: string) {
+  const breaks = [...prompt.trimEnd().matchAll(/\r?\n(?:[ \t]*\r?\n)+/g)];
+  const last = breaks.at(-1);
+  return last && prompt.slice(0, last.index).trim()
+    ? last.index! + last[0].length
+    : undefined;
+}
+
+export function resolveCutActor(
+  actors: WorkspaceDraft['characters'],
+  targetId?: string,
+) {
+  if (targetId) return actors.find((c) => c.id === targetId);
+  return actors.length === 1 ? actors[0] : undefined;
+}
+
 export function validRecipe(r: SceneRecipe) {
   const text = (s: unknown, max: number) =>
     typeof s === 'string' && s.length <= max;
@@ -29,6 +58,7 @@ export function validRecipe(r: SceneRecipe) {
     r &&
     text(r.name, 120) &&
     text(r.styleId, 128) &&
+    (r.cutActorId === undefined || text(r.cutActorId, 128)) &&
     Array.isArray(r.characterIds) &&
     r.characterIds.length <= 60 &&
     r.characterIds.every((id) => text(id, 128)) &&
@@ -48,6 +78,12 @@ export function validRecipe(r: SceneRecipe) {
         text(s.name, 120) &&
         text(s.setting, 4096) &&
         text(s.emotion, 4096) &&
+        (s.included === undefined || typeof s.included === 'boolean') &&
+        (s.cutMode === undefined ||
+          s.cutMode === 'append' ||
+          s.cutMode === 'replace') &&
+        (s.img2imgStrength === undefined ||
+          (!!s.cutMode && validCutStrength(s.img2imgStrength))) &&
         (!s.characterId || r.characterIds.includes(s.characterId)),
     )
   );
@@ -57,7 +93,8 @@ export function recipeJobs(recipe: SceneRecipe) {
   const ids = recipe.characterIds.length ? recipe.characterIds : [''];
   return ids.flatMap((characterId) =>
     recipe.situations.flatMap((row, index) =>
-      row.characterId && row.characterId !== characterId
+      row.included === false ||
+      (row.characterId && row.characterId !== characterId)
         ? []
         : [{ characterId, row, index }],
     ),
@@ -123,9 +160,37 @@ export function buildRecipeScenes(
           cell: { row: 2, column: 2 },
         },
       ];
-    const actor = draft.characters.find((c) => c.enabled && c.prompt.trim());
-    if (actor) actor.prompt = join(actor.prompt, row.emotion);
-    else draft.prompt = join(draft.prompt, row.emotion);
+    if (row.cutMode) {
+      const actors = draft.characters.filter(
+        (c) => c.enabled && c.prompt.trim(),
+      );
+      const actor = resolveCutActor(actors, character?.id ?? recipe.cutActorId);
+      if (!characterLimit(draft) || !actor)
+        throw Error('컷을 적용할 활성 캐릭터 카드를 선택하세요.');
+      if (!row.emotion.trim()) throw Error('예약할 컷의 문단을 입력하세요.');
+      if (row.cutMode === 'replace') {
+        const start = cutParagraphStart(actor.prompt);
+        if (start === undefined)
+          throw Error(
+            '고정할 문단과 교체할 마지막 문단 사이에 빈 줄이 필요합니다. 문단 추가도 선택할 수 있습니다.',
+          );
+        actor.prompt = actor.prompt.slice(0, start) + row.emotion.trim();
+      } else {
+        const separator = actor.prompt.includes('\r\n') ? '\r\n\r\n' : '\n\n';
+        actor.prompt = actor.prompt.trimEnd() + separator + row.emotion.trim();
+      }
+      if (row.img2imgStrength) {
+        if (!draft.img2img)
+          throw Error(
+            '컷의 I2I 강도를 적용하려면 현재 씬에 변형 원본을 추가하세요.',
+          );
+        draft.img2img.strength = Number(row.img2imgStrength);
+      }
+    } else {
+      const actor = draft.characters.find((c) => c.enabled && c.prompt.trim());
+      if (actor) actor.prompt = join(actor.prompt, row.emotion);
+      else draft.prompt = join(draft.prompt, row.emotion);
+    }
     const name = [
       recipe.name || base.name,
       character?.name,

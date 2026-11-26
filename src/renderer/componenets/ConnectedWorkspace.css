@@ -974,4 +974,5 @@
   display: flex;
   align-items: center;
 }
-.workspace-saved-presets > fieldset :is(select,input) { min-width: 0; }
+.workspace-saved-presets > fieldset :is(select,input,textarea) { min-width: 0; }
+.workspace-saved-presets textarea { max-width: 100%; resize: vertical; }

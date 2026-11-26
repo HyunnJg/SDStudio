@@ -1406,6 +1406,8 @@ export default function ConnectedWorkspace({
                   {queuePlan.items.map((item) => (
                     <li key={item.id}>
                       {item.sceneName} · {item.repeat}회 · 시드 {item.seed}
+                      {item.settings?.img2img &&
+                        ` · I2I 강도 ${item.settings.img2img.strength}`}
                       {!!item.settings?.characters &&
                         ` · 캐릭터 ${item.settings.characters}명`}
                     </li>
