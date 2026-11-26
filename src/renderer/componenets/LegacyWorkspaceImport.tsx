@@ -47,6 +47,13 @@ function readImportIndex(name: string, value: unknown) {
   );
   return {
     name,
+    maskScenes: Object.values(dictionary(data.inpaints)).filter((item) => {
+      const row = dictionary(item);
+      return (
+        row.workflowType === 'SDInpaint' ||
+        (!data.version && row.workflowType === undefined)
+      );
+    }).length,
     images,
     library: new Map(Object.entries(dictionary(data.library))),
   };
@@ -57,6 +64,7 @@ export default function LegacyWorkspaceImport({
   pieces,
   onPieces,
   onImage,
+  onCopyMasks,
   onClose,
   disabled,
 }: {
@@ -64,6 +72,7 @@ export default function LegacyWorkspaceImport({
   pieces: PromptPiece[];
   onPieces: (value: PromptPiece[]) => void;
   onImage: (file: File) => void;
+  onCopyMasks: (name: string) => void;
   onClose: () => void;
   disabled: boolean;
 }) {
@@ -184,7 +193,32 @@ export default function LegacyWorkspaceImport({
       {session ? (
         <>
           <p>현재 V3 세션 · {session.name}</p>
-          <fieldset disabled={busy || disabled}>
+          <fieldset
+            disabled={
+              busy ||
+              disabled ||
+              !names.includes(session.name) ||
+              !session.maskScenes
+            }
+          >
+            <legend>저장된 마스크 씬</legend>
+            <p>
+              마지막으로 저장한 세션에서
+              원본·마스크·프롬프트·시드·스텝·가이던스를 복사합니다. 생성에는 새
+              작업실의 강도 1, Karras, 마스크 밖 보존 설정이 적용됩니다.
+            </p>
+            <button
+              type="button"
+              data-testid="legacy-copy-masks"
+              onClick={() => onCopyMasks(session.name)}
+            >
+              마스크 씬을 새 프로젝트로 복사
+            </button>
+          </fieldset>
+          <fieldset
+            data-testid="legacy-piece-import"
+            disabled={busy || disabled}
+          >
             <legend>프롬프트 조각</legend>
             <label>
               조각 모음

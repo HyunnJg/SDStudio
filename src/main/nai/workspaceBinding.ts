@@ -202,6 +202,7 @@ export function bindBasicGeneration(
         images.inpaintMask && {
           image: Buffer.from(images.inpaintSource).toString('base64'),
           mask: Buffer.from(images.inpaintMask).toString('base64'),
+          add_original_image: true,
           strength: 1,
           noise: 0,
         }),

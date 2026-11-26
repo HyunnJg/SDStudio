@@ -551,6 +551,12 @@ test('V3 infill keeps the edited mask aligned with its source through generation
   );
   scene.draft.inpaintMask = mask.asset;
   save();
+  scene.draft.resolution = 'square';
+  save();
+  await assert.rejects(f.service.prepare(id, saved.revision, scene.id), { code: 'INPAINT_SIZE_MISMATCH' });
+  await assert.rejects(f.service.prepareQueue(id, saved.revision, [scene.id], 1), { code: 'INPAINT_SIZE_MISMATCH' });
+  scene.draft.resolution = '128x64';
+  save();
   assert.throws(
     () => validateWorkspaceProject({ ...saved.project, version: 10 }),
     { code: 'PROJECT_CORRUPT' },
@@ -575,6 +581,7 @@ test('V3 infill keeps the edited mask aligned with its source through generation
   for (const bytes of f.bodies) {
     const body = JSON.parse(Buffer.from(bytes));
     assert.equal(body.action, 'infill');
+    assert.equal(body.parameters.add_original_image, true);
     assert.equal(
       hash(Buffer.from(body.parameters.image, 'base64')),
       source.asset.uploadHash,
@@ -597,4 +604,57 @@ test('V3 infill keeps the edited mask aligned with its source through generation
     mask.preview,
   );
   assert.equal(f.store.open(id).project.images.length, 2);
+});
+
+test('legacy mask copy publishes a verified project and leaves versioned and early V3 input untouched', async (t) => {
+  const sharp = require('sharp');
+  const f = await fixture(t);
+  const root = path.join(f.profile, 'SDStudio');
+  const projects = path.join(root, 'projects');
+  fs.mkdirSync(projects, { recursive: true });
+  const pixels = Buffer.alloc(64 * 64, 0);
+  pixels.fill(255, 64, 128);
+  const mask = await sharp(pixels, {raw:{width:64,height:64,channels:1}}).png().toBuffer();
+  const source = await sharp({create:{width:64,height:64,channels:3,background:'#227744'}}).png().toBuffer();
+  const folder = path.join(root, 'vibes', 'Modern');
+  fs.mkdirSync(folder, { recursive: true });
+  fs.writeFileSync(path.join(folder, 'base.png'), source);
+  fs.writeFileSync(path.join(folder, 'mask.png'), mask);
+  const row = {workflowType:'SDInpaint',preset:{prompt:'sky',uc:'fog',seed:0,steps:20,promptGuidance:4,image:'base.png',mask:'mask.png'}};
+  const file = path.join(projects, 'Modern.json');
+  const data = JSON.stringify({version:1,inpaints:{Sky:row, Clouds:row, Variation:{workflowType:'SDI2I'}}});
+  fs.writeFileSync(file,data);
+  const worker = new ProjectService(f.profile, require.resolve('../main/projects/projectWorker.ts'));
+  t.after(() => worker.close());
+  const copy = await worker.copyLegacyMasks(root,'Modern');
+  assert.deepEqual(f.store.open(copy.project.id),copy);
+  assert.deepEqual(copy.project.scenes.map(s=>s.name),['Sky','Clouds']);
+  assert.equal(copy.project.selectedSceneId,copy.project.scenes[0].id);
+  for(const {draft} of copy.project.scenes){
+    assert.equal(draft.prompt,'sky');
+    assert.equal(draft.negativePrompt,'fog');
+    assert.equal(draft.seedMode,'fixed');
+    assert.equal(draft.seed,'0');
+    assert.equal(draft.steps,'20');
+    assert.equal(draft.guidance,'4');
+    assert.equal(draft.inpaintSource.sourceHash,hash(source));
+    assert.equal(draft.inpaintMask.sourceHash,hash(mask));
+    assert.deepEqual(await sharp(f.store.referenceBytes(copy.project.id,draft.inpaintMask)).greyscale().raw().toBuffer(), pixels);
+  }
+  assert.equal(fs.readFileSync(file,'utf8'),data);
+  assert.equal(hash(fs.readFileSync(path.join(folder,'base.png'))),hash(source));
+  assert.equal(hash(fs.readFileSync(path.join(folder,'mask.png'))),hash(mask));
+  const legacy = JSON.stringify({inpaints:{Retouch:{middlePrompt:'ocean',image:source.toString('base64'),mask:mask.toString('base64')}}});
+  fs.writeFileSync(path.join(projects,'Old.json'),legacy);
+  const early = await worker.copyLegacyMasks(root,'Old');
+  assert.equal(early.project.scenes[0].draft.prompt,'ocean');
+  assert.equal(early.project.scenes[0].draft.seedMode,'random');
+  assert.equal(fs.readFileSync(path.join(projects,'Old.json'),'utf8'),legacy);
+  const before = f.store.list();
+  const invalid = { ...row, preset: {...row.preset,mask:'missing.png'} };
+  fs.writeFileSync(file, JSON.stringify({version:1,inpaints:{Sky:row,Broken:invalid}}));
+  await assert.rejects(worker.copyLegacyMasks(root,'Modern'));
+  await assert.rejects(worker.copyLegacyMasks(root,'../Modern'));
+  assert.deepEqual(f.store.list(),before);
+  assert.equal(fs.readdirSync(path.join(f.profile,'projects-v1')).some(n=>n.startsWith('.import-')),false);
 });

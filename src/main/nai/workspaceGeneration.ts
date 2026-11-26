@@ -28,6 +28,7 @@ import type { ReferenceAsset, ImagePurpose } from '../../workspaceReference';
 import type { ProjectService } from '../projects/projectService';
 import { NaiError } from './errors';
 import { bindBasicGeneration } from './workspaceBinding';
+import { draftSize } from '../../workspaceCatalog';
 
 export class GenerationError extends Error {
   readonly conflictSceneId?: string;
@@ -192,6 +193,17 @@ export class WorkspaceGeneration {
     const { reference, img2img, inpaintSource, inpaintMask, family } =
       scene.draft;
     if (!reference && !img2img && !inpaintSource && !inpaintMask) return {};
+    if (inpaintSource || inpaintMask) {
+      const size = draftSize(scene.draft);
+      if (
+        [inpaintSource, inpaintMask].some(
+          (asset) =>
+            asset &&
+            (asset.width !== size.width || asset.height !== size.height),
+        )
+      )
+        throw new GenerationError('INPAINT_SIZE_MISMATCH');
+    }
     if ((reference || img2img) && family !== 'v5')
       throw new GenerationError('UNSUPPORTED_DRAFT');
     const { store } = this.options;

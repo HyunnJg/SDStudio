@@ -34,6 +34,8 @@ export const projectErrorMessage = (code: ProjectErrorCode): string =>
       '저장 결과를 확정하지 못했습니다. 교체됐을 수도 있으니 다시 열어 확인하세요. 현재 편집은 유지됩니다.',
     PROJECT_IMAGE_TOO_LARGE:
       '전송용 PNG가 5 MiB를 초과합니다. 다른 이미지를 선택하세요.',
+    PROJECT_LEGACY_MASK:
+      'V3 세션의 인페인팅 씬을 복사할 수 없습니다. 저장된 원본과 같은 크기의 PNG 마스크가 있고, 마스크에 칠한 영역이 있는지 확인하세요.',
     PROJECT_LIMIT:
       '보관 한도에 도달했습니다. 이력을 지우지 않고 새 복사본으로 계속하거나 입력만 새 프로젝트로 저장하세요.',
     PROJECT_RESULT_LIMIT:
@@ -416,6 +418,18 @@ export class ProjectController {
       await this.execute('프로젝트 읽는 중', async () =>
         this.replace(unwrap(await this.client().open(id))),
       );
+    });
+  }
+
+  async copyLegacyMasks(name: string) {
+    return this.guard('V3 마스크 씬을 새 프로젝트로 복사', async () => {
+      await this.execute('저장된 마스크 씬 복사 중', async () => {
+        const copy = unwrap(await this.client().copyLegacyMasks(name));
+        await this.replace(copy);
+        this.update({
+          message: `V3 마스크 씬 ${copy.project.scenes.length}개를 새 프로젝트에 복사했습니다.`,
+        });
+      });
     });
   }
 

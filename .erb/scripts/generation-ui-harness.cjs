@@ -33,6 +33,20 @@ if (phase === 'recipe') {
   };
 }
 const profile = process.env.SDSTUDIO_USER_DATA_DIR;
+if (phase === 'inpaint') {
+  const root = path.join(profile, 'SDStudio', 'projects');
+  fs.mkdirSync(root, { recursive:true });
+  const image = require('electron').nativeImage.createFromBitmap(Buffer.alloc(64 * 64 * 4, 255), {width:64, height:64}).toPNG();
+  const vibes = path.join(profile, 'SDStudio', 'vibes', 'MaskCopy');
+  fs.mkdirSync(vibes,{recursive:true});
+  fs.writeFileSync(path.join(vibes,'source.png'),image);
+  fs.writeFileSync(path.join(vibes,'mask.png'),image);
+  fs.writeFileSync(path.join(root, 'MaskCopy.json'), JSON.stringify({
+    version:1, name:'MaskCopy', presets:{}, presetShareds:{}, library:{}, scenes:{},
+    inpaints:{Retouch:{type:'inpaint',workflowType:'SDInpaint',name:'Retouch',resolution:'square',mains:[],imageMap:[],
+      preset:{type:'SDInpaint',name:'Retouch',prompt:'copied sky',image:'source.png',mask:'mask.png'}}},
+  }));
+}
 if (phase === 'recipe') {
   const legacy = path.join(profile, 'SDStudio');
   const name = 'Bridge';
@@ -116,6 +130,7 @@ const server = http.createServer(async (request, response) => {
     assert.equal(parsed.model,'nai-diffusion-3-inpainting');
     assert.equal(parsed.action,'infill');
     assert.ok(parsed.parameters.mask && parsed.parameters.image);
+    assert.equal(parsed.parameters.add_original_image, true);
     response.writeHead(200,{'Content-Type':'application/zip'});
     response.end(await payload);
     return;

@@ -38,6 +38,7 @@ import type {
   ResultTrashReport,
 } from '../../workspaceProject';
 import { validatePNGBytes } from '../nai/imageResponse';
+import legacyMasks from './legacyMasks';
 
 const hash = (bytes: Uint8Array) =>
   createHash('sha256').update(bytes).digest('hex');
@@ -555,6 +556,69 @@ export class ProjectStore {
         referenceSourceId,
       ),
     );
+  }
+
+  async copyLegacyMasks(
+    legacyRoot: string,
+    name: string,
+  ): Promise<ProjectSnapshot> {
+    const rows = io(() => legacyMasks(legacyRoot, name, read));
+    const root = this.directory([], true);
+    projectCheck(
+      fs.readdirSync(root).filter((entry) => /^[a-f0-9-]{36}$/.test(entry))
+        .length < 1000,
+      'PROJECT_LIMIT',
+    );
+    const scratch = fs.mkdtempSync(path.join(root, '.import-'));
+    try {
+      const stage = new ProjectStore(scratch);
+      const content: ProjectContent = {
+        name: name.slice(0, 120),
+        scenes: [],
+        selectedSceneId: '',
+      };
+      let working: ProjectSnapshot | undefined;
+      for (const load of rows) {
+        const { scene, image, mask } = load();
+        content.scenes.push(scene);
+        content.selectedSceneId = scene.id;
+        working = working
+          ? stage.save(working.project.id, working.revision, content)
+          : stage.create(content);
+        const { id } = working.project;
+        // eslint-disable-next-line no-await-in-loop -- Each mask requires its committed source revision.
+        scene.draft.inpaintSource = await stage.importReference(
+          id,
+          working.revision,
+          image,
+          'inpaintSource',
+        );
+        working = stage.save(id, working.revision, content);
+        // eslint-disable-next-line no-await-in-loop -- Bound decoded image memory to one scene.
+        scene.draft.inpaintMask = await stage.importReference(
+          id,
+          working.revision,
+          mask,
+          'inpaintMask',
+        );
+        working = stage.save(id, working.revision, content);
+      }
+      content.selectedSceneId = content.scenes[0].id;
+      const clean = stage.create(content, working!.project.id);
+      const verified = stage.open(clean.project.id);
+      fs.renameSync(
+        stage.folder(clean.project.id),
+        path.join(root, clean.project.id),
+      );
+      syncDirectory(root);
+      return verified;
+    } catch (error) {
+      if (error instanceof ProjectError && error.code !== 'PROJECT_INPUT')
+        throw error;
+      throw new ProjectError('PROJECT_LEGACY_MASK');
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
   }
 
   // The same project lock covers the revision check, atomic replacement and any asset sweep.

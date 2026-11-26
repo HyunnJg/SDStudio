@@ -2043,6 +2043,10 @@ export default function ConnectedWorkspace({
           pieces={state.draft.pieces ?? []}
           onPieces={(pieces) => patch({ pieces })}
           onImage={receiveImage}
+          onCopyMasks={(name) => {
+            setLegacyImport(false);
+            void project.copyLegacyMasks(name);
+          }}
           disabled={locked}
           onClose={() => setLegacyImport(false)}
         />

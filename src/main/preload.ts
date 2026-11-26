@@ -202,6 +202,7 @@ const electronHandler = {
       ipcRenderer.invoke('workspace-project-restart-storage'),
     list: () => ipcRenderer.invoke('workspace-project-list'),
     listTrash: () => ipcRenderer.invoke('workspace-project-list-trash'),
+    copyLegacyMasks: (name) => ipcRenderer.invoke('workspace-project-copy-legacy-masks', name),
     trashProject: (id) => ipcRenderer.invoke('workspace-project-trash', id),
     purgeProject: (id, confirmed) =>
       ipcRenderer.invoke('workspace-project-purge', id, confirmed),

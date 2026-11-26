@@ -48,6 +48,7 @@ export type ProjectErrorCode =
   | 'PROJECT_IO'
   | 'PROJECT_LIMIT'
   | 'PROJECT_IMAGE_TOO_LARGE'
+  | 'PROJECT_LEGACY_MASK'
   | 'PROJECT_UNTRUSTED';
 export class ProjectError extends Error {
   constructor(readonly code: ProjectErrorCode) {
@@ -115,6 +116,7 @@ export interface ProjectListing {
 export type ProjectReply<T> =
   { ok: true; value: T } | { ok: false; code: ProjectErrorCode };
 export interface ProjectClient {
+  copyLegacyMasks(name: string): Promise<ProjectReply<ProjectSnapshot>>;
   resultPicks(id: string): Promise<ProjectReply<string[]>>;
   setResultPicks(
     id: string,

@@ -1032,6 +1032,7 @@ if (!gotTheLock) {
           event, mainWindow?.webContents, resolveHtmlPath('index.html'),
         ),
         (action, id) => workspaceGeneration!.withProjectMutation(action, id),
+        APP_DIR,
       );
       projectClose = new ProjectCloseCoordinator(
         () => mainWindow?.webContents.send('workspace-close-request'),

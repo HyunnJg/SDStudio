@@ -110,4 +110,17 @@ module.exports = async ({
   checks.push(
     'empty mask blocked, brush, eraser, undo, saved mask reopened and one V3 infill result saved',
   );
+  await click('.connected-menu summary');
+  await click('[data-testid=open-legacy-import]');
+  await until(() => evaluate("[...document.querySelectorAll('dialog[open] select option')].some(o=>o.value==='MaskCopy')"));
+  await evaluate(`(()=>{const select=document.querySelector('dialog[open] select');select.value='MaskCopy';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await until(()=>evaluate("document.querySelector('[data-testid=legacy-copy-masks]')?.matches(':enabled')"));
+  await click('[data-testid=legacy-copy-masks]');
+  await until(()=>evaluate("document.querySelector('#live-prompt')?.value==='copied sky'"));
+  await button('마스크 다시 편집');
+  await until(()=>evaluate("document.querySelector('.workspace-mask-editor fieldset')?.disabled===false"));
+  assert.equal(await alpha(),255);
+  await evaluate("document.querySelector('.workspace-mask-editor header button').click()");
+  assert.equal(requestCount(),1);
+  checks.push('saved V3 mask opens in a new editable project without another generation request');
 };

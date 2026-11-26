@@ -405,14 +405,14 @@ module.exports = async ({ evaluate, click, fill, until, checks, requests }) => {
       ),
     );
     if (type === 'scene') {
-      await select(bridge + ' fieldset select', 'Sky');
-      await click(bridge + ' fieldset button');
+      await select(bridge + ' [data-testid=legacy-piece-import] select', 'Sky');
+      await click(bridge + ' [data-testid=legacy-piece-import] button');
       await until(() =>
         evaluate(
           "document.querySelector('dialog[aria-label=\"V3 자료 가져오기\"] [role=status]').textContent.includes('1개 추가')",
         ),
       );
-      await click(bridge + ' fieldset button');
+      await click(bridge + ' [data-testid=legacy-piece-import] button');
       assert.match(
         await evaluate(
           'document.querySelector(\'dialog[aria-label="V3 자료 가져오기"] [role=status]\').textContent',
