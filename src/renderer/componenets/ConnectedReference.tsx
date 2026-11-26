@@ -80,7 +80,9 @@ function ImagePreview({
       {url && <img src={url} alt={`${label} 전송용 미리보기`} />}
       {unavailable && (
         <p role="alert">
-          미리보기를 읽지 못했습니다. 이미지를 다시 선택하세요.
+          {purpose === 'img2img'
+            ? '변형 원본을 읽지 못했습니다. 이미지를 다시 선택하세요.'
+            : '참조를 읽지 못했습니다. 다시 선택해 주세요. 참조 없이 자동 생성하지 않습니다.'}
         </p>
       )}
       <small>
