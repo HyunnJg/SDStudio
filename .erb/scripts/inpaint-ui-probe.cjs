@@ -57,10 +57,21 @@ module.exports = async ({
   }
   async function dot() {
     const at = await evaluate(
-      `(()=>{const c=document.querySelector('${canvas}');c.scrollIntoView({block:'center'});const b=c.getBoundingClientRect();const x=b.x+b.width/2,y=b.y+b.height/2;return {x,y,width:b.width,height:b.height,target:document.elementFromPoint(x,y)?.tagName}})()`,
+      `(async () => {
+        const surface = document.querySelector('${canvas}');
+        surface.scrollIntoView({block:'center', behavior:'instant'});
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const bounds = surface.getBoundingClientRect();
+        const x = bounds.x + bounds.width / 2;
+        const y = bounds.y + bounds.height / 2;
+        return {x, y, target:document.elementFromPoint(x,y)?.tagName};
+      })()`,
     );
     assert.equal(at.target, 'CANVAS', JSON.stringify(at));
     if (!contents.debugger.isAttached()) contents.debugger.attach('1.3');
+    await contents.debugger.sendCommand('Input.dispatchMouseEvent', {
+      type: 'mouseMoved', x: at.x, y: at.y,
+    });
     for (const type of ['mousePressed', 'mouseReleased'])
       await contents.debugger.sendCommand('Input.dispatchMouseEvent', {
         type,
@@ -83,6 +94,9 @@ module.exports = async ({
   await dot();
   await until(async () => (await alpha()) === 255);
   await button('지우개');
+  await until(() => evaluate(
+    "document.querySelector('.mask-tools button[aria-pressed=true]')?.textContent === '지우개'",
+  ));
   await dot();
   await until(async () => (await alpha()) === 0);
   await button('되돌리기');
