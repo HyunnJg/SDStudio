@@ -31,6 +31,10 @@ export class LibraryError extends Error {
 export type LibraryReply =
   { ok: true; value: LibrarySnapshot } | { ok: false; code: LibraryCode };
 export interface LibraryClient {
+  importPresets: (
+    revision: string,
+    values: PresetContent[],
+  ) => Promise<LibraryReply>;
   read: () => Promise<LibraryReply>;
   save: (
     revision: string,
@@ -189,10 +193,11 @@ export function applyPromptPreset(
 }
 
 // Explicit, local legacy JSON import. Only known text fields are read; no paths or old workflows run.
-export function inspectLegacyPresets(value: unknown): {
+export interface LegacyPresetImport {
   candidates: PresetContent[];
   skipped: number;
-} {
+}
+export function inspectLegacyPresets(value: unknown): LegacyPresetImport {
   libraryCheck(value && typeof value === 'object' && !Array.isArray(value));
   const root = value as {
     presets?: Record<string, unknown>;

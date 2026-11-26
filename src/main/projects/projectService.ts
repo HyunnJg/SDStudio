@@ -133,8 +133,8 @@ export class ProjectService implements ProjectOperations {
     return this.call('list', []);
   }
 
-  copyLegacyMasks(root: string, name: string) {
-    return this.call('copyLegacyMasks', [root, name]);
+  copyLegacyMasks(root: string, name: string, selected?: string[]) {
+    return this.call('copyLegacyMasks', [root, name, selected]);
   }
 
   create(content: unknown, referenceSourceId?: string) {

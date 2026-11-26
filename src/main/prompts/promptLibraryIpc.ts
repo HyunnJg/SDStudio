@@ -11,6 +11,10 @@ export function registerPromptLibrary(
 ) {
   const actions = {
     'prompt-library-read': () => store.read(),
+    'prompt-library-import': (
+      revision: string,
+      values: import('../../promptLibrary').PresetContent[],
+    ) => store.importPresets(revision, values),
     'prompt-library-save': (
       revision: string,
       content: import('../../promptLibrary').PresetContent,

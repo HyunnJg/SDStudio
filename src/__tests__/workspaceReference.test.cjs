@@ -653,8 +653,12 @@ test('legacy mask copy publishes a verified project and leaves versioned and ear
   const before = f.store.list();
   const invalid = { ...row, preset: {...row.preset,mask:'missing.png'} };
   fs.writeFileSync(file, JSON.stringify({version:1,inpaints:{Sky:row,Broken:invalid}}));
-  await assert.rejects(worker.copyLegacyMasks(root,'Modern'));
+  assert.deepEqual(await worker.copyLegacyMasks(root,'Modern'), {failedScene:'Broken'});
   await assert.rejects(worker.copyLegacyMasks(root,'../Modern'));
   assert.deepEqual(f.store.list(),before);
+  await assert.rejects(worker.copyLegacyMasks(root,'Modern',['Removed']),{code:'PROJECT_CONFLICT'});
+  const subset = await worker.copyLegacyMasks(root,'Modern',['Sky']);
+  assert.deepEqual(subset.project.scenes.map(scene=>scene.name),['Sky']);
+  assert.deepEqual(f.store.open(subset.project.id), subset);
   assert.equal(fs.readdirSync(path.join(f.profile,'projects-v1')).some(n=>n.startsWith('.import-')),false);
 });

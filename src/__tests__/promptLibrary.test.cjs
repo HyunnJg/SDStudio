@@ -61,6 +61,20 @@ test('an empty library is local and main/character entries reopen with stable UU
   if (process.platform !== 'win32')
     assert.equal(fs.statSync(f.file).mode & 0o777, 0o600);
 });
+test('bulk import preserves distinct same-name presets, skips identical entries and commits all valid candidates together', async (t) => {
+  const {store} = fixture(t);
+  const before = await store.read();
+  const changed = {...main(),prompt:'new'};
+  const values = [main(),character,changed,main()];
+  const first = await store.importPresets(before.revision, values);
+  assert.equal(first.entries.length,3);
+  assert.deepEqual(await store.importPresets(first.revision,values),first);
+  await assert.rejects(store.importPresets(before.revision,values),{code:'LIBRARY_CONFLICT'});
+  assert.throws(()=>store.importPresets(first.revision,[main('new'),{...character,seed:0}]),{code:'LIBRARY_INPUT'});
+  const overCapacity = Array.from({length:LIBRARY_LIMITS.entries},(_,i)=>main(`preset-${i}`));
+  await assert.rejects(store.importPresets(first.revision,overCapacity),{code:'LIBRARY_LIMIT'});
+  assert.deepEqual(await store.read(),first);
+});
 test('serialized concurrent edits and stale revisions cannot silently overwrite another preset', async (t) => {
   const f = fixture(t),
     before = await f.store.read();

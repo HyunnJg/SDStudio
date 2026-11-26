@@ -421,10 +421,19 @@ export class ProjectController {
     });
   }
 
-  async copyLegacyMasks(name: string) {
+  async copyLegacyMasks(name: string, selected?: string[]) {
     return this.guard('V3 마스크 씬을 새 프로젝트로 복사', async () => {
       await this.execute('저장된 마스크 씬 복사 중', async () => {
-        const copy = unwrap(await this.client().copyLegacyMasks(name));
+        const copy = unwrap(
+          await this.client().copyLegacyMasks(name, selected),
+        );
+        if ('failedScene' in copy) {
+          this.update({
+            error: 'PROJECT_LEGACY_MASK',
+            message: `「${copy.failedScene}」 씬의 입력을 복사할 수 없습니다. V3 자료 가져오기에서 이 씬의 선택을 해제하거나 원본과 마스크를 확인하세요.`,
+          });
+          return;
+        }
         await this.replace(copy);
         this.update({
           message: `V3 마스크 씬 ${copy.project.scenes.length}개를 새 프로젝트에 복사했습니다.`,

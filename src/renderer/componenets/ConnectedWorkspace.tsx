@@ -80,6 +80,7 @@ import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
 
 import type {
   PresetKind,
+  LegacyPresetImport,
   PromptPreset,
   LibrarySnapshot,
 } from '../../promptLibrary';
@@ -223,6 +224,7 @@ export default function ConnectedWorkspace({
     };
   }, []);
   const [libraryRequest, setLibraryRequest] = useState<{
+    legacy?: LegacyPresetImport;
     kind: PresetKind;
     characterId?: string;
     initialId?: string;
@@ -2043,9 +2045,13 @@ export default function ConnectedWorkspace({
           pieces={state.draft.pieces ?? []}
           onPieces={(pieces) => patch({ pieces })}
           onImage={receiveImage}
-          onCopyMasks={(name) => {
+          onPresets={(legacy) => {
             setLegacyImport(false);
-            void project.copyLegacyMasks(name);
+            setLibraryRequest({kind:'main', legacy});
+          }}
+          onCopyMasks={(name, selectedMasks) => {
+            setLegacyImport(false);
+            void project.copyLegacyMasks(name, selectedMasks);
           }}
           disabled={locked}
           onClose={() => setLegacyImport(false)}
@@ -2066,6 +2072,7 @@ export default function ConnectedWorkspace({
           onClose={() => setLibraryRequest(undefined)}
           onLegacy={() => onOpenLegacy('pieces')}
           initialId={libraryRequest.initialId}
+          legacy={libraryRequest.legacy}
           onLibraryChange={acceptLibrary}
           onApply={(draft, characterId, preset) => {
             if (locked) return;

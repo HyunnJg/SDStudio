@@ -67,11 +67,11 @@ export function registerProjects(
     store.setResultPicks(id, revision, ids, picked),
   );
   handle('workspace-project-list', () => store.list());
-  handle('workspace-project-copy-legacy-masks', (name) => {
+  handle('workspace-project-copy-legacy-masks', (name, selected) => {
     if (!legacyRoot) throw new ProjectError('PROJECT_INPUT');
     // Like create(), this publishes a new independent project. Marking generation active
     // here would make the renderer reject opening the copy during its status poll.
-    return store.copyLegacyMasks(legacyRoot, name);
+    return store.copyLegacyMasks(legacyRoot, name, selected);
   });
   handle('workspace-project-list-trash', () => store.listTrash());
   handle('workspace-project-trash', (id) =>

@@ -1,9 +1,13 @@
 /* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "either" }] */
 import { useEffect, useRef, useState } from 'react';
+import legacyMaskEntries from '../../legacyMaskEntries';
 import type { Session } from '../models/types';
+import { inspectLegacyPresets } from '../../promptLibrary';
+import type { LegacyPresetImport } from '../../promptLibrary';
 import { backend, sessionService } from '../models';
 import { inspectPieceImport, validPieces } from '../../workspacePromptPieces';
 import type { PromptPiece } from '../../workspacePromptPieces';
+import { PROJECT_LIMITS } from '../../workspaceProject';
 import { REFERENCE_LIMITS } from '../../workspaceReference';
 
 const safeName = (name: string) =>
@@ -47,14 +51,11 @@ function readImportIndex(name: string, value: unknown) {
   );
   return {
     name,
-    maskScenes: Object.values(dictionary(data.inpaints)).filter((item) => {
-      const row = dictionary(item);
-      return (
-        row.workflowType === 'SDInpaint' ||
-        (!data.version && row.workflowType === undefined)
-      );
-    }).length,
+    maskScenes: legacyMaskEntries(dictionary(data.inpaints), data.version).map(
+      ({ key, label }) => ({ key, name: label }),
+    ),
     images,
+    presetSource: { presets: data.presets, presetShareds: data.presetShareds },
     library: new Map(Object.entries(dictionary(data.library))),
   };
 }
@@ -65,6 +66,7 @@ export default function LegacyWorkspaceImport({
   onPieces,
   onImage,
   onCopyMasks,
+  onPresets,
   onClose,
   disabled,
 }: {
@@ -72,14 +74,17 @@ export default function LegacyWorkspaceImport({
   pieces: PromptPiece[];
   onPieces: (value: PromptPiece[]) => void;
   onImage: (file: File) => void;
-  onCopyMasks: (name: string) => void;
+  onPresets: (value: LegacyPresetImport) => void;
+  onCopyMasks: (name: string, selected: string[]) => void;
   onClose: () => void;
   disabled: boolean;
 }) {
   const [session, setSession] = useState(
     () =>
-      currentSession &&
-      readImportIndex(currentSession.name, currentSession.toJSON()),
+      currentSession && {
+        ...readImportIndex(currentSession.name, currentSession.toJSON()),
+        maskScenes: [] as { key: string; name: string }[],
+      },
   );
   const [names, setNames] = useState(() => sessionService.list());
   useEffect(() => {
@@ -89,6 +94,7 @@ export default function LegacyWorkspaceImport({
   }, []);
   const modal = useRef<HTMLDialogElement>(null);
   const active = useRef(false);
+  const [excluded, setExcluded] = useState<string[]>([]);
   const [library, setLibrary] = useState('');
   const [selected, setSelected] = useState('');
   const [busy, setBusy] = useState(false);
@@ -102,6 +108,39 @@ export default function LegacyWorkspaceImport({
       dialog?.close();
     };
   }, []);
+  // Only the mask-copy operation reads the last disk save. Pieces and presets may come from the open editor.
+  const savedName = session?.name;
+  const currentName = currentSession?.name;
+  useEffect(() => {
+    if (
+      !savedName ||
+      savedName !== currentName ||
+      !safeName(savedName) ||
+      !names.includes(savedName)
+    )
+      return undefined;
+    let live = true;
+    backend
+      .readFile(`projects/${savedName}.json`)
+      .then((text) => {
+        const saved = readImportIndex(savedName, JSON.parse(text));
+        if (live) {
+          setExcluded([]);
+          setSession((previous) =>
+            previous?.name === savedName
+              ? { ...previous, maskScenes: saved.maskScenes }
+              : previous,
+          );
+        }
+        return undefined;
+      })
+      .catch(() => {
+        if (live) setMessage('저장된 마스크 씬 목록을 읽을 수 없습니다.');
+      });
+    return () => {
+      live = false;
+    };
+  }, [savedName, currentName, names]);
   const images = session?.images ?? [];
   const importImage = async () => {
     const item = images.find((i) => i.id === selected);
@@ -172,7 +211,11 @@ export default function LegacyWorkspaceImport({
                   : JSON.parse(await backend.readFile(`projects/${name}.json`));
               if (!active.current) return;
               if (!value) throw Error();
-              setSession(readImportIndex(name, value));
+              const index = readImportIndex(name, value);
+              if (name === currentName && name !== savedName)
+                index.maskScenes = [];
+              setSession(index);
+              setExcluded([]);
               setSelected('');
               setLibrary('');
             } catch {
@@ -193,12 +236,32 @@ export default function LegacyWorkspaceImport({
       {session ? (
         <>
           <p>현재 V3 세션 · {session.name}</p>
+          <button
+            type="button"
+            disabled={disabled || busy}
+            onClick={() => {
+              try {
+                const result = inspectLegacyPresets(session.presetSource);
+                if (result.candidates.length) onPresets(result);
+                else
+                  setMessage(
+                    `가져올 프리셋이 없습니다. 형식 오류 ${result.skipped}개`,
+                  );
+              } catch {
+                setMessage(
+                  '프리셋의 저장 형식과 라이브러리 한도를 확인하세요.',
+                );
+              }
+            }}
+          >
+            프리셋을 라이브러리에서 검토
+          </button>
           <fieldset
             disabled={
               busy ||
               disabled ||
               !names.includes(session.name) ||
-              !session.maskScenes
+              !session.maskScenes.length
             }
           >
             <legend>저장된 마스크 씬</legend>
@@ -207,10 +270,48 @@ export default function LegacyWorkspaceImport({
               원본·마스크·프롬프트·시드·스텝·가이던스를 복사합니다. 생성에는 새
               작업실의 강도 1, Karras, 마스크 밖 보존 설정이 적용됩니다.
             </p>
+            <details>
+              <summary>
+                복사할 마스크 씬 선택 ·{' '}
+                {session.maskScenes.length - excluded.length}/
+                {session.maskScenes.length}
+              </summary>
+              {session.maskScenes.map(({ key, name }) => (
+                <label key={key}>
+                  <input
+                    type="checkbox"
+                    checked={!excluded.includes(key)}
+                    onChange={(e) =>
+                      setExcluded(
+                        e.target.checked
+                          ? excluded.filter((v) => v !== key)
+                          : [...excluded, key],
+                      )
+                    }
+                  />
+                  {name}
+                </label>
+              ))}
+              {session.maskScenes.length > PROJECT_LIMITS.scenes && (
+                <p>프로젝트당 최대 {PROJECT_LIMITS.scenes}개를 선택하세요.</p>
+              )}
+            </details>
             <button
               type="button"
               data-testid="legacy-copy-masks"
-              onClick={() => onCopyMasks(session.name)}
+              disabled={
+                excluded.length === session.maskScenes.length ||
+                session.maskScenes.length - excluded.length >
+                  PROJECT_LIMITS.scenes
+              }
+              onClick={() =>
+                onCopyMasks(
+                  session.name,
+                  session.maskScenes
+                    .filter((s) => !excluded.includes(s.key))
+                    .map((s) => s.key),
+                )
+              }
             >
               마스크 씬을 새 프로젝트로 복사
             </button>

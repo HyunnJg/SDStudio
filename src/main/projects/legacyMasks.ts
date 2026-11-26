@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import legacyMaskEntries from '../../legacyMaskEntries';
 import { allowedSize } from '../../workspaceCatalog';
 import {
   PROJECT_LIMITS,
@@ -36,6 +37,7 @@ export default function legacyMasks(
   root: string,
   sessionName: string,
   read: ReadFile,
+  selected?: string[],
 ) {
   component(sessionName);
   const base = fs.realpathSync(root);
@@ -59,53 +61,58 @@ export default function legacyMasks(
       session.version === 1,
     'PROJECT_VERSION',
   );
-  const entries = Object.entries(record(session.inpaints)).filter(([, row]) => {
-    const { workflowType } = record(row);
-    return (
-      workflowType === 'SDInpaint' ||
-      (workflowType === undefined && !session.version)
-    );
-  });
+  const entries = legacyMaskEntries(record(session.inpaints), session.version);
   projectCheck(entries.length > 0, 'PROJECT_LEGACY_MASK');
-  projectCheck(entries.length <= PROJECT_LIMITS.scenes, 'PROJECT_LIMIT');
-  return entries.map(([key, value], index) => {
-    const row = record(value);
-    const name = row.name ?? key;
-    component(name);
-    const modern = row.workflowType === 'SDInpaint';
-    const preset = modern ? record(row.preset) : row;
-    const asset = (kind: 'image' | 'mask') => {
-      const field = preset[kind];
-      if (modern) {
-        component(field);
-        projectCheck(field.toLowerCase().endsWith('.png'));
+  let included = entries;
+  if (selected !== undefined) {
+    projectCheck(
+      Array.isArray(selected) &&
+        selected.length > 0 &&
+        selected.length <= PROJECT_LIMITS.scenes,
+    );
+    const keys = new Set(selected);
+    included = entries.filter(({ key }) => keys.has(key));
+    projectCheck(included.length === selected.length, 'PROJECT_CONFLICT');
+  }
+  projectCheck(included.length <= PROJECT_LIMITS.scenes, 'PROJECT_LIMIT');
+  return included.map(({ key, value, label: sceneLabel }, index) => {
+    const loadScene = () => {
+      const row = record(value);
+      const name = row.name ?? key;
+      component(name);
+      const modern = row.workflowType === 'SDInpaint';
+      const preset = modern ? record(row.preset) : row;
+      const asset = (kind: 'image' | 'mask') => {
+        const field = preset[kind];
+        if (modern) {
+          component(field);
+          projectCheck(field.toLowerCase().endsWith('.png'));
+          return load(
+            ['vibes', sessionName, field],
+            REFERENCE_LIMITS.sourceBytes,
+          );
+        }
+        if (field) {
+          projectCheck(
+            typeof field === 'string' &&
+              field.length <= Math.ceil(REFERENCE_LIMITS.sourceBytes / 3) * 4,
+          );
+          const decoded = Buffer.from(field, 'base64');
+          projectCheck(
+            decoded.length <= REFERENCE_LIMITS.sourceBytes &&
+              decoded.toString('base64') === field,
+          );
+          return decoded;
+        }
         return load(
-          ['vibes', sessionName, field],
+          [
+            kind === 'image' ? 'inpaint_orgs' : 'inpaint_masks',
+            sessionName,
+            `${name}.png`,
+          ],
           REFERENCE_LIMITS.sourceBytes,
         );
-      }
-      if (field) {
-        projectCheck(
-          typeof field === 'string' &&
-            field.length <= Math.ceil(REFERENCE_LIMITS.sourceBytes / 3) * 4,
-        );
-        const decoded = Buffer.from(field, 'base64');
-        projectCheck(
-          decoded.length <= REFERENCE_LIMITS.sourceBytes &&
-            decoded.toString('base64') === field,
-        );
-        return decoded;
-      }
-      return load(
-        [
-          kind === 'image' ? 'inpaint_orgs' : 'inpaint_masks',
-          sessionName,
-          `${name}.png`,
-        ],
-        REFERENCE_LIMITS.sourceBytes,
-      );
-    };
-    return () => {
+      };
       const image = validatePNGBytes(asset('image'));
       const mask = validatePNGBytes(asset('mask'));
       const dimensions = Buffer.from(
@@ -132,6 +139,7 @@ export default function legacyMasks(
         id: `inpaint-${index + 1}`,
         name,
         draft: {
+          // Non-V5 drafts share this family. The model ID selects V3 Anime.
           family: 'v4.5',
           model: 'nai-diffusion-3',
           resolution: `${width}x${height}`,
@@ -147,5 +155,6 @@ export default function legacyMasks(
       };
       return { scene, image, mask };
     };
+    return { sceneLabel, loadScene };
   });
 }

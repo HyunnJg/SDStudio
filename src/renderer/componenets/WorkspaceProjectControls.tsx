@@ -195,7 +195,7 @@ export default function WorkspaceProjectControls({
           {(!connected || state.error) && (
             <p role={state.error ? 'alert' : 'status'}>
               {unavailable && '데스크톱에서 사용할 수 있습니다.'}
-              {!unavailable && state.error && projectErrorMessage(state.error)}
+              {!unavailable && state.error && (state.error === 'PROJECT_LEGACY_MASK' ? state.message : projectErrorMessage(state.error))}
               {!unavailable && !state.error && state.operation}
             </p>
           )}

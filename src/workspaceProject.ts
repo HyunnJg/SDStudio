@@ -116,7 +116,10 @@ export interface ProjectListing {
 export type ProjectReply<T> =
   { ok: true; value: T } | { ok: false; code: ProjectErrorCode };
 export interface ProjectClient {
-  copyLegacyMasks(name: string): Promise<ProjectReply<ProjectSnapshot>>;
+  copyLegacyMasks(
+    name: string,
+    selected?: string[],
+  ): Promise<ProjectReply<ProjectSnapshot | { failedScene: string }>>;
   resultPicks(id: string): Promise<ProjectReply<string[]>>;
   setResultPicks(
     id: string,

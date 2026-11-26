@@ -90,6 +90,7 @@ const electronHandler = {
       ipcRenderer.invoke('vibe-cancel-cuts', requestId),
   },
   promptLibrary: {
+    importPresets: (revision, values) => ipcRenderer.invoke('prompt-library-import', revision, values),
     read: () => ipcRenderer.invoke('prompt-library-read'),
     save: (revision, content, id) =>
       ipcRenderer.invoke('prompt-library-save', revision, content, id),
@@ -202,7 +203,7 @@ const electronHandler = {
       ipcRenderer.invoke('workspace-project-restart-storage'),
     list: () => ipcRenderer.invoke('workspace-project-list'),
     listTrash: () => ipcRenderer.invoke('workspace-project-list-trash'),
-    copyLegacyMasks: (name) => ipcRenderer.invoke('workspace-project-copy-legacy-masks', name),
+    copyLegacyMasks: (name, selected) => ipcRenderer.invoke('workspace-project-copy-legacy-masks', name, selected),
     trashProject: (id) => ipcRenderer.invoke('workspace-project-trash', id),
     purgeProject: (id, confirmed) =>
       ipcRenderer.invoke('workspace-project-purge', id, confirmed),

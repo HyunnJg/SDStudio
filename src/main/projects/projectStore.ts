@@ -561,8 +561,9 @@ export class ProjectStore {
   async copyLegacyMasks(
     legacyRoot: string,
     name: string,
-  ): Promise<ProjectSnapshot> {
-    const rows = io(() => legacyMasks(legacyRoot, name, read));
+    selected?: string[],
+  ): Promise<ProjectSnapshot | { failedScene: string }> {
+    const rows = io(() => legacyMasks(legacyRoot, name, read, selected));
     const root = this.directory([], true);
     projectCheck(
       fs.readdirSync(root).filter((entry) => /^[a-f0-9-]{36}$/.test(entry))
@@ -578,30 +579,46 @@ export class ProjectStore {
         selectedSceneId: '',
       };
       let working: ProjectSnapshot | undefined;
-      for (const load of rows) {
-        const { scene, image, mask } = load();
-        content.scenes.push(scene);
-        content.selectedSceneId = scene.id;
-        working = working
-          ? stage.save(working.project.id, working.revision, content)
-          : stage.create(content);
-        const { id } = working.project;
-        // eslint-disable-next-line no-await-in-loop -- Each mask requires its committed source revision.
-        scene.draft.inpaintSource = await stage.importReference(
-          id,
-          working.revision,
-          image,
-          'inpaintSource',
-        );
-        working = stage.save(id, working.revision, content);
-        // eslint-disable-next-line no-await-in-loop -- Bound decoded image memory to one scene.
-        scene.draft.inpaintMask = await stage.importReference(
-          id,
-          working.revision,
-          mask,
-          'inpaintMask',
-        );
-        working = stage.save(id, working.revision, content);
+      for (const { loadScene, sceneLabel } of rows) {
+        let loaded: ReturnType<typeof loadScene>;
+        try {
+          loaded = loadScene();
+        } catch {
+          return { failedScene: sceneLabel };
+        }
+        try {
+          const { scene, image, mask } = loaded;
+          content.scenes.push(scene);
+          content.selectedSceneId = scene.id;
+          working = working
+            ? stage.save(working.project.id, working.revision, content)
+            : stage.create(content);
+          const { id } = working.project;
+          // eslint-disable-next-line no-await-in-loop -- Each mask requires its committed source revision.
+          scene.draft.inpaintSource = await stage.importReference(
+            id,
+            working.revision,
+            image,
+            'inpaintSource',
+          );
+          working = stage.save(id, working.revision, content);
+          // eslint-disable-next-line no-await-in-loop -- Bound decoded image memory to one scene.
+          scene.draft.inpaintMask = await stage.importReference(
+            id,
+            working.revision,
+            mask,
+            'inpaintMask',
+          );
+          working = stage.save(id, working.revision, content);
+        } catch (error) {
+          if (
+            error instanceof ProjectError &&
+            (error.code === 'PROJECT_INPUT' ||
+              error.code === 'PROJECT_IMAGE_TOO_LARGE')
+          )
+            return { failedScene: sceneLabel };
+          throw error;
+        }
       }
       content.selectedSceneId = content.scenes[0].id;
       const clean = stage.create(content, working!.project.id);

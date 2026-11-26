@@ -111,10 +111,27 @@ module.exports = async ({
     'empty mask blocked, brush, eraser, undo, saved mask reopened and one V3 infill result saved',
   );
   await click('.connected-menu summary');
+  async function selectSource() {
   await click('[data-testid=open-legacy-import]');
   await until(() => evaluate("[...document.querySelectorAll('dialog[open] select option')].some(o=>o.value==='MaskCopy')"));
   await evaluate(`(()=>{const select=document.querySelector('dialog[open] select');select.value='MaskCopy';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
   await until(()=>evaluate("document.querySelector('[data-testid=legacy-copy-masks]')?.matches(':enabled')"));
+  }
+  await selectSource();
+  await button('프리셋을 라이브러리에서 검토');
+  await until(()=>evaluate("document.querySelector('[data-testid=library-import-all]')?.matches(':enabled')"));
+  await click('[data-testid=library-import-all]');
+  await until(()=>evaluate("document.querySelector('[data-testid=library-status]').textContent.includes('1개 저장')"));
+  await click('[data-testid=library-import-all]');
+  await until(()=>evaluate("document.querySelector('[data-testid=library-status]').textContent.includes('1개 건너뜀')"));
+  checks.push('session presets save together and a repeated import skips identical contents');
+  await click('[data-testid=library-close]');
+  await selectSource();
+  await click('[data-testid=legacy-copy-masks]');
+  await until(()=>evaluate("[...document.querySelectorAll('[role=alert]')].some(n=>n.textContent.includes('「Missing」'))"));
+  checks.push('a missing mask identifies its scene before the user retries with a subset');
+  await selectSource();
+  await evaluate("document.querySelector('dialog[open] input[type=checkbox]').click()");
   await click('[data-testid=legacy-copy-masks]');
   await until(()=>evaluate("document.querySelector('#live-prompt')?.value==='copied sky'"));
   await button('마스크 다시 편집');

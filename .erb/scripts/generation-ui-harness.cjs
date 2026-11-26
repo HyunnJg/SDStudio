@@ -42,8 +42,8 @@ if (phase === 'inpaint') {
   fs.writeFileSync(path.join(vibes,'source.png'),image);
   fs.writeFileSync(path.join(vibes,'mask.png'),image);
   fs.writeFileSync(path.join(root, 'MaskCopy.json'), JSON.stringify({
-    version:1, name:'MaskCopy', presets:{}, presetShareds:{}, library:{}, scenes:{},
-    inpaints:{Retouch:{type:'inpaint',workflowType:'SDInpaint',name:'Retouch',resolution:'square',mains:[],imageMap:[],
+    version:1, name:'MaskCopy', presets:{SDImageGen:[{type:'SDImageGen',name:'Palette',frontPrompt:'blue sky',backPrompt:'day',uc:'fog'}]}, presetShareds:{}, library:{}, scenes:{},
+    inpaints:{Missing:{type:'inpaint',workflowType:'SDInpaint',name:'Missing',resolution:'square',mains:[],imageMap:[],preset:{type:'SDInpaint',image:'source.png',mask:'missing.png'}},Retouch:{type:'inpaint',workflowType:'SDInpaint',name:'Retouch',resolution:'square',mains:[],imageMap:[],
       preset:{type:'SDInpaint',name:'Retouch',prompt:'copied sky',image:'source.png',mask:'mask.png'}}},
   }));
 }
