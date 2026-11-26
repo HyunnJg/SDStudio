@@ -1,12 +1,9 @@
-import { useContext, useEffect, useRef, useState } from 'react';
-import BrushTool, {
-  BrushToolRef,
-  base64ToDataUri,
-  getImageDimensions,
-} from './BrushTool';
-import { DropdownSelect, } from './UtilComponents';
+import { useEffect, useState } from 'react';
+import { base64ToDataUri, pngBlob, readPNGBase64 } from '../models/pngData';
+import WorkspaceMaskEditor, { type MaskImages } from './WorkspaceMaskEditor';
+import { DropdownSelect } from './UtilComponents';
 import { Resolution, resolutionMap } from '../backends/imageGen';
-import { FaArrowAltCircleLeft, FaArrowLeft, FaArrowsAlt, FaPaintBrush, FaPlay, FaStop, FaUndo } from 'react-icons/fa';
+import { FaArrowLeft, FaPlay, FaStop } from 'react-icons/fa';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import {
   isMobile,
@@ -16,7 +13,6 @@ import {
 } from '../models';
 import { dataUriToBase64 } from '../models/ImageService';
 import { InpaintScene } from '../models/types';
-import { extractPromptDataFromBase64 } from '../models/util';
 import { appState } from '../models/AppService';
 import { observer } from 'mobx-react-lite';
 import { InnerPreSetEditor } from './PreSetEdtior';
@@ -30,8 +26,6 @@ interface Props {
   onConfirm: () => void;
   onDelete: () => void;
 }
-
-let brushSizeSaved = 10;
 
 const InPaintEditor = observer(
   ({ editingScene, onConfirm, onDelete }: Props) => {
@@ -52,8 +46,12 @@ const InPaintEditor = observer(
     const { curSession } = appState;
     const resolutionOptions = Object.entries(resolutionMap)
       .map(([key, value]) => {
-        const resolVal = (editingScene.resolutionWidth ?? '') + 'x' + (editingScene.resolutionHeight ?? '');
-        if (key === 'custom') return { label: '커스텀 (' + resolVal + ')', value: key };
+        const resolVal =
+          (editingScene.resolutionWidth ?? '') +
+          'x' +
+          (editingScene.resolutionHeight ?? '');
+        if (key === 'custom')
+          return { label: '커스텀 (' + resolVal + ')', value: key };
         return { label: `${value.width}x${value.height}`, value: key };
       })
       .filter((x) => !x.value.startsWith('small'));
@@ -62,20 +60,22 @@ const InPaintEditor = observer(
     const [width, setWidth] = useState(0);
     const [height, setHeight] = useState(0);
     const [mask, setMask] = useState<string | undefined>(undefined);
-    const [brushSize, setBrushSize] = useState(brushSizeSaved);
-    const [brushing, setBrushing] = useState(true);
+    const [maskChanged, setMaskChanged] = useState(false);
+    const [editingMask, setEditingMask] = useState<MaskImages>();
     const [open, setOpen] = useState(false);
     const def = workFlowService.getDef(editingScene.workflowType);
     useEffect(() => {
-      if (isMobile) {
-        setBrushing(false);
-      }
+      let live = true;
+      setMaskChanged(false);
+      setEditingMask(undefined);
       if (!editingScene) {
         setImage('');
         setMask(undefined);
         return;
       }
       setImage('');
+      setWidth(0);
+      setHeight(0);
       setMask(undefined);
       async function loadImage() {
         try {
@@ -83,7 +83,7 @@ const InPaintEditor = observer(
             curSession!,
             editingScene.preset.image,
           );
-          setImage(dataUriToBase64(data!));
+          if (live) setImage(dataUriToBase64(data!));
         } catch (e) {
           appState.pushMessage('인페인트 이미지를 불러오는데 실패했습니다.');
         }
@@ -94,40 +94,25 @@ const InPaintEditor = observer(
             curSession!,
             editingScene.preset.mask,
           );
-          setMask(dataUriToBase64(data!));
+          if (live) setMask(dataUriToBase64(data!));
         } catch (e) {}
       }
       const dispose = reaction(
         () => editingScene.preset.image,
         () => {
           loadImage();
-        }
+        },
       );
       loadImage();
-      if (def.hasMask) loadMask();
-      else setBrushing(false);
+      if (def.hasMask && editingScene.preset.mask) loadMask();
+
       imageService.addEventListener('image-cache-invalidated', loadImage);
       return () => {
+        live = false;
         imageService.removeEventListener('image-cache-invalidated', loadImage);
         dispose();
       };
     }, [editingScene]);
-    useEffect(() => {
-      if (brushing) {
-        brushTool.current!.startBrushing();
-      } else {
-        brushTool.current!.stopBrushing();
-      }
-    }, [brushing]);
-    useEffect(() => {
-      getImageDimensions(image)
-        .then(({ width, height }) => {
-          setWidth(width);
-          setHeight(height);
-        })
-        .catch(() => {});
-    }, [image]);
-
     const deleteScene = () => {
       appState.pushDialog({
         type: 'confirm',
@@ -142,19 +127,30 @@ const InPaintEditor = observer(
 
     const saveMask = async () => {
       if (def.hasMask) {
-        const mask = await brushTool.current!.getMaskBase64();
+        if (editingScene.preset.mask && !maskChanged) return;
+        let value = mask;
+        if (!value) {
+          if (!width || !height) throw Error('이미지를 먼저 불러오세요.');
+          const blank = document.createElement('canvas');
+          blank.width = width;
+          blank.height = height;
+          const ctx = blank.getContext('2d')!;
+          ctx.fillRect(0, 0, width, height);
+          value = dataUriToBase64(blank.toDataURL('image/png'));
+        }
         if (!editingScene.preset.mask) {
           editingScene.preset.mask = await imageService.storeVibeImage(
             curSession!,
-            mask,
+            value,
           );
         } else {
           await imageService.writeVibeImage(
             curSession!,
             editingScene.preset.mask,
-            mask,
+            value,
           );
         }
+        setMaskChanged(false);
       }
     };
 
@@ -163,7 +159,6 @@ const InPaintEditor = observer(
       onConfirm();
     };
 
-    const brushTool = useRef<BrushToolRef | null>(null);
     return (
       <div className="flex flex-col md:flex-row py-3 h-full w-full overflow-hidden">
         <div className="px-3 flex flex-col flex-none md:h-auto md:w-1/2 xl:w-1/3 gap-2 overflow-hidden">
@@ -212,19 +207,24 @@ const InPaintEditor = observer(
                     } else if (opt.value === 'custom') {
                       const width = await appState.pushDialogAsync({
                         type: 'input-confirm',
-                        text: '해상도 너비를 입력해주세요'
+                        text: '해상도 너비를 입력해주세요',
                       });
                       if (width == null) return;
                       const height = await appState.pushDialogAsync({
                         type: 'input-confirm',
-                        text: '해상도 높이를 입력해주세요'
+                        text: '해상도 높이를 입력해주세요',
                       });
                       if (height == null) return;
                       try {
-                        const customResolution = { width: parseInt(width), height: parseInt(height) };
+                        const customResolution = {
+                          width: parseInt(width),
+                          height: parseInt(height),
+                        };
                         editingScene.resolution = opt.value as Resolution;
-                        editingScene.resolutionWidth = (customResolution.width + 63) & ~63;
-                        editingScene.resolutionHeight = (customResolution.height + 63) & ~63;
+                        editingScene.resolutionWidth =
+                          (customResolution.width + 63) & ~63;
+                        editingScene.resolutionHeight =
+                          (customResolution.height + 63) & ~63;
                       } catch (e: any) {
                         appState.pushMessage(e.message);
                       }
@@ -236,17 +236,24 @@ const InPaintEditor = observer(
               </div>
             </div>
           </div>
-          {open && <FloatView priority={1} onEscape={() => setOpen(false)}>
-            <InnerPreSetEditor
-              type={editingScene.workflowType}
-              preset={editingScene.preset}
-              shared={undefined}
-              element={workFlowService.getI2IEditor(editingScene.workflowType)}
-              middlePromptMode={false}
-            />
-          </FloatView>}
+          {open && (
+            <FloatView priority={1} onEscape={() => setOpen(false)}>
+              <InnerPreSetEditor
+                type={editingScene.workflowType}
+                preset={editingScene.preset}
+                shared={undefined}
+                element={workFlowService.getI2IEditor(
+                  editingScene.workflowType,
+                )}
+                middlePromptMode={false}
+              />
+            </FloatView>
+          )}
           <div className="flex-none md:hidden mb-2">
-            <button className="round-button back-sky w-full" onClick={() => setOpen(true)}>
+            <button
+              className="round-button back-sky w-full"
+              onClick={() => setOpen(true)}
+            >
               씬 세팅 열기
             </button>
           </div>
@@ -261,94 +268,95 @@ const InPaintEditor = observer(
             />
           </div>
           {def.hasMask && (
-            <div className="flex items-center gap-2 md:gap-4 md:ml-auto pb-2 overflow-hidden w-full">
-              {
-                <button
-                  className={`rounded-full h-8 w-8 back-gray flex-none flex items-center justify-center clickable`}
-                  onClick={() => {
-                    setBrushing(!brushing);
-                  }}
-                >
-                  {brushing ? <FaArrowsAlt /> : <FaPaintBrush />}
-                </button>
+            <button
+              className="round-button back-sky"
+              disabled={
+                !width ||
+                !height ||
+                !image ||
+                (!!editingScene.preset.mask && !mask)
               }
-              {isMobile && (
-                <button
-                  className={`rounded-full h-8 w-8 back-gray flex-none flex items-center justify-center clickable`}
-                  onClick={() => {
-                    brushTool.current!.undo();
-                  }}
-                >
-                  <FaUndo />
-                </button>
-              )}
-              <label className="flex-none gray-label" htmlFor="brushSize">
-                {isMobile ? '' : '브러시 크기:'}{' '}
-                <span className="inline-block w-4">{brushSize}</span>
-              </label>
-              <input
-                id="brushSize"
-                type="range"
-                min="1"
-                max="100"
-                value={brushSize}
-                className="inline-block flex-1 min-w-0 md:max-w-40"
-                onChange={(e: any) => {
-                  setBrushSize(e.target.value);
-                  brushSizeSaved = e.target.value;
-                }}
-              />
-              <button
-                className={`round-button back-sky flex-none`}
-                onClick={() => brushTool.current!.clear()}
-              >
-                {isMobile ? '' : '마스크'}초기화
-              </button>
-            </div>
+              onClick={() =>
+                setEditingMask({
+                  source: pngBlob(image),
+                  mask: mask ? pngBlob(mask) : undefined,
+                  width,
+                  height,
+                })
+              }
+            >
+              마스크 편집
+            </button>
+          )}
+          {editingMask && (
+            <WorkspaceMaskEditor
+              images={editingMask}
+              allowEmpty
+              onClose={() => setEditingMask(undefined)}
+              onSave={async (file) => {
+                setMask(await readPNGBase64(file));
+                setMaskChanged(true);
+                return true;
+              }}
+            />
           )}
         </div>
         <div className="flex flex-col flex-1 overflow-hidden">
           <div className="flex-1 overflow-hidden">
             <TransformWrapper
-              disabled={def.hasMask && brushing}
               minScale={0.7}
               initialScale={0.7}
               centerOnInit={true}
             >
               <TransformComponent wrapperClass="wrapper flex-none items-center justify-center">
-                <BrushTool
-                  brushSize={brushSize}
-                  mask={mask ? base64ToDataUri(mask) : undefined}
-                  ref={brushTool}
-                  image={base64ToDataUri(image)}
-                  imageWidth={width}
-                  imageHeight={height}
-                />
+                {image && (
+                  <img
+                    src={base64ToDataUri(image)}
+                    width={width}
+                    height={height}
+                    alt="변형 원본"
+                    onLoad={(e) => {
+                      setWidth(e.currentTarget.naturalWidth);
+                      setHeight(e.currentTarget.naturalHeight);
+                    }}
+                  />
+                )}
               </TransformComponent>
-              {!isMobile && def.hasMask && (
-                <div className="canvas-tooltip dark:text-white dark:bg-gray-600">
-                  ctrl+z 로 실행 취소 가능
-                </div>
-              )}
             </TransformWrapper>
           </div>
           <div className="flex-none flex ml-auto gap-2 items-center mr-2 mt-2">
-            <button className={`round-button back-gray h-8 w-16 flex items-center justify-center`} onClick={async () => {
-              if (!image || !editingScene.preset.image) return;
-              await imageService.writeVibeImage(curSession!, editingScene.preset.image, image);
-            }}><FaArrowLeft size={20}/></button>
+            <button
+              className={`round-button back-gray h-8 w-16 flex items-center justify-center`}
+              onClick={async () => {
+                if (!image || !editingScene.preset.image) return;
+                await imageService.writeVibeImage(
+                  curSession!,
+                  editingScene.preset.image,
+                  image,
+                );
+              }}
+            >
+              <FaArrowLeft size={20} />
+            </button>
             <TaskProgressBar fast />
             {!taskQueueService.isRunning() ? (
               <button
                 className={`round-button back-green h-8 w-16 md:w-36 flex items-center justify-center`}
                 onClick={async () => {
                   await saveMask();
-                  await queueI2IWorkflow(curSession!, editingScene.workflowType, editingScene.preset, editingScene, 1, (path: string) => {
-                    (async () => {
-                      const data = await imageService.fetchImage(path);
-                      setImage(dataUriToBase64(data!));
-                    })();
-                  });
+                  await queueI2IWorkflow(
+                    curSession!,
+                    editingScene.workflowType,
+                    editingScene.preset,
+                    editingScene,
+                    1,
+                    (path: string) => {
+                      (async () => {
+                        const data = await imageService.fetchImage(path);
+                        setImage(dataUriToBase64(data!));
+                      })();
+                    },
+                  );
                   taskQueueService.run();
                 }}
               >

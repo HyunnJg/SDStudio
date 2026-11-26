@@ -36,9 +36,9 @@ const profile = process.env.SDSTUDIO_USER_DATA_DIR;
 if (phase === 'recipe') {
   const legacy = path.join(profile, 'SDStudio');
   const name = 'Bridge';
-  const scene = { type: 'scene', name: 'Test', resolution: 'portrait', slots: [], mains: ['favorite.png'], imageMap: ['favorite.png'] };
+  const scene = { type: 'scene', name: 'Test', resolution: 'portrait', slots: [], main: 'favorite.png', imageMap: ['favorite.png'] };
   const inpaint = { type: 'inpaint', workflowType: 'SDInpaint', name: 'Retouch', resolution: 'portrait', mains: [], imageMap: ['output.png'] };
-  const fixture = { version: 1, name, presets: {}, presetShareds: {}, scenes: { Test: scene }, inpaints: { Retouch: inpaint }, library: { Sky: { version: 1, name: 'Sky', pieces: [{ name:'weather', prompt:'rain' }] } } };
+  const fixture = { name, presets: {}, presetShareds: {}, scenes: { Test: scene }, inpaints: { Retouch: inpaint }, library: { Sky: { version: 1, name: 'Sky', pieces: [{ name:'weather', prompt:'rain' }] } } };
   for (const [file, content] of [
     ['projects/Bridge.json', JSON.stringify(fixture)],
     ['outs/Bridge/Test/favorite.png', expectedPNG],
@@ -112,6 +112,14 @@ const server = http.createServer(async (request, response) => {
       .digest('hex');
   const parsed = JSON.parse(body);
   sentSteps.push(parsed.parameters.steps);
+  if (phase === 'inpaint') {
+    assert.equal(parsed.model,'nai-diffusion-3-inpainting');
+    assert.equal(parsed.action,'infill');
+    assert.ok(parsed.parameters.mask && parsed.parameters.image);
+    response.writeHead(200,{'Content-Type':'application/zip'});
+    response.end(await payload);
+    return;
+  }
   if (phase === 'recipe') {
     assert.equal(parsed.model,'nai-diffusion-furry-3');
     assert.equal(parsed.parameters.width,640);
@@ -297,7 +305,9 @@ app.on('web-contents-created', (_event, contents) => {
       await evaluate("(()=>{window.__flowMessages=[];const node=document.querySelector('[data-testid=generation-status]');new MutationObserver(()=>{if(node.textContent.trim())window.__flowMessages.push(node.textContent.trim())}).observe(node,{childList:true,characterData:true,subtree:true})})()");
       if (process.env.SDSTUDIO_RUNTIME_REPORT && phase === 'create')
         await require('./runtime-ui-probe.cjs')(contents, profile);
-      if (phase === 'recipe') {
+      if (phase === 'inpaint') {
+        await require('./inpaint-ui-probe.cjs')({contents,evaluate,click,fill,until,checks,requestCount:()=>requests});
+      } else if (phase === 'recipe') {
         await require('./scene-recipe-probe.cjs')({evaluate,click,fill,until,checks,requests:()=>requests});
       } else if (phase === 'trash') {
         await require('./workspace-trash-ui-probe.cjs')({contents,evaluate,click,fill,until,checks,profile,requestCount:()=>requests});
@@ -1048,16 +1058,16 @@ app.on('web-contents-created', (_event, contents) => {
         await require('./prompt-library-ui-probe.cjs')({ contents, evaluate, click, fill, until, checks });
         assert.equal(requests, 0, 'offline library never sends a generation request');
         const draftBeforeLegacy = await evaluate("document.querySelector('#live-prompt').value");
-        await evaluate("Array.from(document.querySelectorAll('.connected-menu button')).find(b=>b.textContent==='V3 프롬프트 조각').click()");
+        await click('[data-testid=open-legacy]');
         await until(()=>evaluate("!!document.querySelector('[data-testid=open-preview]')"));
         assert.equal(await evaluate("document.querySelector('[data-testid=open-preview]').textContent"), '작업실로 돌아가기');
         if (await evaluate('!!window.curSession')) {
-          assert.equal(await evaluate("[...document.querySelectorAll('button.back-sky')].some(b=>b.textContent==='프롬프트조각')"),true);
+          assert.equal(await evaluate("[...document.querySelectorAll('button.back-sky')].some(b=>b.textContent==='이미지생성')"),true);
         }
         await click('[data-testid=open-preview]');
         await until(()=>evaluate("!!document.querySelector('#live-prompt')"));
         assert.equal(await evaluate("document.querySelector('#live-prompt').value"),draftBeforeLegacy);
-        checks.push('V3 pieces entry returns to the same workspace draft without generation');
+        checks.push('V3 compatibility entry returns to the same workspace draft without generation');
 
       } else if (phase === 'reopen') {
         const library = await evaluate('window.electron.promptLibrary.read()');

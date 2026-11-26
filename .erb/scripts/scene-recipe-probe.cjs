@@ -384,6 +384,8 @@ module.exports = async ({ evaluate, click, fill, until, checks, requests }) => {
     'removed one saved recipe and one workspace scene with confirmation',
   );
 
+  const sessionPath = require('node:path').join(process.env.SDSTUDIO_USER_DATA_DIR,'SDStudio','projects','Bridge.json');
+  const sessionBefore = require('node:fs').readFileSync(sessionPath);
   const bridge = 'dialog[aria-label="V3 자료 가져오기"]';
   await click('.connected-menu summary');
   for (const [type, scene, name] of [
@@ -435,7 +437,7 @@ module.exports = async ({ evaluate, click, fill, until, checks, requests }) => {
     await click('[data-testid=image-choice] header button');
   }
   checks.push(
-    'V3 session pieces merge once; favorite and inpaint PNGs both reached the workspace image picker',
+    'V3 session pieces merge once; favorite and inpaint PNGs open without modifying the original session',
   );
   await click('[data-testid=project-save]');
   await until(() =>
@@ -450,6 +452,8 @@ module.exports = async ({ evaluate, click, fill, until, checks, requests }) => {
     projects.value[0].id,
     'project.json',
   );
+  assert.deepEqual(require('node:fs').readFileSync(sessionPath),sessionBefore);
+  assert.equal(require('node:fs').existsSync(sessionPath+'.bak'),false);
   const saved = JSON.parse(require('node:fs').readFileSync(manifest));
   assert.equal(saved.images.length, 2);
   assert.equal(saved.scenes.length, count - 1);

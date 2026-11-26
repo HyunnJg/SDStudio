@@ -57,6 +57,8 @@ import ConnectedCharacters from './ConnectedCharacters';
 import ConnectedImageHistory from './ConnectedImageHistory';
 import PNGMetadataImport from './PNGMetadataImport';
 import PromptLibrary from './PromptLibrary';
+import WorkspaceMaskEditor from './WorkspaceMaskEditor';
+import type { MaskImages } from './WorkspaceMaskEditor';
 import WorkspaceImageChoice from './WorkspaceImageChoice';
 import WorkspaceResultTrash from './WorkspaceResultTrash';
 import {
@@ -71,6 +73,7 @@ import {
   REFERENCE_ROLES,
   REFERENCE_COST_NOTICE,
   VARIATION_DEFAULTS,
+  isInpaintPurpose,
 } from '../../workspaceReference';
 import type { ImagePurpose } from '../../workspaceReference';
 import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
@@ -224,6 +227,7 @@ export default function ConnectedWorkspace({
     characterId?: string;
     initialId?: string;
   }>();
+  const [maskImages, setMaskImages] = useState<MaskImages>();
   const [imageChoice, setImageChoice] = useState<File>();
   const [presets, setPresets] = useState<PromptPreset[]>([]);
   const [presetUndo, setPresetUndo] = useState<{
@@ -274,6 +278,7 @@ export default function ConnectedWorkspace({
   const [characterEpoch, setCharacterEpoch] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
+    setMaskImages(undefined);
     setImportFile(undefined);
     setResultTrashOpen(false);
     setImageChoice(undefined);
@@ -421,6 +426,7 @@ export default function ConnectedWorkspace({
     setQueuePlan(undefined);
     setState((previous) => {
       const draft = { ...previous.draft };
+      if (purpose === 'inpaintSource') delete draft.inpaintMask;
       if (image) draft[purpose] = image;
       else delete draft[purpose];
       return { ...previous, draft };
@@ -430,7 +436,7 @@ export default function ConnectedWorkspace({
     source: File | { projectId: string; imageId: string },
     purpose: ImagePurpose,
   ) => {
-    if (operation.current || locked) return;
+    if (operation.current || locked) return false;
     operation.current = true;
     generationEpoch.current += 1;
     setPhase('reference');
@@ -440,20 +446,22 @@ export default function ConnectedWorkspace({
     const sceneId = state.selectedSceneId;
     try {
       if (
-        state.draft.family !== 'v5' ||
+        (isInpaintPurpose(purpose)
+          ? state.draft.model !== 'nai-diffusion-3'
+          : state.draft.family !== 'v5') ||
         (purpose === 'reference' &&
           state.draft.model === 'nai-diffusion-5-full-medium') ||
         (source instanceof File &&
           (source.size > REFERENCE_LIMITS.sourceBytes || source.size === 0))
       )
         throw new ProjectError('PROJECT_INPUT');
-      if (!(await project.save())) return;
+      if (!(await project.save())) return false;
       const saved = project.getSnapshot();
       let bytes: Uint8Array;
       if (source instanceof File)
         bytes = new Uint8Array(await source.arrayBuffer());
       else {
-        if (source.projectId !== saved.id) return;
+        if (source.projectId !== saved.id) return false;
         bytes = unwrap(await client.image(source.projectId, source.imageId));
       }
       if (
@@ -461,7 +469,7 @@ export default function ConnectedWorkspace({
         liveScene.current !== sceneId ||
         project.getSnapshot().id !== saved.id
       )
-        return;
+        return false;
       const imported = unwrap(
         await client.importReference(
           saved.id!,
@@ -475,12 +483,23 @@ export default function ConnectedWorkspace({
         liveScene.current !== sceneId ||
         project.getSnapshot().id !== saved.id
       )
-        return;
+        return false;
       setReferencePreview({
         hash: imported.asset.uploadHash,
         bytes: imported.preview,
       });
-      if (purpose === 'img2img')
+      if (purpose === 'inpaintSource') {
+        setSceneImage(purpose, imported.asset);
+        setMaskImages({
+          source: new Blob([new Uint8Array(imported.preview)], {
+            type: 'image/png',
+          }),
+          width: imported.asset.width,
+          height: imported.asset.height,
+        });
+      } else if (purpose === 'inpaintMask')
+        setSceneImage(purpose, imported.asset);
+      else if (purpose === 'img2img')
         setSceneImage(purpose, {
           ...imported.asset,
           strength:
@@ -495,12 +514,54 @@ export default function ConnectedWorkspace({
           preferSameOutfit: state.draft.reference?.preferSameOutfit ?? false,
         });
       setMessage('');
+      return true;
+    } catch (error) {
+      if (mounted.current)
+        setMessage(generationMessage(error, sceneNames.current));
+      return false;
+    } finally {
+      operation.current = false;
+      generationEpoch.current += 1;
+      if (mounted.current) setPhase('');
+    }
+  };
+  const editMask = async () => {
+    if (locked || operation.current || !state.draft.inpaintSource) return;
+    operation.current = true;
+    setPhase('image');
+    const scene = state.selectedSceneId;
+    try {
+      if (!(await project.save())) return;
+      const id = project.getSnapshot().id!;
+      const read = async (purpose: ImagePurpose) =>
+        new Blob(
+          [
+            new Uint8Array(
+              unwrap(await client.referenceImage(id, scene, purpose)),
+            ),
+          ],
+          { type: 'image/png' },
+        );
+      const [source, mask] = await Promise.all([
+        read('inpaintSource'),
+        state.draft.inpaintMask && read('inpaintMask'),
+      ]);
+      if (
+        mounted.current &&
+        id === project.getSnapshot().id &&
+        scene === liveScene.current
+      )
+        setMaskImages({
+          source,
+          mask,
+          width: state.draft.inpaintSource.width,
+          height: state.draft.inpaintSource.height,
+        });
     } catch (error) {
       if (mounted.current)
         setMessage(generationMessage(error, sceneNames.current));
     } finally {
       operation.current = false;
-      generationEpoch.current += 1;
       if (mounted.current) setPhase('');
     }
   };
@@ -874,7 +935,18 @@ export default function ConnectedWorkspace({
     (state.draft.family !== 'v5' ||
       variation.width !== size.width ||
       variation.height !== size.height);
+  const inpaint = state.draft.inpaintSource;
+  const canInpaint =
+    state.draft.model === 'nai-diffusion-3' &&
+    !state.draft.reference &&
+    !variation;
+  const mismatchedInpaint =
+    !!inpaint &&
+    (!canInpaint ||
+      inpaint.width !== size.width ||
+      inpaint.height !== size.height);
   let generateLabel = variation ? '변형 생성' : '이미지 생성';
+  if (inpaint) generateLabel = '마스크 영역 생성';
   if (phase === 'save') generateLabel = '생성 중…';
   else if (phase === 'reference' || phase === 'image')
     generateLabel = '불러오는 중…';
@@ -967,21 +1039,7 @@ export default function ConnectedWorkspace({
                 disabled={locked}
                 data-testid="open-legacy"
               >
-                V3 세션·선별
-              </button>
-              <button
-                type="button"
-                disabled={locked}
-                onClick={() => onOpenLegacy('inpaint')}
-              >
-                V3 인페인팅 씬
-              </button>
-              <button
-                type="button"
-                disabled={locked}
-                onClick={() => onOpenLegacy('pieces')}
-              >
-                V3 프롬프트 조각
+                구 V3 작업실 열기
               </button>
             </div>
           </details>
@@ -1144,6 +1202,34 @@ export default function ConnectedWorkspace({
                 onVariation={(asset) => setSceneImage('img2img', asset)}
                 onChange={(asset) => setSceneImage('reference', asset)}
               />
+              {inpaint && (
+                <fieldset disabled={locked}>
+                  <legend>
+                    인페인팅 · {inpaint.width}×{inpaint.height}
+                  </legend>
+                  <button
+                    type="button"
+                    disabled={mismatchedInpaint}
+                    onClick={editMask}
+                  >
+                    {state.draft.inpaintMask
+                      ? '마스크 다시 편집'
+                      : '마스크 그리기'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSceneImage('inpaintSource')}
+                  >
+                    인페인팅 해제
+                  </button>
+                  {mismatchedInpaint && (
+                    <p>
+                      원본에 맞춰 V3 Anime · {inpaint.width}×{inpaint.height}를
+                      선택하세요.
+                    </p>
+                  )}
+                </fieldset>
+              )}
               {mismatchedVariation && variation && (
                 <p role="status">
                   변형 원본에 맞춰 V5 · {variation.width}×{variation.height}를
@@ -1397,6 +1483,15 @@ export default function ConnectedWorkspace({
                   >
                     설정 가져오기
                   </button>
+                  {canInpaint && (
+                    <button
+                      type="button"
+                      disabled={locked}
+                      onClick={() => reuseResultImage('inpaintSource')}
+                    >
+                      마스크 편집
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={locked || state.draft.family !== 'v5'}
@@ -1875,9 +1970,22 @@ export default function ConnectedWorkspace({
           if (file) receiveImage(file);
         }}
       />
+      {maskImages && (
+        <WorkspaceMaskEditor
+          allowEmpty={false}
+          images={maskImages}
+          onClose={() => setMaskImages(undefined)}
+          onSave={async (file) => !!(await attachImage(file, 'inpaintMask'))}
+        />
+      )}
       {imageChoice && (
         <WorkspaceImageChoice
           file={imageChoice}
+          canInpaint={canInpaint}
+          onInpaint={() => {
+            setImageChoice(undefined);
+            void attachImage(imageChoice, 'inpaintSource');
+          }}
           canReference={state.draft.family === 'v5' && !medium}
           canVariation={state.draft.family === 'v5'}
           onClose={() => setImageChoice(undefined)}
@@ -2062,7 +2170,9 @@ export default function ConnectedWorkspace({
             locked ||
             runtimeOptions.offline ||
             characterOverflow ||
-            mismatchedVariation
+            mismatchedVariation ||
+            mismatchedInpaint ||
+            (!!inpaint && !state.draft.inpaintMask)
           }
           onClick={prepare}
         >

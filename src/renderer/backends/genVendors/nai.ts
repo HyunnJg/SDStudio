@@ -11,7 +11,7 @@ import JSZip from 'jszip';
 import { Buffer } from 'buffer';
 
 import libsodium_wrappers_sumo_1 from 'libsodium-wrappers-sumo';
-import { getImageDimensions } from '../../componenets/BrushTool';
+import { getImageDimensions } from '../../models/pngData';
 import { backend } from '../../models';
 
 export interface NovelAiFetcher {

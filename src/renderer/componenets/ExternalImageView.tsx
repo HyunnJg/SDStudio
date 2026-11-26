@@ -1,7 +1,7 @@
 import { observer } from "mobx-react-lite";
 import { useEffect, useState } from "react";
 import { SDAbstractJob } from "../models/types";
-import { base64ToDataUri } from "./BrushTool";
+import { base64ToDataUri } from '../models/pngData';
 import { PromptHighlighter } from "./SceneEditor";
 import { extractPromptDataFromBase64 } from "../models/util";
 import { appState } from "../models/AppService";

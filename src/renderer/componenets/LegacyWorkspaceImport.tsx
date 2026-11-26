@@ -1,10 +1,56 @@
 /* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "either" }] */
 import { useEffect, useRef, useState } from 'react';
 import type { Session } from '../models/types';
-import { imageService, sessionService } from '../models';
+import { backend, sessionService } from '../models';
 import { inspectPieceImport, validPieces } from '../../workspacePromptPieces';
 import type { PromptPiece } from '../../workspacePromptPieces';
 import { REFERENCE_LIMITS } from '../../workspaceReference';
+
+const safeName = (name: string) =>
+  !!name &&
+  name !== '.' &&
+  name !== '..' &&
+  !/[\\/:*?"<>|]/.test(name) &&
+  !/[. ]$/.test(name);
+
+function dictionary(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+// Reading assets for the new workspace must never register a V3 session for autosave or migration.
+function readImportIndex(name: string, value: unknown) {
+  const data = dictionary(value);
+  const images = ['scenes', 'inpaints'].flatMap((group) =>
+    Object.entries(dictionary(data[group])).flatMap(([key, item]) => {
+      const row = dictionary(item);
+      const scene = typeof row.name === 'string' && row.name ? row.name : key;
+      const type = group === 'inpaints' ? 'inpaint' : 'scene';
+      const files =
+        type === 'inpaint' ? row.imageMap : (row.mains ?? [row.main]);
+      if (!safeName(scene) || !Array.isArray(files)) return [];
+      return files
+        .filter(
+          (file): file is string =>
+            typeof file === 'string' &&
+            safeName(file) &&
+            file.toLowerCase().endsWith('.png'),
+        )
+        .map((file) => ({
+          scene: { name: scene, type },
+          name: file,
+          id: JSON.stringify([type, scene, file]),
+          path: `${type === 'inpaint' ? 'inpaints' : 'outs'}/${name}/${scene}/${file}`,
+        }));
+    }),
+  );
+  return {
+    name,
+    images,
+    library: new Map(Object.entries(dictionary(data.library))),
+  };
+}
 
 export default function LegacyWorkspaceImport({
   session: currentSession,
@@ -21,7 +67,11 @@ export default function LegacyWorkspaceImport({
   onClose: () => void;
   disabled: boolean;
 }) {
-  const [session, setSession] = useState(currentSession);
+  const [session, setSession] = useState(
+    () =>
+      currentSession &&
+      readImportIndex(currentSession.name, currentSession.toJSON()),
+  );
   const [names, setNames] = useState(() => sessionService.list());
   useEffect(() => {
     const update = () => setNames([...sessionService.list()]);
@@ -43,24 +93,7 @@ export default function LegacyWorkspaceImport({
       dialog?.close();
     };
   }, []);
-  const images = session
-    ? [...session.scenes.values(), ...session.inpaints.values()].flatMap(
-        (scene) =>
-          (scene.type === 'inpaint' ? scene.imageMap : scene.mains)
-            .filter((name) => name.toLowerCase().endsWith('.png'))
-            .map((name) => ({
-              scene,
-              name,
-              id: JSON.stringify([scene.type, scene.name, name]),
-            })),
-      )
-    : [];
-  const safeName = (name: string) =>
-    !!name &&
-    name !== '.' &&
-    name !== '..' &&
-    !/[\\/:*?"<>|]/.test(name) &&
-    !/[. ]$/.test(name);
+  const images = session?.images ?? [];
   const importImage = async () => {
     const item = images.find((i) => i.id === selected);
     if (
@@ -74,9 +107,7 @@ export default function LegacyWorkspaceImport({
     setBusy(true);
     setMessage('');
     try {
-      const uri = await imageService.fetchImage(
-        `${imageService.getOutputDir(session, item.scene)}/${item.name}`,
-      );
+      const uri = await backend.readDataFile(item.path);
       if (!active.current) return;
       if (
         !uri ||
@@ -126,10 +157,13 @@ export default function LegacyWorkspaceImport({
             setBusy(true);
             setMessage('');
             try {
-              const value = await sessionService.get(name);
+              const value =
+                name === currentSession?.name
+                  ? currentSession.toJSON()
+                  : JSON.parse(await backend.readFile(`projects/${name}.json`));
               if (!active.current) return;
               if (!value) throw Error();
-              setSession(value);
+              setSession(readImportIndex(name, value));
               setSelected('');
               setLibrary('');
             } catch {
@@ -170,7 +204,7 @@ export default function LegacyWorkspaceImport({
               onClick={() => {
                 try {
                   const incoming = inspectPieceImport(
-                    session.library.get(library)?.toJSON(),
+                    session.library.get(library),
                   ).pieces;
                   const existing = new Set(pieces.map((p) => p.key));
                   const added = incoming.filter((p) => !existing.has(p.key));

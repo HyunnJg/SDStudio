@@ -4,6 +4,8 @@ interface Props {
   file: File;
   canReference: boolean;
   canVariation: boolean;
+  canInpaint: boolean;
+  onInpaint: () => void;
   onVariation: () => void;
   onMetadata: () => void;
   onReference: () => void;
@@ -13,6 +15,8 @@ export default function WorkspaceImageChoice({
   file,
   canReference,
   canVariation,
+  canInpaint,
+  onInpaint,
   onVariation,
   onMetadata,
   onReference,
@@ -57,6 +61,15 @@ export default function WorkspaceImageChoice({
         >
           <strong>이 이미지로 변형</strong>
           <small>원본 구도를 바탕으로 새로운 결과를 생성합니다.</small>
+        </button>
+        <button
+          type="button"
+          data-testid="image-use-inpaint"
+          disabled={!canInpaint}
+          onClick={onInpaint}
+        >
+          <strong>인페인팅 마스크 편집</strong>
+          <small>V3 Anime에서 칠한 영역을 다시 생성합니다.</small>
         </button>
         <button
           type="button"
