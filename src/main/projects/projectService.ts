@@ -43,6 +43,7 @@ export class ProjectService implements ProjectOperations {
       | 'listTrash'
       | 'trashProject'
       | 'restoreProject'
+      | 'purgeProject'
       | 'emptyResultTrash'
       | 'resultPicks'
       | 'setResultPicks'
@@ -174,6 +175,10 @@ export class ProjectService implements ProjectOperations {
 
   trashProject(id: string) {
     return this.call('trashProject', [id]);
+  }
+
+  purgeProject(id: string, confirmed: boolean) {
+    return this.call('purgeProject', [id, confirmed]);
   }
 
   restoreProject(id: string) {

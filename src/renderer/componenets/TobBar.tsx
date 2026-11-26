@@ -34,9 +34,9 @@ const TobBar = ({ onOpenPreview, onOpenAuth }: { onOpenPreview?: () => void; onO
   return (
     <div className={'flex border-b line-color px-2 py-2 items-center'}>
       <div className="gap-3 hidden md:flex text-sky-500 font-bold dark:text-white">
-        SDStudio
+        SDStudio · V3 도구
       </div>
-      {onOpenPreview && <button type="button" className="round-button back-sky ml-3" data-testid="open-preview" onClick={onOpenPreview}>{runtimeOptions.mockBackend ? '새 화면 미리보기' : '새 작업실'}</button>}
+      {onOpenPreview && <button type="button" className="round-button back-sky ml-3" data-testid="open-preview" onClick={onOpenPreview}>{runtimeOptions.mockBackend ? '새 화면 미리보기' : '작업실로 돌아가기'}</button>}
       {onOpenAuth && <button type="button" className="round-button back-sky ml-2" data-testid="open-nai-auth" onClick={onOpenAuth}>API 토큰</button>}
       <p className="ml-auto mr-2 hidden md:block">
         {runtimeOptions.offline ? <span className="round-tag back-yellow">{runtimeOptions.mockBackend ? '오프라인 예제 · 실제 생성 없음' : '오프라인 · 계정/API 연결 없음'}</span> : !loggedIn ? (

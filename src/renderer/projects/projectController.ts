@@ -371,6 +371,25 @@ export class ProjectController {
     return move();
   }
 
+  async purgeProject(id: string) {
+    return this.execute('영구 삭제 중', async () => {
+      if (!this.state.showTrash) throw new ProjectError('PROJECT_INPUT');
+      try {
+        unwrap(await this.client().purgeProject(id, true));
+        if (this.state.lastTrashedProject?.id === id)
+          this.update({ lastTrashedProject: undefined });
+      } finally {
+        const projects = unwrap(await this.client().listTrash());
+        this.update({ projects });
+        if (
+          this.state.lastTrashedProject?.id === id &&
+          !projects.some((entry) => entry.id === id && !entry.deleting)
+        )
+          this.update({ lastTrashedProject: undefined });
+      }
+    });
+  }
+
   async restoreProject(id: string, open = false) {
     const restore = async () => {
       await this.execute('프로젝트 복원 중', async () => {

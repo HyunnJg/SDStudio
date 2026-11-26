@@ -758,8 +758,7 @@ export default function PromptLibrary({
           </button>
         ))}
         <p>
-          인페인팅·선별·프롬프트 조각은 기존 도구에 남아 있습니다. 기존 데이터는
-          유지합니다.
+          저장해 둔 V3 프롬프트 조각을 열 수 있습니다. 기존 데이터는 유지합니다.
         </p>
         <button
           type="button"
@@ -771,7 +770,7 @@ export default function PromptLibrary({
             })
           }
         >
-          기존 도구 열기
+          V3 프롬프트 조각 열기
         </button>
       </details>
     </dialog>

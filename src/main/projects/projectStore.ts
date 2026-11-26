@@ -253,12 +253,14 @@ export class ProjectStore {
       }
       const ids = fs
         .readdirSync(root)
-        .filter((name) => /^[a-f0-9-]{36}$/.test(name))
+        .filter((name) => /^(?:deleting-)?[a-f0-9-]{36}$/.test(name))
         .sort();
       projectCheck(ids.length <= 1000, 'PROJECT_LIMIT');
-      return ids.map((id) => {
+      return ids.map((entry) => {
+        const id = entry.replace(/^deleting-/, '');
         try {
           projectId(id);
+          if (entry !== id) return { id, deleting: true as const };
           const { project, revision } = this.readSnapshot(
             id,
             path.join(this.directory(['.trash', id]), 'project.json'),
@@ -290,9 +292,15 @@ export class ProjectStore {
       const folder = this.folder(id);
       const trash = this.directory(['.trash'], true);
       projectCheck(
-        fs.readdirSync(trash).filter((name) => /^[a-f0-9-]{36}$/.test(name))
-          .length < 1000,
+        fs
+          .readdirSync(trash)
+          .filter((name) => /^(?:deleting-)?[a-f0-9-]{36}$/.test(name)).length <
+          1000,
         'PROJECT_LIMIT',
+      );
+      projectCheck(
+        !ProjectStore.exists(path.join(trash, `deleting-${id}`)),
+        'PROJECT_CONFLICT',
       );
       const destination = path.join(trash, id);
       projectCheck(!ProjectStore.exists(destination), 'PROJECT_CONFLICT');
@@ -315,6 +323,29 @@ export class ProjectStore {
         fs.unlinkSync(path.join(moved ? destination : folder, 'write.lock'));
         syncDirectory(moved ? destination : folder);
       }
+    });
+  }
+
+  purgeProject(id: string, confirmed: boolean): void {
+    projectId(id);
+    projectCheck(confirmed === true);
+    io(() => {
+      const trash = this.directory(['.trash']);
+      const stagedName = `deleting-${id}`;
+      const staged = path.join(trash, stagedName);
+      if (!ProjectStore.exists(staged)) {
+        const source = this.directory(['.trash', id]);
+        fs.renameSync(source, staged);
+        syncDirectory(trash);
+      } else {
+        projectCheck(
+          !ProjectStore.exists(path.join(trash, id)),
+          'PROJECT_CONFLICT',
+        );
+      }
+      // After a crash or partial removal the row can finish deletion, never restore a partial project.
+      fs.rmSync(this.directory(['.trash', stagedName]), { recursive: true });
+      syncDirectory(trash);
     });
   }
 

@@ -153,6 +153,7 @@ const electronHandler = {
     list: () => ipcRenderer.invoke('workspace-project-list'),
     listTrash: () => ipcRenderer.invoke('workspace-project-list-trash'),
     trashProject: (id) => ipcRenderer.invoke('workspace-project-trash', id),
+    purgeProject: (id, confirmed) => ipcRenderer.invoke('workspace-project-purge', id, confirmed),
     restoreProject: (id) => ipcRenderer.invoke('workspace-project-restore', id),
     emptyResultTrash: (id, revision, confirmed) =>
       ipcRenderer.invoke(

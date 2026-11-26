@@ -97,7 +97,7 @@ interface Props {
   darkMode: boolean;
   onBusyChange: (busy: boolean) => void;
   onOpenAuth: () => void;
-  onOpenLegacy: () => void;
+  onOpenLegacy: (tool: 'session' | 'inpaint' | 'pieces') => void;
   onToggleTheme: () => void;
 }
 // One reference only: include reference count in the acknowledgement key before supporting multiple references.
@@ -184,6 +184,21 @@ export default function ConnectedWorkspace({
   const [selected, setSelected] = useState('');
   const [imageURL, setImageURL] = useState('');
   const [importFile, setImportFile] = useState<File>();
+  const [metadataUndo, setMetadataUndo] = useState<{
+    before: WorkspaceDraft;
+    after: WorkspaceDraft;
+    characterId?: string;
+    sceneId: string;
+    epoch: number;
+  }>();
+  const canUndoMetadata =
+    metadataUndo &&
+    metadataUndo.after === state.draft &&
+    metadataUndo.sceneId === state.selectedSceneId &&
+    metadataUndo.epoch === view.inputEpoch;
+  useEffect(() => {
+    if (metadataUndo && !canUndoMetadata) setMetadataUndo(undefined);
+  }, [metadataUndo, canUndoMetadata]);
   const [referencePreview, setReferencePreview] = useState<{
     hash: string;
     bytes: Uint8Array;
@@ -900,11 +915,25 @@ export default function ConnectedWorkspace({
               </button>
               <button
                 type="button"
-                onClick={onOpenLegacy}
+                onClick={() => onOpenLegacy('session')}
                 disabled={locked}
                 data-testid="open-legacy"
               >
-                인페인팅·선별·조각
+                V3 세션·선별
+              </button>
+              <button
+                type="button"
+                disabled={locked}
+                onClick={() => onOpenLegacy('inpaint')}
+              >
+                V3 인페인팅 씬
+              </button>
+              <button
+                type="button"
+                disabled={locked}
+                onClick={() => onOpenLegacy('pieces')}
+              >
+                V3 프롬프트 조각
               </button>
             </div>
           </details>
@@ -1002,6 +1031,33 @@ export default function ConnectedWorkspace({
                   {variation.height}를 선택하거나 이미지를 다시 선택하세요.
                 </p>
               )}
+              {canUndoMetadata && (
+                <button
+                  type="button"
+                  disabled={locked}
+                  data-testid="undo-metadata"
+                  onClick={() => {
+                    setSinglePlan(undefined);
+                    setQueuePlan(undefined);
+                    setState((previous) =>
+                      previous.draft === metadataUndo.after
+                        ? {
+                            ...previous,
+                            draft: metadataUndo.before,
+                            selectedCharacter:
+                              metadataUndo.characterId ??
+                              previous.selectedCharacter,
+                          }
+                        : previous,
+                    );
+                    if (metadataUndo.characterId !== undefined)
+                      setCharacterEpoch((previous) => previous + 1);
+                    setMetadataUndo(undefined);
+                  }}
+                >
+                  가져오기 되돌리기
+                </button>
+              )}
               <div className="connected-metadata-entry">
                 <button
                   type="button"
@@ -1015,33 +1071,6 @@ export default function ConnectedWorkspace({
                       .length
                   }
                 </button>
-              </div>
-              <div
-                className="connected-preset-shortcuts"
-                aria-label="메인 프리셋 빠른 선택"
-              >
-                {presets
-                  .filter((p) => !p.deleted && p.kind === 'main')
-                  .slice(-4)
-                  .reverse()
-                  .map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className="preset-chip"
-                      aria-pressed={
-                        (mainUse?.id === p.id ||
-                          (!mainUse && matchedMain?.id === p.id)) &&
-                        !mainModified
-                      }
-                      title={p.name}
-                      onClick={() =>
-                        setLibraryRequest({ kind: 'main', initialId: p.id })
-                      }
-                    >
-                      {p.name}
-                    </button>
-                  ))}
               </div>
               {mainLabel && (
                 <div
@@ -1246,14 +1275,6 @@ export default function ConnectedWorkspace({
                   >
                     휴지통으로
                   </button>
-                  <a
-                    download={`sdstudio-${result.seed}-${result.id.slice(0, 8)}.png`}
-                    href={imageURL || undefined}
-                    aria-disabled={!imageURL}
-                    data-testid="result-download"
-                  >
-                    PNG 저장
-                  </a>
                 </>
               )}
               {lastTrashedImage &&
@@ -1517,6 +1538,39 @@ export default function ConnectedWorkspace({
             className="connected-sidebar-scroll"
             data-testid="sidebar-scroll"
           >
+            {presets.some((preset) => !preset.deleted) && (
+              <section
+                className="workspace-saved-presets"
+                aria-label="저장한 프리셋"
+              >
+                <h3>저장한 프리셋</h3>
+                <ul>
+                  {presets
+                    .filter((preset) => !preset.deleted)
+                    .slice()
+                    .reverse()
+                    .map((preset) => (
+                      <li key={preset.id}>
+                        <button
+                          type="button"
+                          disabled={locked}
+                          onClick={() =>
+                            setLibraryRequest({
+                              kind: preset.kind,
+                              initialId: preset.id,
+                            })
+                          }
+                        >
+                          <span>{preset.name}</span>
+                          <small>
+                            {preset.kind === 'main' ? '메인' : '캐릭터'}
+                          </small>
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              </section>
+            )}
             <ConnectedQueueControls
               scenes={state.scenes}
               selected={availableSceneIds}
@@ -1634,6 +1688,13 @@ export default function ConnectedWorkspace({
         onClose={() => setImportFile(undefined)}
         onApply={(draft, characters) => {
           if (locked) return;
+          setMetadataUndo({
+            before: state.draft,
+            after: draft,
+            characterId: characters ? state.selectedCharacter : undefined,
+            sceneId: state.selectedSceneId,
+            epoch: view.inputEpoch,
+          });
           setSinglePlan(undefined);
           setQueuePlan(undefined);
           setState((previous) => ({
@@ -1660,7 +1721,7 @@ export default function ConnectedWorkspace({
             onBusyChange(busy || blocked);
           }}
           onClose={() => setLibraryRequest(undefined)}
-          onLegacy={onOpenLegacy}
+          onLegacy={() => onOpenLegacy('pieces')}
           initialId={libraryRequest.initialId}
           onLibraryChange={acceptLibrary}
           onApply={(draft, characterId, preset) => {

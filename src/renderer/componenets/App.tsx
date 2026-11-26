@@ -145,6 +145,7 @@ const DnDPreview = () => {
 export const App = observer(() => {
   const [authOpen, setAuthOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(true);
+  const [legacyTool, setLegacyTool] = useState<'session' | 'inpaint' | 'pieces'>('session');
   const freshWorkspace = () => runtimeOptions.mockBackend ? createWorkspaceState() : createConnectedWorkspaceState();
   const [workspace, setWorkspace] = useState(freshWorkspace);
   const nextPreviewResult = useRef(1);
@@ -338,16 +339,19 @@ export const App = observer(() => {
 
   const tabs = [
     {
+      tool: 'session',
       label: '이미지생성',
       content: <QueueControl type="scene" showPannel />,
       emoji: <FaImages />,
     },
     {
+      tool: 'inpaint',
       label: '이미지변형',
       content: <QueueControl type="inpaint" showPannel />,
       emoji: <FaPenFancy />,
     },
     {
+      tool: 'pieces',
       label: '프롬프트조각',
       content: <PieceEditor />,
       emoji: <FaPuzzlePiece />,
@@ -375,7 +379,7 @@ export const App = observer(() => {
     <ConnectedWorkspace state={workspace} setState={setWorkspace} project={project}
       projectLocked={!!projectView.operation || projectClosing} darkMode={darkMode}
       onBusyChange={value => { singlePreviewBusy.current = value; }}
-      onOpenLegacy={() => setPreviewOpen(false)} onOpenAuth={() => setAuthOpen(true)}
+      onOpenLegacy={tool => { setLegacyTool(tool); setPreviewOpen(false); }} onOpenAuth={() => setAuthOpen(true)}
       onToggleTheme={async () => {
         const config = await backend.getConfig(); await backend.setConfig({ ...config, whiteMode: darkMode }); setDarkMode(!darkMode);
       }} />
@@ -422,6 +426,7 @@ export const App = observer(() => {
                       <TabComponent
                         key={appState.curSession.name}
                         tabs={tabs}
+                        initialTab={tabs.findIndex(tab => tab.tool === legacyTool)}
                         toggleView={
                           <PreSetEditor
                             key={appState.curSession.name + '2'}

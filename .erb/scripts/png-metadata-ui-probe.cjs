@@ -74,6 +74,9 @@ module.exports = async ({ contents, evaluate, click, until, checks }) => {
   checks.push(
     'drag/drop seed-only import preserves prompt/characters/settings and accepts fixed seed0 without saving or sending',
   );
+  await click('[data-testid=undo-metadata]');
+  assert.deepEqual(await evaluate("[document.querySelector('#live-seed-mode').value,document.querySelector('#live-seed').value]"), before.slice(2,4));
+  assert.equal(await evaluate("!!document.querySelector('[data-testid=undo-metadata]')"),false);
   for (const selected of ['prompt', 'negativePrompt', 'settings']) {
     await evaluate(`(()=>{
       for (const [id,value] of [['live-quality','standard'],['live-uc-preset','heavy']]) {
@@ -93,7 +96,7 @@ module.exports = async ({ contents, evaluate, click, until, checks }) => {
         await evaluate(
           "document.querySelector('[data-testid=metadata-dialog]').textContent",
         )
-      ).includes('최종 태그가 포함된 원문'),
+      ).includes('자동 추가를 끕니다'),
     );
     for (const field of [
       'prompt',
@@ -122,6 +125,11 @@ module.exports = async ({ contents, evaluate, click, until, checks }) => {
     if (selected === 'settings')
       assert.deepEqual(current.slice(0, 2), previous.slice(0, 2));
     else assert.deepEqual(current.slice(2), previous.slice(2));
+    if (selected === 'prompt') {
+      await click('[data-testid=undo-metadata]');
+      assert.equal(await evaluate("document.querySelector('#live-prompt').value"),previous[0]);
+      assert.equal(await evaluate("document.querySelector('#live-quality').value"),'standard');
+    }
     checks.push(
       `${selected}-only import preserves unrelated presets and inputs, with an explicit preview notice`,
     );
@@ -139,13 +147,8 @@ module.exports = async ({ contents, evaluate, click, until, checks }) => {
       "document.querySelector('[data-testid=metadata-dialog]').textContent",
     ),
   );
-  assert.ok(
-    (
-      await evaluate(
-        "document.querySelector('[data-testid=metadata-dialog]').textContent",
-      )
-    ).includes('알파 채널'),
-  );
+  assert.equal(await evaluate("document.querySelectorAll('[data-testid=metadata-dialog] pre, [data-testid=metadata-dialog] code').length"), 0);
+  assert.equal(await evaluate("document.querySelectorAll('[data-import-field]:checked').length"), 5);
   const window = BrowserWindow.fromWebContents(contents);
   window.setMinimumSize(360, 500);
   window.setSize(390, 844);

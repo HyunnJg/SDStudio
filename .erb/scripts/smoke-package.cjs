@@ -17,13 +17,13 @@ const generationCharacterMode = process.argv[3] === 'generation-characters';
 const generationErrorMode = process.argv[3] === 'generation-errors';
 const generationQueueMode = process.argv[3] === 'generation-queue';
 const generationCases = new Map([
-  ['generation', { requests: 3, checks: 21 }],
+  ['generation', { requests: 3, checks: 33 }],
   ['generation-queue', { requests: 13, checks: 10 }],
   ['generation-errors', { requests: 4, checks: 8 }],
   ['generation-characters', { requests: 3, checks: 8 }],
   ['generation-img2img', { requests: 2, checks: 7 }],
   ['generation-reference', { requests: 3, checks: 6 }],
-  ['generation-trash', { requests: 2, checks: 13 }],
+  ['generation-trash', { requests: 2, checks: 14 }],
 ]);
 const generationCase = generationCases.get(process.argv[3]);
 const generationMode = !!generationCase;

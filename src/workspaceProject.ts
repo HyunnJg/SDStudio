@@ -99,6 +99,7 @@ export interface ResultTrashReport {
   cleanupIncomplete: boolean;
 }
 export interface ProjectListing {
+  deleting?: true;
   id: string;
   name?: string;
   revision?: string;
@@ -114,6 +115,7 @@ export interface ProjectClient {
   list(): Promise<ProjectReply<ProjectListing[]>>;
   listTrash(): Promise<ProjectReply<ProjectListing[]>>;
   trashProject(id: string): Promise<ProjectReply<void>>;
+  purgeProject(id: string, confirmed: boolean): Promise<ProjectReply<void>>;
   restoreProject(id: string): Promise<ProjectReply<void>>;
   emptyResultTrash(
     id: string,

@@ -397,9 +397,9 @@ test('metadata dialog explains and applies prompt-only, negative-only and settin
         await new Promise((resolve) => setImmediate(resolve));
       });
       const preview = JSON.stringify(renderer.toJSON());
-      assert.ok(preview.includes('최종 태그가 포함된 원문'));
-      assert.ok(preview.includes('품질·UC 프리셋 유지'));
-      assert.ok(!preview.includes('‘생성 설정’을 고르면 중복 태그'));
+      assert.ok(preview.includes('자동 추가를 끕니다'));
+      assert.equal(renderer.root.findAllByType('pre').length, 0);
+      assert.equal(renderer.root.findAllByType('code').length, 0);
       act(() => {
         for (const field of availableImportFields(
           planMetadataImport(

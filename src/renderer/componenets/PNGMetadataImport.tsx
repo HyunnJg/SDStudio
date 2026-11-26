@@ -1,6 +1,5 @@
 /* eslint react/no-array-index-key: off, no-void: off, jsx-a11y/label-has-associated-control: ["error", {"assert":"either"}] -- Explicit input labels and handled file reads. */
 import { useState, useEffect, useRef } from 'react';
-import { V5_SIZES } from '../../workspaceGenerationSettings';
 import type { WorkspaceDraft } from '../preview/workspaceDraft';
 import { PNG_IMPORT_LIMITS, PNGMetadataError } from '../metadata/pngMetadata';
 import {
@@ -97,12 +96,12 @@ export default function PNGMetadataImport({
       if (preview) URL.revokeObjectURL(preview);
     };
   }, [file]);
-  let size: { width: number; height: number } | undefined;
-  if (plan?.settings.resolution)
-    size =
-      draft.family === 'v5'
-        ? V5_SIZES[plan.settings.resolution]
-        : { width: 512, height: 512 };
+  const disabledPresets = [
+    fields.includes('prompt') && '품질 태그',
+    fields.includes('negativePrompt') && '부정 프리셋',
+  ]
+    .filter(Boolean)
+    .join('·');
   const close = () => {
     onClose();
   };
@@ -134,17 +133,6 @@ export default function PNGMetadataImport({
               alt="가져올 이미지 미리보기"
             />
           )}
-          <p>
-            {
-              {
-                alpha: '알파 채널 메타데이터',
-                embedded: '이미지 메타데이터',
-                text: 'PNG 텍스트 메타데이터',
-              }[plan.source]
-            }{' '}
-            · 선택한 항목으로 현재 씬 입력을 바꿉니다. 이미지와 원본 파일은
-            수정하지 않습니다.
-          </p>
           <fieldset disabled={locked}>
             <legend>가져올 항목</legend>
             {availableImportFields(plan).map((field) => (
@@ -166,45 +154,14 @@ export default function PNGMetadataImport({
                   {field === 'characters' &&
                     ` · ${plan.characters!.length}명으로 대체`}
                 </label>
-                {(field === 'prompt' || field === 'negativePrompt') && (
-                  <>
-                    <pre>{plan[field]}</pre>
-                    <p>
-                      최종 태그가 포함된 원문이므로 이 항목을 가져오면{' '}
-                      {field === 'prompt' ? '품질 태그' : 'UC 프리셋'} 자동
-                      추가를 끕니다.
-                    </p>
-                  </>
-                )}
-                {field === 'characters' && (
-                  <ol>
-                    {plan.characters!.map((c, i) => (
-                      <li key={String(i)}>
-                        <strong>캐릭터 {i + 1}</strong>
-                        <pre>{c.prompt}</pre>
-                        <pre>부정: {c.negativePrompt || '(없음)'}</pre>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-                {field === 'settings' && (
-                  <p>
-                    {draft.family === 'v5' ? 'V5 Full' : 'V4.5 Full'} ·{' '}
-                    {size ? `${size.width}×${size.height}` : '현재 크기 유지'} ·{' '}
-                    {plan.settings.steps ?? draft.steps} 스텝 · 가이던스{' '}
-                    {plan.settings.guidance ?? draft.guidance} · 설정만 가져오면
-                    품질·UC 프리셋 유지
-                  </p>
-                )}
-                {field === 'seed' && <code>{plan.seed}</code>}
               </div>
             ))}
           </fieldset>
-          <p className="connected-import-note">
-            모델은 현재 선택을 유지합니다. 기본 프롬프트를 가져오면 품질 태그,
-            부정을 가져오면 UC 프리셋 자동 추가만 끕니다. 나머지 항목은 그대로
-            남습니다.
-          </p>
+          {disabledPresets && (
+            <p className="connected-import-note">
+              {disabledPresets} 자동 추가를 끕니다.
+            </p>
+          )}
           {plan.notices.length > 0 && (
             <ul className="connected-import-note">
               {plan.notices.map((notice) => (

@@ -266,15 +266,6 @@ export default function WorkspaceProjectControls({
               >
                 휴지통
               </button>
-              {!state.showTrash && (
-                <button
-                  type="button"
-                  disabled={locked || !!state.operation}
-                  onClick={() => controller.newProject()}
-                >
-                  새 프로젝트
-                </button>
-              )}
               <button
                 type="button"
                 aria-label="목록 새로 고침"
@@ -290,15 +281,48 @@ export default function WorkspaceProjectControls({
                 <article key={p.id}>
                   {state.showTrash ? (
                     <>
-                      <strong>{label(p)}</strong>
+                      <strong>{label(p)}</strong>{' '}
+                      <small>{p.id.slice(0, 8)}</small>
+                      {!p.deleting && (
+                        <button
+                          type="button"
+                          data-project-restore={p.id}
+                          disabled={locked || !!state.operation}
+                          onClick={() => controller.restoreProject(p.id)}
+                        >
+                          복원
+                        </button>
+                      )}
                       <button
                         type="button"
-                        data-project-restore={p.id}
-                        disabled={!!state.operation}
-                        onClick={() => controller.restoreProject(p.id)}
+                        data-project-purge={p.id}
+                        disabled={locked || !!state.operation}
+                        onClick={() => setDeleteId(p.id)}
                       >
-                        복원
+                        {p.deleting ? '삭제 마치기' : '영구 삭제'}
                       </button>
+                      {deleteId === p.id && (
+                        <div className="project-delete-check">
+                          <span>
+                            이 프로젝트의 이미지·입력·저장 이력을 영구
+                            삭제할까요? 복원할 수 없습니다.
+                          </span>
+                          <button type="button" onClick={() => setDeleteId('')}>
+                            취소
+                          </button>
+                          <button
+                            type="button"
+                            data-project-purge-confirm={p.id}
+                            disabled={locked || !!state.operation}
+                            onClick={() => {
+                              setDeleteId('');
+                              controller.purgeProject(p.id);
+                            }}
+                          >
+                            영구 삭제
+                          </button>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <>

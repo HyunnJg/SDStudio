@@ -17,6 +17,7 @@ export type ProjectOperations = { restartStorage?: () => Promise<void> } & {
       | 'listTrash'
       | 'trashProject'
       | 'restoreProject'
+      | 'purgeProject'
       | 'emptyResultTrash'
       | 'resultPicks'
       | 'setResultPicks'
@@ -67,6 +68,9 @@ export function registerProjects(
   handle('workspace-project-list-trash', () => store.listTrash());
   handle('workspace-project-trash', (id) =>
     mutation(async () => store.trashProject(id), id),
+  );
+  handle('workspace-project-purge', (id, confirmed) =>
+    mutation(async () => store.purgeProject(id, confirmed)),
   );
   handle('workspace-project-restore', (id) =>
     mutation(async () => store.restoreProject(id)),

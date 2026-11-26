@@ -14,7 +14,7 @@ module.exports=async({contents,evaluate,click,fill,until,checks,profile,requestC
  const id=(await evaluate('window.electron.projects.list()')).value[0].id;
  const snapshot=async()=>{const reply=await evaluate(`window.electron.projects.open('${id}')`);assert.equal(reply.ok,true);return reply.value;};
  const folder=path.join(profile,'projects-v1',id),trash=path.join(profile,'projects-v1','.trash',id);
- const filename1=await evaluate("document.querySelector('[data-testid=result-download]').download");
+ const firstId=(await snapshot()).project.images[0].id;
  await click('[data-testid=open-result-trash]');await until(()=>evaluate("document.querySelector('[data-testid=result-trash-dialog]')?.open"));assert.equal(await evaluate("!!document.querySelector('[data-testid=result-trash-dialog] [role=alert]')"),false);await click('[data-testid=result-trash-close]');
  await click('[data-testid=prepare-generation]');await until(()=>requestCount()===2);
  assert.equal((await evaluate(`window.electron.projects.trashProject('${id}')`)).code,'PROJECT_BUSY');
@@ -22,8 +22,8 @@ module.exports=async({contents,evaluate,click,fill,until,checks,profile,requestC
  assert.equal(await evaluate("document.querySelector('[data-testid=trash-result]').disabled"),true);
  await until(async()=> (await snapshot()).project.images.length===2);await idle();
  const before=await snapshot(), latest=before.project.images.at(-1),bytes=fs.readFileSync(path.join(folder,'images',latest.sha256+'.png'));
- assert.notEqual(await evaluate("document.querySelector('[data-testid=result-download]').download"),filename1);
- checks.push('two fixed-seed results have distinct download names; main rejects project mutations while generation is in flight');
+ assert.notEqual(firstId,latest.id);
+ checks.push('two fixed-seed results have distinct IDs; main rejects project mutations while generation is in flight');
  const { dialog } = require('electron');
  const chooseFile = dialog.showSaveDialog;
  const exportDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'sdstudio-gallery-smoke-'));
@@ -199,4 +199,24 @@ module.exports=async({contents,evaluate,click,fill,until,checks,profile,requestC
   assert.deepEqual((await evaluate(`window.electron.projects.resultPicks('${sample.id}')`)).value,sample.images.map(i=>i.id));
  } finally { dialog.showSaveDialog=chooseFile;fs.rmSync(singleDir,{recursive:true,force:true}); }
  checks.push('scene export preserves both durable picks and returns the original selected scene PNG');
+
+ // Delete only the disposable scene fixture through the actual trash picker.
+ await click('[data-testid=project-list]');
+ await until(()=>evaluate(`!!document.querySelector('[data-project-trash="${sample.id}"]')`));
+ assert.equal(await evaluate("Array.from(document.querySelectorAll('.project-picker-tools button')).some(b=>b.textContent.trim()==='새 프로젝트')"),false);
+ await click(`[data-project-trash="${sample.id}"]`);
+ await click(`[data-project-trash-confirm="${sample.id}"]`);
+ await until(()=>fs.existsSync(path.join(profile,'projects-v1','.trash',sample.id)));
+ await click('[data-testid=project-trash-tab]');
+ const purge=`[data-project-purge="${sample.id}"]`, confirmPurge=`[data-project-purge-confirm="${sample.id}"]`;
+ await until(()=>evaluate(`!!document.querySelector('${purge}')`));
+ await click(purge);
+ await click('.project-delete-check button:first-of-type');
+ assert.ok(fs.existsSync(path.join(profile,'projects-v1','.trash',sample.id)));
+ await click(purge);
+ await click(confirmPurge);
+ await until(()=>evaluate(`!document.querySelector('${purge}')`));
+ assert.equal((await evaluate('window.electron.projects.listTrash()')).value.some(p=>p.id===sample.id),false);
+ assert.ok(fs.existsSync(folder));
+ checks.push('project picker has one creation entry in toolbar only; cancel preserves the fixture and confirmed purge removes only its trashed project');
 };
