@@ -1683,6 +1683,12 @@ export default function ConnectedWorkspace({
             <div className="connected-sidebar-panel">
               <ConnectedImageHistory
                 key={view.id}
+                queueSceneIds={availableSceneIds}
+                onPrepareMissing={
+                  locked || runtimeOptions.offline || !intervalValid
+                    ? undefined
+                    : (ids) => void prepareQueue(false, ids)
+                }
                 projects={projects}
                 revision={view.revision}
                 scenes={state.scenes}

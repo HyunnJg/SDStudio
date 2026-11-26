@@ -5,6 +5,7 @@ import type { GenerationClient } from '../../workspaceGeneration';
 import { projectErrorMessage } from '../projects/projectController';
 import type { ProjectClient, ProjectImage } from '../../workspaceProject';
 import ThumbnailQueue from '../generation/thumbnailQueue';
+import { scenesWithoutPicks } from '../generation/generationPresentation';
 
 interface ThumbnailProps {
   image: ProjectImage;
@@ -136,6 +137,8 @@ interface Props {
   >;
   revision?: string;
   scenes?: { id: string; name: string }[];
+  queueSceneIds?: string[];
+  onPrepareMissing?: (ids: string[]) => void;
   actionLabel?: string;
   disabled?: boolean;
 }
@@ -149,6 +152,8 @@ export default function ConnectedImageHistory({
   projects = undefined,
   revision = undefined,
   scenes = [],
+  queueSceneIds = [],
+  onPrepareMissing = undefined,
   actionLabel = '',
   disabled = false,
 }: Props) {
@@ -201,6 +206,13 @@ export default function ConnectedImageHistory({
     ? ids
     : images.filter((i) => i.id === selected).map((i) => i.id);
   const count = images.filter((i) => picks?.has(i.id)).length;
+  const missing = picks
+    ? scenesWithoutPicks(
+        scene ? queueSceneIds.filter((id) => id === scene) : queueSceneIds,
+        images,
+        picks,
+      )
+    : [];
   const changePicks = async (changed: string[], picked: boolean) => {
     if (
       !projectId ||
@@ -268,9 +280,11 @@ export default function ConnectedImageHistory({
     }
     return loader;
   };
+  const showPickControls =
+    images.length > 0 || (projectId && queueSceneIds.length > 0);
   return (
     <>
-      {projects && images.length > 0 && (
+      {projects && showPickControls && (
         <div className="gallery-export" aria-label="결과 저장">
           <button
             type="button"
@@ -334,6 +348,22 @@ export default function ConnectedImageHistory({
                 {ids.length > 0 && ids.length === scoped.length
                   ? '모두 해제'
                   : '모두 선별'}
+              </button>
+              <button
+                type="button"
+                data-testid="prepare-unpicked"
+                disabled={
+                  !onPrepareMissing ||
+                  !missing.length ||
+                  writing ||
+                  saving ||
+                  !!pickError
+                }
+                onClick={() => onPrepareMissing?.(missing)}
+              >
+                {queueSceneIds.length
+                  ? `예약 대상 중 선별 없는 씬 ${missing.length}개 다시 담기`
+                  : '반복 생성에서 예약할 씬을 선택하세요'}
               </button>
             </>
           )}
