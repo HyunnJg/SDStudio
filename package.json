@@ -46,6 +46,7 @@
     "preinstall": "node .erb/scripts/check-toolchain.cjs",
     "postinstall": "node .erb/scripts/setup-desktop.cjs",
     "lint": "cross-env NODE_ENV=development eslint . --ext .js,.jsx,.ts,.tsx",
+    "package:windows": "npm run build && electron-builder --win nsis --x64 --publish never",
     "package-corss": "ts-node ./.erb/scripts/clean.js dist && npm run build && electron-builder build -w --x64 --publish never && npm run build:dll",
     "package": "cross-env ts-node ./.erb/scripts/clean.js dist && npm run build && electron-builder build --publish never && npm run build:dll",
     "rebuild": "node .erb/scripts/setup-desktop.cjs --rebuild-only",
@@ -77,6 +78,7 @@
     "smoke:generation-characters": "node .erb/scripts/smoke-generation.cjs characters",
     "test:reference": "node --test -r ts-node/register/transpile-only src/__tests__/workspaceReference.test.cjs src/__tests__/workspaceReferenceUi.test.cjs",
     "smoke:trash": "node .erb/scripts/smoke-generation.cjs trash",
+    "smoke:inpaint": "node .erb/scripts/smoke-generation.cjs inpaint",
     "smoke:reference": "node .erb/scripts/smoke-generation.cjs reference",
     "smoke:generation": "node .erb/scripts/smoke-generation.cjs",
     "test:project-reads": "node --test -r ts-node/register/transpile-only src/__tests__/projectReads.test.cjs",
@@ -312,7 +314,8 @@
       "data",
       "localai",
       "!node_modules/sdsnative/db.csv",
-      "!node_modules/sdsnative/test.js"
+      "!node_modules/sdsnative/test.js",
+      "!node_modules/batch-cluster/types/chai-withintoleranceof/**/*"
     ],
     "beforePack": ".erb/scripts/collect-bundle-notices.cjs",
     "afterSign": ".erb/scripts/notarize.js",

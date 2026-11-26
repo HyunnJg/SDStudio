@@ -70,3 +70,17 @@ LICENSE는 초기 ERB MIT 원문 복원이며 Sunho Kim의 새 저작권 문구�
 ## D-056 PNG 메타데이터 형식 참고
 
 NovelAI/novelai-image-metadata `3428907ac7183d7e36d7cc39e8f46f6f35ce99c1`의 nai_meta.py와 LICENSE(MIT, Copyright(c)2023NovelAI)를 읽어 알파 LSB 프로토콜을 확인했다. 외부 파일/코드/자산/의존성을 도입하지 않고, 이 저장소의 기존 CRC와 Web API로 독립 구현했다. [참고 범위](PNG_METADATA_IMPORT.md#공식-근거와-독립-구현). 기존 라이선스 미확인 항목을 해소한 작업은 아니다.
+
+## D-079 Windows 설치본의 잔여 고지
+
+`7d2bd70`에서 Windows 번들/복사 런타임 고지 원문을 찾지 못한 7건 중 6건을 정리했다. 기존 고지는 그대로 보존한다.
+
+| 항목 | 확인 및 처리 |
+| --- | --- |
+| `@react-dnd/invariant@4.0.2`, `@react-dnd/shallowequal@4.0.2` | npm이 기록한 gitHead `641fd36c130e42c3cf08987924151efa1452bca7`의 `packages/util-invariant`, `packages/util-shallowequal`과 루트 MIT 고지를 확인했다. 두 패키지 고지에 동일 원문을 포함한다. [원본 고지](https://github.com/react-dnd/react-dnd/blob/641fd36c130e42c3cf08987924151efa1452bca7/LICENSE) |
+| `react-dnd-preview@8.1.2` | npm gitHead `c9d018e523f5ad98dc4fe1606b3a08c181b115c8`의 `packages/react-dnd-preview`와 루트 MIT 고지를 확인했다. [원본 고지](https://github.com/LouisBrunner/dnd-multi-backend/blob/c9d018e523f5ad98dc4fe1606b3a08c181b115c8/LICENSE) |
+| `browserify-zlib`, `is-gzip` | 미사용 직접 의존성 `gunzip-maybe`를 제거하면서 두 패키지도 런타임 트리에서 빠졌다. 구 세션 아카이브가 사용하는 `tar-fs`는 유지한다. |
+| `batch-cluster/types/chai-withintoleranceof` | 테스트용 타입 선언과 그 package.json 두 파일을 설치 대상에서 제외했다. ASAR 검사는 실제로 복사된 런타임 package.json을 색인과 대조한다. |
+| `src/native` | 태그 검색 모듈의 package.json에는 ISC 선언이 있으나 해당 모듈의 원문 고지를 확인하지 못했다. 미해결로 유지한다. |
+
+원본 고지 파일은 `LICENSES/` 아래에 저장한다. 수집기는 위 버전에 한해 SHA-256을 대조하고 사본의 해시를 설치본 색인에 기록한다. Windows에서 고지 파일·vendor 증거 200개를 검증했다. SDStudio 고유 표기, DB·이미지 출처, ExifTool과 libvips 배포 조건은 기존 별도 검토 항목이다.
