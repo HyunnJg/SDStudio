@@ -1,5 +1,12 @@
-/* eslint import/prefer-default-export: off */
 import { randomInt } from 'crypto';
+import { expandDraft } from '../../workspacePromptPieces';
+/* eslint import/prefer-default-export: off */
+import {
+  MODELS,
+  modelId,
+  draftSize,
+  characterLimit,
+} from '../../workspaceCatalog';
 import type { WorkspaceScene } from '../../renderer/preview/workspaceDraft';
 import type { ProjectImageInput, ImageBinding } from '../../workspaceProject';
 import { validateReference, validateVariation } from '../../workspaceProject';
@@ -8,8 +15,6 @@ import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
 import {
   V5_QUALITY_TAGS,
   V5_UC_PRESETS,
-  V5_SIZES,
-  V5_CHARACTER_LIMIT,
 } from '../../workspaceGenerationSettings';
 
 export function bindBasicGeneration(
@@ -17,7 +22,37 @@ export function bindBasicGeneration(
   random = () => randomInt(4294967296),
   images: { reference?: Uint8Array; img2img?: Uint8Array } = {},
 ) {
-  const d = scene.draft;
+  if (scene.draft.seedMode !== 'random' && scene.draft.seedMode !== 'fixed')
+    throw new Error('INVALID_INPUT');
+  if (
+    scene.draft.seedMode === 'fixed' &&
+    (!/^\d+$/.test(scene.draft.seed) || Number(scene.draft.seed) > 4294967295)
+  )
+    throw new Error('INVALID_INPUT');
+  const seed =
+    scene.draft.seedMode === 'fixed' ? Number(scene.draft.seed) : random();
+  const medium = scene.draft.model === 'nai-diffusion-5-full-medium';
+  if (medium && scene.draft.reference) throw Error('UNSUPPORTED_DRAFT');
+  const source = medium
+    ? {
+        ...scene.draft,
+        steps: '14',
+        ucPreset: 'heavy' as const,
+        negativePrompt: '',
+        characters: scene.draft.characters.map((c) => ({
+          ...c,
+          negativePrompt: '',
+        })),
+      }
+    : scene.draft;
+  const d = expandDraft(source, seed);
+  const model = modelId(d);
+  if (
+    !Object.hasOwn(MODELS, model) ||
+    model.startsWith('nai-diffusion-5-') !== (d.family === 'v5')
+  )
+    throw Error('UNSUPPORTED_DRAFT');
+  const v3 = model === 'nai-diffusion-3' || model === 'nai-diffusion-furry-3';
   const v5 = d.family === 'v5';
   const reference = d.reference ? validateReference(d.reference) : undefined;
   if (reference && (!v5 || !images.reference))
@@ -40,9 +75,9 @@ export function bindBasicGeneration(
   if (
     !['v4.5', 'v5'].includes(d.family) ||
     (characters.length > 0 &&
-      (!v5 ||
+      (characterLimit(d) === 0 ||
         d.placement !== 'auto' ||
-        characters.length > V5_CHARACTER_LIMIT ||
+        characters.length > characterLimit(d) ||
         characters.some(
           (c) =>
             !c.prompt?.trim() ||
@@ -51,9 +86,8 @@ export function bindBasicGeneration(
             inline(c.negativePrompt),
         ))) ||
     [d.prompt, d.negativePrompt].some(inline) ||
-    (v5
-      ? !Object.hasOwn(V5_SIZES, d.resolution) ||
-        !/^\d+$/.test(d.steps) ||
+    (v5 || d.model
+      ? !/^\d+$/.test(d.steps) ||
         !Number.isInteger(steps) ||
         steps < 1 ||
         steps > 50 ||
@@ -70,14 +104,6 @@ export function bindBasicGeneration(
     throw new Error('UNSUPPORTED_DRAFT');
   if (!d.prompt.trim() && (!v5 || characters.length === 0))
     throw new Error('INVALID_INPUT');
-  if (d.seedMode !== 'random' && d.seedMode !== 'fixed')
-    throw new Error('INVALID_INPUT');
-  if (
-    d.seedMode === 'fixed' &&
-    (!/^\d+$/.test(d.seed) || Number(d.seed) > 4294967295)
-  )
-    throw new Error('INVALID_INPUT');
-  const seed = d.seedMode === 'fixed' ? Number(d.seed) : random();
   const quality = d.qualityTags ?? 'none';
   const uc = d.ucPreset ?? 'none';
   if (
@@ -90,7 +116,7 @@ export function bindBasicGeneration(
   const negative = v5
     ? join(V5_UC_PRESETS[uc], d.negativePrompt)
     : d.negativePrompt;
-  const size = v5 ? V5_SIZES[d.resolution] : { width: 512, height: 512 };
+  const size = draftSize(d);
   if (
     variation &&
     (variation.width !== size.width || variation.height !== size.height)
@@ -107,14 +133,13 @@ export function bindBasicGeneration(
     use_coords: false,
     use_order: true,
   });
+  const captionVersion = v5 ? 4 : 3;
   const request = {
     input: prompt,
-    model: v5
-      ? ('nai-diffusion-5-full' as const)
-      : ('nai-diffusion-4-5-full' as const),
+    model,
     action: variation ? 'img2img' : 'generate',
     parameters: {
-      params_version: v5 ? 4 : 3,
+      params_version: v3 ? 1 : captionVersion,
       ...size,
       steps,
       scale,
@@ -150,13 +175,21 @@ export function bindBasicGeneration(
           }
         : {}),
       negative_prompt: negative,
-      v4_prompt: condition(prompt),
-      v4_negative_prompt: v5
-        ? {
-            caption: { base_caption: negative, char_captions: captions(true) },
-            legacy_uc: false,
-          }
-        : condition(negative),
+      ...(v3
+        ? { sm: false, sm_dyn: false, legacy: false }
+        : {
+            v4_prompt: condition(prompt),
+            v4_negative_prompt:
+              v5 || d.model
+                ? {
+                    caption: {
+                      base_caption: negative,
+                      char_captions: captions(true),
+                    },
+                    legacy_uc: false,
+                  }
+                : condition(negative),
+          }),
       ...(v5
         ? {
             image_format: 'png',
@@ -184,6 +217,8 @@ export function bindBasicGeneration(
   let bindingId: ImageBinding['id'] = 'nai-v45-basic512-v1';
   if (v5) bindingId = 'nai-v5-full-v1';
   if (v5 && characters.length) bindingId = 'nai-v5-characters-auto-v1';
+  if (d.model || !['portrait', 'landscape', 'square'].includes(d.resolution))
+    bindingId = 'nai-catalog-v1';
   if (reference) bindingId = 'nai-v5-reference-v1';
   if (variation)
     bindingId = reference ? 'nai-v5-img2img-reference-v1' : 'nai-v5-img2img-v1';

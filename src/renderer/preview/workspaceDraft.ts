@@ -1,3 +1,4 @@
+import { resolveSize } from '../../workspaceCatalog';
 import type {
   WorkspaceReference,
   WorkspaceVariation,
@@ -18,6 +19,8 @@ export interface WorkspaceCharacter {
 }
 
 export interface WorkspaceDraft {
+  pieces?: import('../../workspacePromptPieces').PromptPiece[];
+  model?: import('../../workspaceCatalog').ModelId;
   reference?: WorkspaceReference;
   img2img?: WorkspaceVariation;
   family: PreviewModelFamily;
@@ -25,7 +28,7 @@ export interface WorkspaceDraft {
   negativePrompt: string;
   characters: WorkspaceCharacter[];
   placement: 'auto' | 'manual';
-  resolution: 'portrait' | 'landscape' | 'square';
+  resolution: import('../../workspaceCatalog').ResolutionKey;
   seedMode: 'random' | 'fixed';
   seed: string;
   steps: string;
@@ -112,12 +115,6 @@ export function createWorkspaceState(): WorkspaceState {
   };
 }
 
-const sizes = {
-  portrait: { width: 832, height: 1216 },
-  landscape: { width: 1216, height: 832 },
-  square: { width: 1024, height: 1024 },
-};
-
 export function projectWorkspaceDraft(
   draft: WorkspaceDraft,
   randomSeed?: number,
@@ -149,7 +146,7 @@ export function projectWorkspaceDraft(
       };
     }),
     placement: draft.placement,
-    ...sizes[draft.resolution],
+    ...resolveSize(draft.resolution),
     seed:
       draft.seedMode === 'random' ? (randomSeed ?? NaN) : number(draft.seed),
     steps: number(draft.steps),

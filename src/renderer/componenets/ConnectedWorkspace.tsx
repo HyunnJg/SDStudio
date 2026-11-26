@@ -1,4 +1,4 @@
-/* eslint no-void: off, jsx-a11y/label-has-associated-control: ["error", { "assert": "either" }] -- Promise effects and explicit htmlFor/id controls. */
+import { flushSync } from 'react-dom';
 import {
   useEffect,
   useCallback,
@@ -8,6 +8,15 @@ import {
   Dispatch,
   SetStateAction,
 } from 'react';
+import PromptPiecePanel from './PromptPiecePanel';
+import ModelSizeControls from './ModelSizeControls';
+import {
+  draftSize,
+  modelId,
+  MODELS,
+  characterLimit,
+} from '../../workspaceCatalog';
+/* eslint no-void: off, jsx-a11y/label-has-associated-control: ["error", { "assert": "either" }] -- Promise effects and explicit htmlFor/id controls. */
 import {
   DEFAULT_QUEUE_INTERVAL,
   isQueueInterval,
@@ -40,6 +49,7 @@ import type { WorkspaceState, WorkspaceDraft } from '../preview/workspaceDraft';
 import { selectWorkspaceScene } from '../preview/workspaceDraft';
 import { runtimeOptions } from '../runtime';
 import WorkspaceProjectControls from './WorkspaceProjectControls';
+import SceneRecipePanel from './SceneRecipePanel';
 import ConnectedQueueControls from './ConnectedQueueControls';
 import ConnectedCharacters from './ConnectedCharacters';
 import ConnectedImageHistory from './ConnectedImageHistory';
@@ -62,10 +72,7 @@ import {
 } from '../../workspaceReference';
 import type { ImagePurpose } from '../../workspaceReference';
 import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
-import {
-  V5_CHARACTER_LIMIT,
-  V5_SIZES,
-} from '../../workspaceGenerationSettings';
+
 import type {
   PresetKind,
   PromptPreset,
@@ -285,9 +292,9 @@ export default function ConnectedWorkspace({
   busyCallback.current = onBusyChange;
   useEffect(() => () => busyCallback.current(false), []);
   const characterOverflow =
-    state.draft.family === 'v5' &&
+    characterLimit(state.draft) > 0 &&
     state.draft.characters.filter(hasActiveCharacterPrompt).length >
-      V5_CHARACTER_LIMIT;
+      characterLimit(state.draft);
   useEffect(() => {
     if (singlePlan) {
       singleConfirmation.current?.scrollIntoView({ block: 'nearest' });
@@ -381,10 +388,11 @@ export default function ConnectedWorkspace({
   const patch = (value: Partial<WorkspaceDraft>) => {
     setSinglePlan(undefined);
     setQueuePlan(undefined);
-    setState((previous) => ({
-      ...previous,
-      draft: { ...previous.draft, ...value },
-    }));
+    setState((previous) => {
+      const draft = { ...previous.draft, ...value };
+      if (!draft.model) delete draft.model;
+      return { ...previous, draft };
+    });
   };
   const setSceneImage = <K extends ImagePurpose>(
     purpose: K,
@@ -414,6 +422,8 @@ export default function ConnectedWorkspace({
     try {
       if (
         state.draft.family !== 'v5' ||
+        (purpose === 'reference' &&
+          state.draft.model === 'nai-diffusion-5-full-medium') ||
         (source instanceof File &&
           (source.size > REFERENCE_LIMITS.sourceBytes || source.size === 0))
       )
@@ -585,7 +595,10 @@ export default function ConnectedWorkspace({
       showGenerationFailure(error);
     } else setMessage(value.queue?.stopped ? '중지됨' : '완료');
   };
-  const prepareQueue = async (remaining = false) => {
+  const prepareQueue = async (
+    remaining = false,
+    selectedIds = availableSceneIds,
+  ) => {
     if (operation.current) return;
     operation.current = true;
     generationEpoch.current += 1;
@@ -606,7 +619,7 @@ export default function ConnectedWorkspace({
           : client.prepareQueue(
               saved.id!,
               saved.revision!,
-              availableSceneIds,
+              selectedIds,
               Number(repeats),
               Number(intervalText),
             )),
@@ -832,8 +845,9 @@ export default function ConnectedWorkspace({
       ];
     }),
   );
+  const medium = state.draft.model === 'nai-diffusion-5-full-medium';
   const variation = state.draft.img2img;
-  const size = V5_SIZES[state.draft.resolution];
+  const size = draftSize(state.draft);
   const mismatchedVariation =
     !!variation &&
     (state.draft.family !== 'v5' ||
@@ -968,46 +982,20 @@ export default function ConnectedWorkspace({
                 </select>
               </div>
               <div className="connected-model-settings">
-                <label htmlFor="live-model">모델</label>
-                <select
-                  id="live-model"
-                  value={state.draft.family}
-                  onChange={(e) =>
-                    patch({
-                      family: e.target.value as 'v4.5' | 'v5',
-                      resolution:
-                        e.target.value === 'v5' ? 'portrait' : 'square',
-                      steps: e.target.value === 'v5' ? '23' : '28',
-                      guidance: e.target.value === 'v5' ? '7' : '5',
-                      qualityTags:
-                        e.target.value === 'v5' ? 'standard' : 'none',
-                      ucPreset: e.target.value === 'v5' ? 'heavy' : 'none',
-                    })
-                  }
-                >
-                  <option value="v5">V5 Full</option>
-                  <option value="v4.5">V4.5 Full · 기존 512px 설정</option>
-                </select>
-                {state.draft.family === 'v5' && (
-                  <>
-                    <label htmlFor="live-size">크기</label>
-                    <select
-                      id="live-size"
-                      value={state.draft.resolution}
-                      onChange={(e) =>
-                        patch({
-                          resolution: e.target
-                            .value as WorkspaceDraft['resolution'],
-                        })
-                      }
-                    >
-                      <option value="portrait">832 × 1216 · 세로</option>
-                      <option value="landscape">1216 × 832 · 가로</option>
-                      <option value="square">1024 × 1024 · 정사각형</option>
-                    </select>
-                  </>
-                )}
+                <ModelSizeControls
+                  key={state.selectedSceneId}
+                  draft={state.draft}
+                  patch={patch}
+                />
               </div>
+              {medium && (
+                <p>
+                  Medium은 14스텝과 고정 부정 프리셋을 사용합니다. 편집한 부정
+                  입력은 High에서 다시 사용할 수 있습니다.
+                  {state.draft.reference &&
+                    ' 정밀 참조를 해제하거나 High를 선택하세요.'}
+                </p>
+              )}
               <ConnectedReference
                 reference={state.draft.reference}
                 projectId={view.id}
@@ -1024,8 +1012,8 @@ export default function ConnectedWorkspace({
               />
               {mismatchedVariation && variation && (
                 <p role="status">
-                  변형 원본에 맞춰 V5 Full · {variation.width}×
-                  {variation.height}를 선택하거나 이미지를 다시 선택하세요.
+                  변형 원본에 맞춰 V5 · {variation.width}×{variation.height}를
+                  선택하거나 이미지를 다시 선택하세요.
                 </p>
               )}
               {canUndoMetadata && (
@@ -1119,6 +1107,19 @@ export default function ConnectedWorkspace({
                 value={state.draft.negativePrompt}
                 onChange={(e) => patch({ negativePrompt: e.target.value })}
               />
+              <PromptPiecePanel
+                key={`${view.inputEpoch}:${state.selectedSceneId}`}
+                pieces={state.draft.pieces ?? []}
+                disabled={locked}
+                onChange={(pieces) => patch({ pieces })}
+                onInsert={(piece) => {
+                  const key =
+                    promptTab === 'negative' ? 'negativePrompt' : 'prompt';
+                  patch({
+                    [key]: [state.draft[key], piece].filter(Boolean).join(', '),
+                  });
+                }}
+              />
               <ConnectedCharacters
                 key={`${view.id ?? 'draft'}:${state.selectedSceneId}:${characterEpoch}`}
                 draft={state.draft}
@@ -1157,15 +1158,16 @@ export default function ConnectedWorkspace({
                     value={state.draft.seed}
                     onChange={(e) => patch({ seed: e.target.value })}
                   />
-                  {state.draft.family === 'v5' && (
+                  {(state.draft.family === 'v5' || state.draft.model) && (
                     <>
                       <label htmlFor="live-steps">스텝</label>
                       <input
                         id="live-steps"
+                        disabled={medium}
                         type="number"
                         min="1"
                         max="50"
-                        value={state.draft.steps}
+                        value={medium ? '14' : state.draft.steps}
                         onChange={(e) => patch({ steps: e.target.value })}
                       />
                       <label htmlFor="live-guidance">가이던스</label>
@@ -1178,7 +1180,10 @@ export default function ConnectedWorkspace({
                         value={state.draft.guidance}
                         onChange={(e) => patch({ guidance: e.target.value })}
                       />
-                      <details className="connected-extra-settings">
+                      <details
+                        hidden={state.draft.family !== 'v5'}
+                        className="connected-extra-settings"
+                      >
                         <summary>품질·부정 설정</summary>
                         <div className="connected-settings-fields">
                           <label htmlFor="live-quality">품질 태그</label>
@@ -1201,7 +1206,12 @@ export default function ConnectedWorkspace({
                           </label>
                           <select
                             id="live-uc-preset"
-                            value={state.draft.ucPreset ?? 'none'}
+                            disabled={medium}
+                            value={
+                              medium
+                                ? 'heavy'
+                                : (state.draft.ucPreset ?? 'none')
+                            }
                             onChange={(e) =>
                               patch({
                                 ucPreset: e.target
@@ -1257,7 +1267,7 @@ export default function ConnectedWorkspace({
                   </button>
                   <button
                     type="button"
-                    disabled={locked || state.draft.family !== 'v5'}
+                    disabled={locked || state.draft.family !== 'v5' || medium}
                     data-testid="result-use-reference"
                     onClick={() => reuseResultImage('reference')}
                   >
@@ -1510,8 +1520,7 @@ export default function ConnectedWorkspace({
           </div>
           {result && (
             <p className="connected-image-caption" data-testid="generated-seed">
-              {result.draft.family === 'v5' ? 'V5 Full' : 'V4.5 Full'} · 시드{' '}
-              {result.seed}
+              {MODELS[modelId(result.draft)]} · 시드 {result.seed}
             </p>
           )}
         </section>
@@ -1568,6 +1577,50 @@ export default function ConnectedWorkspace({
                 </ul>
               </section>
             )}
+            <SceneRecipePanel
+              key={view.inputEpoch}
+              presets={presets}
+              base={{
+                id: state.selectedSceneId,
+                name: state.scenes.find((s) => s.id === state.selectedSceneId)!
+                  .name,
+                draft: state.draft,
+              }}
+              repeats={Number(repeats)}
+              sources={state.scenes.map((s) =>
+                s.id === state.selectedSceneId
+                  ? { ...s, draft: state.draft }
+                  : s,
+              )}
+              disabled={locked}
+              canPrepare={!runtimeOptions.offline && intervalValid}
+              onCreate={(scenes) => {
+                const existing = project.content().scenes;
+                const chosenIds = new Set<string>();
+                const additions = scenes.filter((candidate) => {
+                  const same = existing.find(
+                    (s) =>
+                      !chosenIds.has(s.id) &&
+                      s.name === candidate.name &&
+                      JSON.stringify(s.draft) ===
+                        JSON.stringify(candidate.draft),
+                  );
+                  chosenIds.add(same?.id ?? candidate.id);
+                  return !same;
+                });
+                if (existing.length + additions.length > PROJECT_LIMITS.scenes)
+                  throw Error('프로젝트에 조합을 담을 씬 자리가 부족합니다.');
+                const ids = [...chosenIds];
+                flushSync(() => {
+                  setState((old) => ({
+                    ...old,
+                    scenes: [...existing, ...additions],
+                  }));
+                  setSceneIds(ids);
+                });
+                void prepareQueue(false, ids);
+              }}
+            />
             <ConnectedQueueControls
               scenes={state.scenes}
               selected={availableSceneIds}
@@ -1660,7 +1713,8 @@ export default function ConnectedWorkspace({
       {imageChoice && (
         <WorkspaceImageChoice
           file={imageChoice}
-          canReference={state.draft.family === 'v5'}
+          canReference={state.draft.family === 'v5' && !medium}
+          canVariation={state.draft.family === 'v5'}
           onClose={() => setImageChoice(undefined)}
           onMetadata={() => {
             setImageChoice(undefined);

@@ -1,8 +1,12 @@
+import { requiresAnlasWarning } from './generationPresentation';
 import type { GenerationPlan } from '../../workspaceGeneration';
 
 export default function needsSingleUsageConfirmation(
-  plan: Pick<GenerationPlan, 'steps' | 'reference'>,
+  plan: Pick<GenerationPlan, 'steps' | 'reference'> &
+    Partial<Pick<GenerationPlan, 'width' | 'height'>>,
   referenceAcknowledged: boolean,
 ): boolean {
-  return plan.steps > 28 || (!!plan.reference && !referenceAcknowledged);
+  return (
+    requiresAnlasWarning(plan) || (!!plan.reference && !referenceAcknowledged)
+  );
 }

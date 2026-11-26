@@ -1,3 +1,6 @@
+import { V5_SIZES } from './workspaceGenerationSettings';
+import { validPieces } from './workspacePromptPieces';
+import { MODELS, resolveSize, allowedSize } from './workspaceCatalog';
 /* eslint no-restricted-syntax: off -- Bounded ordered schema validation exits on the first invalid record. */
 // Independent of V3 Session.version. Only allowlisted workspace content is persisted.
 import type {
@@ -59,6 +62,7 @@ export interface ProjectContent {
 export interface ImageBinding {
   id:
     | 'nai-v45-basic512-v1'
+    | 'nai-catalog-v1'
     | 'nai-v5-full-v1'
     | 'nai-v5-characters-auto-v1'
     | 'nai-v5-reference-v1'
@@ -84,7 +88,7 @@ export type ProjectImageInput = Omit<
 >;
 export interface WorkspaceProject extends ProjectContent {
   format: typeof PROJECT_FORMAT;
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
   id: string;
   images: ProjectImage[];
   trashedImageIds?: string[];
@@ -225,11 +229,15 @@ function imageAsset(value: unknown, fields: string[]) {
       Number.isInteger(r[key]) && Number(r[key]) > 0 && Number(r[key]) <= max,
     );
   projectCheck(
-    [
-      [832, 1216],
-      [1024, 1024],
-      [1216, 832],
-    ].some(([w, h]) => r.width === w && r.height === h),
+    fields.includes('noise')
+      ? allowedSize(Number(r.width), Number(r.height)) &&
+          typeof r.width === 'number' &&
+          typeof r.height === 'number'
+      : [
+          [832, 1216],
+          [1024, 1024],
+          [1216, 832],
+        ].some(([w, h]) => r.width === w && r.height === h),
   );
   return r;
 }
@@ -292,7 +300,14 @@ export function remainingProjectBytes(project: WorkspaceProject): number {
 }
 
 function draft(value: unknown): number {
-  const optional = ['qualityTags', 'ucPreset', 'reference', 'img2img'].filter(
+  const optional = [
+    'pieces',
+    'model',
+    'qualityTags',
+    'ucPreset',
+    'reference',
+    'img2img',
+  ].filter(
     (key) => !!value && typeof value === 'object' && Object.hasOwn(value, key),
   );
   const d = record(value, [
@@ -316,8 +331,20 @@ function draft(value: unknown): number {
     choice(d.qualityTags, ['none', 'light', 'standard']);
   if (optional.includes('ucPreset'))
     choice(d.ucPreset, ['none', 'light', 'heavy', 'human', 'furry']);
+  if (optional.includes('pieces')) projectCheck(validPieces(d.pieces));
   choice(d.placement, ['auto', 'manual']);
-  choice(d.resolution, ['portrait', 'landscape', 'square']);
+  projectCheck(typeof d.resolution === 'string');
+  try {
+    resolveSize(d.resolution);
+  } catch {
+    projectCheck(false);
+  }
+  if (optional.includes('model'))
+    projectCheck(
+      typeof d.model === 'string' &&
+        Object.hasOwn(MODELS, d.model) &&
+        (d.family === 'v5') === d.model.startsWith('nai-diffusion-5-'),
+    );
   choice(d.seedMode, ['random', 'fixed']);
   string(d.prompt);
   string(d.negativePrompt);
@@ -407,6 +434,7 @@ export function validateImageInput(value: unknown): ProjectImageInput {
     projectCheck(
       [
         'nai-v45-basic512-v1',
+        'nai-catalog-v1',
         'nai-v5-full-v1',
         'nai-v5-characters-auto-v1',
         'nai-v5-reference-v1',
@@ -427,7 +455,16 @@ export function validateImageInput(value: unknown): ProjectImageInput {
 export function requiredProjectVersion(
   content: ProjectContent,
   images: readonly ProjectImageInput[] = [],
-): 1 | 2 | 3 | 4 | 5 | 7 | 8 | 9 {
+): 1 | 2 | 3 | 4 | 5 | 7 | 8 | 9 | 10 {
+  const extended = ({ draft: d }: { draft: WorkspaceDraft }) =>
+    !!d.pieces ||
+    !!d.model ||
+    (!!d.img2img &&
+      !Object.values(V5_SIZES).some(
+        (s) => s.width === d.img2img!.width && s.height === d.img2img!.height,
+      )) ||
+    !['portrait', 'landscape', 'square'].includes(d.resolution);
+  if (content.scenes.some(extended) || images.some(extended)) return 10;
   if (
     content.scenes.some(
       (entry) => entry.draft.reference && entry.draft.img2img,
@@ -485,7 +522,8 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
       v.version === 6 ||
       v.version === 7 ||
       v.version === 8 ||
-      v.version === 9,
+      v.version === 9 ||
+      v.version === 10,
     'PROJECT_VERSION',
   );
   try {

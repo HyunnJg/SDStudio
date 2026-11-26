@@ -751,8 +751,8 @@ export default function PromptLibrary({
             {hasLegacyPromptSyntax(p) && (
               <small>
                 {' '}
-                · V3 조각·선택 문법은 새 작업실에서 아직 지원하지 않습니다. 적용
-                전 수정하세요.
+                · V3 조각은 작업실에서 모음 JSON을 가져오세요. 단독 | 교차
+                문법은 직접 편집하세요.
               </small>
             )}
           </button>

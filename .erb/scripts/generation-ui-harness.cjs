@@ -72,6 +72,16 @@ const server = http.createServer(async (request, response) => {
       .digest('hex');
   const parsed = JSON.parse(body);
   sentSteps.push(parsed.parameters.steps);
+  if (phase === 'recipe') {
+    assert.equal(parsed.model,'nai-diffusion-furry-3');
+    assert.equal(parsed.parameters.width,640);
+    assert.equal(parsed.parameters.height,896);
+    assert.equal(parsed.parameters.v4_prompt,undefined);
+    assert.match(parsed.input,/^(red|blue) coat, (rain|snow)$/);
+    response.writeHead(200,{'Content-Type':'application/zip'});
+    response.end(await payload);
+    return;
+  }
   assert.equal(parsed.model, 'nai-diffusion-5-full');
   assert.equal(parsed.parameters.image_format, 'png');
   assert.equal(parsed.parameters.width, 832);
@@ -247,7 +257,9 @@ app.on('web-contents-created', (_event, contents) => {
       await evaluate("(()=>{window.__flowMessages=[];const node=document.querySelector('[data-testid=generation-status]');new MutationObserver(()=>{if(node.textContent.trim())window.__flowMessages.push(node.textContent.trim())}).observe(node,{childList:true,characterData:true,subtree:true})})()");
       if (process.env.SDSTUDIO_RUNTIME_REPORT && phase === 'create')
         await require('./runtime-ui-probe.cjs')(contents, profile);
-      if (phase === 'trash') {
+      if (phase === 'recipe') {
+        await require('./scene-recipe-probe.cjs')({evaluate,click,fill,until,checks,requests:()=>requests});
+      } else if (phase === 'trash') {
         await require('./workspace-trash-ui-probe.cjs')({contents,evaluate,click,fill,until,checks,profile,requestCount:()=>requests});
       } else if (phase === 'img2img') {
         await require('./variation-ui-probe.cjs')({evaluate, click, fill, until, checks, requestCount: () => requests});
@@ -800,15 +812,15 @@ app.on('web-contents-created', (_event, contents) => {
         checks.push(
           'character text survives deletion undo/reorder; disabling keeps the stored input',
         );
-        await evaluate("(()=>{const s=document.querySelector('#live-model');s.value='v4.5';s.dispatchEvent(new Event('change',{bubbles:true}))})()");
+        await evaluate("(()=>{const s=document.querySelector('#live-model');s.value='nai-diffusion-3';s.dispatchEvent(new Event('change',{bubbles:true}))})()");
         await until(()=>evaluate("!!document.querySelector('[data-testid=disable-live-characters]')"));
         assert.equal(await evaluate("document.querySelector('[data-testid=disable-live-characters]').matches(':disabled')"),false);
         await click('[data-testid=disable-live-characters]');
         assert.equal(await evaluate("[...document.querySelectorAll('[data-character-enabled]')].every(c=>!c.checked)"),true);
         assert.equal(await evaluate(`document.querySelector('[data-character-prompt="${ids[1]}"]').value`),'person, blue coat');
-        await evaluate("(()=>{const s=document.querySelector('#live-model');s.value='v5';s.dispatchEvent(new Event('change',{bubbles:true}))})()");
+        await evaluate("(()=>{const s=document.querySelector('#live-model');s.value='nai-diffusion-5-full';s.dispatchEvent(new Event('change',{bubbles:true}))})()");
         await click(`[data-character-enabled="${ids[1]}"]`);
-        checks.push('V4.5 path offers a nearby disable-character action that preserves text; switching back to V5 restores editing');
+        checks.push('V3 path offers a nearby disable-character action that preserves text; switching back to V5 restores editing');
         await click('[data-testid=add-live-character]');
         const waitingId = await evaluate("[...document.querySelectorAll('[data-character-id]')].at(-1).dataset.characterId");
         await fill('[data-testid=live-prompt]', '');

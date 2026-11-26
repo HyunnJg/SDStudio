@@ -9,7 +9,7 @@ import {
   imageFormat,
   VARIATION_DEFAULTS,
 } from '../../workspaceReference';
-import { V5_SIZES } from '../../workspaceGenerationSettings';
+import { draftSize } from '../../workspaceCatalog';
 import type { ImagePurpose, ReferenceAsset } from '../../workspaceReference';
 import {
   PROJECT_FORMAT,
@@ -1006,7 +1006,7 @@ export class ProjectStore {
       const rotated = (meta.orientation ?? 0) >= 5;
       size =
         purpose === 'img2img'
-          ? V5_SIZES[scene.draft.resolution]
+          ? draftSize(scene.draft)
           : referenceSize(
               rotated ? meta.height! : meta.width!,
               rotated ? meta.width! : meta.height!,

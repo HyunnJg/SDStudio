@@ -11,7 +11,7 @@ const original = path.join(root, 'original');
 fs.mkdirSync(original);
 const reports = [];
 try {
-  for (const phase of [
+  for (const phase of process.argv[2] === 'recipe' ? ['recipe'] : [
     ['queue', 'queue-errors', 'characters', 'reference', 'img2img', 'trash'].includes(process.argv[2])
       ? process.argv[2]
       : 'create',

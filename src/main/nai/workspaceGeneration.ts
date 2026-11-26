@@ -71,7 +71,9 @@ interface Pending {
 }
 interface Reservation {
   state: GenerationQueueState;
-  tasks: Omit<Prepared, 'body'>[];
+  tasks: (Omit<Prepared, 'body'> & {
+    sourceDraft: ProjectImageInput['draft'];
+  })[];
 }
 
 interface Options {
@@ -685,7 +687,8 @@ export class WorkspaceGeneration {
           const task = {
             id,
             revision,
-            input: { ...bound.input, draft: scene.draft },
+            input: bound.input,
+            sourceDraft: scene.draft,
             expires: 0,
             plan: {
               ticket: randomUUID(),
@@ -907,7 +910,7 @@ export class WorkspaceGeneration {
       const scene = current.scenes.find(
         (value) => value.id === task.input.sceneId,
       );
-      if (!scene || !isDeepStrictEqual(scene.draft, task.input.draft))
+      if (!scene || !isDeepStrictEqual(scene.draft, task.sourceDraft))
         throw new GenerationError(
           'QUEUE_INPUT_CHANGED',
           false,

@@ -31,7 +31,7 @@ export interface GenerationFailure {
 }
 export type GenerationReply<T> = { ok: true; value: T } | GenerationFailure;
 export interface GenerationSettings {
-  model: 'nai-diffusion-4-5-full' | 'nai-diffusion-5-full';
+  model: import('./workspaceCatalog').ModelId;
   width: number;
   height: number;
   steps: number;
