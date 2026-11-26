@@ -13,6 +13,10 @@
 - Gemini API의 `serviceTier`, Vertex 프로젝트의 PayGo 헤더, OpenRouter의 `service_tier`를 구분한다. Gemini 4 계열의 Flex는 Gemini API에 표시하고, Vertex 서비스 계정에서는 3.8 Flash 등 문서에 등재된 모델에서 제공한다. OpenRouter 후보는 공개 모델·엔드포인트 카탈로그에서 확인했다. [Gemini Flex](https://ai.google.dev/gemini-api/docs/flex-inference) · [Vertex Flex](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/flex-paygo) · [Vertex Priority](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/priority-paygo) · [OpenRouter 처리 등급](https://openrouter.ai/docs/guides/features/service-tiers)
 - 처리 등급과 추가 JSON은 공급자·모델별로 기억한다. 컷 요청과 설정의 응답 확인에 같은 값을 사용한다. 출력 길이, 샘플링과 추론 옵션을 본문에 병합하고, 앱이 관리하는 입력 메시지·응답 형식·인증은 기존 경로를 사용한다. 공급자가 알려 준 실제 처리 등급을 성공 응답에 표시한다.
 
+`f5017f9` 검토 후 Flex 대기 중 다른 모델을 쓸 수 있도록 요청별 취소를 추가했다. 컷 초안과 연결 테스트를 시작한 화면에서 취소하거나 창을 닫으면 메인이 해당 요청의 OAuth 교환·모델 호출·응답 읽기를 중단하고 다음 호출을 받는다. 늦게 끝난 요청은 새 초안과 실행 상태를 변경할 수 없다. 공급자의 과금 처리 여부는 앱에서 판정하지 않는다.
+
+서비스 계정 입력란에 앱 전용 계정의 권한과 원본 JSON 보관 위치를 안내한다. 처리 등급 선택에는 같은 모델의 다음 호출에도 적용된다는 문구를 표시한다. [Google Cloud 모델 접근 권한](https://cloud.google.com/vertex-ai/generative-ai/docs/access-control) · [Google Cloud 서비스 계정 키 관리](https://cloud.google.com/iam/docs/best-practices-for-managing-service-account-keys)
+
 ## D-077. 바이브 에디터와 작업실의 V3 자료 가져오기
 
 #55 리뷰 후속(`267c637` 기준). 컷 응답 전체를 감싼 JSON 코드 블록 한 개는 바깥 표시를 벗긴 뒤 기존 컷 검증을 거친다. 앞뒤 설명이나 여러 블록을 조합해서 컷을 추출하지 않는다. OpenRouter 키 설정에는 무료·유료 모델별 학습 공급자 제외 방법을 표시한다. [OpenRouter 공급자 정책](https://openrouter.ai/docs/guides/privacy/provider-logging)

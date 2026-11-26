@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CutSuggestion } from '../../recipeAssistant';
 import { providerLabels, validModelId } from '../../recipeAssistant';
 import { ModelFields, useVibeModel } from './VibeProviderSettings';
+import useCutRequest from '../generation/useCutRequest';
 import './NaiAuthSettings.css';
 
 export default function RecipeAssistant({
@@ -25,9 +26,8 @@ export default function RecipeAssistant({
   const choice = useVibeModel();
   const modal = useRef<HTMLDialogElement>(null);
   const [request, setRequest] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
-  const [plan, setPlan] = useState<CutSuggestion>();
+  const { run, cancel, reset, pending, result } = useCutRequest();
+  const plan = result?.ok ? result.suggestion : undefined;
   useEffect(() => {
     const dialog = modal.current;
     dialog?.showModal();
@@ -36,41 +36,24 @@ export default function RecipeAssistant({
     };
   }, []);
   useEffect(() => {
-    setPlan(undefined);
-    setMessage('');
+    reset();
   }, [
     choice.provider,
     choice.model,
     choice.options.tier,
     choice.options.extraBody,
+    reset,
   ]);
-  const reset = () => {
-    setPlan(undefined);
-    setMessage('');
-  };
-  const suggest = async () => {
-    reset();
-    setBusy(true);
-    try {
-      const result = await window.electron.recipeAssistant.suggest({
-        provider: choice.provider,
-        model: choice.model,
-        tier: choice.options.tier,
-        extraBody: choice.options.extraBody,
-        instruction: request.trim(),
-        style,
-        characters,
-      });
-      if (result.ok) setPlan(result.suggestion);
-      setMessage(
-        `${providerLabels[choice.provider]} · ${choice.model} · ${result.ok ? `HTTP ${result.httpStatus} 응답 완료 · ${result.responseModel ?? choice.model}${result.servedTier ? ` · ${result.servedTier}` : ''}` : result.message}`,
-      );
-    } catch {
-      setMessage('응답을 받지 못했습니다.');
-    } finally {
-      setBusy(false);
-    }
-  };
+  const suggest = () =>
+    run({
+      provider: choice.provider,
+      model: choice.model,
+      tier: choice.options.tier,
+      extraBody: choice.options.extraBody,
+      instruction: request.trim(),
+      style,
+      characters,
+    });
   return (
     <dialog
       className="nai-auth vibe-editor"
@@ -88,7 +71,7 @@ export default function RecipeAssistant({
           닫기
         </button>
       </header>
-      <fieldset disabled={busy || disabled}>
+      <fieldset disabled={pending || disabled}>
         <ModelFields
           choice={{
             ...choice,
@@ -137,7 +120,18 @@ export default function RecipeAssistant({
           컷 초안 받기
         </button>
       </fieldset>
-      <p role="status">{busy ? '응답 대기 중…' : message}</p>
+      {pending && (
+        <button type="button" data-testid="cancel-vibe" onClick={cancel}>
+          요청 취소
+        </button>
+      )}
+      <p role="status">
+        {pending && '응답 대기 중…'}
+        {result &&
+          (result.ok
+            ? `${providerLabels[choice.provider]} · HTTP ${result.httpStatus} 응답 완료 · ${result.responseModel ?? choice.model}${result.servedTier ? ` · ${result.servedTier}` : ''}`
+            : result.message)}
+      </p>
       {plan && (
         <>
           <ol>

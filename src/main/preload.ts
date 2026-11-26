@@ -84,8 +84,10 @@ const electronHandler = {
       ipcRenderer.invoke('gemini-auth-set', key, remember),
     clear: (): Promise<NaiAuthResult> =>
       ipcRenderer.invoke('gemini-auth-clear'),
-    suggest: (request: CutRequest): Promise<CutResult> =>
-      ipcRenderer.invoke('gemini-suggest-cuts', request),
+    suggest: (request: CutRequest, requestId?: string): Promise<CutResult> =>
+      ipcRenderer.invoke('gemini-suggest-cuts', request, requestId),
+    cancel: (requestId: string): Promise<boolean> =>
+      ipcRenderer.invoke('vibe-cancel-cuts', requestId),
   },
   promptLibrary: {
     read: () => ipcRenderer.invoke('prompt-library-read'),

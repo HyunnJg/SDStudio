@@ -17,6 +17,12 @@ if (phase === 'recipe') {
     assert.equal(body.generationConfig.topP, 0.9);
     assert.ok(new URL(url).pathname.endsWith('/gemini-3.8-flash:generateContent'));
     const input = JSON.parse(body.contents[0].parts[0].text);
+    if (['한 컷. 맑은 하늘.', '취소할 컷'].includes(input.instruction)) {
+      options.signal.throwIfAborted();
+      return new Promise((_, reject) => {
+        options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
+      });
+    }
     assert.deepEqual(input, { instruction: '표정 세 컷, 각 두 장', style: '', characters: [] });
     const cuts = ['tense', 'smile', 'relieved'].map((emotion) => ({
       name: emotion, setting: 'courtyard', emotion,

@@ -208,14 +208,36 @@ export default function registerGeminiCuts(
   trusted: (e: IpcMainInvokeEvent) => boolean,
   send: typeof fetch = (url, options) => fetch(url, options),
 ) {
-  let busy = false;
+  const validId = (id: unknown): id is string =>
+    typeof id === 'string' &&
+    /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id);
+  let active:
+    | {
+        id?: string;
+        sender: IpcMainInvokeEvent['sender'];
+        controller: AbortController;
+      }
+    | undefined;
+  ipc.handle('vibe-cancel-cuts', (event, id: unknown) => {
+    if (
+      !trusted(event) ||
+      !validId(id) ||
+      !active ||
+      active.id !== id ||
+      active.sender !== event.sender
+    )
+      return false;
+    active.controller.abort();
+    active = undefined;
+    return true;
+  });
   ipc.handle(
     'gemini-suggest-cuts',
-    async (event, r: CutRequest): Promise<CutResult> => {
+    async (event, r: CutRequest, id?: string): Promise<CutResult> => {
       const allowed = () => trusted(event) && !offline();
       if (!allowed())
         return { ok: false, message: '온라인 작업실에서 요청할 수 있습니다.' };
-      if (!validRequest(r))
+      if (!validRequest(r) || (id !== undefined && !validId(id)))
         return {
           ok: false,
           message: '요청문과 선택한 프리셋 이름을 확인하세요.',
@@ -242,11 +264,18 @@ export default function registerGeminiCuts(
         return { ok: false, message: (error as Error).message };
       }
       const label = providerLabels[provider];
-      if (busy) return { ok: false, message: '이전 컷 요청을 처리 중입니다.' };
-      busy = true;
+      if (active)
+        return { ok: false, message: '이전 컷 요청을 처리 중입니다.' };
+      const controller = new AbortController();
+      active = { id, sender: event.sender, controller };
+      const signal = AbortSignal.any([
+        controller.signal,
+        AbortSignal.timeout(tier === 'flex' ? 600_000 : 60_000),
+      ]);
       let message = `${label} API 키를 읽을 수 없습니다. 메뉴의 API 설정을 확인하세요.`;
       try {
         const key = await readKey(provider);
+        signal.throwIfAborted();
         if (!allowed()) throw Error();
         if (wrongProviderKey(provider, key))
           return { ok: false, message: wrongGeminiKeyMessage };
@@ -256,12 +285,12 @@ export default function registerGeminiCuts(
           style: r.style,
           characters: r.characters,
         });
-        const signal = AbortSignal.timeout(tier === 'flex' ? 600_000 : 60_000);
         let account;
         if (provider === 'vertexAccount') {
           message =
             'Vertex 서비스 계정 인증에 실패했습니다. 개인 키와 계정 상태를 확인하세요.';
           account = await vertexAuthorization(key, send, signal);
+          signal.throwIfAborted();
           if (!allowed()) throw Error();
           message = 'Vertex 연결에 실패했거나 시간이 초과됐습니다.';
         }
@@ -281,6 +310,7 @@ export default function registerGeminiCuts(
           headers: { 'Content-Type': 'application/json', ...spec.headers },
           body: JSON.stringify(spec.body),
         });
+        signal.throwIfAborted();
         if (!response.ok) {
           await response.body?.cancel();
           return {
@@ -290,6 +320,7 @@ export default function registerGeminiCuts(
         }
         message = `${label} 응답을 받았으나 컷 형식을 읽지 못했습니다. 요청문을 확인하세요.`;
         const reply = await readVibeJSON(response, 256 * 1024);
+        signal.throwIfAborted();
         if (!allowed()) throw Error();
         const output = extractCutText(provider, reply);
         if (output.limited)
@@ -328,9 +359,12 @@ export default function registerGeminiCuts(
             : {}),
         };
       } catch {
-        return { ok: false, message };
+        return {
+          ok: false,
+          message: controller.signal.aborted ? '요청을 취소했습니다.' : message,
+        };
       } finally {
-        busy = false;
+        if (active?.controller === controller) active = undefined;
       }
     },
   );

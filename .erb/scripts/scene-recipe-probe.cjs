@@ -302,6 +302,15 @@ module.exports = async ({ evaluate, click, fill, until, checks, requests }) => {
     '',
   );
   await select(models, 'gemini-3.8-flash');
+  await click('[data-testid=probe-vibe]');
+  await click('[data-testid=cancel-vibe]');
+  await until(() =>
+    evaluate(
+      "document.querySelector('.vibe-api-settings').textContent.includes('요청을 취소했습니다.')",
+    ),
+  );
+  // Closing settings while a second probe is pending must also free the request slot.
+  await click('[data-testid=probe-vibe]');
   await click('[data-testid=nai-auth-dialog] header button');
   assert.equal(
     await evaluate(
@@ -309,6 +318,19 @@ module.exports = async ({ evaluate, click, fill, until, checks, requests }) => {
     ),
     '표정 세 컷, 각 두 장',
   );
+  await fill('[data-testid=cut-instruction]', '취소할 컷');
+  await click('[data-testid=request-vibe]');
+  await click('[data-testid=cancel-vibe]');
+  await until(() =>
+    evaluate(
+      "document.querySelector('[data-testid=recipe-assistant] [role=status]').textContent.includes('요청을 취소했습니다.')",
+    ),
+  );
+  assert.equal(
+    await evaluate("!!document.querySelector('[data-testid=apply-vibe]')"),
+    false,
+  );
+  await fill('[data-testid=cut-instruction]', '표정 세 컷, 각 두 장');
   await click('[data-testid=request-vibe]');
   await until(() =>
     evaluate(

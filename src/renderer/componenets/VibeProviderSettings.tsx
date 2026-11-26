@@ -18,6 +18,7 @@ import {
   serviceTiers,
   vibeModels,
 } from '../../vibeOptions';
+import useCutRequest from '../generation/useCutRequest';
 import VertexAccountFields, { readAccountFields } from './VertexAccountFields';
 
 function readOptions(provider: Provider, model: string) {
@@ -170,6 +171,9 @@ export function ModelFields({
               </option>
             ))}
           </select>
+          {choice.options.tier && (
+            <small>이 공급자와 모델의 다음 요청에도 적용됩니다.</small>
+          )}
         </label>
       )}
       <details className="vibe-extra-body">
@@ -212,8 +216,54 @@ export function PaidKeyNotice() {
   );
 }
 
-function KeyControls({ choice }: { choice: ReturnType<typeof useVibeModel> }) {
+function ModelResponseCheck({
+  choice,
+}: {
+  choice: ReturnType<typeof useVibeModel>;
+}) {
   const { provider, model, options, optionError } = choice;
+  const { run, cancel, pending, result } = useCutRequest();
+  return (
+    <>
+      {pending ? (
+        <button type="button" data-testid="cancel-vibe" onClick={cancel}>
+          요청 취소
+        </button>
+      ) : (
+        <button
+          type="button"
+          data-testid="probe-vibe"
+          disabled={!!optionError || !validModelId(model, provider)}
+          onClick={() =>
+            run({
+              provider,
+              model,
+              tier: options.tier,
+              extraBody: options.extraBody,
+              style: '',
+              characters: [],
+              instruction: '한 컷. 맑은 하늘.',
+            })
+          }
+        >
+          모델 응답 확인 (API 1회)
+        </button>
+      )}
+      {(pending || result) && (
+        <p role="status">
+          {pending && '응답 대기 중…'}
+          {result &&
+            (result.ok
+              ? `${result.responseModel ?? model} · HTTP ${result.httpStatus} 응답 확인${result.servedTier ? ` · ${result.servedTier}` : ''}`
+              : result.message)}
+        </p>
+      )}
+    </>
+  );
+}
+
+function KeyControls({ choice }: { choice: ReturnType<typeof useVibeModel> }) {
+  const { provider, model, options } = choice;
   const account = useRef<HTMLFormElement>(null);
   const client = window.electron.providerKeys;
   const key = useRef<HTMLInputElement>(null);
@@ -346,30 +396,10 @@ function KeyControls({ choice }: { choice: ReturnType<typeof useVibeModel> }) {
               삭제 확인
             </button>
           )}
-          <button
-            type="button"
-            disabled={!!optionError || !validModelId(model, provider)}
-            onClick={() =>
-              act(async () => {
-                const result = await window.electron.recipeAssistant.suggest({
-                  provider,
-                  model,
-                  tier: options.tier,
-                  extraBody: options.extraBody,
-                  style: '',
-                  characters: [],
-                  instruction: '한 컷. 맑은 하늘.',
-                });
-                setMessage(
-                  result.ok
-                    ? `${result.responseModel ?? model} · HTTP ${result.httpStatus} 응답 확인${result.servedTier ? ` · ${result.servedTier}` : ''}`
-                    : `${model} · ${result.message}`,
-                );
-              })
-            }
-          >
-            모델 응답 확인 (API 1회)
-          </button>
+          <ModelResponseCheck
+            key={JSON.stringify([model, options.tier, options.extraBody])}
+            choice={choice}
+          />
         </>
       )}
       <p role="status">{busy ? '처리 중…' : message}</p>

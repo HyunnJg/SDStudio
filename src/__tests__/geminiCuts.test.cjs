@@ -41,20 +41,75 @@ function handler({
   offline = () => false,
   trusted = () => true,
 }) {
-  let invoke;
+  const channels = new Map();
+  const event = { sender: {} };
   register(
     {
-      handle: (_, action) => {
-        invoke = (r = request) => action({}, r);
-      },
+      handle: (channel, action) => channels.set(channel, action),
     },
     read,
     offline,
     trusted,
     send,
   );
+  const invoke = (r = request, id) =>
+    channels.get('gemini-suggest-cuts')(event, r, id);
+  invoke.cancel = (id, owner = event) =>
+    channels.get('vibe-cancel-cuts')(owner, id);
   return invoke;
 }
+
+test('cancel during key read frees the slot and a late completion cannot unlock its replacement', async () => {
+  const firstId = crypto.randomUUID(),
+    secondId = crypto.randomUUID();
+  const reads = [];
+  let sends = 0;
+  const suggest = handler({
+    read: () => new Promise((resolve) => reads.push(resolve)),
+    send: async () => {
+      sends++;
+      return reply({ cuts, repeats: 1 });
+    },
+    trusted: (event) => !event.untrusted,
+  });
+  const first = suggest(request, firstId);
+  assert.equal(suggest.cancel(firstId, { sender: {} }), false);
+  assert.equal(suggest.cancel(firstId, { untrusted: true }), false);
+  assert.equal(suggest.cancel(secondId), false);
+  assert.equal(suggest.cancel(firstId), true);
+  const next = suggest({ ...request, provider: 'vertex' }, secondId);
+  assert.equal(suggest.cancel(firstId), false);
+  reads[0]('fixture');
+  assert.match((await first).message, /취소/);
+  assert.equal(sends, 0);
+  assert.match((await suggest()).message, /처리 중/);
+  reads[1]('fixture');
+  assert.equal((await next).ok, true);
+  assert.equal(sends, 1);
+});
+
+test('cancel aborts an in-flight Flex fetch and discards a late successful response', async () => {
+  let signal, finish;
+  const suggest = handler({
+    send: async (_, options) => {
+      signal = options.signal;
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    },
+  });
+  const id = crypto.randomUUID();
+  const pending = suggest(
+    { ...request, model: 'gemini-3.8-flash', tier: 'flex' },
+    id,
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(suggest.cancel(id), true);
+  assert.equal(signal.aborted, true);
+  finish(reply({ cuts, repeats: 2 }));
+  assert.match((await pending).message, /취소/);
+  assert.equal(suggest.cancel(id), false);
+});
 
 test('Gemini receives only selected labels and instruction, and returns editable cuts in order', async () => {
   let calls = 0;
@@ -377,6 +432,27 @@ test('a Vertex service account signs a short-lived assertion for Google and send
     ).ok,
   );
   assert.equal(calls, 2);
+
+  const endpoints = [];
+  let finishAuth, oauthSignal;
+  const interrupted = handler({
+    read: async () => normalized,
+    send: async (url, options) => {
+      endpoints.push(url);
+      oauthSignal = options.signal;
+      return new Promise((resolve) => {
+        finishAuth = resolve;
+      });
+    },
+  });
+  const id = crypto.randomUUID();
+  const pending = interrupted({ ...request, provider: 'vertexAccount' }, id);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(interrupted.cancel(id), true);
+  assert.equal(oauthSignal.aborted, true);
+  finishAuth(Response.json({ access_token: 'fixture', token_type: 'Bearer' }));
+  assert.match((await pending).message, /취소/);
+  assert.deepEqual(endpoints, ['https://oauth2.googleapis.com/token']);
 });
 
 test('tiers and body controls follow the selected provider and model before any credential read', async () => {

@@ -85,8 +85,11 @@ export default function VertexAccountFields({
         )}
       </form>
       <small>
-        Vertex AI가 활성화된 프로젝트에서 이 서비스 계정에 모델 호출 권한이
-        필요합니다.
+        Vertex AI를 활성화한 프로젝트에 앱 전용 서비스 계정을 만들고 모델 호출에
+        필요한 권한만 부여하세요. 기본 제공 역할은 Vertex AI 사용자
+        (roles/aiplatform.user)를 권장합니다. 프로젝트 소유자·편집자 키는
+        피하고, 등록 후 원본 JSON은 다운로드 폴더에서 안전한 보관 위치로
+        옮기세요.
       </small>
     </>
   );
