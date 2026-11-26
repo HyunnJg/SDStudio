@@ -184,6 +184,21 @@ export default function ConnectedWorkspace({
   const [selected, setSelected] = useState('');
   const [imageURL, setImageURL] = useState('');
   const [importFile, setImportFile] = useState<File>();
+  const [metadataUndo, setMetadataUndo] = useState<{
+    before: WorkspaceDraft;
+    after: WorkspaceDraft;
+    characterId?: string;
+    sceneId: string;
+    epoch: number;
+  }>();
+  const canUndoMetadata =
+    metadataUndo &&
+    metadataUndo.after === state.draft &&
+    metadataUndo.sceneId === state.selectedSceneId &&
+    metadataUndo.epoch === view.inputEpoch;
+  useEffect(() => {
+    if (metadataUndo && !canUndoMetadata) setMetadataUndo(undefined);
+  }, [metadataUndo, canUndoMetadata]);
   const [referencePreview, setReferencePreview] = useState<{
     hash: string;
     bytes: Uint8Array;
@@ -1016,6 +1031,33 @@ export default function ConnectedWorkspace({
                   {variation.height}를 선택하거나 이미지를 다시 선택하세요.
                 </p>
               )}
+              {canUndoMetadata && (
+                <button
+                  type="button"
+                  disabled={locked}
+                  data-testid="undo-metadata"
+                  onClick={() => {
+                    setSinglePlan(undefined);
+                    setQueuePlan(undefined);
+                    setState((previous) =>
+                      previous.draft === metadataUndo.after
+                        ? {
+                            ...previous,
+                            draft: metadataUndo.before,
+                            selectedCharacter:
+                              metadataUndo.characterId ??
+                              previous.selectedCharacter,
+                          }
+                        : previous,
+                    );
+                    if (metadataUndo.characterId !== undefined)
+                      setCharacterEpoch((previous) => previous + 1);
+                    setMetadataUndo(undefined);
+                  }}
+                >
+                  가져오기 되돌리기
+                </button>
+              )}
               <div className="connected-metadata-entry">
                 <button
                   type="button"
@@ -1646,6 +1688,13 @@ export default function ConnectedWorkspace({
         onClose={() => setImportFile(undefined)}
         onApply={(draft, characters) => {
           if (locked) return;
+          setMetadataUndo({
+            before: state.draft,
+            after: draft,
+            characterId: characters ? state.selectedCharacter : undefined,
+            sceneId: state.selectedSceneId,
+            epoch: view.inputEpoch,
+          });
           setSinglePlan(undefined);
           setQueuePlan(undefined);
           setState((previous) => ({
