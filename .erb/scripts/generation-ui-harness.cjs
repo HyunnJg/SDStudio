@@ -528,6 +528,7 @@ app.on('web-contents-created', (_event, contents) => {
           await evaluate('window.electron.generation.queueStatus()')
         ).value.queue;
         assert.equal(reserved.items.length, 6);
+        assert.equal(await evaluate("document.querySelectorAll('[data-queue-scene]:checked').length"), 3);
         assert.equal(new Set(reserved.items.map((i) => i.seed)).size, 6);
         assert.equal(
           await evaluate(
