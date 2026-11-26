@@ -42,14 +42,6 @@ export default function ModelSizeControls({
             model: id === 'nai-diffusion-5-full' ? undefined : id,
             family: v5 ? 'v5' : 'v4.5',
             resolution: legacy ? '512x512' : draft.resolution,
-            qualityTags:
-              v5 && id === 'nai-diffusion-5-full'
-                ? (draft.qualityTags ?? 'standard')
-                : 'none',
-            ucPreset:
-              v5 && id === 'nai-diffusion-5-full'
-                ? (draft.ucPreset ?? 'heavy')
-                : 'none',
           });
           setCustom(false);
         }}

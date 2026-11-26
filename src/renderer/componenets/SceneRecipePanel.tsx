@@ -245,7 +245,12 @@ export default function SceneRecipePanel({
         >
           상황 추가
         </button>
-        <button type="button" disabled={!recipe.name.trim()} onClick={save}>
+        <button
+          data-testid="save-recipe"
+          type="button"
+          disabled={!recipe.name.trim()}
+          onClick={save}
+        >
           조합 저장
         </button>
         <p>

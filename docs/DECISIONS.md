@@ -12,7 +12,7 @@ PR #50 병합본 `39f1a02`에서 작업실 오른쪽에 ‘조합으로 예약�
 
 모델 선택은 V5 Full(High/Medium)·Curated, V4.5 Full·Curated, V4 Full·Curated, V3 Anime·Furry를 포함한다. 11개 해상도 프리셋과 64px 단위 사용자 지정(앱 한도 3,145,728픽셀)을 제공한다. V5 Medium의 14스텝·Euler ancestral·고정 부정 입력을 생성 요청에 반영한다. 이전 V4.5 프로젝트의 512 정사각형은 기존 크기로 연다. 새 모델 필드·확장 크기·조각 모음을 저장할 때 v10을 사용한다. [공식 모델 목록](https://docs.novelai.net/en/image/models/) · [공식 Effort 안내](https://docs.novelai.net/en/image/effort/) · [공식 해상도 공지](https://journal.novelai.net/introducing-nai-smea-higher-image-generation-resolutions-9b0034ffdc4b/)
 
-현재 씬으로 V3 세션 또는 조각 모음 JSON을 가져와 `<모음.조각>`을 쓴다. 다중 조각은 한 줄을 선택한다. `{red|blue}`와 `||rain|snow||`는 대안을 하나 고르고 `{{portrait}}`는 가중치 구문을 보존한다. 단독 `|` 교차는 기존 V3 작업 방식에 남겨 둔다. 예약 시드로 긍정·부정·캐릭터 입력을 전개하며 같은 예약을 다시 검증할 때 본문 해시가 같아야 한다. 프로젝트 씬에는 편집할 원문을, 생성 결과에는 실제 전개된 입력을 보관한다.
+현재 씬으로 V3 세션 또는 조각 모음 JSON을 가져와 `<모음.조각>`을 쓴다. 작업실의 ‘조각 편집’에서도 이름과 내용을 직접 만들거나 바꿀 수 있다. 다중 조각은 한 줄을 선택한다. `{red|blue}`와 `||rain|snow||`는 대안을 하나 고르고 `{{portrait}}`는 가중치 구문을 보존한다. 단독 `|` 교차는 기존 V3 작업 방식에 남겨 둔다. 예약 시드로 긍정·부정·캐릭터 입력을 전개하며 같은 예약을 다시 검증할 때 본문 해시가 같아야 한다. 프로젝트 씬에는 편집할 원문을, 생성 결과에는 실제 전개된 입력을 보관한다.
 
 ## D-071 — V5 변형 원본 한 장과 레퍼런스 한 장 함께 사용
 

@@ -1,6 +1,10 @@
 /* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "either" }] */
 import { useRef, useState } from 'react';
-import { PromptPiece, importPieces } from '../../workspacePromptPieces';
+import {
+  PromptPiece,
+  importPieces,
+  validPieces,
+} from '../../workspacePromptPieces';
 
 export default function PromptPiecePanel({
   pieces,
@@ -13,9 +17,27 @@ export default function PromptPiecePanel({
   onChange: (pieces: PromptPiece[]) => void;
   onInsert: (text: string) => void;
 }) {
-  const request = useRef(0);
-  const [pending, setPending] = useState<PromptPiece[]>([]);
   const [error, setError] = useState('');
+  const request = useRef(0);
+  const empty = { key: '', text: '', multi: false };
+  const [editor, setEditor] = useState<PromptPiece>(empty);
+  const [editing, setEditing] = useState('');
+  const savePiece = () => {
+    const next = editing
+      ? pieces.map((p) => (p.key === editing ? editor : p))
+      : [...pieces, editor];
+    if (
+      !validPieces(next) ||
+      (editing && !pieces.some((p) => p.key === editing))
+    ) {
+      setError('모음.조각 형식의 고유한 이름과 조각 크기를 확인하세요.');
+      return;
+    }
+    onChange(next);
+    setEditing(editor.key);
+    setError('');
+  };
+  const [pending, setPending] = useState<PromptPiece[]>([]);
   return (
     <details className="workspace-pieces">
       <summary>와일드카드·V3 조각 {pieces.length || ''}</summary>
@@ -49,9 +71,12 @@ export default function PromptPiecePanel({
       </label>
       {pending.length > 0 && (
         <button
+          data-testid="apply-piece-import"
           disabled={disabled}
           type="button"
           onClick={() => {
+            setEditor(empty);
+            setEditing('');
             onChange(pending);
             setPending([]);
           }}
@@ -69,6 +94,66 @@ export default function PromptPiecePanel({
           {p.key}
         </button>
       ))}
+      <details>
+        <summary>조각 편집</summary>
+        <fieldset disabled={disabled}>
+          <label>
+            편집할 조각
+            <select
+              value={editing}
+              onChange={(e) => {
+                const piece = pieces.find((p) => p.key === e.target.value);
+                setEditing(piece?.key ?? '');
+                setEditor(piece ?? empty);
+                setError('');
+              }}
+            >
+              <option value="">새 조각</option>
+              {pieces.map((p) => (
+                <option key={p.key}>{p.key}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            모음.조각
+            <input
+              aria-label="조각 이름"
+              maxLength={161}
+              readOnly={!!editing}
+              value={editor.key}
+              onChange={(e) => setEditor({ ...editor, key: e.target.value })}
+            />
+          </label>
+          <label>
+            내용
+            <textarea
+              aria-label="조각 내용"
+              rows={3}
+              maxLength={65536}
+              value={editor.text}
+              onChange={(e) => setEditor({ ...editor, text: e.target.value })}
+            />
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={editor.multi}
+              onChange={(e) =>
+                setEditor({ ...editor, multi: e.target.checked })
+              }
+            />
+            줄마다 후보 한 개
+          </label>
+          <button
+            data-testid="save-scene-piece"
+            type="button"
+            disabled={!editor.key.trim() || !editor.text.trim()}
+            onClick={savePiece}
+          >
+            씬에 조각 적용
+          </button>
+        </fieldset>
+      </details>
       {error && <p role="alert">{error}</p>}
     </details>
   );

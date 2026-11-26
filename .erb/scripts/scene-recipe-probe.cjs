@@ -29,12 +29,35 @@ module.exports = async ({ evaluate, click, fill, until, checks, requests }) => {
     input.files = dt.files; input.dispatchEvent(new Event('change',{bubbles:true}));
   })()`);
   await until(() =>
-    evaluate("!!document.querySelector('.workspace-pieces button')"),
+    evaluate("!!document.querySelector('[data-testid=apply-piece-import]')"),
   );
-  await click('.workspace-pieces button');
-  await fill('#live-prompt', '<art.coat>, {rain|snow}');
+  await click('[data-testid=apply-piece-import]');
+  await click('.workspace-pieces details summary');
+  await fill('[aria-label="조각 이름"]', 'art.weather');
+  await fill('[aria-label="조각 내용"]', '{rain|snow}');
+  await click('[data-testid=save-scene-piece]');
+  await until(() =>
+    evaluate(
+      "document.querySelector('.workspace-pieces select').value==='art.weather'",
+    ),
+  );
+  await fill('#live-prompt', '<art.coat>, <art.weather>');
   await click('[data-testid=scene-recipe] summary');
   await fill('[data-testid=scene-recipe] input', 'Recipe');
+  await click('[data-testid=save-recipe]');
+  await select('[data-testid=scene-recipe] select', ' ');
+  await until(() =>
+    evaluate(
+      "document.querySelector('[data-testid=scene-recipe] input').value===''",
+    ),
+  );
+  await select('[data-testid=scene-recipe] select', 'Recipe');
+  await until(() =>
+    evaluate(
+      "document.querySelector('[data-testid=scene-recipe] input').value==='Recipe'",
+    ),
+  );
+  checks.push('named recipe reloads from profile storage');
   await fill('#live-interval', '0');
   await fill('#live-repeats', '2');
   await click('[data-testid=prepare-recipe]');
