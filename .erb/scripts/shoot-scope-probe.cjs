@@ -69,6 +69,12 @@ module.exports = async ({
     );
     assert.equal(requests(), 0);
     assert.ok(await evaluate("[...document.querySelectorAll('[aria-label=\"선별할 씬\"] option')].some(o=>o.textContent.includes('질투 · 생성 2장 · 선별 0장'))"));
+    assert.ok((await evaluate("window.electron.naiAuth.setToken('synthetic-never-a-real-token',false)")).ok);
+    await click('[data-testid=prepare-unpicked]');
+    await until(() => evaluate("!!document.querySelector('[data-testid=queue-confirm] li')"));
+    assert.ok(await evaluate("[...document.querySelectorAll('[data-testid=queue-confirm] li')].every(row=>row.textContent.includes('질투'))"));
+    await click('[data-testid=queue-confirm] button:last-of-type');
+    assert.equal(requests(), 0);
     checks.push(
       'new process offers only the one missing scene without reselecting or sending',
     );
