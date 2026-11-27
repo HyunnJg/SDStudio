@@ -203,7 +203,7 @@ const electronHandler = {
       ipcRenderer.invoke('workspace-project-restart-storage'),
     list: () => ipcRenderer.invoke('workspace-project-list'),
     listTrash: () => ipcRenderer.invoke('workspace-project-list-trash'),
-    copyLegacyScene: (name, key, withPicks) => ipcRenderer.invoke('workspace-project-copy-legacy-scene', name, key, withPicks),
+    copyLegacyScene: (name, key, withPicks, page) => ipcRenderer.invoke('workspace-project-copy-legacy-scene', name, key, withPicks, page),
     copyLegacyMasks: (name, selected) => ipcRenderer.invoke('workspace-project-copy-legacy-masks', name, selected),
     trashProject: (id) => ipcRenderer.invoke('workspace-project-trash', id),
     purgeProject: (id, confirmed) =>

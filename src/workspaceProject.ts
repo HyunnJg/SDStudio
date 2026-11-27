@@ -127,11 +127,16 @@ export interface ProjectListing {
 }
 export type ProjectReply<T> =
   { ok: true; value: T } | { ok: false; code: ProjectErrorCode };
+export interface LegacyScenePage {
+  number: number;
+  total: number;
+}
 export interface ProjectClient {
   copyLegacyScene(
     name: string,
     key: string,
     withPicks: boolean,
+    page?: LegacyScenePage,
   ): Promise<ProjectReply<ProjectSnapshot>>;
   copyLegacyMasks(
     name: string,

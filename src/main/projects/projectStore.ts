@@ -33,6 +33,7 @@ import type {
   ProjectContent,
   WorkspaceProject,
   ProjectSnapshot,
+  LegacyScenePage,
   ProjectImageInput,
   ProjectListing,
   ResultTrashReport,
@@ -564,9 +565,10 @@ export class ProjectStore {
     name: string,
     key: string,
     withPicks: boolean,
+    page?: LegacyScenePage,
   ): ProjectSnapshot {
     return io(() => {
-      const source = legacyScene(legacyRoot, name, key, withPicks, read);
+      const source = legacyScene(legacyRoot, name, key, withPicks, read, page);
       const root = this.directory([], true);
       projectCheck(
         fs.readdirSync(root).filter((entry) => /^[a-f0-9-]{36}$/.test(entry))
@@ -577,7 +579,9 @@ export class ProjectStore {
       try {
         const stage = new ProjectStore(scratch);
         const content = validateProjectContent({
-          name: `${name} · ${source.name}`.slice(0, 120),
+          name:
+            `${name} · ${source.name}`.slice(0, 120 - source.range.length) +
+            source.range,
           selectedSceneId: source.scenes[0].id,
           scenes: source.scenes,
         });

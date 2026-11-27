@@ -43,10 +43,13 @@ if (phase === 'inpaint') {
   fs.writeFileSync(path.join(vibes,'mask.png'),image);
   const outputs = path.join(profile, 'SDStudio', 'outs', 'MaskCopy', 'Garden');
   fs.mkdirSync(outputs, { recursive:true });
-  fs.writeFileSync(path.join(outputs, 'picked.png'), image);
+  const {fixture} = require('../../src/__tests__/fixtures/nai/metadataPNG.cjs');
+  const picked = fixture({Comment:{prompt:'imported sky',uc:'mist',seed:7}}, {width:64,height:64}).bytes;
+  fs.writeFileSync(path.join(outputs, 'picked.png'), picked);
+  fs.writeFileSync(path.join(outputs, 'second.png'), image);
   fs.writeFileSync(path.join(root, 'MaskCopy.json'), JSON.stringify({
     version:1, name:'MaskCopy', presets:{SDImageGen:[{type:'SDImageGen',name:'Palette',frontPrompt:'blue sky',backPrompt:'day',uc:'fog'}]}, presetShareds:{}, library:{},
-    scenes:{Garden:{name:'Garden',type:'scene',resolution:'portrait',slots:[[{prompt:'sun'},{prompt:'rain'}],[{prompt:'garden'}]],mains:['picked.png']}},
+    scenes:{Garden:{name:'Garden',type:'scene',resolution:'portrait',slots:Array.from({length:3}, (_,s)=>Array.from({length:5}, (_,n)=>({prompt:`slot${s}-${n}`}))),mains:['picked.png','second.png']}},
     inpaints:{Missing:{type:'inpaint',workflowType:'SDInpaint',name:'Missing',resolution:'square',mains:[],imageMap:[],preset:{type:'SDInpaint',image:'source.png',mask:'missing.png'}},Retouch:{type:'inpaint',workflowType:'SDInpaint',name:'Retouch',resolution:'square',mains:[],imageMap:[],
       preset:{type:'SDInpaint',name:'Retouch',prompt:'copied sky',image:'source.png',mask:'mask.png'}}},
   }));

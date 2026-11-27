@@ -134,8 +134,8 @@ export class ProjectService implements ProjectOperations {
     return this.call('list', []);
   }
 
-  copyLegacyScene(root: string, name: string, key: string, withPicks: boolean) {
-    return this.call('copyLegacyScene', [root, name, key, withPicks]);
+  copyLegacyScene(...args: Parameters<ProjectStore['copyLegacyScene']>) {
+    return this.call('copyLegacyScene', args);
   }
 
   copyLegacyMasks(root: string, name: string, selected?: string[]) {

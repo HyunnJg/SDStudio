@@ -7,6 +7,7 @@ import type { LegacyPresetImport } from '../../promptLibrary';
 import { backend, sessionService } from '../models';
 import { inspectPieceImport, validPieces } from '../../workspacePromptPieces';
 import type { PromptPiece } from '../../workspacePromptPieces';
+import type { LegacyScenePage } from '../../workspaceProject';
 import { PROJECT_LIMITS } from '../../workspaceProject';
 import { REFERENCE_LIMITS } from '../../workspaceReference';
 
@@ -96,7 +97,12 @@ export default function LegacyWorkspaceImport({
   onPieces: (value: PromptPiece[]) => void;
   onImage: (file: File) => void;
   onPresets: (value: LegacyPresetImport) => void;
-  onCopyScene: (name: string, key: string, withPicks: boolean) => void;
+  onCopyScene: (
+    name: string,
+    key: string,
+    withPicks: boolean,
+    page: LegacyScenePage,
+  ) => void;
   onCopyMasks: (name: string, selected: string[]) => void;
   onClose: () => void;
   disabled: boolean;
@@ -120,8 +126,19 @@ export default function LegacyWorkspaceImport({
   const modal = useRef<HTMLDialogElement>(null);
   const active = useRef(false);
   const [sceneKey, setSceneKey] = useState('');
+  const [pageInput, setPageInput] = useState('1');
   const [withPicks, setWithPicks] = useState(true);
   const ordinary = session?.scenes.find((s) => s.key === sceneKey);
+  const pageCount =
+    ordinary && Number.isSafeInteger(ordinary.count)
+      ? Math.ceil(ordinary.count / PROJECT_LIMITS.scenes)
+      : 0;
+  const pageNumber = Number(pageInput);
+  const validPage =
+    Number.isSafeInteger(pageNumber) &&
+    pageNumber >= 1 &&
+    pageNumber <= pageCount;
+  const first = (pageNumber - 1) * PROJECT_LIMITS.scenes + 1;
   const [excluded, setExcluded] = useState<string[]>([]);
   const [library, setLibrary] = useState('');
   const [selected, setSelected] = useState('');
@@ -249,6 +266,7 @@ export default function LegacyWorkspaceImport({
                 index.scenes = [];
               }
               setSceneKey('');
+              setPageInput('1');
               setWithPicks(true);
               setSession(index);
               setExcluded([]);
@@ -299,7 +317,11 @@ export default function LegacyWorkspaceImport({
               <select
                 data-testid="legacy-scene-select"
                 value={sceneKey}
-                onChange={(e) => setSceneKey(e.target.value)}
+                onChange={(e) => {
+                  setSceneKey(e.target.value);
+                  setPageInput('1');
+                  setWithPicks(true);
+                }}
               >
                 <option value="">씬 선택</option>
                 {session.scenes.map((s) => (
@@ -311,16 +333,41 @@ export default function LegacyWorkspaceImport({
             </label>
             {ordinary && (
               <p>
-                활성 슬롯 조합 {ordinary.count}개 · 선별 PNG {ordinary.picks}장
+                활성 슬롯 조합{' '}
+                {Number.isSafeInteger(ordinary.count)
+                  ? `${ordinary.count}개`
+                  : '계산 한도 초과'}{' '}
+                · 선별 PNG {ordinary.picks}장
               </p>
             )}
-            {ordinary &&
-              (ordinary.count === 0 ||
-                ordinary.count > PROJECT_LIMITS.scenes) && (
-                <p>
-                  활성 조합이 1~{PROJECT_LIMITS.scenes}개인 씬을 선택하세요.
-                </p>
-              )}
+            {ordinary && pageCount === 0 && <p>활성 후보 수를 확인하세요.</p>}
+            {ordinary && pageCount > 1 && (
+              <label>
+                복사할 묶음 (1~{pageCount})
+                <input
+                  type="number"
+                  min="1"
+                  max={pageCount}
+                  step="1"
+                  data-testid="legacy-scene-page"
+                  value={pageInput}
+                  onChange={(e) => {
+                    setPageInput(e.target.value);
+                    setWithPicks(Number(e.target.value) === 1);
+                  }}
+                />
+                {validPage && (
+                  <span>
+                    조합 {first}~
+                    {Math.min(
+                      ordinary.count,
+                      first - 1 + PROJECT_LIMITS.scenes,
+                    )}
+                    번을 새 프로젝트로 복사합니다.
+                  </span>
+                )}
+              </label>
+            )}
             <label>
               <input
                 type="checkbox"
@@ -339,11 +386,16 @@ export default function LegacyWorkspaceImport({
               data-testid="legacy-copy-scene"
               disabled={
                 !ordinary ||
-                ordinary.count < 1 ||
-                ordinary.count > PROJECT_LIMITS.scenes ||
+                !validPage ||
                 (withPicks && ordinary.picks > PROJECT_LIMITS.results)
               }
-              onClick={() => onCopyScene(session.name, sceneKey, withPicks)}
+              onClick={() =>
+                ordinary &&
+                onCopyScene(session.name, sceneKey, withPicks, {
+                  number: pageNumber,
+                  total: ordinary.count,
+                })
+              }
             >
               일반 씬을 새 프로젝트로 복사
             </button>

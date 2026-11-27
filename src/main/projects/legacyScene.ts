@@ -1,5 +1,6 @@
 /* eslint no-restricted-syntax: off -- Traverse ordered V3 slots and nested references under project limits. */
 import { resolveSize } from '../../workspaceCatalog';
+import type { LegacyScenePage } from '../../workspaceProject';
 import type { ResolutionKey } from '../../workspaceCatalog';
 import { inspectPieceImport, validPieces } from '../../workspacePromptPieces';
 import type { PromptPiece } from '../../workspacePromptPieces';
@@ -57,6 +58,7 @@ export default function legacyScene(
   key: string,
   withPicks: boolean,
   read: ReadFile,
+  page?: LegacyScenePage,
 ) {
   projectCheck(typeof key === 'string' && typeof withPicks === 'boolean');
   const { session, load } = readLegacySession(root, sessionName, read);
@@ -80,7 +82,8 @@ export default function legacyScene(
     projectCheck(false);
   }
 
-  let prompts = [''];
+  const slots: string[][] = [];
+  let total = 1;
   for (const slot of row.slots) {
     projectCheck(Array.isArray(slot));
     const enabled: string[] = [];
@@ -105,24 +108,41 @@ export default function legacyScene(
       }
     }
     projectCheck(enabled.length > 0, 'PROJECT_LEGACY_SCENE');
-    projectCheck(
-      prompts.length * enabled.length <= PROJECT_LIMITS.scenes,
-      'PROJECT_LIMIT',
-    );
-    prompts = prompts.flatMap((prefix) =>
-      enabled.map((t) => [prefix, t].filter(Boolean).join(', ')),
-    );
-    projectCheck(
-      prompts.every((p) => p.length <= 65536) &&
-        prompts.reduce((n, p) => n + p.length, 0) <= PROJECT_LIMITS.jsonBytes,
-      'PROJECT_LIMIT',
-    );
+    total *= enabled.length;
+    projectCheck(Number.isSafeInteger(total), 'PROJECT_LIMIT');
+    slots.push(enabled);
   }
-  const scenes: WorkspaceScene[] = prompts.map((prompt, i) => {
+  if (page === undefined)
+    projectCheck(total <= PROJECT_LIMITS.scenes, 'PROJECT_LIMIT');
+  else {
+    projectCheck(page && Number.isSafeInteger(page.number) && page.number >= 1);
+    projectCheck(page.total === total, 'PROJECT_CONFLICT');
+    projectCheck(page.number <= Math.ceil(total / PROJECT_LIMITS.scenes));
+  }
+  const start = ((page?.number ?? 1) - 1) * PROJECT_LIMITS.scenes;
+  const length = Math.min(PROJECT_LIMITS.scenes, total - start);
+  const range =
+    total > PROJECT_LIMITS.scenes ? ` · ${start + 1}–${start + length}` : '';
+  let textLength = 0;
+  const scenes: WorkspaceScene[] = Array.from({ length }, (_, i) => {
+    // V3 DFS advances the last slot first. Calculate just this ordinal's choices.
+    let ordinal = start + i;
+    const parts = new Array<string>(slots.length);
+    let promptLength = 0;
+    for (let s = slots.length - 1; s >= 0; s -= 1) {
+      const slot = slots[s];
+      parts[s] = slot[ordinal % slot.length];
+      ordinal = Math.floor(ordinal / slot.length);
+      if (parts[s]) promptLength += parts[s].length + (promptLength ? 2 : 0);
+      projectCheck(promptLength <= 65536, 'PROJECT_LIMIT');
+    }
+    textLength += promptLength;
+    projectCheck(textLength <= PROJECT_LIMITS.jsonBytes, 'PROJECT_LIMIT');
+    const prompt = parts.filter(Boolean).join(', ');
     const pieces = referencedPieces(prompt, session.library);
-    const suffix = i === 0 ? '' : ` · ${i + 1}`;
+    const suffix = start + i === 0 ? '' : ` · ${start + i + 1}`;
     return {
-      id: `scene-${i + 1}`,
+      id: `scene-${start + i + 1}`,
       name: name.slice(0, 120 - suffix.length) + suffix,
       draft: {
         family: 'v4.5',
@@ -156,5 +176,5 @@ export default function legacyScene(
         load(['outs', sessionName, name, filename], 32 * 1024 * 1024),
     };
   });
-  return { name, scenes, picks };
+  return { name, scenes, picks, range };
 }

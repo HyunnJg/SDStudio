@@ -781,4 +781,55 @@ test('V3 ordinary scene copies active combinations and original picked PNGs with
       code,
     });
   }
+  const slots = Array.from({ length: 3 }, (_, s) =>
+    Array.from({ length: 5 }, (_, n) => ({ prompt: `${s}-${n}` })),
+  );
+  fs.writeFileSync(
+    file,
+    JSON.stringify({ scenes: { sky: { ...scene, slots } } }),
+  );
+  const allPrompts = [];
+  for (const number of [1, 2, 3]) {
+    const page = await worker.copyLegacyScene(
+      root,
+      'Book',
+      'sky',
+      number === 1,
+      { number, total: 125 },
+    );
+    assert.deepEqual(f.store.open(page.project.id), page);
+    assert.equal(page.project.images.length, number === 1 ? 1 : 0);
+    assert.match(
+      page.project.name,
+      new RegExp(`${(number - 1) * 60 + 1}–${Math.min(number * 60, 125)}$`),
+    );
+    allPrompts.push(...page.project.scenes.map((s) => s.draft.prompt));
+  }
+  const expected = slots[0].flatMap((a) =>
+    slots[1].flatMap((b) =>
+      slots[2].map((c) => [a.prompt, b.prompt, c.prompt].join(', ')),
+    ),
+  );
+  assert.deepEqual(allPrompts, expected);
+  for (const number of [0, -1, 1.5, 4, Number.MAX_SAFE_INTEGER + 1]) {
+    await assert.rejects(
+      worker.copyLegacyScene(root, 'Book', 'sky', false, {
+        number,
+        total: 125,
+      }),
+      { code: 'PROJECT_INPUT' },
+    );
+  }
+  await assert.rejects(
+    worker.copyLegacyScene(root, 'Book', 'sky', false, {
+      number: 1,
+      total: 124,
+    }),
+    { code: 'PROJECT_CONFLICT' },
+  );
+  // The first-newline rule is the original V3 toPARR behavior for multi-line slots.
+  fs.writeFileSync(file, JSON.stringify({scenes:{sky:{...scene,slots:[[{prompt:'a\nb\nc'}]]}}}));
+  const multiline = await worker.copyLegacyScene(root,'Book','sky',false);
+  assert.equal(multiline.project.scenes[0].draft.prompt, 'a, b\nc');
+
 });

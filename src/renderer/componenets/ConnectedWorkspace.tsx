@@ -2049,9 +2049,9 @@ export default function ConnectedWorkspace({
             setLegacyImport(false);
             setLibraryRequest({kind:'main', legacy});
           }}
-          onCopyScene={(name, key, withPicks) => {
+          onCopyScene={(name, key, withPicks, page) => {
             setLegacyImport(false);
-            void project.copyLegacyScene(name, key, withPicks);
+            void project.copyLegacyScene(name, key, withPicks, page);
           }}
           onCopyMasks={(name, selectedMasks) => {
             setLegacyImport(false);

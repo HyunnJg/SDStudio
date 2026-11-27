@@ -4,6 +4,7 @@ import {
   PROJECT_LIMITS,
 } from '../../workspaceProject';
 import type {
+  LegacyScenePage,
   ProjectClient,
   ProjectContent,
   ProjectSnapshot,
@@ -67,6 +68,7 @@ export interface ProjectView {
   lastTrashedProject?: ProjectListing;
   operation: string;
   message: string;
+  legacyCopyNotice?: string;
   error?: ProjectErrorCode;
   panel: boolean;
   projects: ProjectListing[];
@@ -159,7 +161,11 @@ export class ProjectController {
       });
       return false;
     }
-    this.update({ operation: label, error: undefined });
+    this.update({
+      operation: label,
+      error: undefined,
+      legacyCopyNotice: undefined,
+    });
     try {
       await action();
       return true;
@@ -196,6 +202,7 @@ export class ProjectController {
         ),
       ),
       baseline,
+      legacyCopyNotice: undefined,
       message:
         '입력·씬 저장됨 · 기존 PNG 기록 유지 · 대기열은 저장하지 않습니다.',
       error: undefined,
@@ -424,14 +431,20 @@ export class ProjectController {
     });
   }
 
-  async copyLegacyScene(name: string, key: string, withPicks: boolean) {
+  async copyLegacyScene(
+    name: string,
+    key: string,
+    withPicks: boolean,
+    page?: LegacyScenePage,
+  ) {
     return this.guard('V3 일반 씬을 새 프로젝트로 복사', async () => {
       await this.execute('슬롯 조합과 선별 PNG 복사 중', async () => {
         const snapshot = unwrap(
-          await this.client().copyLegacyScene(name, key, withPicks),
+          await this.client().copyLegacyScene(name, key, withPicks, page),
         );
         await this.replace(snapshot);
         this.update({
+          legacyCopyNotice: `공통 프리셋은 별도로 적용하세요. 복사한 씬의 부정 프롬프트는 비어 있습니다.`,
           message: `슬롯 조합 ${snapshot.project.scenes.length}개와 선별 PNG ${snapshot.project.images.length}장을 복사했습니다.`,
         });
       });
