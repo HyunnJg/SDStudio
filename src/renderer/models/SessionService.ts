@@ -25,7 +25,7 @@ const SESSION_SERVICE_INTERVAL = 5000;
 
 export class SessionService extends ResourceSyncService<Session> {
   constructor() {
-    super('projects', SESSION_SERVICE_INTERVAL);
+    super('projects', SESSION_SERVICE_INTERVAL, Session.fromJSON);
   }
 
   async getHook(rc: Session, name: string) {

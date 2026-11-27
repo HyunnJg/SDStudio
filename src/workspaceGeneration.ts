@@ -112,7 +112,7 @@ export interface GenerationClient {
     sceneId: string,
     purpose?: ImagePurpose,
   ): Promise<GenerationReply<Uint8Array>>;
-  status(): Promise<GenerationReply<{ active: boolean; pending: boolean }>>;
+  status(): Promise<GenerationReply<{ active: boolean; pending: boolean; interruption?: string }>>;
   prepare(
     id: string,
     revision: string,

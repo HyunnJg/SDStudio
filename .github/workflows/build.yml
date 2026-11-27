@@ -60,3 +60,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - name: Verify packaged notices
         run: node .erb/scripts/check-package-notices.cjs release/build/${{ runner.os == 'Windows' && 'win-unpacked' || 'linux-unpacked' }}
+      - name: Check per-user install and in-place update from the V3 migration baseline
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./.erb/scripts/windows-update-check.ps1

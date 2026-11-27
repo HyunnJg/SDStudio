@@ -170,7 +170,11 @@ export default function LegacyWorkspaceImport({
       .then((text) => {
         const saved = readImportIndex(savedName, JSON.parse(text));
         if (live) {
-          setExcluded([]);
+          setExcluded((previous) =>
+            previous.filter((key) =>
+              saved.maskScenes.some((scene) => scene.key === key),
+            ),
+          );
           setSession((previous) =>
             previous?.name === savedName
               ? {

@@ -133,6 +133,11 @@ const server = http.createServer(async (request, response) => {
       .digest('hex');
   const parsed = JSON.parse(body);
   sentSteps.push(parsed.parameters.steps);
+  if (phase === 'scope-start') {
+    response.writeHead(200, { 'Content-Type':'application/zip' });
+    response.end(await payload);
+    return;
+  }
   if (phase === 'inpaint') {
     assert.equal(parsed.model,'nai-diffusion-3-inpainting');
     assert.equal(parsed.action,'infill');
@@ -327,7 +332,9 @@ app.on('web-contents-created', (_event, contents) => {
       await evaluate("(()=>{window.__flowMessages=[];const node=document.querySelector('[data-testid=generation-status]');new MutationObserver(()=>{if(node.textContent.trim())window.__flowMessages.push(node.textContent.trim())}).observe(node,{childList:true,characterData:true,subtree:true})})()");
       if (process.env.SDSTUDIO_RUNTIME_REPORT && phase === 'create')
         await require('./runtime-ui-probe.cjs')(contents, profile);
-      if (phase === 'legacy-writer') {
+      if (phase === 'scope-start' || phase === 'scope-open') {
+        await require('./shoot-scope-probe.cjs')({phase,evaluate,click,fill,until,checks,requests:()=>requests});
+      } else if (phase === 'legacy-writer') {
         await require('./legacy-writer-ui-probe.cjs')({contents,evaluate,click,fill,until,checks,profile});
       } else if (phase === 'inpaint') {
         await require('./inpaint-ui-probe.cjs')({contents,evaluate,click,fill,until,checks,requestCount:()=>requests});

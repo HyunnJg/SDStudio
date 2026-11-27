@@ -158,6 +158,7 @@ export default function ConnectedWorkspace({
   const revisionRef = useRef(view.revision);
   revisionRef.current = view.revision;
   const [discardConfirmed, setDiscardConfirmed] = useState(false);
+  const [interruption, setInterruption] = useState<string>();
   const [pending, setPending] = useState(false);
   const [storageStopped, setStorageStopped] = useState(false);
   const [active, setActive] = useState(false);
@@ -328,7 +329,23 @@ export default function ConnectedWorkspace({
     }
   }, [singlePlan, mobilePane]);
   useEffect(() => {
-    setSceneIds([]);
+    let restored: string[] = [];
+    try {
+      const ids =
+        view.id &&
+        JSON.parse(
+          localStorage.getItem(`workspace.lastShoot.${view.id}`) ?? '[]',
+        );
+      if (
+        Array.isArray(ids) &&
+        ids.length <= PROJECT_LIMITS.scenes &&
+        ids.every((id) => typeof id === 'string')
+      )
+        restored = ids;
+    } catch {
+      /* An unavailable or outdated preference leaves manual selection available. */
+    }
+    setSceneIds(restored);
   }, [view.id]);
   useEffect(() => {
     setSceneIds((previous) => availableQueueSceneIds(previous, state.scenes));
@@ -361,6 +378,7 @@ export default function ConnectedWorkspace({
           }
         }
         if (alive && epoch === generationEpoch.current) {
+          setInterruption(status.interruption);
           setPending(status.pending || queueOutcome(queued.queue).pending);
           setActive(status.active || !!queued.queue?.running);
         }
@@ -636,7 +654,18 @@ export default function ConnectedWorkspace({
     setPhase('run');
     setMessage('');
     try {
-      accept(unwrap(await client.retrySave(asNewProject)), asNewProject);
+      const result = unwrap(await client.retrySave(asNewProject));
+      if (
+        !asNewProject &&
+        project.getSnapshot().id !== result.snapshot.project.id
+      ) {
+        setPending(false);
+        setMessage(
+          `‘${result.snapshot.project.name}’ 프로젝트에 복구한 결과를 저장했습니다.`,
+        );
+      } else {
+        accept(result, asNewProject);
+      }
     } catch (error) {
       setStorageStopped(
         (error as GenerationFailure).projectCode === 'PROJECT_SERVICE_STOPPED',
@@ -737,7 +766,21 @@ export default function ConnectedWorkspace({
     generationEpoch.current += 1;
     setPhase('queue-run');
     setMessage('');
-    const { ticket } = queuePlan!;
+    const { ticket, items } = queuePlan!;
+    const scope = [...new Set(items.map((item) => item.sceneId))];
+    if (view.id) {
+      try {
+        const ids = scope.every((id) => availableSceneIds.includes(id))
+          ? availableSceneIds
+          : scope;
+        localStorage.setItem(
+          `workspace.lastShoot.${view.id}`,
+          JSON.stringify(ids),
+        );
+      } catch {
+        /* Generation can proceed when profile preferences are unavailable. */
+      }
+    }
     setQueuePlan(undefined);
     try {
       acceptQueue(unwrap(await client.runQueue(ticket, true)));
@@ -1666,6 +1709,27 @@ export default function ConnectedWorkspace({
                 </button>
               </section>
             )}
+            {interruption && (
+              <section role="alert">
+                <p>
+                  {interruption} 재시작 후 자동으로 재전송한 요청은 없습니다.
+                </p>
+                <button
+                  type="button"
+                  disabled={!!phase || active}
+                  onClick={async () => {
+                    try {
+                      unwrap(await client.discardPending());
+                      setInterruption(undefined);
+                    } catch (error) {
+                      setMessage(generationMessage(error, sceneNames.current));
+                    }
+                  }}
+                >
+                  이전 요청 기록 지우기
+                </button>
+              </section>
+            )}
             {pending && (
               <section role="alert">
                 <p>
@@ -1765,7 +1829,9 @@ export default function ConnectedWorkspace({
           </div>
           {result && (
             <p className="connected-image-caption" data-testid="generated-seed">
-              {result.origin ? `V3 선별 · ${result.sourceScene} · ${result.filename}` : `${MODELS[modelId(result.draft)]} · 시드 ${result.seed}`}
+              {result.origin
+                ? `V3 선별 · ${result.sourceScene} · ${result.filename}`
+                : `${MODELS[modelId(result.draft)]} · 시드 ${result.seed}`}
             </p>
           )}
         </section>
@@ -1849,7 +1915,9 @@ export default function ConnectedWorkspace({
                   : s,
               )}
               disabled={locked}
-              canPrepare={!runtimeOptions.offline && intervalValid}
+              canPrepare={
+                !interruption && !runtimeOptions.offline && intervalValid
+              }
               onCreate={(scenes) => {
                 const existing = project.content().scenes;
                 const chosenIds = new Set<string>();
@@ -1890,7 +1958,9 @@ export default function ConnectedWorkspace({
               }}
               queue={queue?.projectId === view.id ? queue : undefined}
               disabled={locked}
-              canPrepare={!runtimeOptions.offline && intervalValid}
+              canPrepare={
+                !interruption && !runtimeOptions.offline && intervalValid
+              }
               running={!!queue?.running}
               canResume={
                 queue?.projectId === view.id &&
@@ -1941,7 +2011,10 @@ export default function ConnectedWorkspace({
                 key={view.id}
                 queueSceneIds={availableSceneIds}
                 onPrepareMissing={
-                  locked || runtimeOptions.offline || !intervalValid
+                  locked ||
+                  interruption ||
+                  runtimeOptions.offline ||
+                  !intervalValid
                     ? undefined
                     : (ids) => void prepareQueue(false, ids)
                 }
@@ -2047,7 +2120,7 @@ export default function ConnectedWorkspace({
           onImage={receiveImage}
           onPresets={(legacy) => {
             setLegacyImport(false);
-            setLibraryRequest({kind:'main', legacy});
+            setLibraryRequest({ kind: 'main', legacy });
           }}
           onCopyScene={(name, key, withPicks, page) => {
             setLegacyImport(false);
@@ -2183,6 +2256,7 @@ export default function ConnectedWorkspace({
           data-testid="prepare-generation"
           disabled={
             locked ||
+            !!interruption ||
             runtimeOptions.offline ||
             characterOverflow ||
             mismatchedVariation ||

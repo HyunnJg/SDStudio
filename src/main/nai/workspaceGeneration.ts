@@ -28,6 +28,8 @@ import type { ReferenceAsset, ImagePurpose } from '../../workspaceReference';
 import type { ProjectService } from '../projects/projectService';
 import { NaiError } from './errors';
 import { bindBasicGeneration } from './workspaceBinding';
+import { GenerationJournal } from './generationJournal';
+import type { Pending, RequestRecord } from './generationJournal';
 import { draftSize } from '../../workspaceCatalog';
 
 export class GenerationError extends Error {
@@ -58,15 +60,6 @@ interface Prepared {
   body: Uint8Array;
   expires: number;
 }
-interface Pending {
-  content: ProjectContent;
-  imageId: string;
-  id: string;
-  revision: string;
-  input: ProjectImageInput;
-  bytes: Uint8Array;
-  queueItemId?: string;
-}
 interface Reservation {
   state: GenerationQueueState;
   tasks: (Omit<Prepared, 'body'> & {
@@ -75,6 +68,7 @@ interface Reservation {
 }
 
 interface Options {
+  journal?: GenerationJournal;
   store: Pick<
     ProjectService,
     'readManifest' | 'image' | 'addPNG' | 'generationSnapshot' | 'create'
@@ -93,6 +87,8 @@ export class WorkspaceGeneration {
   private prepared?: Prepared;
 
   private pending?: Pending;
+
+  private interruption?: string;
 
   private queue?: Reservation;
 
@@ -114,10 +110,27 @@ export class WorkspaceGeneration {
 
   constructor(options: Options) {
     this.options = options;
+    try {
+      const saved = options.journal?.read();
+      if (saved?.bytes) this.pending = { ...saved.record, bytes: saved.bytes };
+      else if (saved) {
+        const { content, input } = saved.record;
+        const name =
+          content.scenes.find((scene) => scene.id === input.sceneId)?.name ??
+          input.sceneId;
+        this.interruption = `‘${content.name} / ${name}’ (시드 ${input.seed}) 요청의 응답을 확인하지 못했습니다.`;
+      }
+    } catch {
+      this.interruption = '이전 생성 복구 기록을 읽을 수 없습니다.';
+    }
   }
 
   status() {
-    return { active: this.working, pending: !!this.pending };
+    return {
+      active: this.working,
+      pending: !!this.pending,
+      ...(this.interruption && { interruption: this.interruption }),
+    };
   }
 
   hasWork() {
@@ -148,7 +161,8 @@ export class WorkspaceGeneration {
   }
 
   private idle() {
-    if (this.hasWork()) throw new GenerationError('GENERATION_BUSY');
+    if (this.interruption || this.hasWork())
+      throw new GenerationError('GENERATION_BUSY');
   }
 
   async importReference(
@@ -359,14 +373,7 @@ export class WorkspaceGeneration {
         this.queue!.state.items.find(
           (item) => item.id === queueItemId,
         )!.status = 'running';
-      transportStarted = true;
-      let bytes: Uint8Array;
-      try {
-        bytes = await this.options.sendImage(p.body, controller.signal);
-      } finally {
-        this.lastRequestFinished = performance.now();
-      }
-      this.pending = {
+      const record: RequestRecord = {
         content: {
           name: current.project.name,
           selectedSceneId: p.input.sceneId,
@@ -376,15 +383,28 @@ export class WorkspaceGeneration {
         id: p.id,
         revision: p.revision,
         input: p.input,
-        bytes: Uint8Array.from(bytes),
-        queueItemId,
       };
+      try {
+        this.options.journal?.write(record);
+      } catch {
+        throw new ProjectError('PROJECT_IO');
+      }
+      transportStarted = true;
+      let bytes: Uint8Array;
+      try {
+        bytes = await this.options.sendImage(p.body, controller.signal);
+      } finally {
+        this.lastRequestFinished = performance.now();
+      }
+      this.pending = { ...record, bytes: Uint8Array.from(bytes), queueItemId };
+      this.options.journal?.write(record, bytes);
       // Queue results append to the latest manifest without replacing its input. A race still fails closed into pending.
       const revision = queueItemId
         ? (await this.options.store.readManifest(p.id)).revision
         : p.revision;
       return await this.persist(revision);
     } catch (error) {
+      if (transportStarted && !this.pending) this.options.journal?.clear();
       if (this.pending && !(error instanceof GenerationError))
         throw new GenerationError(
           'RESULT_SAVE_FAILED',
@@ -410,6 +430,7 @@ export class WorkspaceGeneration {
   }
 
   private saved(result: GeneratedProject) {
+    this.options.journal?.clear();
     const itemId = this.pending?.queueItemId;
     if (itemId && this.queue) {
       if (result.snapshot.project.id !== this.queue.state.projectId) {
@@ -460,24 +481,17 @@ export class WorkspaceGeneration {
       throw new GenerationError('GENERATION_BUSY');
     this.working = true;
     try {
-      if (asNewProject === true) {
-        const next = await this.options.store.create(
-          {
-            ...this.pending.content,
-            name: `${this.pending.content.name.slice(0, 105)} (이번 결과)`,
-          },
-          this.pending.id,
-        );
-        this.pending.id = next.project.id;
-        this.pending.revision = next.revision;
-        return await this.persist(next.revision);
-      }
-      const snapshot = await this.options.store.readManifest(this.pending.id);
+      const snapshot = await Promise.resolve()
+        .then(() => this.options.store.readManifest(this.pending!.id))
+        .catch((error) => {
+          if (!asNewProject) throw error;
+          return undefined;
+        });
       // An ambiguous prior write may already contain this result. Do not append twice.
-      const existing = snapshot.project.images.find(
+      const existing = snapshot?.project.images.find(
         (i) => i.id === this.pending!.imageId,
       );
-      if (existing) {
+      if (snapshot && existing) {
         if (
           existing.sha256 !==
           createHash('sha256').update(this.pending.bytes).digest('hex')
@@ -486,6 +500,23 @@ export class WorkspaceGeneration {
         await this.options.store.image(this.pending.id, existing.id); // Validate only this already-committed result before releasing the retained PNG.
         return this.saved({ snapshot, imageId: existing.id });
       }
+      if (asNewProject === true) {
+        const next = await this.options.store.create(
+          {
+            ...this.pending.content,
+            name: `${this.pending.content.name.slice(0, 105)} (이번 결과)`,
+          },
+          this.pending.id,
+        );
+        this.options.journal?.write(
+          { ...this.pending, id: next.project.id, revision: next.revision },
+          this.pending.bytes,
+        );
+        this.pending.id = next.project.id;
+        this.pending.revision = next.revision;
+        return await this.persist(next.revision);
+      }
+      if (!snapshot) throw new ProjectError('PROJECT_NOT_FOUND');
       return await this.persist(snapshot.revision);
     } catch (error) {
       if (error instanceof GenerationError) throw error;
@@ -971,6 +1002,8 @@ export class WorkspaceGeneration {
 
   discardPending() {
     if (this.working) throw new GenerationError('GENERATION_BUSY');
+    this.options.journal?.clear();
+    this.interruption = undefined;
     const item = this.queue?.state.items.find(
       (i) => i.id === this.pending?.queueItemId,
     );

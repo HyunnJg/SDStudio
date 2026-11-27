@@ -70,6 +70,7 @@ module.exports = async ({
     until(() =>
       evaluate(`!!document.querySelector(${JSON.stringify(selector)})`),
     );
+  assert.equal(fs.existsSync(path.join(root,'vibes','dummy')), false);
   await click('[data-testid=open-legacy]');
   await ready('button.icon-button.nback-sky.mx-1');
   await click('button.icon-button.nback-sky.mx-1');
@@ -207,7 +208,14 @@ module.exports = async ({
     prompt: 'garden',
   });
   await selectSource();
-  await click('[data-testid=legacy-copy-masks]');
+  const maskChoice = '[data-testid=legacy-copy-masks]';
+  const toggleMask = "document.querySelector('[data-testid=legacy-copy-masks]').closest('fieldset').querySelector('input[type=checkbox]')";
+  await evaluate(toggleMask + '.click()');
+  await new Promise(resolve => setTimeout(resolve, 5500));
+  assert.equal(await evaluate(toggleMask + '.checked'), false);
+  await evaluate(toggleMask + '.click()');
+  checks.push('current V3 mask exclusion survives a full session list refresh');
+  await click(maskChoice);
   await button('마스크 다시 편집');
   await until(() =>
     evaluate(

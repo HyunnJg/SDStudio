@@ -19,6 +19,7 @@ import { PROVIDERS } from '../recipeAssistant';
 import type { Provider } from '../recipeAssistant';
 import registerGeminiCuts from './geminiCuts';
 import { registerNaiAuth, isTrustedAuthFrame } from './nai/authIpc';
+import { GenerationJournal } from './nai/generationJournal';
 import { WorkspaceGeneration } from './nai/workspaceGeneration';
 import { registerGeneration } from './nai/generationIpc';
 import { createNaiTransport } from './nai/electronTransport';
@@ -1013,7 +1014,7 @@ if (!gotTheLock) {
         event => isTrustedAuthFrame(event, mainWindow?.webContents, resolveHtmlPath('index.html')));
       const generationTransport = createNaiTransport(tokenStore, () => runtimeOptions.offline,
         firstGenerationObserver(app.getPath('userData')));
-      workspaceGeneration = new WorkspaceGeneration({ store: projectService, offline: () => runtimeOptions.offline,
+      workspaceGeneration = new WorkspaceGeneration({ store: projectService, journal: new GenerationJournal(app.getPath('userData')), offline: () => runtimeOptions.offline,
         sendImage: (bytes, signal) => generationTransport.sendImage(bytes, signal) });
       registerGeneration(ipcMain, workspaceGeneration, (event) => isTrustedAuthFrame(event, mainWindow?.webContents, resolveHtmlPath('index.html')));
       app.on('will-quit', () => workspaceGeneration?.cancel());
