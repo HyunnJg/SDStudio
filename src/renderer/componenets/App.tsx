@@ -28,7 +28,7 @@ import {
 } from '../preview/workspaceDraft';
 import { WorkspaceQueue } from '../preview/workspaceQueue';
 import ConnectedWorkspace from './ConnectedWorkspace';
-import { createConnectedWorkspaceState } from '../generation/connectedDraft';
+import { createEmptyWorkspace } from '../generation/connectedDraft';
 import { MockBackend } from '../backends/mockBackend';
 
 import { configure } from 'mobx';
@@ -42,7 +42,7 @@ export const App = observer(() => {
   const [authOpen, setAuthOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(true);
   const [legacyTool, setLegacyTool] = useState<'session' | 'inpaint' | 'pieces'>('session');
-  const freshWorkspace = () => runtimeOptions.mockBackend ? createWorkspaceState() : createConnectedWorkspaceState();
+  const freshWorkspace = runtimeOptions.mockBackend ? createWorkspaceState : createEmptyWorkspace;
   const [workspace, setWorkspace] = useState(freshWorkspace);
   const nextPreviewResult = useRef(1);
   const recordPreviewResult = (

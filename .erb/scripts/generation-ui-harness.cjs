@@ -323,6 +323,24 @@ app.on('web-contents-created', (_event, contents) => {
         evaluate("!!document.querySelector('[data-testid=connected-workspace]')"),
       );
       checks.push('new workspace is the default startup without a legacy screen detour');
+      assert.deepEqual(await evaluate("[document.querySelector('#live-scene').length, document.querySelector('#live-prompt').value]"), [1, '']);
+      if (['queue', 'queue-errors'].includes(phase)) {
+        const seed = await evaluate(`window.electron.projects.create({
+          name: 'Synthetic queue', selectedSceneId: 'scene-1',
+          scenes: [1,2,3].map(n => ({
+            id: 'scene-' + n, name: 'Shot ' + n,
+            draft: {family:'v5',prompt:'synthetic subject ' + n,negativePrompt:'',characters:[],
+              placement:'auto',resolution:'portrait',seedMode:'random',seed:'0',steps:'23',guidance:'7',
+              qualityTags:'standard',ucPreset:'heavy'}
+          }))
+        })`);
+        assert.ok(seed.ok);
+        const selector = '[data-project-open="' + seed.value.project.id + '"]';
+        await click('[data-testid=project-list]');
+        await until(() => evaluate(`!!document.querySelector(${JSON.stringify(selector)})`));
+        await click(selector);
+        await until(() => evaluate("document.querySelector('#live-scene').length === 3"));
+      }
       await until(() =>
         evaluate(
           "!!document.querySelector('[data-testid=connected-workspace]')",
@@ -566,7 +584,7 @@ app.on('web-contents-created', (_event, contents) => {
         );
         const window = BrowserWindow.fromWebContents(contents);
         window.setMinimumSize(360, 500);
-        window.setSize(390, 844);
+        window.setContentSize(390, 844);
         await until(() => evaluate('innerWidth===390'));
         assert.equal(
           await evaluate('document.documentElement.scrollWidth<=innerWidth'),

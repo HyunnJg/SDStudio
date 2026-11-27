@@ -16,12 +16,16 @@ module.exports = async ({
         )
       ).ok,
     );
-    await evaluate(
-      "document.querySelectorAll('[data-queue-scene]').forEach(c=>c.click())",
-    );
+    await fill('#live-prompt', 'synthetic portrait');
     await fill('#live-interval', '0');
     await fill('#live-repeats', '2');
-    await click('[data-testid=prepare-live-queue]');
+    await click('[data-testid=scene-recipe] summary');
+    await click('[data-testid=emotion-cuts] summary');
+    for (const name of ['기쁨', '슬픔', '질투']) {
+      await evaluate(`[...document.querySelectorAll('[data-testid=emotion-cuts] label')].find(label => label.textContent.includes(${JSON.stringify(name)})).querySelector('input').click()`);
+    }
+    await click('[data-testid=emotion-cuts] button');
+    await click('[data-testid=prepare-recipe]');
     await until(() =>
       evaluate("!!document.querySelector('[data-testid=send-live-queue]')"),
     );
@@ -34,7 +38,10 @@ module.exports = async ({
     const picks = await evaluate(`(async()=>{
       const api=window.electron.projects, id=(await api.list()).value[0].id;
       const {project,revision}=(await api.open(id)).value;
-      const ids=project.scenes.slice(0,2).map(s=>project.images.find(i=>i.sceneId===s.id).id);
+      const ids=['기쁨','슬픔'].map(name=>{
+        const scene=project.scenes.find(s=>s.name.endsWith(name));
+        return project.images.find(i=>i.sceneId===scene.id).id;
+      });
       return api.setResultPicks(id,revision,ids,true);
     })()`);
     assert.ok(picks.ok);
@@ -61,6 +68,7 @@ module.exports = async ({
       ),
     );
     assert.equal(requests(), 0);
+    assert.ok(await evaluate("[...document.querySelectorAll('[aria-label=\"선별할 씬\"] option')].some(o=>o.textContent.includes('질투 · 생성 2장 · 선별 0장'))"));
     checks.push(
       'new process offers only the one missing scene without reselecting or sending',
     );

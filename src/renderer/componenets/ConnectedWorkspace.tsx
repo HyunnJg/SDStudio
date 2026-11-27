@@ -1713,6 +1713,8 @@ export default function ConnectedWorkspace({
               <section role="alert">
                 <p>
                   {interruption} 재시작 후 자동으로 재전송한 요청은 없습니다.
+                  이전 요청이 처리됐을 수 있습니다. 같은 컷을 다시 생성하면
+                  Anlas가 추가로 들 수 있으니 잔액을 확인한 뒤 결정하세요.
                 </p>
                 <button
                   type="button"

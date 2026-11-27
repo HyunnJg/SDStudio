@@ -1,4 +1,3 @@
-/* eslint import/prefer-default-export: off */
 import { createWorkspaceState } from '../preview/workspaceDraft';
 
 export function createConnectedWorkspaceState(family: 'v4.5' | 'v5' = 'v5') {
@@ -20,4 +19,11 @@ export function createConnectedWorkspaceState(family: 'v4.5' | 'v5' = 'v5') {
   state.draft = structuredClone(state.scenes[0].draft);
   state.selectedCharacter = '';
   return state;
+}
+
+export function createEmptyWorkspace() {
+  const state = createConnectedWorkspaceState();
+  const draft = { ...state.draft, prompt: '', negativePrompt: '' };
+  const scene = { id: state.selectedSceneId, name: '씬 1', draft };
+  return { ...state, scenes: [scene], draft: structuredClone(draft) };
 }

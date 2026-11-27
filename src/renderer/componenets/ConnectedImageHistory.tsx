@@ -207,7 +207,16 @@ export default function ConnectedImageHistory({
         : [],
     ),
   );
-  const sceneIds = [...new Set(images.map((image) => image.sceneId))];
+  const sceneIds = [
+    ...new Set([...queueSceneIds, ...images.map((image) => image.sceneId)]),
+  ];
+  const counts = new Map<string, { total: number; picked: number }>();
+  images.forEach((image) => {
+    const tally = counts.get(image.sceneId) ?? { total: 0, picked: 0 };
+    tally.total += 1;
+    if (picks?.has(image.id)) tally.picked += 1;
+    counts.set(image.sceneId, tally);
+  });
   const scoped =
     selecting && scene ? images.filter((i) => i.sceneId === scene) : images;
   const ids = scoped.filter((i) => picks?.has(i.id)).map((i) => i.id);
@@ -310,7 +319,7 @@ export default function ConnectedImageHistory({
           </button>
           {selecting && (
             <>
-              {sceneIds.length > 1 || scene ? (
+              {sceneIds.length || scene ? (
                 <select
                   aria-label="선별할 씬"
                   value={scene}
@@ -324,6 +333,7 @@ export default function ConnectedImageHistory({
                         {scenes.find((item) => item.id === id)?.name ??
                           sourceNames.get(id) ??
                           `이전 씬 (${id})`}
+                        {` · 생성 ${counts.get(id)?.total ?? 0}장 · 선별 ${counts.get(id)?.picked ?? 0}장`}
                       </option>
                     ),
                   )}

@@ -8,6 +8,7 @@ import type { WorkspaceScene } from '../preview/workspaceDraft';
 import {
   blankRecipe,
   appendSuggestedCuts,
+  emotionCuts,
   recipeHasPlaceholder,
   buildRecipeScenes,
   validRecipe,
@@ -57,6 +58,7 @@ export default function SceneRecipePanel({
   onCreate: (scenes: WorkspaceScene[]) => void;
 }) {
   const [recipe, setRecipe] = useState(blankRecipe);
+  const [emotions, setEmotions] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(0);
   const panel = useRef<HTMLDetailsElement>(null);
   const [deleteName, setDeleteName] = useState('');
@@ -96,6 +98,9 @@ export default function SceneRecipePanel({
     (c) => c.enabled && c.prompt.trim(),
   );
   const currentActor = resolveCutActor(actors, recipe.cutActorId);
+  const useActor =
+    !!characterLimit(base.draft) &&
+    !!(recipe.characterIds.length || actors.length);
   const styleName = visible.find((p) => p.id === recipe.styleId)?.name ?? '';
   const characterNames = visible
     .filter((p) => recipe.characterIds.includes(p.id))
@@ -285,6 +290,73 @@ export default function SceneRecipePanel({
               </select>
             </label>
           ))}
+        <details data-testid="emotion-cuts">
+          <summary>기본 감정 10종</summary>
+          <fieldset>
+            <legend>
+              {useActor
+                ? '캐릭터 카드에 추가할 감정'
+                : '메인 프롬프트에 추가할 감정'}
+            </legend>
+            <label>
+              <input
+                type="checkbox"
+                checked={emotions.length === emotionCuts.length}
+                onChange={(e) =>
+                  setEmotions(
+                    e.target.checked ? emotionCuts.map((cut) => cut.name) : [],
+                  )
+                }
+              />
+              전체 선택
+            </label>
+            {emotionCuts.map(({ name, emotion }) => (
+              <label key={name}>
+                <input
+                  type="checkbox"
+                  checked={emotions.includes(name)}
+                  onChange={(e) =>
+                    setEmotions(
+                      e.target.checked
+                        ? [...emotions, name]
+                        : emotions.filter((item) => item !== name),
+                    )
+                  }
+                />
+                {name} · {emotion}
+              </label>
+            ))}
+            <button
+              type="button"
+              disabled={!emotions.length}
+              onClick={() => {
+                try {
+                  const cuts = emotionCuts
+                    .filter((cut) => emotions.includes(cut.name))
+                    .map(({ name, emotion }) =>
+                      useActor
+                        ? { name, emotion, setting: '' }
+                        : { name, emotion: '', setting: emotion },
+                    );
+                  const next = appendSuggestedCuts(recipe, cuts, useActor);
+                  setApplied({
+                    before: recipe,
+                    after: next,
+                    beforeRepeats: repeats,
+                    afterRepeats: repeats,
+                  });
+                  setRecipe(next);
+                  setEmotions([]);
+                  setError('');
+                } catch (e) {
+                  setError((e as Error).message);
+                }
+              }}
+            >
+              선택한 감정 {emotions.length}개 추가
+            </button>
+          </fieldset>
+        </details>
         {hasCuts &&
           !recipe.characterIds.length &&
           (actors.length > 1 || !!recipe.cutActorId) && (
@@ -326,16 +398,14 @@ export default function SceneRecipePanel({
             <legend>
               {row.cutMode ? '캐릭터 컷' : '상황'} {i + 1}
             </legend>
-            {row.cutMode && (
-              <label>
-                <input
-                  type="checkbox"
-                  checked={row.included !== false}
-                  onChange={(e) => editRow(i, { included: e.target.checked })}
-                />
-                이번 예약에 포함
-              </label>
-            )}
+            <label>
+              <input
+                type="checkbox"
+                checked={row.included !== false}
+                onChange={(e) => editRow(i, { included: e.target.checked })}
+              />
+              이번 예약에 포함
+            </label>
             {(['name', 'setting', 'emotion'] as const)
               .filter((key) => !row.cutMode || key !== 'emotion')
               .map((key) => (
@@ -343,7 +413,7 @@ export default function SceneRecipePanel({
                   {
                     {
                       name: '이름',
-                      setting: '배경·상황',
+                      setting: '메인 입력에 추가',
                       emotion: '표정·감정',
                     }[key]
                   }
@@ -490,6 +560,8 @@ export default function SceneRecipePanel({
         <p>
           {count}씬 × {repeats}회 · {count * repeats}장
           {refCount > 0 && ` · 참조 추가분 ${5 * refCount * repeats} Anlas`}
+          {count * repeats > 60 &&
+            ' · 한 번에 60장까지 예약할 수 있습니다. 감정·인물 또는 반복 횟수를 줄이세요.'}
         </p>
         <button
           data-testid="prepare-recipe"

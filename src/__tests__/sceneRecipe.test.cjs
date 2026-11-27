@@ -9,6 +9,99 @@ const {
   createConnectedWorkspaceState,
 } = require('../renderer/generation/connectedDraft');
 const base = createConnectedWorkspaceState().scenes[0];
+test('built-in emotions add editable cuts to a fresh workspace, and only to the chosen actor when present', (t) => {
+  const React = require('react');
+  const { act, create } = require('react-test-renderer');
+  require.extensions['.css'] = () => {};
+  const Panel = require('../renderer/componenets/SceneRecipePanel').default;
+  const {
+    createEmptyWorkspace,
+  } = require('../renderer/generation/connectedDraft');
+  const { scenes, draft } = createEmptyWorkspace();
+  assert.equal(scenes.length, 1);
+  assert.equal(draft.prompt, '');
+  assert.equal(draft.negativePrompt, '');
+  const names = [
+    '기쁨',
+    '슬픔',
+    '분노',
+    '공포',
+    '놀람',
+    '혐오',
+    '신뢰',
+    '기대',
+    '당황',
+    '질투',
+  ];
+  for (const withActors of [false, true]) {
+    const scene = structuredClone(scenes[0]);
+    scene.draft.prompt = 'quiet garden';
+    if (withActors)
+      scene.draft.characters = ['A', 'B'].map((id) => ({
+        id,
+        enabled: true,
+        prompt: id,
+        negativePrompt: '',
+        cell: { row: 2, column: 2 },
+      }));
+    let renderer, result;
+    act(() => {
+      renderer = create(
+        React.createElement(Panel, {
+          presets: [],
+          sources: [scene],
+          base: scene,
+          repeats: 2,
+          canPrepare: true,
+          onCreate: (rows) => {
+            result = rows;
+          },
+        }),
+      );
+    });
+    t.after(() => act(() => renderer.unmount()));
+    const picker = renderer.root
+      .findAllByType('details')
+      .find(
+        (p) =>
+          p
+            .findAllByType('summary')
+            .some((s) => s.children[0] === '기본 감정 10종') &&
+          p.findAllByType('summary').length === 1,
+      );
+    act(() =>
+      picker
+        .findAllByType('input')[0]
+        .props.onChange({ target: { checked: true } }),
+    );
+    act(() => picker.findByType('button').props.onClick());
+    if (withActors) {
+      const select = renderer.root
+        .findAllByType('select')
+        .find((s) =>
+          s.findAllByType('option').some((o) => o.props.value === 'B'),
+        );
+      act(() => select.props.onChange({ target: { value: 'B' } }));
+    }
+    act(() =>
+      renderer.root
+        .findByProps({ 'data-testid': 'prepare-recipe' })
+        .props.onClick(),
+    );
+    assert.deepEqual(
+      result.map((r) => r.name.split(' · ').pop()),
+      names,
+    );
+    assert.equal(scene.draft.prompt, 'quiet garden');
+    for (const row of result) {
+      if (withActors) {
+        assert.equal(row.draft.prompt, scene.draft.prompt);
+        assert.equal(row.draft.characters[0].prompt, 'A');
+        assert.match(row.draft.characters[1].prompt, /^B\n\n\S/);
+      } else assert.match(row.draft.prompt, /^quiet garden, \S/);
+    }
+  }
+});
 test('two characters and two paired settings become four named independent queue scenes', () => {
   const presets = ['a', 'b'].map((id) => ({
     kind: 'character',
