@@ -84,11 +84,11 @@ export class GenerationJournal {
   }
 
   read() {
-    const active = this.readFile(this.file);
+    const active = GenerationJournal.readFile(this.file);
     if (!active) return undefined;
     // A process may stop after flushing the response but before replacing the request marker.
     try {
-      const staged = this.readFile(`${this.file}.tmp`);
+      const staged = GenerationJournal.readFile(`${this.file}.tmp`);
       if (staged?.bytes && staged.record.imageId === active.record.imageId)
         return staged;
     } catch {
@@ -97,7 +97,7 @@ export class GenerationJournal {
     return active;
   }
 
-  private readFile(file: string) {
+  private static readFile(file: string) {
     const stat = fs.lstatSync(file, { throwIfNoEntry: false });
     if (!stat) return undefined;
     if (
