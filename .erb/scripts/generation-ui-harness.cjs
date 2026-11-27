@@ -281,7 +281,7 @@ function finish(code, error) {
   console.log(JSON.stringify(report));
   app.exit(code);
 }
-setTimeout(() => finish(1, 'Generation smoke timeout'), 40000).unref();
+setTimeout(() => finish(1, 'Generation smoke timeout'), phase === 'legacy-writer' ? 100000 : 40000).unref();
 process.on('uncaughtException', (error) => finish(1, error.stack));
 process.on('unhandledRejection', (error) => finish(1, error.stack));
 app.on('web-contents-created', (_event, contents) => {
@@ -327,7 +327,9 @@ app.on('web-contents-created', (_event, contents) => {
       await evaluate("(()=>{window.__flowMessages=[];const node=document.querySelector('[data-testid=generation-status]');new MutationObserver(()=>{if(node.textContent.trim())window.__flowMessages.push(node.textContent.trim())}).observe(node,{childList:true,characterData:true,subtree:true})})()");
       if (process.env.SDSTUDIO_RUNTIME_REPORT && phase === 'create')
         await require('./runtime-ui-probe.cjs')(contents, profile);
-      if (phase === 'inpaint') {
+      if (phase === 'legacy-writer') {
+        await require('./legacy-writer-ui-probe.cjs')({contents,evaluate,click,fill,until,checks,profile});
+      } else if (phase === 'inpaint') {
         await require('./inpaint-ui-probe.cjs')({contents,evaluate,click,fill,until,checks,requestCount:()=>requests});
       } else if (phase === 'recipe') {
         await require('./scene-recipe-probe.cjs')({evaluate,click,fill,until,checks,requests:()=>requests});

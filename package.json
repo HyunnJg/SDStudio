@@ -79,6 +79,7 @@
     "test:reference": "node --test -r ts-node/register/transpile-only src/__tests__/workspaceReference.test.cjs src/__tests__/workspaceReferenceUi.test.cjs",
     "smoke:trash": "node .erb/scripts/smoke-generation.cjs trash",
     "smoke:inpaint": "node .erb/scripts/smoke-generation.cjs inpaint",
+    "smoke:legacy-writer": "node .erb/scripts/smoke-generation.cjs legacy-writer",
     "smoke:reference": "node .erb/scripts/smoke-generation.cjs reference",
     "smoke:generation": "node .erb/scripts/smoke-generation.cjs",
     "test:project-reads": "node --test -r ts-node/register/transpile-only src/__tests__/projectReads.test.cjs",

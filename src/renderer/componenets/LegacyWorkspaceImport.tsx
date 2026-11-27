@@ -1,5 +1,6 @@
 /* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "either" }] */
 import { useEffect, useRef, useState } from 'react';
+import inspectLegacySlots from '../../legacySceneSlots';
 import legacyMaskEntries from '../../legacyMaskEntries';
 import type { Session } from '../models/types';
 import { inspectLegacyPresets } from '../../promptLibrary';
@@ -10,6 +11,12 @@ import type { PromptPiece } from '../../workspacePromptPieces';
 import type { LegacyScenePage } from '../../workspaceProject';
 import { PROJECT_LIMITS } from '../../workspaceProject';
 import { REFERENCE_LIMITS } from '../../workspaceReference';
+
+const slotErrors = {
+  PROJECT_INPUT: '슬롯 후보 형식을 확인하세요.',
+  PROJECT_LIMIT: '조합 수가 계산 한도를 넘습니다.',
+  PROJECT_LEGACY_SCENE: '활성 후보가 없는 슬롯이 있습니다.',
+};
 
 const safeName = (name: string) =>
   !!name &&
@@ -54,19 +61,12 @@ function readImportIndex(name: string, value: unknown) {
     name,
     scenes: Object.entries(dictionary(data.scenes)).map(([key, scene]) => {
       const row = dictionary(scene);
-      const count = Array.isArray(row.slots)
-        ? row.slots.reduce(
-            (n: number, slot: unknown) =>
-              Array.isArray(slot)
-                ? n * slot.filter((v) => dictionary(v).enabled !== false).length
-                : 0,
-            1,
-          )
-        : 0;
+      const inspected = inspectLegacySlots(row.slots);
       return {
         key,
         name: typeof row.name === 'string' ? row.name : key,
-        count,
+        count: inspected.ok ? inspected.count : 0,
+        error: inspected.ok ? undefined : inspected.error,
         picks: Array.isArray(row.mains)
           ? new Set(row.mains).size
           : Number(!!row.main),
@@ -333,14 +333,12 @@ export default function LegacyWorkspaceImport({
             </label>
             {ordinary && (
               <p>
-                활성 슬롯 조합{' '}
-                {Number.isSafeInteger(ordinary.count)
-                  ? `${ordinary.count}개`
-                  : '계산 한도 초과'}{' '}
+                {ordinary.error
+                  ? slotErrors[ordinary.error]
+                  : `활성 슬롯 조합 ${ordinary.count}개`}{' '}
                 · 선별 PNG {ordinary.picks}장
               </p>
             )}
-            {ordinary && pageCount === 0 && <p>활성 후보 수를 확인하세요.</p>}
             {ordinary && pageCount > 1 && (
               <label>
                 복사할 묶음 (1~{pageCount})

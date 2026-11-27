@@ -1,4 +1,5 @@
 /* eslint no-restricted-syntax: off -- Traverse ordered V3 slots and nested references under project limits. */
+import inspectLegacySlots from '../../legacySceneSlots';
 import { resolveSize } from '../../workspaceCatalog';
 import type { LegacyScenePage } from '../../workspaceProject';
 import type { ResolutionKey } from '../../workspaceCatalog';
@@ -67,7 +68,6 @@ export default function legacyScene(
   const row = record(rows[key]);
   const name = row.name ?? key;
   component(name);
-  projectCheck(Array.isArray(row.slots));
   let format = row.resolution;
   if (typeof row.landscape === 'boolean')
     format = row.landscape ? 'landscape' : 'portrait';
@@ -82,36 +82,19 @@ export default function legacyScene(
     projectCheck(false);
   }
 
-  const slots: string[][] = [];
-  let total = 1;
-  for (const slot of row.slots) {
-    projectCheck(Array.isArray(slot));
-    const enabled: string[] = [];
-    for (const value of slot) {
-      const piece = record(value);
-      projectCheck(
-        piece.enabled === undefined || typeof piece.enabled === 'boolean',
-      );
-      if (piece.enabled !== false) {
-        projectCheck(
-          typeof piece.prompt === 'string' && piece.prompt.length <= 65536,
-        );
-        // V3's standalone insertion marker interleaves slots with a preset front prompt.
-        enabled.push(
-          piece.prompt
-            .replace('\n', ',')
-            .split(',')
-            .map((t) => t.trim())
-            .filter((t) => t && t !== '|')
-            .join(', '),
-        );
-      }
-    }
-    projectCheck(enabled.length > 0, 'PROJECT_LEGACY_SCENE');
-    total *= enabled.length;
-    projectCheck(Number.isSafeInteger(total), 'PROJECT_LIMIT');
-    slots.push(enabled);
-  }
+  const inspected = inspectLegacySlots(row.slots);
+  if (!inspected.ok) throw new ProjectError(inspected.error);
+  const total = inspected.count;
+  const slots = inspected.slots.map((slot) =>
+    slot.map((prompt) =>
+      prompt
+        .replace('\n', ',')
+        .split(',')
+        .map((t) => t.trim())
+        .filter((t) => t && t !== '|')
+        .join(', '),
+    ),
+  );
   if (page === undefined)
     projectCheck(total <= PROJECT_LIMITS.scenes, 'PROJECT_LIMIT');
   else {

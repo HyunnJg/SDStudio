@@ -6,15 +6,22 @@ const path = require('node:path');
 const { dialog } = require('electron');
 const JSZip = require('jszip');
 
-module.exports = async ({ evaluate, click, until, checks }) => {
-  const folder = path.join(
+module.exports = async ({
+  evaluate,
+  click,
+  until,
+  checks,
+  folder = path.join(
     process.env.SDSTUDIO_USER_DATA_DIR,
     'SDStudio',
     'outs',
     'MaskCopy',
     'Garden',
-  );
-  const bytes = fs.readFileSync(path.join(folder, 'picked.png'));
+  ),
+  filename = 'picked.png',
+  prompt = 'imported sky',
+}) => {
+  const bytes = fs.readFileSync(path.join(folder, filename));
   const selected = await evaluate(
     "document.querySelector('[data-image-id][aria-pressed=true]').dataset.imageId",
   );
@@ -24,7 +31,9 @@ module.exports = async ({ evaluate, click, until, checks }) => {
   );
   await click('[data-testid=apply-metadata]');
   await until(() =>
-    evaluate("document.querySelector('#live-prompt').value==='imported sky'"),
+    evaluate(
+      `document.querySelector('#live-prompt').value===${JSON.stringify(prompt)}`,
+    ),
   );
   assert.equal(
     await evaluate(

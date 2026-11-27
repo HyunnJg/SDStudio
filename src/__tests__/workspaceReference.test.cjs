@@ -12,6 +12,41 @@ const { createConnectedWorkspaceState } = require('../renderer/generation/connec
 const { snapshotWorkspaceScenes } = require('../renderer/preview/workspaceDraft');
 const { png } = require('./fixtures/nai/png.cjs');
 const { inspectLegacyPresets, hasLegacyPromptSyntax } = require('../promptLibrary');
+const inspectLegacySlots = require('../legacySceneSlots').default;
+
+test('V3 slot preview and copy share candidate validation and counts', () => {
+  for (const slots of [
+    null,
+    {},
+    [42],
+    [[null]],
+    [[[]]],
+    [[{ enabled: 1 }]],
+    [[{ prompt: 42 }]],
+    [[{ prompt: 'x'.repeat(65537) }]],
+  ])
+    assert.deepEqual(inspectLegacySlots(slots), {
+      ok: false,
+      error: 'PROJECT_INPUT',
+    });
+  for (const slots of [[[]], [[{ enabled: false }]]])
+    assert.deepEqual(inspectLegacySlots(slots), {
+      ok: false,
+      error: 'PROJECT_LEGACY_SCENE',
+    });
+  assert.deepEqual(inspectLegacySlots([]), { ok: true, count: 1, slots: [] });
+  assert.deepEqual(
+    inspectLegacySlots([
+      [{ prompt: '' }, { enabled: false }],
+      [{ enabled: true, prompt: 'a' }, { prompt: 'b' }],
+    ]),
+    { ok: true, count: 2, slots: [[''], ['a', 'b']] },
+  );
+  assert.deepEqual(
+    inspectLegacySlots(Array(53).fill([{ prompt: 'a' }, { prompt: 'b' }])),
+    { ok: false, error: 'PROJECT_LIMIT' },
+  );
+});
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 async function fixture(t) {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'sdstudio-reference-'));
