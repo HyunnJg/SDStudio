@@ -294,7 +294,8 @@ test('offline local IPC checks trust before storage and returns fixed codes with
     await handlers.get('workspace-project-open')({}, '../../synthetic-private'),
     { ok: false, code: 'PROJECT_INPUT' },
   );
-  assert.equal(handlers.size, 17);
+  assert.equal(handlers.size, 18);
+  assert.deepEqual(await handlers.get('workspace-project-copy-legacy-scene')({}, 'Example', 'One', true), {ok:false,code:'PROJECT_INPUT'});
   assert.deepEqual(await handlers.get('workspace-project-copy-legacy-masks')({}, 'Example'), {
     ok: false, code: 'PROJECT_INPUT',
   });

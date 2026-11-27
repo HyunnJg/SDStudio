@@ -119,7 +119,9 @@ function Thumbnail({
           결과 {number}
           {actionLabel && ` · ${actionLabel}`}
         </strong>
-        <span>시드 {image.seed}</span>
+        <span>
+          {image.origin ? `V3 선별 · ${image.filename}` : `시드 ${image.seed}`}
+        </span>
       </span>
     </button>
   );
@@ -198,6 +200,13 @@ export default function ConnectedImageHistory({
     };
   }, [projectId, projects, reload]);
 
+  const sourceNames = new Map(
+    images.flatMap((image) =>
+      image.origin
+        ? [[image.sceneId, `V3 · ${image.sourceScene}`] as const]
+        : [],
+    ),
+  );
   const sceneIds = [...new Set(images.map((image) => image.sceneId))];
   const scoped =
     selecting && scene ? images.filter((i) => i.sceneId === scene) : images;
@@ -313,6 +322,7 @@ export default function ConnectedImageHistory({
                     (id) => (
                       <option key={id} value={id}>
                         {scenes.find((item) => item.id === id)?.name ??
+                          sourceNames.get(id) ??
                           `이전 씬 (${id})`}
                       </option>
                     ),

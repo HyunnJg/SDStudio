@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import legacyMaskEntries from '../../legacyMaskEntries';
 import { allowedSize } from '../../workspaceCatalog';
 import {
@@ -11,27 +9,8 @@ import { REFERENCE_LIMITS } from '../../workspaceReference';
 import { validatePNGBytes } from '../nai/imageResponse';
 import type { WorkspaceScene } from '../../renderer/preview/workspaceDraft';
 
-type ReadFile = (filename: string, limit: number) => Uint8Array;
-
-function record(value: unknown): Record<string, unknown> {
-  projectCheck(
-    value && typeof value === 'object' && !Array.isArray(value),
-    'PROJECT_LEGACY_MASK',
-  );
-  return value as Record<string, unknown>;
-}
-
-function component(value: unknown): asserts value is string {
-  projectCheck(
-    typeof value === 'string' &&
-      value.length > 0 &&
-      value.length <= 180 &&
-      !/[\\/:*?"<>|]/.test(value) &&
-      Array.from(value).every((c) => c.charCodeAt(0) >= 32) &&
-      !/[. ]$/.test(value) &&
-      !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(value),
-  );
-}
+import { component, record, readLegacySession } from './legacySession';
+import type { ReadFile } from './legacySession';
 
 export default function legacyMasks(
   root: string,
@@ -39,28 +18,7 @@ export default function legacyMasks(
   read: ReadFile,
   selected?: string[],
 ) {
-  component(sessionName);
-  const base = fs.realpathSync(root);
-  const load = (parts: string[], limit: number) => {
-    parts.forEach(component);
-    let folder = base;
-    parts.slice(0, -1).forEach((part) => {
-      folder = path.join(folder, part);
-      const st = fs.lstatSync(folder);
-      projectCheck(st.isDirectory() && !st.isSymbolicLink(), 'PROJECT_CORRUPT');
-    });
-    return read(path.join(folder, parts[parts.length - 1]), limit);
-  };
-  const bytes = load(['projects', `${sessionName}.json`], 32 * 1024 * 1024);
-  const session = record(
-    JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)),
-  );
-  projectCheck(
-    session.version === undefined ||
-      session.version === 0 ||
-      session.version === 1,
-    'PROJECT_VERSION',
-  );
+  const { session, load } = readLegacySession(root, sessionName, read);
   const entries = legacyMaskEntries(record(session.inpaints), session.version);
   projectCheck(entries.length > 0, 'PROJECT_LEGACY_MASK');
   let included = entries;
@@ -71,6 +29,7 @@ export default function legacyMasks(
         selected.length <= PROJECT_LIMITS.scenes,
     );
     const keys = new Set(selected);
+    projectCheck(keys.size === selected.length);
     included = entries.filter(({ key }) => keys.has(key));
     projectCheck(included.length === selected.length, 'PROJECT_CONFLICT');
   }

@@ -48,6 +48,9 @@ export type ProjectErrorCode =
   | 'PROJECT_IO'
   | 'PROJECT_LIMIT'
   | 'PROJECT_IMAGE_TOO_LARGE'
+  | 'PROJECT_LEGACY_SCENE'
+  | 'PROJECT_LEGACY_PIECE'
+  | 'PROJECT_LEGACY_PICK'
   | 'PROJECT_LEGACY_MASK'
   | 'PROJECT_UNTRUSTED';
 export class ProjectError extends Error {
@@ -73,25 +76,34 @@ export interface ImageBinding {
     | 'nai-v5-img2img-reference-v1';
   requestHash: string;
 }
-export interface ProjectImage {
-  binding?: ImageBinding;
+interface ImageFile {
   id: string;
   sceneId: string;
+  sha256: string;
+  pngBytes: number;
+}
+export interface GeneratedImage extends ImageFile {
+  origin?: undefined;
+  binding?: ImageBinding;
   model: string;
   sampler: string;
   noiseSchedule: string;
   seed: number;
   draft: WorkspaceDraft;
-  sha256: string;
-  pngBytes: number;
 }
+export interface ImportedImage extends ImageFile {
+  origin: 'v3-pick';
+  sourceScene: string;
+  filename: string;
+}
+export type ProjectImage = GeneratedImage | ImportedImage;
 export type ProjectImageInput = Omit<
-  ProjectImage,
+  GeneratedImage,
   'id' | 'sha256' | 'pngBytes'
 >;
 export interface WorkspaceProject extends ProjectContent {
   format: typeof PROJECT_FORMAT;
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
   id: string;
   images: ProjectImage[];
   trashedImageIds?: string[];
@@ -116,6 +128,11 @@ export interface ProjectListing {
 export type ProjectReply<T> =
   { ok: true; value: T } | { ok: false; code: ProjectErrorCode };
 export interface ProjectClient {
+  copyLegacyScene(
+    name: string,
+    key: string,
+    withPicks: boolean,
+  ): Promise<ProjectReply<ProjectSnapshot>>;
   copyLegacyMasks(
     name: string,
     selected?: string[],
@@ -279,9 +296,12 @@ export function validateReference(value: unknown): WorkspaceReference {
 }
 export function projectReferences(
   content: ProjectContent,
-  images: readonly ProjectImageInput[] = [],
+  images: readonly (ProjectImageInput | ImportedImage)[] = [],
 ): ReferenceAsset[] {
-  return [...content.scenes.map((s) => s.draft), ...images.map((i) => i.draft)]
+  return [
+    ...content.scenes.map((s) => s.draft),
+    ...images.flatMap((i) => (i.origin ? [] : [i.draft])),
+  ]
     .flatMap((d) => [d.reference, d.img2img, d.inpaintSource, d.inpaintMask])
     .filter((asset) => asset !== undefined);
 }
@@ -491,8 +511,10 @@ export function validateImageInput(value: unknown): ProjectImageInput {
 }
 export function requiredProjectVersion(
   content: ProjectContent,
-  images: readonly ProjectImageInput[] = [],
-): 1 | 2 | 3 | 4 | 5 | 7 | 8 | 9 | 10 | 11 {
+  records: readonly (ProjectImageInput | ImportedImage)[] = [],
+): WorkspaceProject['version'] {
+  if (records.some((i) => i.origin)) return 12;
+  const images = records.filter((i): i is ProjectImageInput => !i.origin);
   if (
     [...content.scenes, ...images].some(
       ({ draft: d }) => d.inpaintSource || d.inpaintMask,
@@ -567,7 +589,8 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
       v.version === 8 ||
       v.version === 9 ||
       v.version === 10 ||
-      v.version === 11,
+      v.version === 11 ||
+      v.version === 12,
     'PROJECT_VERSION',
   );
   try {
@@ -595,36 +618,33 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
     const ids = new Set<string>();
     let total = 0;
     for (const image of p.images) {
-      const hasBinding =
-        !!image && typeof image === 'object' && Object.hasOwn(image, 'binding');
-      projectCheck(!hasBinding || Number(p.version) >= 2);
-      const i = record(image, [
-        ...(hasBinding ? ['binding'] : []),
-        'id',
-        'sceneId',
-        'model',
-        'sampler',
-        'noiseSchedule',
-        'seed',
-        'draft',
-        'sha256',
-        'pngBytes',
-      ]);
-      projectId(i.id);
-      projectHash(i.sha256);
-      projectCheck(!ids.has(i.id));
-      ids.add(i.id);
-      const { pngBytes } = i;
-      const input = {
-        ...(hasBinding ? { binding: i.binding } : {}),
-        sceneId: i.sceneId,
-        model: i.model,
-        sampler: i.sampler,
-        noiseSchedule: i.noiseSchedule,
-        seed: i.seed,
-        draft: i.draft,
-      };
-      validateImageInput(input);
+      projectCheck(image && typeof image === 'object');
+      const { id, sha256, pngBytes, ...input } = image;
+      projectId(id);
+      projectHash(sha256);
+      projectCheck(!ids.has(id));
+      ids.add(id);
+      if (Object.hasOwn(input, 'origin')) {
+        const imported = record(input, [
+          'origin',
+          'sourceScene',
+          'filename',
+          'sceneId',
+        ]);
+        projectCheck(v.version === 12 && imported.origin === 'v3-pick');
+        projectCheck(imported.sceneId === 'v3-source');
+        string(imported.sourceScene, 180);
+        string(imported.filename, 180);
+        projectCheck(
+          typeof imported.filename === 'string' &&
+            /^[^\\/:*?"<>|]+\.png$/i.test(imported.filename),
+        );
+      } else {
+        projectCheck(
+          !Object.hasOwn(input, 'binding') || Number(p.version) >= 2,
+        );
+        validateImageInput(input);
+      }
       projectCheck(
         Number.isInteger(pngBytes) &&
           Number(pngBytes) > 0 &&

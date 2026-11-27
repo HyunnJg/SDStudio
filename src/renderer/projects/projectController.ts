@@ -34,6 +34,9 @@ export const projectErrorMessage = (code: ProjectErrorCode): string =>
       '저장 결과를 확정하지 못했습니다. 교체됐을 수도 있으니 다시 열어 확인하세요. 현재 편집은 유지됩니다.',
     PROJECT_IMAGE_TOO_LARGE:
       '전송용 PNG가 5 MiB를 초과합니다. 다른 이미지를 선택하세요.',
+    PROJECT_LEGACY_SCENE: '활성 후보가 없는 슬롯이 있습니다. 복사할 씬의 슬롯을 확인하세요.',
+    PROJECT_LEGACY_PIECE: '슬롯이 참조하는 조각을 읽을 수 없습니다. 원본 세션에서 조각 이름과 내용을 확인하세요.',
+    PROJECT_LEGACY_PICK: '선별 PNG를 읽을 수 없습니다. 원본 파일을 확인하거나 선별 PNG 포함을 해제하고 다시 복사하세요.',
     PROJECT_LEGACY_MASK:
       'V3 세션의 인페인팅 씬을 복사할 수 없습니다. 저장된 원본과 같은 크기의 PNG 마스크가 있고, 마스크에 칠한 영역이 있는지 확인하세요.',
     PROJECT_LIMIT:
@@ -418,6 +421,20 @@ export class ProjectController {
       await this.execute('프로젝트 읽는 중', async () =>
         this.replace(unwrap(await this.client().open(id))),
       );
+    });
+  }
+
+  async copyLegacyScene(name: string, key: string, withPicks: boolean) {
+    return this.guard('V3 일반 씬을 새 프로젝트로 복사', async () => {
+      await this.execute('슬롯 조합과 선별 PNG 복사 중', async () => {
+        const snapshot = unwrap(
+          await this.client().copyLegacyScene(name, key, withPicks),
+        );
+        await this.replace(snapshot);
+        this.update({
+          message: `슬롯 조합 ${snapshot.project.scenes.length}개와 선별 PNG ${snapshot.project.images.length}장을 복사했습니다.`,
+        });
+      });
     });
   }
 

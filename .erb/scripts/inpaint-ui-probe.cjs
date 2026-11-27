@@ -151,7 +151,7 @@ module.exports = async ({
   await until(()=>evaluate("[...document.querySelectorAll('[role=alert]')].some(n=>n.textContent.includes('「Missing」'))"));
   checks.push('a missing mask identifies its scene before the user retries with a subset');
   await selectSource();
-  await evaluate("document.querySelector('dialog[open] input[type=checkbox]').click()");
+  await evaluate("document.querySelector('[data-testid=legacy-copy-masks]').closest('fieldset').querySelector('input[type=checkbox]').click()");
   await click('[data-testid=legacy-copy-masks]');
   await until(()=>evaluate("document.querySelector('#live-prompt')?.value==='copied sky'"));
   await button('마스크 다시 편집');
@@ -160,4 +160,13 @@ module.exports = async ({
   await evaluate("document.querySelector('.workspace-mask-editor header button').click()");
   assert.equal(requestCount(),1);
   checks.push('saved V3 mask opens in a new editable project without another generation request');
+  await selectSource();
+  await evaluate(`(()=>{const s=document.querySelector('[data-testid=legacy-scene-select]');s.value='Garden';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await click('[data-testid=legacy-copy-scene]');
+  await until(() => evaluate("document.querySelector('#live-prompt')?.value==='sun, garden'"));
+  await until(() => evaluate("!!document.querySelector('[data-picked=true]')"));
+  await click('[data-image-id]');
+  await until(() => evaluate("document.querySelector('[data-testid=generated-seed]')?.textContent.includes('Garden · picked.png')"));
+  assert.equal(requestCount(),1);
+  checks.push('ordinary V3 slot combinations open as scenes and the original PNG appears as a picked result');
 };

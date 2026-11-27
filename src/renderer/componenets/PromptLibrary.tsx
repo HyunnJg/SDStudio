@@ -51,7 +51,7 @@ const contentOf = (p: PresetContent): PresetContent => ({
 const messages = {
   LIBRARY_INPUT: '이름과 입력·적용 항목을 확인해 주세요.',
   LIBRARY_LIMIT:
-    '보관 한도(휴지통 포함200개·전체2MiB) 또는 텍스트 길이를 확인해 주세요.',
+    '보관 한도(휴지통 포함 200개·전체 2MiB)와 텍스트 길이를 확인하세요. 공간이 필요하면 휴지통에서 불필요한 항목을 영구 삭제하세요.',
   LIBRARY_CONFLICT:
     '라이브러리가 변경됐습니다. 편집 내용을 확인한 뒤 새로고침하세요.',
   LIBRARY_CORRUPT:

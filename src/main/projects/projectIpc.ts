@@ -14,6 +14,7 @@ export type ProjectOperations = { restartStorage?: () => Promise<void> } & {
       | 'history'
       | 'recover'
       | 'copy'
+      | 'copyLegacyScene'
       | 'copyLegacyMasks'
       | 'listTrash'
       | 'trashProject'
@@ -67,6 +68,10 @@ export function registerProjects(
     store.setResultPicks(id, revision, ids, picked),
   );
   handle('workspace-project-list', () => store.list());
+  handle('workspace-project-copy-legacy-scene', (name, key, withPicks) => {
+    if (!legacyRoot) throw new ProjectError('PROJECT_INPUT');
+    return store.copyLegacyScene(legacyRoot, name, key, withPicks);
+  });
   handle('workspace-project-copy-legacy-masks', (name, selected) => {
     if (!legacyRoot) throw new ProjectError('PROJECT_INPUT');
     // Like create(), this publishes a new independent project. Marking generation active

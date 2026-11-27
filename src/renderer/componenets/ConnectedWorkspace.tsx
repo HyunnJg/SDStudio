@@ -1765,7 +1765,7 @@ export default function ConnectedWorkspace({
           </div>
           {result && (
             <p className="connected-image-caption" data-testid="generated-seed">
-              {MODELS[modelId(result.draft)]} · 시드 {result.seed}
+              {result.origin ? `V3 선별 · ${result.sourceScene} · ${result.filename}` : `${MODELS[modelId(result.draft)]} · 시드 ${result.seed}`}
             </p>
           )}
         </section>
@@ -2048,6 +2048,10 @@ export default function ConnectedWorkspace({
           onPresets={(legacy) => {
             setLegacyImport(false);
             setLibraryRequest({kind:'main', legacy});
+          }}
+          onCopyScene={(name, key, withPicks) => {
+            setLegacyImport(false);
+            void project.copyLegacyScene(name, key, withPicks);
           }}
           onCopyMasks={(name, selectedMasks) => {
             setLegacyImport(false);

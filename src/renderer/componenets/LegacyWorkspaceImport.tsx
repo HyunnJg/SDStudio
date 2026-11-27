@@ -51,6 +51,26 @@ function readImportIndex(name: string, value: unknown) {
   );
   return {
     name,
+    scenes: Object.entries(dictionary(data.scenes)).map(([key, scene]) => {
+      const row = dictionary(scene);
+      const count = Array.isArray(row.slots)
+        ? row.slots.reduce(
+            (n: number, slot: unknown) =>
+              Array.isArray(slot)
+                ? n * slot.filter((v) => dictionary(v).enabled !== false).length
+                : 0,
+            1,
+          )
+        : 0;
+      return {
+        key,
+        name: typeof row.name === 'string' ? row.name : key,
+        count,
+        picks: Array.isArray(row.mains)
+          ? new Set(row.mains).size
+          : Number(!!row.main),
+      };
+    }),
     maskScenes: legacyMaskEntries(dictionary(data.inpaints), data.version).map(
       ({ key, label }) => ({ key, name: label }),
     ),
@@ -65,6 +85,7 @@ export default function LegacyWorkspaceImport({
   pieces,
   onPieces,
   onImage,
+  onCopyScene,
   onCopyMasks,
   onPresets,
   onClose,
@@ -75,15 +96,19 @@ export default function LegacyWorkspaceImport({
   onPieces: (value: PromptPiece[]) => void;
   onImage: (file: File) => void;
   onPresets: (value: LegacyPresetImport) => void;
+  onCopyScene: (name: string, key: string, withPicks: boolean) => void;
   onCopyMasks: (name: string, selected: string[]) => void;
   onClose: () => void;
   disabled: boolean;
 }) {
-  const [session, setSession] = useState(
+  const [session, setSession] = useState<
+    ReturnType<typeof readImportIndex> | undefined
+  >(
     () =>
       currentSession && {
         ...readImportIndex(currentSession.name, currentSession.toJSON()),
-        maskScenes: [] as { key: string; name: string }[],
+        scenes: [],
+        maskScenes: [],
       },
   );
   const [names, setNames] = useState(() => sessionService.list());
@@ -94,6 +119,9 @@ export default function LegacyWorkspaceImport({
   }, []);
   const modal = useRef<HTMLDialogElement>(null);
   const active = useRef(false);
+  const [sceneKey, setSceneKey] = useState('');
+  const [withPicks, setWithPicks] = useState(true);
+  const ordinary = session?.scenes.find((s) => s.key === sceneKey);
   const [excluded, setExcluded] = useState<string[]>([]);
   const [library, setLibrary] = useState('');
   const [selected, setSelected] = useState('');
@@ -108,7 +136,7 @@ export default function LegacyWorkspaceImport({
       dialog?.close();
     };
   }, []);
-  // Only the mask-copy operation reads the last disk save. Pieces and presets may come from the open editor.
+  // Project copies read the last disk save. Pieces and presets may come from the open editor.
   const savedName = session?.name;
   const currentName = currentSession?.name;
   useEffect(() => {
@@ -128,14 +156,18 @@ export default function LegacyWorkspaceImport({
           setExcluded([]);
           setSession((previous) =>
             previous?.name === savedName
-              ? { ...previous, maskScenes: saved.maskScenes }
+              ? {
+                  ...previous,
+                  scenes: saved.scenes,
+                  maskScenes: saved.maskScenes,
+                }
               : previous,
           );
         }
         return undefined;
       })
       .catch(() => {
-        if (live) setMessage('저장된 마스크 씬 목록을 읽을 수 없습니다.');
+        if (live) setMessage('저장된 씬 목록을 읽을 수 없습니다.');
       });
     return () => {
       live = false;
@@ -212,8 +244,12 @@ export default function LegacyWorkspaceImport({
               if (!active.current) return;
               if (!value) throw Error();
               const index = readImportIndex(name, value);
-              if (name === currentName && name !== savedName)
+              if (name === currentName && name !== savedName) {
                 index.maskScenes = [];
+                index.scenes = [];
+              }
+              setSceneKey('');
+              setWithPicks(true);
               setSession(index);
               setExcluded([]);
               setSelected('');
@@ -256,6 +292,70 @@ export default function LegacyWorkspaceImport({
           >
             프리셋을 라이브러리에서 검토
           </button>
+          <fieldset disabled={busy || disabled || !session.scenes.length}>
+            <legend>저장된 일반 씬</legend>
+            <label>
+              복사할 씬
+              <select
+                data-testid="legacy-scene-select"
+                value={sceneKey}
+                onChange={(e) => setSceneKey(e.target.value)}
+              >
+                <option value="">씬 선택</option>
+                {session.scenes.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {ordinary && (
+              <p>
+                활성 슬롯 조합 {ordinary.count}개 · 선별 PNG {ordinary.picks}장
+              </p>
+            )}
+            {ordinary &&
+              (ordinary.count === 0 ||
+                ordinary.count > PROJECT_LIMITS.scenes) && (
+                <p>
+                  활성 조합이 1~{PROJECT_LIMITS.scenes}개인 씬을 선택하세요.
+                </p>
+              )}
+            <label>
+              <input
+                type="checkbox"
+                data-testid="legacy-with-picks"
+                checked={withPicks}
+                onChange={(e) => setWithPicks(e.target.checked)}
+              />
+              선별 PNG 포함
+            </label>
+            <p>
+              활성 조합마다 편집할 씬을 만듭니다. 선별 PNG는 원래 씬 이름으로
+              보관합니다. 세션 공통 프리셋은 라이브러리에서 별도로 적용하세요.
+            </p>
+            <button
+              type="button"
+              data-testid="legacy-copy-scene"
+              disabled={
+                !ordinary ||
+                ordinary.count < 1 ||
+                ordinary.count > PROJECT_LIMITS.scenes ||
+                (withPicks && ordinary.picks > PROJECT_LIMITS.results)
+              }
+              onClick={() => onCopyScene(session.name, sceneKey, withPicks)}
+            >
+              일반 씬을 새 프로젝트로 복사
+            </button>
+            {ordinary &&
+              withPicks &&
+              ordinary.picks > PROJECT_LIMITS.results && (
+                <p>
+                  프로젝트당 선별 PNG 한도는 {PROJECT_LIMITS.results}장입니다.
+                  슬롯만 복사하려면 선별 PNG 포함을 해제하세요.
+                </p>
+              )}
+          </fieldset>
           <fieldset
             disabled={
               busy ||

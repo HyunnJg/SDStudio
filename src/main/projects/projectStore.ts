@@ -39,6 +39,7 @@ import type {
 } from '../../workspaceProject';
 import { validatePNGBytes } from '../nai/imageResponse';
 import legacyMasks from './legacyMasks';
+import legacyScene from './legacyScene';
 
 const hash = (bytes: Uint8Array) =>
   createHash('sha256').update(bytes).digest('hex');
@@ -556,6 +557,79 @@ export class ProjectStore {
         referenceSourceId,
       ),
     );
+  }
+
+  copyLegacyScene(
+    legacyRoot: string,
+    name: string,
+    key: string,
+    withPicks: boolean,
+  ): ProjectSnapshot {
+    return io(() => {
+      const source = legacyScene(legacyRoot, name, key, withPicks, read);
+      const root = this.directory([], true);
+      projectCheck(
+        fs.readdirSync(root).filter((entry) => /^[a-f0-9-]{36}$/.test(entry))
+          .length < 1000,
+        'PROJECT_LIMIT',
+      );
+      const scratch = fs.mkdtempSync(path.join(root, '.import-'));
+      try {
+        const stage = new ProjectStore(scratch);
+        const content = validateProjectContent({
+          name: `${name} · ${source.name}`.slice(0, 120),
+          selectedSceneId: source.scenes[0].id,
+          scenes: source.scenes,
+        });
+        const files = stage.create(content);
+        const images: WorkspaceProject['images'] = [];
+        let total = 0;
+        for (const pick of source.picks) {
+          let bytes: Uint8Array;
+          try {
+            bytes = validatePNGBytes(pick.readPNG());
+          } catch {
+            throw new ProjectError('PROJECT_LEGACY_PICK');
+          }
+          total += bytes.length;
+          projectCheck(total <= PROJECT_LIMITS.totalPNGBytes, 'PROJECT_LIMIT');
+          const sha256 = hash(bytes);
+          ProjectStore.immutable(
+            path.join(
+              stage.folder(files.project.id),
+              'images',
+              `${sha256}.png`,
+            ),
+            bytes,
+          );
+          images.push({
+            origin: 'v3-pick',
+            id: randomUUID(),
+            sceneId: 'v3-source',
+            sourceScene: source.name,
+            filename: pick.filename,
+            sha256,
+            pngBytes: bytes.length,
+          });
+        }
+        const clean = stage.createSnapshot(
+          content,
+          images,
+          files.project.id,
+          undefined,
+          images.map((i) => i.id),
+        );
+        const verified = stage.open(clean.project.id);
+        fs.renameSync(
+          stage.folder(clean.project.id),
+          path.join(root, clean.project.id),
+        );
+        syncDirectory(root);
+        return verified;
+      } finally {
+        fs.rmSync(scratch, { recursive: true, force: true });
+      }
+    });
   }
 
   async copyLegacyMasks(

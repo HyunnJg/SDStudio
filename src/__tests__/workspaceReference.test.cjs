@@ -662,3 +662,123 @@ test('legacy mask copy publishes a verified project and leaves versioned and ear
   assert.deepEqual(f.store.open(subset.project.id), subset);
   assert.equal(fs.readdirSync(path.join(f.profile,'projects-v1')).some(n=>n.startsWith('.import-')),false);
 });
+
+test('V3 ordinary scene copies active combinations and original picked PNGs without inventing generation settings', async (t) => {
+  const f = await fixture(t);
+  const root = path.join(f.profile, 'SDStudio'),
+    projects = path.join(root, 'projects');
+  const outs = path.join(root, 'outs', 'Book', 'Sky');
+  fs.mkdirSync(projects, { recursive: true });
+  fs.mkdirSync(outs, { recursive: true });
+  const bytes = png(),
+    file = path.join(projects, 'Book.json');
+  fs.writeFileSync(path.join(outs, 'a.png'), bytes);
+  const scene = {
+    name: 'Sky',
+    resolution: 'custom',
+    resolutionWidth: 640,
+    resolutionHeight: 896,
+    slots: [
+      [{ prompt: 'a' }, { prompt: 'unused', enabled: false }, { prompt: 'b' }],
+      [{ prompt: 'c' }, { prompt: '<Lib.rain>' }],
+    ],
+    mains: ['a.png', 'a.png'],
+  };
+  const session = {
+    version: 1,
+    scenes: { sky: scene },
+    library: { Lib: { pieces: [{ name: 'rain', prompt: 'rain' }] } },
+  };
+  const original = JSON.stringify(session);
+  fs.writeFileSync(file, original);
+  const worker = new ProjectService(
+    f.profile,
+    require.resolve('../main/projects/projectWorker.ts'),
+  );
+  t.after(() => worker.close());
+  const copy = await worker.copyLegacyScene(root, 'Book', 'sky', true);
+  const { id, scenes, images } = copy.project;
+  assert.equal(copy.project.version, 12);
+  assert.deepEqual(
+    scenes.map((s) => s.draft.prompt),
+    ['a, c', 'a, <Lib.rain>', 'b, c', 'b, <Lib.rain>'],
+  );
+  assert.equal(scenes[0].draft.pieces, undefined);
+  assert.equal(scenes[1].draft.pieces[0].key, 'Lib.rain');
+  assert.equal(scenes[0].draft.resolution, '640x896');
+  assert.equal(images.length, 1);
+  assert.ok(!scenes.some((s) => s.id === images[0].sceneId));
+  assert.equal(images[0].origin, 'v3-pick');
+  assert.equal(images[0].seed, undefined);
+  assert.equal(images[0].draft, undefined);
+  assert.equal(images[0].filename, 'a.png');
+  assert.deepEqual(f.store.resultPicks(id), [images[0].id]);
+  assert.deepEqual(f.store.open(id), copy);
+  assert.deepEqual(
+    Buffer.from(f.store.image(id, images[0].id)),
+    Buffer.from(bytes),
+  );
+  const duplicate = f.store.copy(id, copy.revision, {
+    name: 'Copy',
+    scenes,
+    selectedSceneId: scenes[0].id,
+  });
+  assert.deepEqual(f.store.resultPicks(duplicate.project.id), [images[0].id]);
+  assert.throws(() =>
+    validateWorkspaceProject({ ...copy.project, version: 11 }),
+  );
+  assert.throws(() =>
+    validateWorkspaceProject({
+      ...copy.project,
+      images: [{ ...images[0], seed: 0 }],
+    }),
+  );
+  assert.equal(fs.readFileSync(file, 'utf8'), original);
+  const count = f.store.list().length;
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      ...session,
+      scenes: { sky: { ...scene, mains: ['a.png', 'missing.png'] } },
+    }),
+  );
+  await assert.rejects(worker.copyLegacyScene(root, 'Book', 'sky', true), {
+    code: 'PROJECT_LEGACY_PICK',
+  });
+  assert.equal(f.store.list().length, count);
+  const slotsOnly = await worker.copyLegacyScene(root, 'Book', 'sky', false);
+  assert.equal(slotsOnly.project.images.length, 0);
+  assert.equal(slotsOnly.project.version, 10);
+  await assert.rejects(worker.copyLegacyScene(root, 'Book', 'gone', true), {
+    code: 'PROJECT_CONFLICT',
+  });
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      scenes: {
+        sky: {
+          name: 'Sky',
+          landscape: false,
+          main: 'a.png',
+          slots: [[{ prompt: 'old' }]],
+        },
+      },
+    }),
+  );
+  const old = await worker.copyLegacyScene(root, 'Book', 'sky', true);
+  assert.equal(old.project.scenes[0].draft.resolution, 'portrait');
+  assert.equal(old.project.images[0].filename, 'a.png');
+  for (const [slots, code] of [
+    [[[]], 'PROJECT_LEGACY_SCENE'],
+    [[Array(61).fill({ prompt: 'x' })], 'PROJECT_LIMIT'],
+    [[[{ prompt: '<missing.piece>' }]], 'PROJECT_LEGACY_PIECE'],
+  ]) {
+    fs.writeFileSync(
+      file,
+      JSON.stringify({ scenes: { sky: { ...scene, slots } } }),
+    );
+    await assert.rejects(worker.copyLegacyScene(root, 'Book', 'sky', false), {
+      code,
+    });
+  }
+});
