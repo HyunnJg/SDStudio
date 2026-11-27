@@ -247,6 +247,9 @@ export class WorkspaceGeneration {
     const v = scene.draft.img2img;
     const r = scene.draft.reference;
     return {
+      ...(scene.draft.family === 'v5' && scene.draft.transparentBackground
+        ? { transparentBackground: true as const }
+        : {}),
       ...(v && { img2img: { strength: v.strength, noise: v.noise } }),
       ...(r && {
         reference: {

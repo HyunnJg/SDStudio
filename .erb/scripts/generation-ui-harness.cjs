@@ -134,6 +134,9 @@ const server = http.createServer(async (request, response) => {
   const parsed = JSON.parse(body);
   sentSteps.push(parsed.parameters.steps);
   if (phase === 'scope-start') {
+    assert.equal(parsed.parameters.tag_hint_transparent_background, true);
+    assert.equal(parsed.parameters.straight_alpha, true);
+    assert.equal(parsed.input.match(/transparent background/g).length, 1);
     response.writeHead(200, { 'Content-Type':'application/zip' });
     response.end(await payload);
     return;

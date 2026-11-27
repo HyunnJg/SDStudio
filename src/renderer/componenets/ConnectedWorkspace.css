@@ -383,6 +383,9 @@
   max-height: 100%;
   object-fit: contain;
 }
+.connected-image[data-transparent="true"] {
+  background: repeating-conic-gradient(#c6c6c6 0 25%, #ededed 0 50%) 0 0 / 20px 20px;
+}
 .connected-empty {
   display: flex;
   flex-direction: column;

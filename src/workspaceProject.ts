@@ -103,7 +103,7 @@ export type ProjectImageInput = Omit<
 >;
 export interface WorkspaceProject extends ProjectContent {
   format: typeof PROJECT_FORMAT;
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
   id: string;
   images: ProjectImage[];
   trashedImageIds?: string[];
@@ -340,6 +340,7 @@ function draft(value: unknown): number {
     'pieces',
     'model',
     'qualityTags',
+    'transparentBackground',
     'ucPreset',
     'reference',
     'img2img',
@@ -377,6 +378,8 @@ function draft(value: unknown): number {
   }
   if (optional.includes('img2img')) validateVariation(d.img2img);
   if (optional.includes('reference')) validateReference(d.reference);
+  if (optional.includes('transparentBackground'))
+    projectCheck(d.transparentBackground === true);
   if (optional.includes('qualityTags'))
     choice(d.qualityTags, ['none', 'light', 'standard']);
   if (optional.includes('ucPreset'))
@@ -518,8 +521,14 @@ export function requiredProjectVersion(
   content: ProjectContent,
   records: readonly (ProjectImageInput | ImportedImage)[] = [],
 ): WorkspaceProject['version'] {
-  if (records.some((i) => i.origin)) return 12;
   const images = records.filter((i): i is ProjectImageInput => !i.origin);
+  if (
+    [...content.scenes, ...images].some(
+      ({ draft: d }) => d.transparentBackground,
+    )
+  )
+    return 13;
+  if (records.some((i) => i.origin)) return 12;
   if (
     [...content.scenes, ...images].some(
       ({ draft: d }) => d.inpaintSource || d.inpaintMask,
@@ -595,7 +604,8 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
       v.version === 9 ||
       v.version === 10 ||
       v.version === 11 ||
-      v.version === 12,
+      v.version === 12 ||
+      v.version === 13,
     'PROJECT_VERSION',
   );
   try {
@@ -636,7 +646,7 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
           'filename',
           'sceneId',
         ]);
-        projectCheck(v.version === 12 && imported.origin === 'v3-pick');
+        projectCheck(Number(v.version) >= 12 && imported.origin === 'v3-pick');
         projectCheck(imported.sceneId === 'v3-source');
         string(imported.sourceScene, 180);
         string(imported.filename, 180);

@@ -435,6 +435,7 @@ export default function ConnectedWorkspace({
     setState((previous) => {
       const draft = { ...previous.draft, ...value };
       if (!draft.model) delete draft.model;
+      if (!draft.transparentBackground) delete draft.transparentBackground;
       return { ...previous, draft };
     });
   };
@@ -1356,12 +1357,28 @@ export default function ConnectedWorkspace({
               </label>
               <textarea
                 id="live-prompt"
+                placeholder="프롬프트를 입력하세요. 표정 세트는 ‘조합으로 예약’에서 고를 수 있습니다."
                 data-testid="live-prompt"
                 rows={11}
                 hidden={promptTab !== 'prompt'}
                 value={state.draft.prompt}
                 onChange={(e) => patch({ prompt: e.target.value })}
               />
+              {state.draft.family === 'v5' && promptTab === 'prompt' && (
+                <label>
+                  <input
+                    type="checkbox"
+                    data-testid="transparent-background"
+                    checked={!!state.draft.transparentBackground}
+                    onChange={(e) =>
+                      patch({
+                        transparentBackground: e.target.checked || undefined,
+                      })
+                    }
+                  />
+                  투명 배경
+                </label>
+              )}
               <label className="connected-sr-only" htmlFor="live-negative">
                 부정 프롬프트
               </label>
@@ -1624,6 +1641,7 @@ export default function ConnectedWorkspace({
                   {singlePlan.model} · {singlePlan.width}×{singlePlan.height} ·{' '}
                   {singlePlan.steps}스텝 · 가이던스 {singlePlan.scale} · 시드{' '}
                   {singlePlan.seed}
+                  {singlePlan.transparentBackground && ' · 투명 배경'}
                   {!!singlePlan.characters &&
                     ` · 캐릭터 ${singlePlan.characters}명 · 자동 배치`}
                 </p>
@@ -1663,6 +1681,7 @@ export default function ConnectedWorkspace({
                       ` · 변형 강도 ${settings.img2img.strength} · 노이즈 ${settings.img2img.noise}`}
                     {settings.reference &&
                       ` · 참조 1장 (${REFERENCE_ROLES[settings.reference.role]}, 강도 ${settings.reference.strength}${settings.reference.preferSameOutfit ? ', 같은 의상 우선' : ''})`}
+                    {settings.transparentBackground && ' · 투명 배경'}
                     {!!settings.characters &&
                       ` · 캐릭터 ${settings.characters}명 · 자동 배치`}
                   </p>
@@ -1807,6 +1826,12 @@ export default function ConnectedWorkspace({
             {imageURL ? (
               <img
                 className="connected-image"
+                data-transparent={
+                  !!result &&
+                  !result.origin &&
+                  result.draft.family === 'v5' &&
+                  !!result.draft.transparentBackground
+                }
                 data-testid="generated-png"
                 src={imageURL}
                 alt="프로젝트에 저장된 NovelAI 생성 결과"
@@ -1834,6 +1859,10 @@ export default function ConnectedWorkspace({
               {result.origin
                 ? `V3 선별 · ${result.sourceScene} · ${result.filename}`
                 : `${MODELS[modelId(result.draft)]} · 시드 ${result.seed}`}
+              {!result.origin &&
+                result.draft.family === 'v5' &&
+                result.draft.transparentBackground &&
+                ' · 투명 배경 요청'}
             </p>
           )}
         </section>

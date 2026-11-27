@@ -28,16 +28,16 @@ export const blankRecipe = (): SceneRecipe => ({
 });
 
 export const emotionCuts = [
-  ['기쁨', 'bright smile, cheerful eyes'],
-  ['슬픔', 'downcast eyes, trembling lips'],
-  ['분노', 'furrowed brows, clenched jaw'],
-  ['공포', 'wide eyes, recoiling in fear'],
-  ['놀람', 'raised eyebrows, open mouth'],
-  ['혐오', 'wrinkled nose, curled upper lip'],
-  ['신뢰', 'gentle eye contact, relaxed brow'],
-  ['기대', 'eager eyes, leaning forward'],
-  ['당황', 'flushed cheeks, flustered expression'],
-  ['질투', 'envious sideways glance, pressed lips'],
+  ['기쁨', 'happy, smile'],
+  ['슬픔', 'sad, tears'],
+  ['분노', 'angry, furrowed brow, clenched teeth'],
+  ['공포', 'scared, wide-eyed, trembling'],
+  ['놀람', 'surprised, open mouth'],
+  ['혐오', 'disgust, grimace'],
+  ['신뢰', 'looking at viewer, light smile'],
+  ['기대', 'excited, sparkling eyes'],
+  ['당황', 'embarrassed, flustered, blush'],
+  ['질투', 'jealous, looking to the side, pout'],
 ].map(([name, emotion]) => ({ name, emotion }));
 
 export function recipeHasPlaceholder(rows: SceneRecipe['situations']) {

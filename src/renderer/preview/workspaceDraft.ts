@@ -36,6 +36,7 @@ export interface WorkspaceDraft {
   steps: string;
   guidance: string;
   qualityTags?: 'none' | 'light' | 'standard';
+  transparentBackground?: true;
   ucPreset?: 'none' | 'light' | 'heavy' | 'human' | 'furry';
 }
 

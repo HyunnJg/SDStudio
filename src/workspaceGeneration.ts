@@ -32,6 +32,7 @@ export interface GenerationFailure {
 }
 export type GenerationReply<T> = { ok: true; value: T } | GenerationFailure;
 export interface GenerationSettings {
+  transparentBackground?: true;
   model: import('./workspaceCatalog').ModelId | 'nai-diffusion-3-inpainting';
   width: number;
   height: number;

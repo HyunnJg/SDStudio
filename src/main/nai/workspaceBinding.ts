@@ -117,7 +117,14 @@ export function bindBasicGeneration(
   )
     throw new Error('INVALID_INPUT');
   const join = (a: string, b: string) => [a, b].filter(Boolean).join(', ');
-  const prompt = v5 ? join(d.prompt, V5_QUALITY_TAGS[quality]) : d.prompt;
+  const transparent = v5 && d.transparentBackground;
+  const hasBackgroundTag =
+    /(?:^|[,\n:{[])\s*transparent background\s*(?=$|[,\n:}\]])/i.test(d.prompt);
+  const basePrompt =
+    transparent && !hasBackgroundTag
+      ? join(d.prompt, 'transparent background')
+      : d.prompt;
+  const prompt = v5 ? join(basePrompt, V5_QUALITY_TAGS[quality]) : basePrompt;
   const negative = v5
     ? join(V5_UC_PRESETS[uc], d.negativePrompt)
     : d.negativePrompt;
@@ -225,6 +232,9 @@ export function bindBasicGeneration(
       ...(v5
         ? {
             image_format: 'png',
+            ...(transparent
+              ? { tag_hint_transparent_background: true, straight_alpha: true }
+              : {}),
             use_coords: false,
             legacy_uc: false,
             legacy: false,

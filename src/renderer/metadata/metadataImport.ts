@@ -176,6 +176,7 @@ export function applyMetadataImport(
   // Imported captions are final text; disable only the corresponding auto-append.
   if (selected.has('prompt') && plan.prompt !== undefined) {
     next.prompt = plan.prompt;
+    delete next.transparentBackground;
     if (next.qualityTags !== undefined) next.qualityTags = 'none';
   }
   if (selected.has('negativePrompt') && plan.negativePrompt !== undefined) {

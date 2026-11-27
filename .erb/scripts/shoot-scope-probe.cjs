@@ -17,6 +17,7 @@ module.exports = async ({
       ).ok,
     );
     await fill('#live-prompt', 'synthetic portrait');
+    await click('[data-testid=transparent-background]');
     await fill('#live-interval', '0');
     await fill('#live-repeats', '2');
     await click('[data-testid=scene-recipe] summary');
@@ -29,6 +30,7 @@ module.exports = async ({
     await until(() =>
       evaluate("!!document.querySelector('[data-testid=send-live-queue]')"),
     );
+    assert.ok(await evaluate("document.querySelector('[data-testid=queue-confirm]').textContent.includes('투명 배경')"));
     await click('[data-testid=send-live-queue]');
     await until(
       async () =>
@@ -73,6 +75,7 @@ module.exports = async ({
     await click('[data-testid=prepare-unpicked]');
     await until(() => evaluate("!!document.querySelector('[data-testid=queue-confirm] li')"));
     assert.ok(await evaluate("[...document.querySelectorAll('[data-testid=queue-confirm] li')].every(row=>row.textContent.includes('질투'))"));
+    assert.ok(await evaluate("document.querySelector('[data-testid=queue-confirm]').textContent.includes('투명 배경')"));
     await click('[data-testid=queue-confirm] button:last-of-type');
     assert.equal(requests(), 0);
     checks.push(
