@@ -1,5 +1,38 @@
 # 개발 시작과 검증 기록
 
+## 데스크톱 아이콘 재생성
+
+벡터 원본은 `assets/desktop-icon.svg`다. 저장소 루트에서 프로젝트의 sharp로 PNG 10종을 만들고 512px 사본을 창 아이콘으로 사용한다. 아래 코드는 PowerShell에서 실행한다.
+
+```powershell
+@'
+const sharp = require('sharp');
+async function generate() {
+  for (const size of [16, 24, 32, 48, 64, 96, 128, 256, 512, 1024]) {
+    await sharp('assets/desktop-icon.svg', { density: 288 })
+      .resize(size, size)
+      .png()
+      .toFile('assets/icons/' + size + 'x' + size + '.png');
+  }
+}
+generate().catch(error => { console.error(error); process.exitCode = 1; });
+'@ | node
+if ($LASTEXITCODE -ne 0) { throw 'PNG 생성 실패' }
+Copy-Item assets/icons/512x512.png assets/icon.png
+```
+
+Python과 Pillow가 있는 환경에서 1024px PNG로 Windows ICO와 macOS ICNS를 만든다. Windows에서 아래 절차로 재생성한 파일과 저장소 사본의 SHA-256이 일치했다.
+
+```powershell
+@'
+from PIL import Image
+with Image.open("assets/icons/1024x1024.png") as image:
+    sizes = [(n, n) for n in (16, 24, 32, 48, 64, 128, 256)]
+    image.save("assets/icon.ico", sizes=sizes)
+    image.save("assets/icon.icns")
+'@ | python -
+```
+
 ## 현재 데스크톱 설치 기준 — D-050
 
 Node **26.13.1**, npm **11.21.3**, Electron **45.4.1**로 갱신했다. 개발 명령은 Node26에서, 앱은 Electron 내부 Node24.22.3에서 실행된다. Node22 전용 셸이나 전역 node-gyp를 따로 구성하지 않는다. 아래 절차가 현재 기준이며, 뒤의 과거 조사 기록은 당시 환경을 뜻한다. [변경·검증 범위](RUNTIME_MODERNIZATION.md).

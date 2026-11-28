@@ -7,3 +7,5 @@ LICENSES/electron-react-boilerplate.txt is an exact copy from ancestor commit 70
 This restored historical notice does not resolve the absence of a separate SDStudio-specific copyright notice. The native module declares ISC but an exact notice file has not yet been identified. These remain documented review items. On 2026-11-21 the fork owner chose to continue development with upstream attribution and the unresolved scope recorded, without waiting for an author response. This records a development decision; it does not invent a license grant. CREDITS.md identifies the original project and this fork.
 
 THIRD_PARTY_NOTICES.txt and index.json contain local dependency notice evidence, including unresolved entries. They do not clear the provenance of tag data, images or vendored binaries, and do not certify full redistribution compliance.
+
+For the first 122,870 rows of data/db.csv, the package includes the originating tagcomplete repository's MIT notice at LICENSES/tagcomplete-MIT.txt. The source and transformation are documented in CREDITS.md and docs/LICENSE_REVIEW.md. The origin and redistribution terms of the final 1,862 alias rows remain unresolved.

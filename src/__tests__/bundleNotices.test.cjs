@@ -26,6 +26,7 @@ async function fixture(t) {
     ),
   );
   put('CREDITS.md', 'Synthetic credits.\n');
+  put('LICENSES/tagcomplete-MIT.txt', 'Synthetic tag data notice.\n');
   put('entry.js', 'import {value} from "foo"; console.log(value);');
   for (const name of ['foo', 'bar', 'unused']) {
     put(

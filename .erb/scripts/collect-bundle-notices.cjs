@@ -260,20 +260,15 @@ function collectNotices() {
         declaredLicense: item.declaredLicense,
       })),
     applicationDocuments: [
-      {
-        resourcePath: 'LICENSES/electron-react-boilerplate.txt',
-        source: 'LICENSES/electron-react-boilerplate.txt',
-        sha256: hash(
-          fs.readFileSync(
-            path.join(root, 'LICENSES/electron-react-boilerplate.txt'),
-          ),
-        ),
-      },
-      {
-        resourcePath: 'CREDITS.md',
-        source: 'CREDITS.md',
-        sha256: hash(fs.readFileSync(path.join(root, 'CREDITS.md'))),
-      },
+      ...[
+        'LICENSES/electron-react-boilerplate.txt',
+        'LICENSES/tagcomplete-MIT.txt',
+        'CREDITS.md',
+      ].map((source) => ({
+        resourcePath: source,
+        source,
+        sha256: hash(fs.readFileSync(path.join(root, source))),
+      })),
       {
         resourcePath: 'THIRD_PARTY_NOTICES/APP_LICENSE_STATUS.md',
         source: 'docs/licenses/APP_LICENSE_STATUS.md',

@@ -375,6 +375,10 @@
         "to": "LICENSES/electron-react-boilerplate.txt"
       },
       {
+        "from": "LICENSES/tagcomplete-MIT.txt",
+        "to": "LICENSES/tagcomplete-MIT.txt"
+      },
+      {
         "from": "CREDITS.md",
         "to": "CREDITS.md"
       },
