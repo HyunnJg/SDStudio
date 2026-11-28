@@ -5,8 +5,10 @@ Original project: https://github.com/sunho/SDStudio
 Base revision: `f2088add103ad683a31e0590448e6e5bb4d71556` (version 3.1.11).
 
 This development fork is maintained at https://github.com/HyunnJg/SDStudio.
-Its changes retain the original Git history, author metadata and project introduction.
+Its changes retain the original Git history and author metadata. The fork README links to the original project introduction at the base revision.
 This fork is independent of the original project and NovelAI.
+
+The desktop icon was drawn for this fork. Its vector source is `assets/desktop-icon.svg`. The README screenshot shows the actual desktop workspace with three original lighthouse illustrations prepared offline for this demonstration.
 
 The historical Electron React Boilerplate MIT notice is preserved byte for byte in
 `LICENSES/electron-react-boilerplate.txt`. It identifies the boilerplate component;

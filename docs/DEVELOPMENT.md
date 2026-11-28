@@ -118,7 +118,7 @@ P1-01b 작업실에서는 씬별 입력을 편집한 뒤 `전체 씬 예약` →
 
 ## 고지 묶음
 
-`npm run build`는 production main/preload·renderer 컴파일의 패키지 목록을 남기고 고지를 수집한다. `licenses:bundle`로 재수집할 수 있으며 beforePack에서도 자동 생성한다. `.erb/generated/notices`는 Git에서 제외한다. 패키지는 `package:check-notices`로 경로·사본 해시·번들/metadata 대응을 검사한다. `--require-notice-files`는 현재 원문 미확인 8건을 이유로 실패한다. 이 검사와 전체 재배포 조건 완료를 구분한다. [정확한 범위·명령](licenses/BUNDLE_NOTICES.md).
+`npm run build`는 production main/preload·renderer 컴파일의 패키지 목록을 남기고 고지를 수집한다. `licenses:bundle`로 재수집할 수 있으며 beforePack에서도 자동 생성한다. `.erb/generated/notices`는 Git에서 제외한다. 패키지는 `package:check-notices`로 경로·사본 해시·번들/metadata 및 Electron·Chromium 원문을 대조한다. Windows x64 D-089 후보에서 `--require-notice-files`는 native ISC 원문 1건 때문에 실패한다. 이 검사와 전체 재배포 조건 완료를 구분한다. [정확한 범위·명령](licenses/BUNDLE_NOTICES.md).
 
 
 ## 신규 인증·전송 검사 (P0-03b1)

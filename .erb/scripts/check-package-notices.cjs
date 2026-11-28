@@ -26,6 +26,16 @@ for (const file of required)
 // ASAR's filesystem API expects host-native paths; inventories use portable '/'.
 const extract = (name) => asar.extractFile(archive, path.normalize(name));
 const hash = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
+const electronDist = path.dirname(require('electron'));
+const runtimeNotices = [
+  ['LICENSE', 'LICENSE.electron.txt'],
+  ['LICENSES.chromium.html', 'LICENSES.chromium.html'],
+];
+for (const [source, shipped] of runtimeNotices) {
+  const expected = fs.readFileSync(path.join(electronDist, source));
+  if (!expected.equals(fs.readFileSync(path.join(root, shipped))))
+    throw new Error(`Electron runtime notice mismatch: ${shipped}`);
+}
 const index = JSON.parse(fs.readFileSync(path.join(folder, 'index.json')));
 for (const doc of index.applicationDocuments) {
   const target = path.resolve(resources, doc.resourcePath);
@@ -95,6 +105,7 @@ for (const name of asar
 if (!runtimePackages)
   throw new Error('No copied runtime package metadata was inspected');
 const result = {
+  runtimeNoticesVerified: runtimeNotices.map(([, name]) => name),
   requiredResourcesPresent: required,
   noticeCopiesVerified: copiedFiles,
   bundlePackageOccurrencesIndexed: bundlePackages,
