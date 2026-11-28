@@ -58,6 +58,22 @@ test('three reference cards address previews by UUID and edit, remove or move ju
   act(() => card.props.onDrop({preventDefault(){},stopPropagation(){},dataTransfer:{files:[file]}}));
   assert.deepEqual(replacements, [[file, outfit.id]]);
 });
+test('a full four-card scene shows the per-card price and keeps variation available in the file chooser', async (t) => {
+  const refs = Array.from({length: 4}, (_, i) => ({...reference, id: String(i)}));
+  const {renderer} = await panel(t, {references: refs});
+  const text = JSON.stringify(renderer.toJSON());
+  assert.ok(text.includes('+20 Anlas'));
+  assert.ok(text.includes('같은 이미지가 여러 카드'));
+  assert.ok(text.includes('씬당 4장'));
+  const Choice = require('../renderer/componenets/WorkspaceImageChoice').default;
+  let chooser;
+  act(() => { chooser = create(React.createElement(Choice, {
+    file: {name:'sample.png'}, canReference:true, canVariation:true, referenceLimitReached:true,
+  }), {createNodeMock: () => ({showModal(){}})}); });
+  t.after(() => act(() => chooser.unmount()));
+  assert.equal(chooser.root.findByProps({'data-testid':'image-use-reference'}).props.disabled, true);
+  assert.equal(chooser.root.findByProps({'data-testid':'image-use-variation'}).props.disabled, false);
+});
 test('legacy mixed import shows valid candidates and skipped count instead of losing the whole file', async (t) => {
   const draft = createConnectedWorkspaceState().draft;
   let renderer;

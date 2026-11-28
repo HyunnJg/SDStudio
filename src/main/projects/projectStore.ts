@@ -1171,8 +1171,13 @@ export class ProjectStore {
     if (referenceTarget !== undefined) {
       projectCheck(purpose === 'reference');
       const refs = sceneReferences(scene.draft);
-      if (referenceTarget === 'append') referenceIndex = refs.length;
-      else {
+      if (referenceTarget === 'append') {
+        projectCheck(
+          refs.length < REFERENCE_LIMITS.cards,
+          'PROJECT_REFERENCE_COUNT',
+        );
+        referenceIndex = refs.length;
+      } else {
         projectId(referenceTarget);
         referenceIndex = refs.findIndex((r) => r.id === referenceTarget);
         projectCheck(referenceIndex !== -1, 'PROJECT_NOT_FOUND');

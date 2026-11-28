@@ -11,6 +11,7 @@ import type { WorkspaceScene } from '../../renderer/preview/workspaceDraft';
 import type { ProjectImageInput, ImageBinding } from '../../workspaceProject';
 import { validateReference, validateVariation } from '../../workspaceProject';
 import {
+  REFERENCE_LIMITS,
   referenceDescription,
   sceneReferences,
 } from '../../workspaceReference';
@@ -67,6 +68,7 @@ export function bindBasicGeneration(
   const uploads =
     images.references ?? (images.reference ? [images.reference] : []);
   if (
+    references.length > REFERENCE_LIMITS.cards ||
     uploads.length !== references.length ||
     (references.length > 0 && (!v5 || medium)) ||
     (!d.reference && d.additionalReferences?.length)

@@ -1,3 +1,4 @@
+import { REFERENCE_COUNT_NOTICE } from '../../workspaceReference';
 import type {
   GenerationFailure,
   GenerationQueueState,
@@ -49,6 +50,7 @@ export function generationMessage(
       'PNG는 받았지만 저장 결과를 확정하지 못했습니다. 결과만 다시 저장하면 API를 재호출하지 않습니다.',
     PROJECT_BUSY:
       '남은 저장 잠금이 있습니다. 프로젝트를 새 복사본으로 계속한 뒤 새로 확인하세요.',
+    PROJECT_REFERENCE_COUNT: REFERENCE_COUNT_NOTICE,
     PROJECT_IMAGE_TOO_LARGE:
       '전송용 PNG가 5 MiB를 초과합니다. 다른 이미지를 선택하세요.',
     PROJECT_LIMIT:

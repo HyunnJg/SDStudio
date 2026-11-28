@@ -25,6 +25,7 @@ import type {
 import type { WorkspaceScene } from '../../renderer/preview/workspaceDraft';
 import {
   GENERATION_BODY_LIMIT,
+  REFERENCE_LIMITS,
   sceneReferences,
 } from '../../workspaceReference';
 import type { ReferenceAsset, ImagePurpose } from '../../workspaceReference';
@@ -229,6 +230,8 @@ export class WorkspaceGeneration {
     const { store } = this.options;
     if (!store.referenceBytes) throw new GenerationError('INVALID_INPUT');
     const references = sceneReferences(scene.draft);
+    if (references.length > REFERENCE_LIMITS.cards)
+      throw new GenerationError('PROJECT_REFERENCE_COUNT');
     const base64Length = [
       ...references,
       img2img,

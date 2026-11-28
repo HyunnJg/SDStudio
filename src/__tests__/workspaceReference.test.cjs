@@ -67,6 +67,30 @@ async function fixture(t) {
     prepare: () => service.prepare(current.project.id, current.revision, content.scenes[0].id),
     file: (sha) => path.join(profile, 'projects-v1', current.project.id, 'references', `${sha}.png`) };
 }
+test('four reference cards allow replacement and I2I; older five-card scenes reopen and can be reduced', async (t) => {
+  const f = await variationFixture(t);
+  const { id, scene, reference, store, service } = f;
+  scene.draft.reference = reference;
+  scene.draft.additionalReferences = Array.from({ length: 3 }, () => ({
+    ...reference, id: require('node:crypto').randomUUID(),
+  }));
+  const saved = store.save(id, f.saved.revision, f.content);
+  const plan = await service.prepare(id, saved.revision, scene.id);
+  assert.equal(plan.reference.count, 4);
+  assert.ok(plan.img2img);
+  await assert.rejects(store.importReference(id, saved.revision, f.original, 'reference', 'append'), { code: 'PROJECT_REFERENCE_COUNT' });
+  const replacement = await store.importReference(id, saved.revision, f.original, 'reference', reference.id);
+  scene.draft.additionalReferences.push({ ...reference, id: replacement.id });
+  const legacy = store.save(id, saved.revision, f.content);
+  assert.equal(store.readManifest(id).project.scenes[0].draft.additionalReferences.length, 4);
+  await assert.rejects(service.prepare(id, legacy.revision, scene.id), { code: 'PROJECT_REFERENCE_COUNT' });
+  await assert.rejects(service.prepareQueue(id, legacy.revision, [scene.id], 2), { code: 'PROJECT_REFERENCE_COUNT' });
+  scene.draft.additionalReferences.pop();
+  const reduced = store.save(id, legacy.revision, f.content);
+  assert.equal((await service.prepareQueue(id, reduced.revision, [scene.id], 2)).items.length, 2);
+  assert.equal(f.bodies.length, 0);
+});
+
 test('three reference cards survive save, per-card preview, input copy, result copy, trash cleanup and history recovery', async (t) => {
   const { referenceAssetBytes } = require('../workspaceProject');
   const {

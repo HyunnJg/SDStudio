@@ -1014,6 +1014,8 @@ export default function ConnectedWorkspace({
       ];
     }),
   );
+  const referenceLimitReached =
+    sceneReferences(state.draft).length >= REFERENCE_LIMITS.cards;
   const medium = state.draft.model === 'nai-diffusion-5-full-medium';
   const variation = state.draft.img2img;
   const size = draftSize(state.draft);
@@ -1627,7 +1629,12 @@ export default function ConnectedWorkspace({
                   </button>
                   <button
                     type="button"
-                    disabled={locked || state.draft.family !== 'v5' || medium}
+                    disabled={
+                      locked ||
+                      state.draft.family !== 'v5' ||
+                      medium ||
+                      referenceLimitReached
+                    }
                     data-testid="result-use-reference"
                     onClick={() => reuseResultImage('reference')}
                   >
@@ -2166,6 +2173,7 @@ export default function ConnectedWorkspace({
             void attachImage(imageChoice, 'inpaintSource');
           }}
           canReference={state.draft.family === 'v5' && !medium}
+          referenceLimitReached={referenceLimitReached}
           canVariation={state.draft.family === 'v5'}
           onClose={() => setImageChoice(undefined)}
           onMetadata={() => {

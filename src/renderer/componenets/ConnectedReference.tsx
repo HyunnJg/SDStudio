@@ -12,6 +12,8 @@ import {
   REFERENCE_ANLAS,
   REFERENCE_ROLES,
   REFERENCE_COST_NOTICE,
+  REFERENCE_COUNT_NOTICE,
+  REFERENCE_LIMITS,
 } from '../../workspaceReference';
 
 interface Props {
@@ -186,6 +188,16 @@ export default function ConnectedReference({
           참조를 해제하거나 V5 Full · High 또는 Curated로 전환해야 생성할 수
           있습니다.
         </p>
+      )}
+      {references.length >= REFERENCE_LIMITS.cards && (
+        <small>{REFERENCE_COUNT_NOTICE}</small>
+      )}
+      {new Set(references.map((r) => r.uploadHash)).size <
+        references.length && (
+        <small>
+          같은 이미지가 여러 카드에 있습니다. 각 카드는 참조 추가분에
+          포함됩니다.
+        </small>
       )}
       {supportsReferences && !!references.length && (
         <small>
