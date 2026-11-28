@@ -225,6 +225,46 @@ test('modern split-libvips and Windows combined sharp README and versions are pr
   }
 });
 
+test('Windows ExifTool archive stays binary and the matching libvips texts are copied', async (t) => {
+  const { root, put, run } = await fixture(t);
+  const pkg = 'release/app/node_modules/exiftool-vendored.exe';
+  const base = `${pkg}/bin/exiftool_files`;
+  const zip = `${base}/Licenses_Strawberry_Perl.zip`;
+  put(
+    `${pkg}/package.json`,
+    JSON.stringify({ name: 'exiftool-vendored.exe', version: '12.85.0' }),
+  );
+  put(`${base}/LICENSE`, 'Synthetic runtime license');
+  put(`${base}/README`, 'Synthetic runtime readme');
+  const missing = run();
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /Licenses_Strawberry_Perl\.zip/);
+  put(zip, Buffer.from([0x50, 0x4b, 0xff, 0x00, 0xfe]));
+  const sharp = 'release/app/node_modules/@img/sharp-win32-synthetic';
+  put(`${sharp}/README.md`, 'Synthetic version-specific license table');
+  put(`${sharp}/versions.json`, '{"vips":"8.18.7"}');
+  const licenses = ['libvips-8.18.7.txt', 'lgpl-3.0.txt', 'gpl-3.0.txt'];
+  for (const name of licenses) put(`LICENSES/${name}`, name);
+  const result = run();
+  assert.equal(result.status, 0, result.stderr);
+  const notices = path.join(root, '.erb/generated/notices');
+  const index = JSON.parse(fs.readFileSync(path.join(notices, 'index.json')));
+  for (const source of [zip, ...licenses.map((name) => `LICENSES/${name}`)]) {
+    const entry = index.vendors.find((item) => item.source === source);
+    const bytes = fs.readFileSync(path.join(root, source));
+    assert.deepEqual(fs.readFileSync(path.join(notices, entry.copy)), bytes);
+    assert.equal(entry.sha256, hash(bytes));
+  }
+  const archive = index.vendors.find((item) => item.source === zip);
+  assert.ok(archive.copy.endsWith('.zip'));
+  const text = fs.readFileSync(
+    path.join(notices, 'THIRD_PARTY_NOTICES.txt'),
+    'utf8',
+  );
+  assert.ok(text.includes(archive.copy));
+  assert.ok(!text.includes('\uFFFD'));
+});
+
 test('real ASAR runtime metadata is checked with either path separator and unindexed packages are rejected', async (t) => {
   const { root, put, run } = await fixture(t);
   assert.equal(run().status, 0);

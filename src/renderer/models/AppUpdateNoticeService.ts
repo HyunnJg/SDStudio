@@ -82,11 +82,11 @@ export class AppUpdateNoticeService extends EventTarget {
   }
 
   isOutdated(current: string, latest: string): boolean {
-    const valid = /^v?\d+\.\d+\.\d+$/i;
-    if (!valid.test(current) || !valid.test(latest)) return false;
-    const a = current.replace(/^v/i, '').split('.').map(Number);
+    const installed = /^v?(\d+\.\d+\.\d+)(-rc\.\d+)?$/i.exec(current);
+    if (!installed || !/^v?\d+\.\d+\.\d+$/i.test(latest)) return false;
+    const a = installed[1].split('.').map(Number);
     const b = latest.replace(/^v/i, '').split('.').map(Number);
     const index = a.findIndex((value, i) => value !== b[i]);
-    return index >= 0 && a[index] < b[index];
+    return index >= 0 ? a[index] < b[index] : Boolean(installed[2]);
   }
 }

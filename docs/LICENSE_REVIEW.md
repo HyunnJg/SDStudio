@@ -85,6 +85,8 @@ NovelAI/novelai-image-metadata `3428907ac7183d7e36d7cc39e8f46f6f35ce99c1`의 nai
 
 ## D-089 Windows x64 배포 후보
 
+이후 설치 후보에서 확인한 Windows 바이너리의 원문은 [D-090](#d-090-windows-바이너리-고지)에 기록했다.
+
 ### 태그 검색 데이터의 출처 대조
 
 `release/app/data/db.csv`의 Git blob은 `8577d615dafb5ce67e2ebef1e11a7820030a6c92`다. 원본 SDStudio의 `f13d784`에서 처음 들어온 앞 122,870행은 tagcomplete 리비전 `1d8d9f6`의 CSV 100,000행으로 재현된다. 두 파일을 CSV로 읽고, 원자료의 이름과 별칭에서 밑줄을 공백으로 바꾼다. 각 이름에 대해 별칭마다 `[별칭, 분류, 횟수, 이름]` 행을 먼저 만들고 `[이름, 분류, 횟수, "null"]`을 붙이면 행 순서와 네 필드 값이 모두 일치한다. 원자료 SHA-256은 `805ed20a56d7f5a562e2c4e2a70491725100a28f37d48dd0daf19e2c9ffd7031`이다. [대조한 CSV](https://github.com/DominikDoom/a1111-sd-webui-tagcomplete/blob/1d8d9f64b5aaaa0b2b9cbebaa5fd45a48b193ba6/tags/danbooru.csv) · [원자료 갱신 논의](https://github.com/DominikDoom/a1111-sd-webui-tagcomplete/issues/274)
@@ -100,3 +102,9 @@ NovelAI/novelai-image-metadata `3428907ac7183d7e36d7cc39e8f46f6f35ce99c1`의 nai
 고지 색인의 미해결 원문은 `src/native` 1건이다. 이 저장소의 native 경로에서 원문·저작권 문구와 과거 LICENSE 경로를 다시 찾아봤으나 ISC 선언 외의 원문을 확인하지 못했다. 앱 자체의 저작권 표기, 동봉 태그 DB의 원자료와 재배포 조건, 바이너리 공급자의 조건은 별도 확인 대상이다.
 
 원본 고지 파일은 `LICENSES/` 아래에 저장한다. 수집기는 위 버전에 한해 SHA-256을 대조하고 사본의 해시를 설치본 색인에 기록한다. Windows에서 고지 파일·vendor 증거 200개를 검증했다. SDStudio 고유 표기, DB·이미지 출처, ExifTool과 libvips 배포 조건은 기존 별도 검토 항목이다.
+
+## D-090 Windows 바이너리 고지
+
+- **ExifTool**. `exiftool-vendored.exe@12.85.0`에는 npm 래퍼와 ExifTool 본체의 고지가 따로 있다. 본체의 README·LICENSE와 Strawberry Perl의 ZIP을 원본 바이트로 동봉한다. 고지 색인에서 ZIP 경로를 찾을 수 있고 압축 안의 파일 153개를 CRC로 검사했다. 소스에는 래퍼와 ExifTool의 리비전을 따로 기록한다. [Windows 래퍼](https://github.com/photostructure/exiftool-vendored.exe/tree/d74f6f7b0299b947c5eac7edd5ee02f6f6ae0c70) · [ExifTool 12.85](https://github.com/exiftool/exiftool/tree/405674e0c477931b60b10a78828483ef54761385)
+- **sharp와 libvips**. `@img/sharp-win32-x64@0.35.5`의 `versions.json`에는 libvips 8.18.7이 명시돼 있다. 설치된 README의 구성요소별 고지 표와 설명을 sharp-libvips v1.3.4의 고지 원문과 대조했다. 설치본의 고지 폴더에 libvips 8.18.7의 LICENSE, 공급자 표가 명시한 LGPLv3와 그에 수반되는 GPLv3 전문을 함께 넣는다. [공급자 고지](https://github.com/lovell/sharp-libvips/blob/ebb95f8add54eee8bed840e3fb587e4cbec857d7/THIRD-PARTY-NOTICES.md) · [libvips 원문](https://github.com/libvips/libvips/blob/24ad4d042940e6bf99a68871ba886ca8847c9c82/LICENSE) · [GNU LGPLv3](https://www.gnu.org/licenses/lgpl-3.0.txt) · [GNU GPLv3](https://www.gnu.org/licenses/gpl-3.0.txt)
+- **공개 전 남은 범위**. 라이브러리와 런처를 포함한 바이너리 묶음 전체의 대응 소스와 재빌드 자료 제공 방법, 한국어 별칭 1,862행의 원출처, SDStudio 앱 고유 표기와 native ISC 원문을 확인해야 한다. 위 원문들은 확인된 구성요소의 고지로 동봉했다.
