@@ -59,6 +59,11 @@ async function main() {
       );
       return reply;
     }
+    // The DevTools target can appear while the first document is still loading.
+    const ready =
+      "!!window.electron?.projects && !!document.querySelector('[data-testid=project-list]')";
+    for (let i = 0; i < 100 && !(await evaluate(ready)); i++) await delay(150);
+    assert.ok(await evaluate(ready), 'installed workspace was not ready');
     const { scenes, selectedSceneId } = createConnectedWorkspaceState();
     scenes[0].draft.prompt = '짧은 머리, school uniform, 창가에 앉은 인물';
     const content = { name: 'Windows update fixture', scenes, selectedSceneId };
