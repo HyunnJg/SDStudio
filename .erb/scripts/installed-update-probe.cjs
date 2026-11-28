@@ -60,11 +60,25 @@ async function main() {
       return reply;
     }
     const { scenes, selectedSceneId } = createConnectedWorkspaceState();
-    scenes[0].draft.prompt = 'windows update garden';
+    scenes[0].draft.prompt = '짧은 머리, school uniform, 창가에 앉은 인물';
     const content = { name: 'Windows update fixture', scenes, selectedSceneId };
     const recipe = { ...blankRecipe(), name: 'Windows update recipe' };
     const key = 'sdstudio.scene-recipes.v2';
+    const preset = {
+      kind: 'main',
+      name: '한글 화풍',
+      prompt: '수채화, 따뜻한 빛',
+      negativePrompt: '',
+      qualityTags: 'none',
+      ucPreset: 'none',
+    };
     if (mode === 'seed') {
+      const library = await evaluate('window.electron.promptLibrary.read()');
+      assert.ok(library.ok);
+      const saved = await evaluate(
+        `window.electron.promptLibrary.save(${JSON.stringify(library.value.revision)}, ${JSON.stringify(preset)})`,
+      );
+      assert.ok(saved.ok);
       assert.equal(
         (
           await evaluate(
@@ -84,6 +98,22 @@ async function main() {
         `window.electron.projects.open(${JSON.stringify(row.id)})`,
       );
       assert.deepEqual(project.value.project.scenes, scenes);
+      const library = await evaluate('window.electron.promptLibrary.read()');
+      assert.ok(library.ok);
+      assert.ok(
+        library.value.entries.some(
+          (p) => p.name === preset.name && p.prompt === preset.prompt,
+        ),
+      );
+      for (const query of ['smile', 'short hair', 'school uniform']) {
+        const hits = await evaluate(
+          `window.electron.ipcRenderer.invoke('search-tags', ${JSON.stringify(query)})`,
+        );
+        assert.ok(
+          hits.some((hit) => hit.word === query),
+          query,
+        );
+      }
       assert.deepEqual(
         await evaluate(`JSON.parse(localStorage.getItem('${key}'))`),
         [recipe],
