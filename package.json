@@ -371,6 +371,10 @@
     },
     "extraResources": [
       {
+        "from": "LICENSE",
+        "to": "LICENSE"
+      },
+      {
         "from": "LICENSES/electron-react-boilerplate.txt",
         "to": "LICENSES/electron-react-boilerplate.txt"
       },

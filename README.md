@@ -23,6 +23,8 @@ NovelAI로 여러 씬을 반복 생성하고, 마음에 드는 컷을 선별해 
 
 ## 원작과 크레딧
 
+원작 SDStudio의 앱 코드는 원작자의 패키지에 MIT로 표시되어 있습니다. HyunnJg가 이 포크에 새로 기여한 부분도 MIT로 제공합니다. 네이티브 모듈과 외부 구성요소에는 각각의 고지가 적용됩니다. [원작의 MIT 선언](https://github.com/sunho/SDStudio/blob/f2088add103ad683a31e0590448e6e5bb4d71556/package.json) · [포크 변경분의 MIT 전문](LICENSE)
+
 Sunho Kim의 SDStudio를 기반으로 한 독립 포크입니다. 원작의 씬·선별·리터칭 작업 흐름과 Git 이력을 이어받았습니다. [원본 프로젝트 소개와 화면](https://github.com/sunho/SDStudio/tree/f2088add103ad683a31e0590448e6e5bb4d71556) · [원작자와 기여 출처](CREDITS.md) · [고지 확인 범위](docs/licenses/APP_LICENSE_STATUS.md)
 
 원작자는 이미지 씬 기능의 출발점으로 [dendenai.xyz의 프리셋 기능](https://dendenai.xyz)을 명시했습니다.

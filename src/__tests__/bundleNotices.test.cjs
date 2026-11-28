@@ -26,6 +26,7 @@ async function fixture(t) {
     ),
   );
   put('CREDITS.md', 'Synthetic credits.\n');
+  put('LICENSE', 'Synthetic fork license.\n');
   put('LICENSES/tagcomplete-MIT.txt', 'Synthetic tag data notice.\n');
   put('entry.js', 'import {value} from "foo"; console.log(value);');
   for (const name of ['foo', 'bar', 'unused']) {
@@ -282,6 +283,14 @@ test('real ASAR runtime metadata is checked with either path separator and unind
     recursive: true,
   });
   const index = JSON.parse(fs.readFileSync(path.join(notices, 'index.json')));
+  const forkLicense = index.applicationDocuments.find(
+    (doc) => doc.resourcePath === 'LICENSE',
+  );
+  assert.equal(forkLicense?.source, 'LICENSE');
+  assert.equal(
+    forkLicense.sha256,
+    hash(fs.readFileSync(path.join(root, 'LICENSE'))),
+  );
   for (const doc of index.applicationDocuments.filter((d) => d.source)) {
     const target = path.join(resources, doc.resourcePath);
     fs.mkdirSync(path.dirname(target), { recursive: true });
