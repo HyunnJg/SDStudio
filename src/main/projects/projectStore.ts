@@ -9,6 +9,8 @@ import {
   imageFormat,
   isInpaintPurpose,
   VARIATION_DEFAULTS,
+  sceneReferences,
+  setSceneReferences,
 } from '../../workspaceReference';
 import { draftSize } from '../../workspaceCatalog';
 import type { ImagePurpose, ReferenceAsset } from '../../workspaceReference';
@@ -27,6 +29,7 @@ import {
   validateVariation,
   validateReferenceAsset,
   projectReferences,
+  draftAssets,
   remainingProjectBytes,
 } from '../../workspaceProject';
 import type {
@@ -959,13 +962,8 @@ export class ProjectStore {
     projectCheck(this.history(id).length < 1000, 'PROJECT_HISTORY_LIMIT');
     if (value !== undefined) {
       const input = validateImageInput(value);
-      for (const asset of [
-        input.draft.reference,
-        input.draft.img2img,
-        input.draft.inpaintSource,
-        input.draft.inpaintMask,
-      ])
-        if (asset) this.referenceBytes(id, asset);
+      for (const asset of draftAssets(input.draft))
+        this.referenceBytes(id, asset);
       encode({
         ...snapshot.project,
         version: Math.max(
@@ -1008,13 +1006,8 @@ export class ProjectStore {
     }
     return this.update(id, revision, (current, folder) => {
       projectCheck(current.scenes.some((s) => s.id === info.sceneId));
-      for (const asset of [
-        info.draft.reference,
-        info.draft.img2img,
-        info.draft.inpaintSource,
-        info.draft.inpaintMask,
-      ])
-        if (asset) this.referenceBytes(id, asset);
+      for (const asset of draftAssets(info.draft))
+        this.referenceBytes(id, asset);
       const sha256 = hash(png);
       const image = { ...info, id: imageId, sha256, pngBytes: png.length };
       const next = {
@@ -1123,6 +1116,7 @@ export class ProjectStore {
     id: string,
     sceneId: string,
     purpose?: ImagePurpose,
+    referenceId?: string,
   ): Uint8Array {
     const snapshot = this.readManifest(id);
     const draft = snapshot.project.scenes.find(
@@ -1134,6 +1128,14 @@ export class ProjectStore {
         purpose === 'img2img' ||
         isInpaintPurpose(purpose),
     );
+    if (referenceId !== undefined) {
+      projectCheck(purpose === 'reference');
+      projectId(referenceId);
+      const selected =
+        draft && sceneReferences(draft).find((r) => r.id === referenceId);
+      projectCheck(selected, 'PROJECT_NOT_FOUND');
+      return this.referenceBytes(id, selected);
+    }
     const reference = purpose
       ? draft?.[purpose]
       : (draft?.reference ?? draft?.img2img);
@@ -1146,6 +1148,7 @@ export class ProjectStore {
     revision: string,
     value: Uint8Array,
     purpose: ImagePurpose = 'reference',
+    referenceTarget: string | undefined = undefined,
   ): Promise<ReferenceAsset> {
     projectId(id);
     projectHash(revision);
@@ -1164,6 +1167,22 @@ export class ProjectStore {
     const scene = current.project.scenes.find(
       (s) => s.id === current.project.selectedSceneId,
     )!;
+    let referenceIndex = 0;
+    if (referenceTarget !== undefined) {
+      projectCheck(purpose === 'reference');
+      const refs = sceneReferences(scene.draft);
+      if (referenceTarget === 'append') {
+        projectCheck(
+          refs.length < REFERENCE_LIMITS.cards,
+          'PROJECT_REFERENCE_COUNT',
+        );
+        referenceIndex = refs.length;
+      } else {
+        projectId(referenceTarget);
+        referenceIndex = refs.findIndex((r) => r.id === referenceTarget);
+        projectCheck(referenceIndex !== -1, 'PROJECT_NOT_FOUND');
+      }
+    }
     if (purpose === 'img2img') projectCheck(scene.draft.family === 'v5');
     if (isInpaintPurpose(purpose))
       projectCheck(scene.draft.model === 'nai-diffusion-3');
@@ -1255,13 +1274,16 @@ export class ProjectStore {
       else draft.inpaintMask = asset;
     } else if (purpose === 'img2img')
       draft.img2img = { ...asset, ...VARIATION_DEFAULTS };
-    else
-      draft.reference = {
+    else {
+      const references = sceneReferences(draft);
+      references[referenceIndex] = {
         ...asset,
         role: 'character',
         strength: 1,
         preferSameOutfit: false,
       };
+      setSceneReferences(draft, references);
+    }
     projectCheck(remainingProjectBytes(provisional) >= 0, 'PROJECT_LIMIT');
     const folder = this.directory([id, 'references'], true);
     // Also bound orphan assets left by cancelled/unsaved imports. No automatic file deletion.

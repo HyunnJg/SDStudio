@@ -31,6 +31,10 @@ export interface GenerationFailure {
   conflictSceneId?: string;
 }
 export type GenerationReply<T> = { ok: true; value: T } | GenerationFailure;
+type ReferenceSettings = Pick<
+  WorkspaceReference,
+  'id' | 'uploadHash' | 'role' | 'strength' | 'preferSameOutfit'
+>;
 export interface GenerationSettings {
   transparentBackground?: true;
   model: import('./workspaceCatalog').ModelId | 'nai-diffusion-3-inpainting';
@@ -40,10 +44,10 @@ export interface GenerationSettings {
   scale: number;
   characters?: number;
   img2img?: { strength: number; noise: number };
-  reference?: Pick<
-    WorkspaceReference,
-    'id' | 'uploadHash' | 'role' | 'strength' | 'preferSameOutfit'
-  >;
+  reference?: ReferenceSettings & {
+    count: number;
+    additional: ReferenceSettings[];
+  };
 }
 export interface GenerationPlan extends GenerationSettings {
   ticket: string;
@@ -107,13 +111,21 @@ export interface GenerationClient {
     revision: string,
     png: Uint8Array,
     purpose?: ImagePurpose,
+    referenceTarget?: string,
   ): Promise<GenerationReply<{ asset: ReferenceAsset; preview: Uint8Array }>>;
   referenceImage(
     id: string,
     sceneId: string,
     purpose?: ImagePurpose,
+    referenceId?: string,
   ): Promise<GenerationReply<Uint8Array>>;
-  status(): Promise<GenerationReply<{ active: boolean; pending: boolean; interruption?: string }>>;
+  status(): Promise<
+    GenerationReply<{
+      active: boolean;
+      pending: boolean;
+      interruption?: string;
+    }>
+  >;
   prepare(
     id: string,
     revision: string,

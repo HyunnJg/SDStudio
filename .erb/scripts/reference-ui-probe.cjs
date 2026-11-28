@@ -21,10 +21,9 @@ module.exports = async ({ contents, evaluate, click, fill, until, checks, reques
   await fill('[data-testid=reference-strength]', '2.5');
   await until(() => evaluate("!document.querySelector('[data-testid=choose-reference]').disabled"));
   // Dropping on the reference card replaces only the image and keeps its role/strength.
-  await evaluate(`(()=>{const d=new DataTransfer();d.items.add(new File([new Uint8Array(${data})],'replacement.png',{type:'image/png'}));document.querySelector('[data-testid=reference-panel]').dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:d}));})()`);
-  await until(() => evaluate("document.querySelector('[data-testid=image-choice]')?.open"));
-  await click('[data-testid=image-use-reference]');
-  await until(() => evaluate("document.querySelector('[data-testid=reference-panel] img')?.naturalWidth>0 && !document.querySelector('[data-testid=prepare-generation]').matches(':disabled')"));
+  await evaluate(`(()=>{const d=new DataTransfer();d.items.add(new File([new Uint8Array(${data})],'replacement.png',{type:'image/png'}));document.querySelector('[data-testid=reference-card]').dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:d}));})()`);
+  await until(() => evaluate("document.querySelector('[data-testid=reference-card] img')?.naturalWidth>0 && !document.querySelector('[data-testid=prepare-generation]').matches(':disabled')"));
+  assert.equal(await evaluate("document.querySelectorAll('[data-testid=reference-card]').length"), 1);
   assert.equal(await evaluate("document.querySelector('[data-testid=reference-role]').value"), 'style');
   assert.equal(await evaluate("document.querySelector('[data-testid=reference-strength]').value"), '2.5');
   checks.push('reference-card drop is local and preserves role/strength rather than opening the metadata importer');
@@ -46,7 +45,7 @@ module.exports = async ({ contents, evaluate, click, fill, until, checks, reques
   assert.equal(result.project.images[0].draft.reference.strength, 2.5);
   checks.push('first-confirmed reference generation uses the real main transport/worker and persists v5 result/reference snapshot');
   if (process.env.SDSTUDIO_REFERENCE_SCREENSHOT) {
-    const win = BrowserWindow.fromWebContents(contents); win.setSize(1440, 950);
+    const win = BrowserWindow.fromWebContents(contents); win.setContentSize(1440, 950);
     await until(() => evaluate('innerWidth===1440'));
     await evaluate("document.querySelector('[data-testid=reference-panel]').scrollIntoView({block:'center'})");
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -63,10 +62,14 @@ module.exports = async ({ contents, evaluate, click, fill, until, checks, reques
   await until(() => evaluate("!document.querySelector('[data-testid=prepare-generation]').matches(':disabled')"));
   assert.equal(requestCount(), 2);
   assert.equal(await evaluate("document.querySelector('[data-testid=reference-role]').value"), 'style');
-  checks.push('canvas reference action reuses stored PNG locally and preserves role/strength without generation');
+  assert.equal(await evaluate("document.querySelector('[data-testid=reference-role-2]').value"), 'character');
+  await click('[data-testid=remove-reference-2]');
+  await until(() => evaluate("document.querySelectorAll('[data-testid=reference-card]').length===1"));
+  checks.push('canvas reference action appends a stored PNG with its own role; removing it preserves the original style card without generation');
   setLock(result.project.id);
   assert.equal(await evaluate("!document.querySelector('#live-queue-details').hidden"), true);
   await fill('#live-repeats', '1');
+  await fill('#live-interval', '0');
   await until(() => evaluate("document.querySelectorAll('[data-testid=connected-queue] input[type=checkbox]').length>0"));
   // Existing queue selector uses scene IDs; choose only the current scene.
   const selection = await evaluate("[...document.querySelectorAll('input[data-queue-scene]')].map(e=>({id:e.dataset.queueScene,checked:e.checked}))");
@@ -91,7 +94,41 @@ module.exports = async ({ contents, evaluate, click, fill, until, checks, reques
   assert.equal(copy.project.version, 5); assert.equal(copy.project.images.length, 1);
   assert.equal((await evaluate(`window.electron.generation.referenceImage('${copied.id}', '${copy.project.selectedSceneId}')`)).ok, true);
   checks.push('queue confirmation includes reference settings/cost; third synthetic response save failure recovers PNG and reference to a new project without a fourth request');
-  const win = BrowserWindow.fromWebContents(contents); win.setMinimumSize(390,400); win.setSize(390,780);
+  await click('[data-testid=project-new]');
+  await until(() => evaluate("!document.querySelector('[data-testid=reference-card]')"));
+  await fill('[data-testid=live-prompt]', 'three references');
+  for (const role of ['character', 'outfit', 'style']) {
+    await evaluate(`(()=>{const d=new DataTransfer();d.items.add(new File([new Uint8Array(${data})],'card.png',{type:'image/png'}));const input=document.querySelector('[data-testid=metadata-file]');input.files=d.files;input.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+    await until(() => evaluate("document.querySelector('[data-testid=image-choice]')?.open"));
+    await click('[data-testid=image-use-reference]');
+    await until(() => evaluate("!document.querySelector('[data-testid=prepare-generation]').matches(':disabled')"));
+    await evaluate(`(()=>{const select=[...document.querySelectorAll('[data-reference-id] select')].at(-1);select.value=${JSON.stringify(role)};select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  }
+  const roles = () => evaluate("[...document.querySelectorAll('[data-reference-id] select')].map(s=>s.value)");
+  assert.deepEqual(await roles(), ['character', 'outfit', 'style']);
+  await evaluate("[...document.querySelectorAll('[data-reference-id]:last-of-type button')].find(b=>b.textContent==='앞으로').click()");
+  assert.deepEqual(await roles(), ['character', 'style', 'outfit']);
+  await click('[data-testid=prepare-generation]');
+  await until(() => evaluate("document.querySelector('[data-testid=single-reference-cost]')?.textContent.includes('15 Anlas')"));
+  await click('[data-testid=cancel-high-steps]');
+  const scratch = await evaluate(`(async()=>{for(const item of (await window.electron.projects.list()).value){const r=await window.electron.projects.open(item.id);if(r.ok && r.value.project.scenes.some(s=>s.draft.additionalReferences?.length===2)) return item.id;}return '';})()`);
+  assert.ok(scratch);
+  await click('[data-testid=project-new]');
+  await until(() => evaluate("!document.querySelector('[data-testid=reference-card]')"));
+  await click('[data-testid=project-list]');
+  const openScratch = '[data-project-open="' + scratch + '"]';
+  await until(() => evaluate(`!!document.querySelector(${JSON.stringify(openScratch)})`));
+  await click(openScratch);
+  await until(() => evaluate("[...document.querySelectorAll('[data-reference-id] img')].filter(img=>img.naturalWidth>0).length===3"));
+  assert.deepEqual(await roles(), ['character', 'style', 'outfit']);
+  await click('[data-testid=remove-reference-2]');
+  assert.deepEqual(await roles(), ['character','outfit']);
+  await click('[data-testid=prepare-generation]');
+  await until(() => evaluate("document.querySelector('[data-testid=single-reference-cost]')?.textContent.includes('10 Anlas')"));
+  await click('[data-testid=cancel-high-steps]');
+  assert.equal(requestCount(), 3);
+  checks.push('three references reorder, confirm 15 Anlas and reopen with three previews; removing one leaves the other roles and confirms 10 without sending');
+  const win = BrowserWindow.fromWebContents(contents); win.setMinimumSize(390,400); win.setContentSize(390,780);
   await until(() => evaluate('innerWidth===390'));
   assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'), true);
   checks.push('reference card and preview fit the390px input panel');

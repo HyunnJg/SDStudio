@@ -67,6 +67,228 @@ async function fixture(t) {
     prepare: () => service.prepare(current.project.id, current.revision, content.scenes[0].id),
     file: (sha) => path.join(profile, 'projects-v1', current.project.id, 'references', `${sha}.png`) };
 }
+test('four reference cards allow replacement and I2I; older five-card scenes reopen and can be reduced', async (t) => {
+  const f = await variationFixture(t);
+  const { id, scene, reference, store, service } = f;
+  scene.draft.reference = reference;
+  scene.draft.additionalReferences = Array.from({ length: 3 }, () => ({
+    ...reference, id: require('node:crypto').randomUUID(),
+  }));
+  const saved = store.save(id, f.saved.revision, f.content);
+  const plan = await service.prepare(id, saved.revision, scene.id);
+  assert.equal(plan.reference.count, 4);
+  assert.ok(plan.img2img);
+  await assert.rejects(store.importReference(id, saved.revision, f.original, 'reference', 'append'), { code: 'PROJECT_REFERENCE_COUNT' });
+  const replacement = await store.importReference(id, saved.revision, f.original, 'reference', reference.id);
+  scene.draft.additionalReferences.push({ ...reference, id: replacement.id });
+  const legacy = store.save(id, saved.revision, f.content);
+  assert.equal(store.readManifest(id).project.scenes[0].draft.additionalReferences.length, 4);
+  await assert.rejects(service.prepare(id, legacy.revision, scene.id), { code: 'PROJECT_REFERENCE_COUNT' });
+  await assert.rejects(service.prepareQueue(id, legacy.revision, [scene.id], 2), { code: 'PROJECT_REFERENCE_COUNT' });
+  scene.draft.additionalReferences.pop();
+  const reduced = store.save(id, legacy.revision, f.content);
+  assert.equal((await service.prepareQueue(id, reduced.revision, [scene.id], 2)).items.length, 2);
+  assert.equal(f.bodies.length, 0);
+});
+
+test('three reference cards survive save, per-card preview, input copy, result copy, trash cleanup and history recovery', async (t) => {
+  const { referenceAssetBytes } = require('../workspaceProject');
+  const {
+    sceneReferences,
+    setSceneReferences,
+  } = require('../workspaceReference');
+  const sharp = require('sharp');
+  const f = await fixture(t);
+  const id = f.current.project.id;
+  const scene = f.content.scenes[0];
+  const references = [f.reference];
+  let saved = f.current;
+  for (const [role, background] of [
+    ['outfit', '#4a8231'],
+    ['style', '#217ba0'],
+  ]) {
+    const pngBytes = await sharp({
+      create: { width: 16, height: 16, channels: 3, background },
+    })
+      .png()
+      .toBuffer();
+    const { asset, preview } = await f.service.importReference(
+      id,
+      saved.revision,
+      pngBytes,
+      'reference',
+      'append',
+    );
+    references.push({
+      ...asset,
+      role,
+      strength: 0.75,
+      preferSameOutfit: false,
+    });
+    setSceneReferences(scene.draft, references);
+    saved = f.store.save(id, saved.revision, f.content);
+    assert.equal(hash(preview), asset.uploadHash);
+  }
+  assert.equal(saved.project.version, 14);
+  assert.throws(
+    () => validateWorkspaceProject({ ...saved.project, version: 13 }),
+    { code: 'PROJECT_CORRUPT' },
+  );
+  const expected = new Map(
+    references.flatMap((r) => [
+      [r.sourceHash, r.sourceBytes],
+      [r.uploadHash, r.uploadBytes],
+    ]),
+  );
+  assert.equal(
+    referenceAssetBytes(saved.project),
+    [...expected.values()].reduce((total, n) => total + n, 0),
+  );
+  for (const r of references)
+    assert.equal(
+      hash(await f.service.referenceImage(id, scene.id, 'reference', r.id)),
+      r.uploadHash,
+    );
+  await assert.rejects(
+    f.service.referenceImage(id, scene.id, 'img2img', references[1].id),
+    { code: 'PROJECT_INPUT' },
+  );
+  await assert.rejects(
+    f.service.referenceImage(
+      id,
+      f.content.scenes[1].id,
+      'reference',
+      references[1].id,
+    ),
+    { code: 'PROJECT_NOT_FOUND' },
+  );
+  await assert.rejects(
+    f.service.importReference(
+      id,
+      saved.revision,
+      f.original,
+      'reference',
+      require('node:crypto').randomUUID(),
+    ),
+    { code: 'PROJECT_NOT_FOUND' },
+  );
+
+  const copied = f.store.create(f.content, id);
+  assert.deepEqual(sceneReferences(copied.project.scenes[0].draft), references);
+  for (const r of references)
+    assert.equal(
+      hash(
+        f.store.referenceImage(copied.project.id, scene.id, 'reference', r.id),
+      ),
+      r.uploadHash,
+    );
+  const input = {
+    model: 'nai-diffusion-5-full',
+    seed: 1,
+    sampler: 'k_euler_ancestral',
+    noiseSchedule: 'karras',
+    sceneId: scene.id,
+    draft: structuredClone(scene.draft),
+    binding: { id: 'nai-v5-reference-v1', requestHash: 'f'.repeat(64) },
+  };
+  const recorded = f.store.addPNG(id, saved.revision, input, f.original);
+  assert.throws(
+    () =>
+      f.store.addPNG(
+        id,
+        recorded.revision,
+        {
+          ...input,
+          binding: { ...input.binding, id: 'nai-v5-full-v1' },
+        },
+        f.original,
+      ),
+    { code: 'PROJECT_INPUT' },
+  );
+  setSceneReferences(scene.draft, []);
+  const cleared = f.store.save(id, recorded.revision, f.content);
+  const copy = f.store.copy(id, cleared.revision, f.content);
+  assert.deepEqual(sceneReferences(copy.project.images[0].draft), references);
+  assert.equal(
+    hash(f.store.referenceBytes(copy.project.id, references[2])),
+    references[2].uploadHash,
+  );
+  const trash = f.store.setImageDeleted(
+    id,
+    cleared.revision,
+    recorded.project.images[0].id,
+    true,
+  );
+  const retainedResult = path.join(
+    f.profile,
+    'projects-v1',
+    id,
+    'images',
+    references[2].sourceHash + '.png',
+  );
+  fs.copyFileSync(f.file(references[2].sourceHash), retainedResult);
+  f.store.emptyResultTrash(id, trash.revision, true);
+  assert.equal(hash(fs.readFileSync(retainedResult)), references[2].sourceHash);
+  const recovered = f.store.recover(id, saved.revision);
+  assert.deepEqual(
+    sceneReferences(recovered.project.scenes[0].draft),
+    references,
+  );
+  for (const r of references)
+    assert.equal(
+      hash(
+        f.store.referenceImage(
+          recovered.project.id,
+          scene.id,
+          'reference',
+          r.id,
+        ),
+      ),
+      r.uploadHash,
+    );
+
+  fs.unlinkSync(f.file(references[2].uploadHash));
+  const latest = f.store.readManifest(id);
+  assert.throws(() => f.store.generationSnapshot(id, latest.revision, input), {
+    code: 'PROJECT_CORRUPT',
+  });
+  assert.throws(() => f.store.addPNG(id, latest.revision, input, f.original), {
+    code: 'PROJECT_CORRUPT',
+  });
+});
+
+test('extra cards require a first card, distinct UUIDs and valid options; clearing the list restores the one-card representation', async (t) => {
+  const { validateProjectContent } = require('../workspaceProject');
+  const { setSceneReferences } = require('../workspaceReference');
+  const f = await fixture(t);
+  const d = f.content.scenes[0].draft;
+  const second = {
+    ...f.reference,
+    id: require('node:crypto').randomUUID(),
+    role: 'outfit',
+  };
+  for (const extras of [
+    [],
+    [f.reference],
+    [{ ...second, strength: -1 }],
+    [second, second],
+  ]) {
+    d.additionalReferences = extras;
+    assert.throws(() => validateProjectContent(f.content), {
+      code: 'PROJECT_INPUT',
+    });
+  }
+  setSceneReferences(d, [f.reference, second]);
+  assert.doesNotThrow(() => validateProjectContent(f.content));
+  delete d.reference;
+  assert.throws(() => validateProjectContent(f.content), {
+    code: 'PROJECT_INPUT',
+  });
+  setSceneReferences(d, [second]);
+  assert.deepEqual(d.reference, second);
+  assert.equal(Object.hasOwn(d, 'additionalReferences'), false);
+});
+
 test('reference import preserves original bytes and creates a bounded PNG-text-free current V5 bucket derivative without a request', async (t) => {
   const f = await fixture(t);
   assert.equal(f.current.project.version, 5);
@@ -145,6 +367,46 @@ test('single generation records original reference draft and body hash; offline 
   const recovery = f.store.recover(f.current.project.id, f.current.revision); assert.equal(recovery.project.version, 5);
   const before = f.store.recover(f.current.project.id, f.previous.revision); assert.equal(before.project.version, f.previous.project.version);
   assert.equal(before.project.scenes[0].draft.reference, undefined);
+});
+test('three ordered V5 references bind independently alongside I2I, alpha and mixed queue scenes', async (t) => {
+  const f = await variationFixture(t);
+  const sharp = require('sharp');
+  const extra = [];
+  for (const [role, strength, background] of [['outfit', 2.5, 'red'], ['style', 3, 'blue']]) {
+    const pngBytes = await sharp({create:{width:4,height:4,channels:3,background}}).png().toBuffer();
+    const asset = await f.store.importReference(f.id, f.saved.revision, pngBytes);
+    extra.push({ ...asset, role, strength, preferSameOutfit: false });
+  }
+  Object.assign(f.scene.draft, {
+    reference: f.reference, additionalReferences: extra, transparentBackground: true,
+  });
+  const saved = f.store.save(f.id, f.saved.revision, f.content);
+  const expected = [f.reference, ...extra];
+  const uploads = expected.map(ref => f.store.referenceBytes(f.id, ref));
+  assert.throws(() => bindBasicGeneration(f.scene, () => 0, {references: uploads.slice(1)}), /UNSUPPORTED_DRAFT/);
+  const medium = { ...f.scene, draft: { ...f.scene.draft, model: 'nai-diffusion-5-full-medium' } };
+  assert.throws(() => bindBasicGeneration(medium, () => 0, {references: uploads}), /UNSUPPORTED_DRAFT/);
+  const plan = await f.service.prepare(f.id, saved.revision, f.scene.id);
+  assert.equal(plan.reference.count, 3);
+  assert.deepEqual(plan.reference.additional.map(r => r.id), extra.map(r => r.id));
+  const single = await f.service.run(plan.ticket, true);
+  const body = JSON.parse(Buffer.from(f.bodies[0]));
+  assert.equal(body.action, 'img2img');
+  assert.equal(body.parameters.tag_hint_transparent_background, true);
+  assert.deepEqual(body.parameters.director_reference_images.map(v => hash(Buffer.from(v, 'base64'))), expected.map(r => r.uploadHash));
+  assert.deepEqual(body.parameters.director_reference_descriptions.map(d => d.caption.base_caption), ['character','costume','style']);
+  assert.deepEqual(body.parameters.director_reference_strength_values, [1, 2.5, 3]);
+  assert.deepEqual(body.parameters.director_reference_information_extracted, [1, 1, 1]);
+  assert.deepEqual(body.parameters.director_reference_secondary_strength_values, [0, 0, 0]);
+  assert.equal(single.snapshot.project.images.at(-1).binding.requestHash, hash(f.bodies[0]));
+  const sceneIds = f.content.scenes.slice(0, 2).map(s => s.id);
+  const queue = await f.service.prepareQueue(f.id, single.snapshot.revision, sceneIds, 2, 0);
+  assert.deepEqual(queue.items.map(item => item.settings.reference?.count ?? 0), [3, 0, 3, 0]);
+  fs.writeFileSync(f.file(extra[1].uploadHash), png());
+  const stopped = await f.service.runQueue(queue.ticket, true);
+  assert.equal(stopped.queue.items[0].status, 'pending');
+  assert.equal(stopped.queue.items[0].error.code, 'PROJECT_CORRUPT');
+  assert.equal(f.bodies.length, 1);
 });
 test('queue uses the common sender and stops changed reference input; no implicit rebind/resend', async (t) => {
   const f = await fixture(t), id = f.current.project.id;
@@ -529,6 +791,25 @@ test('combined images over the serialized 8 MiB limit cannot obtain a single or 
   await assert.rejects(f.service.prepare(f.id,saved.revision,f.scene.id), {code:'GENERATION_BODY_LIMIT'});
   await assert.rejects(f.service.prepareQueue(f.id,saved.revision,[f.scene.id],1), {code:'GENERATION_BODY_LIMIT'});
   assert.equal(f.bodies.length,0);
+});
+
+test('many individually valid reference sizes reject preparation before allocating the image buffers', async t => {
+  const f = await fixture(t);
+  const snapshot = structuredClone(f.current);
+  const scene = snapshot.project.scenes[0];
+  scene.draft.reference.uploadBytes = 3 * 1024 * 1024;
+  scene.draft.additionalReferences = [
+    { ...scene.draft.reference, id: require('node:crypto').randomUUID() },
+    { ...scene.draft.reference, id: require('node:crypto').randomUUID() },
+  ];
+  const service = new WorkspaceGeneration({
+    store: { generationSnapshot: () => snapshot, referenceBytes: () => assert.fail('size should be rejected before loading images') },
+    offline: () => false,
+    sendImage: () => assert.fail('size should be rejected before sending'),
+  });
+  const args = [snapshot.project.id, snapshot.revision];
+  await assert.rejects(service.prepare(...args, scene.id), { code: 'GENERATION_BODY_LIMIT' });
+  await assert.rejects(service.prepareQueue(...args, [scene.id], 1), { code: 'GENERATION_BODY_LIMIT' });
 });
 
 test('V3 infill keeps the edited mask aligned with its source through generation, queue, reopening and copying', async (t) => {

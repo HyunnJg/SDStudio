@@ -1,3 +1,4 @@
+import { REFERENCE_COUNT_NOTICE } from '../../workspaceReference';
 import type {
   GenerationFailure,
   GenerationQueueState,
@@ -39,7 +40,7 @@ export function generationMessage(
     CONFIRMATION_EXPIRED:
       '확인이 만료됐거나 이미 사용됐습니다. 입력 저장 후 새 설정을 확인하세요.',
     GENERATION_BODY_LIMIT:
-      '이미지를 포함한 한 요청의 크기가 8 MiB를 넘습니다. 더 작은 전송용 이미지를 사용하세요.',
+      '이미지를 포함한 요청 한 건이 8 MiB를 넘습니다. 이미지 입력에서 불필요한 참조를 해제하거나 세부 묘사가 적은 이미지로 교체해 주세요.',
     QUEUE_LIMIT:
       '예약은 최대 60건입니다. 참조 이미지·프롬프트 크기가 큰 경우 예약 횟수를 줄여 주세요.',
     GENERATION_BUSY: '진행 중 요청이나 저장하지 못한 결과를 먼저 처리하세요.',
@@ -49,6 +50,7 @@ export function generationMessage(
       'PNG는 받았지만 저장 결과를 확정하지 못했습니다. 결과만 다시 저장하면 API를 재호출하지 않습니다.',
     PROJECT_BUSY:
       '남은 저장 잠금이 있습니다. 프로젝트를 새 복사본으로 계속한 뒤 새로 확인하세요.',
+    PROJECT_REFERENCE_COUNT: REFERENCE_COUNT_NOTICE,
     PROJECT_IMAGE_TOO_LARGE:
       '전송용 PNG가 5 MiB를 초과합니다. 다른 이미지를 선택하세요.',
     PROJECT_LIMIT:

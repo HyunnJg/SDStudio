@@ -44,11 +44,13 @@ export function registerGeneration(
   };
   handle(
     'workspace-generation-import-reference',
-    (id, revision, png, purpose) =>
-      service.importReference(id, revision, png, purpose),
+    (id, revision, png, purpose, referenceTarget) =>
+      service.importReference(id, revision, png, purpose, referenceTarget),
   );
-  handle('workspace-generation-reference-image', (id, sceneId, purpose) =>
-    service.referenceImage(id, sceneId, purpose),
+  handle(
+    'workspace-generation-reference-image',
+    (id, sceneId, purpose, referenceId) =>
+      service.referenceImage(id, sceneId, purpose, referenceId),
   );
   handle('workspace-generation-status', () => service.status());
   handle('workspace-generation-prepare', (id, revision, sceneId) =>

@@ -22,7 +22,7 @@ const generationCases = new Map([
   ['generation-errors', { requests: 4, checks: 8 }],
   ['generation-characters', { requests: 3, checks: 8 }],
   ['generation-img2img', { requests: 2, checks: 7 }],
-  ['generation-reference', { requests: 3, checks: 6 }],
+  ['generation-reference', { requests: 3, checks: 10 }],
   ['generation-trash', { requests: 2, checks: 14 }],
 ]);
 const generationCase = generationCases.get(process.argv[3]);

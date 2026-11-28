@@ -10,10 +10,15 @@ import {
 import type { WorkspaceScene } from '../../renderer/preview/workspaceDraft';
 import type { ProjectImageInput, ImageBinding } from '../../workspaceProject';
 import { validateReference, validateVariation } from '../../workspaceProject';
-import { referenceDescription } from '../../workspaceReference';
+import {
+  REFERENCE_LIMITS,
+  referenceDescription,
+  sceneReferences,
+} from '../../workspaceReference';
 import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
 import {
   V5_QUALITY_TAGS,
+  transparentBackgroundTags,
   V5_UC_PRESETS,
 } from '../../workspaceGenerationSettings';
 
@@ -22,6 +27,7 @@ export function bindBasicGeneration(
   random = () => randomInt(4294967296),
   images: {
     reference?: Uint8Array;
+    references?: Uint8Array[];
     img2img?: Uint8Array;
     inpaintSource?: Uint8Array;
     inpaintMask?: Uint8Array;
@@ -37,7 +43,6 @@ export function bindBasicGeneration(
   const seed =
     scene.draft.seedMode === 'fixed' ? Number(scene.draft.seed) : random();
   const medium = scene.draft.model === 'nai-diffusion-5-full-medium';
-  if (medium && scene.draft.reference) throw Error('UNSUPPORTED_DRAFT');
   const source = medium
     ? {
         ...scene.draft,
@@ -59,8 +64,15 @@ export function bindBasicGeneration(
     throw Error('UNSUPPORTED_DRAFT');
   const v3 = model === 'nai-diffusion-3' || model === 'nai-diffusion-furry-3';
   const v5 = d.family === 'v5';
-  const reference = d.reference ? validateReference(d.reference) : undefined;
-  if (reference && (!v5 || !images.reference))
+  const references = sceneReferences(d).map(validateReference);
+  const uploads =
+    images.references ?? (images.reference ? [images.reference] : []);
+  if (
+    references.length > REFERENCE_LIMITS.cards ||
+    uploads.length !== references.length ||
+    (references.length > 0 && (!v5 || medium)) ||
+    (!d.reference && d.additionalReferences?.length)
+  )
     throw new Error('UNSUPPORTED_DRAFT');
   const variation = d.img2img ? validateVariation(d.img2img) : undefined;
   if (variation && (!v5 || !images.img2img))
@@ -118,10 +130,8 @@ export function bindBasicGeneration(
     throw new Error('INVALID_INPUT');
   const join = (a: string, b: string) => [a, b].filter(Boolean).join(', ');
   const transparent = v5 && d.transparentBackground;
-  const hasBackgroundTag =
-    /(?:^|[,\n:{[])\s*transparent background\s*(?=$|[,\n:}\]])/i.test(d.prompt);
   const basePrompt =
-    transparent && !hasBackgroundTag
+    transparent && !transparentBackgroundTags(d.prompt).present
       ? join(d.prompt, 'transparent background')
       : d.prompt;
   const prompt = v5 ? join(basePrompt, V5_QUALITY_TAGS[quality]) : basePrompt;
@@ -138,7 +148,7 @@ export function bindBasicGeneration(
   if (
     (inpaint || d.inpaintMask) &&
     (model !== 'nai-diffusion-3' ||
-      reference ||
+      references.length > 0 ||
       variation ||
       !inpaint ||
       !d.inpaintMask ||
@@ -178,23 +188,25 @@ export function bindBasicGeneration(
       sampler: 'k_euler_ancestral',
       noise_schedule: 'karras',
       cfg_rescale: 0,
-      ...(reference && images.reference
+      ...(references.length > 0
         ? {
-            director_reference_images: [
-              Buffer.from(images.reference).toString('base64'),
-            ],
-            director_reference_descriptions: [
-              {
-                caption: {
-                  base_caption: referenceDescription(reference),
-                  char_captions: [],
-                },
-                legacy_uc: false,
+            director_reference_images: uploads.map((bytes) =>
+              Buffer.from(bytes).toString('base64'),
+            ),
+            director_reference_descriptions: references.map((ref) => ({
+              caption: {
+                base_caption: referenceDescription(ref),
+                char_captions: [],
               },
-            ],
-            director_reference_information_extracted: [1],
-            director_reference_strength_values: [reference.strength],
-            director_reference_secondary_strength_values: [0],
+              legacy_uc: false,
+            })),
+            director_reference_information_extracted: references.map(() => 1),
+            director_reference_strength_values: references.map(
+              (ref) => ref.strength,
+            ),
+            director_reference_secondary_strength_values: references.map(
+              () => 0,
+            ),
           }
         : {}),
       ...(variation && images.img2img
@@ -261,9 +273,11 @@ export function bindBasicGeneration(
   if (v5 && characters.length) bindingId = 'nai-v5-characters-auto-v1';
   if (d.model || !['portrait', 'landscape', 'square'].includes(d.resolution))
     bindingId = 'nai-catalog-v1';
-  if (reference) bindingId = 'nai-v5-reference-v1';
+  if (references.length) bindingId = 'nai-v5-reference-v1';
   if (variation)
-    bindingId = reference ? 'nai-v5-img2img-reference-v1' : 'nai-v5-img2img-v1';
+    bindingId = references.length
+      ? 'nai-v5-img2img-reference-v1'
+      : 'nai-v5-img2img-v1';
   if (inpaint) bindingId = 'nai-v3-inpaint-v1';
   return { request, input, bindingId, characterCount: characters.length };
 }

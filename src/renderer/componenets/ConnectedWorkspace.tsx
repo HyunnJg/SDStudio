@@ -72,10 +72,16 @@ import {
   REFERENCE_LIMITS,
   REFERENCE_ROLES,
   REFERENCE_COST_NOTICE,
+  REFERENCE_ANLAS,
   VARIATION_DEFAULTS,
   isInpaintPurpose,
+  sceneReferences,
+  setSceneReferences,
 } from '../../workspaceReference';
-import type { ImagePurpose } from '../../workspaceReference';
+import type {
+  ImagePurpose,
+  WorkspaceReference,
+} from '../../workspaceReference';
 import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
 
 import type {
@@ -92,6 +98,7 @@ import {
   requiresAnlasWarning,
 } from '../generation/generationPresentation';
 import './PreviewWorkspace.css';
+import { transparentBackgroundTags } from '../../workspaceGenerationSettings';
 import './ConnectedWorkspace.css';
 
 function unwrap<T>(reply: GenerationReply<T>): T {
@@ -110,9 +117,16 @@ interface Props {
   onOpenLegacy: (tool: 'session' | 'inpaint' | 'pieces') => void;
   onToggleTheme: () => void;
 }
-// One reference only: include reference count in the acknowledgement key before supporting multiple references.
-// User acknowledgement lasts for this renderer session; it is not a server price guarantee.
-let referenceCostAcknowledged = false;
+// Approval is scoped to the per-output reference count within this renderer session.
+const acknowledgedReferenceCounts = new Set<number>();
+
+function referenceSummary(ref: NonNullable<GenerationPlan['reference']>) {
+  const cards = [ref, ...ref.additional].map(
+    (r) =>
+      `${REFERENCE_ROLES[r.role]} 강도 ${r.strength}${r.preferSameOutfit ? ', 같은 의상 우선' : ''}`,
+  );
+  return `참조 ${ref.count}장 (${cards.join(' / ')})`;
+}
 
 export default function ConnectedWorkspace({
   legacySession,
@@ -453,9 +467,19 @@ export default function ConnectedWorkspace({
       return { ...previous, draft };
     });
   };
+  const changeReferences = (references: WorkspaceReference[]) => {
+    setSinglePlan(undefined);
+    setQueuePlan(undefined);
+    setState((previous) => {
+      const draft = { ...previous.draft };
+      setSceneReferences(draft, references);
+      return { ...previous, draft };
+    });
+  };
   const attachImage = async (
     source: File | { projectId: string; imageId: string },
     purpose: ImagePurpose,
+    replaceReferenceId?: string,
   ) => {
     if (operation.current || locked) return false;
     operation.current = true;
@@ -497,6 +521,9 @@ export default function ConnectedWorkspace({
           saved.revision!,
           bytes,
           purpose,
+          purpose === 'reference'
+            ? (replaceReferenceId ?? 'append')
+            : undefined,
         ),
       );
       if (
@@ -527,13 +554,21 @@ export default function ConnectedWorkspace({
             state.draft.img2img?.strength ?? VARIATION_DEFAULTS.strength,
           noise: state.draft.img2img?.noise ?? VARIATION_DEFAULTS.noise,
         });
-      else
-        setSceneImage(purpose, {
+      else {
+        const refs = sceneReferences(state.draft);
+        const target = refs.find((r) => r.id === replaceReferenceId);
+        const reference = {
           ...imported.asset,
-          role: state.draft.reference?.role ?? 'character',
-          strength: state.draft.reference?.strength ?? 1,
-          preferSameOutfit: state.draft.reference?.preferSameOutfit ?? false,
-        });
+          role: target?.role ?? 'character',
+          strength: target?.strength ?? 1,
+          preferSameOutfit: target?.preferSameOutfit ?? false,
+        } satisfies WorkspaceReference;
+        changeReferences(
+          target
+            ? refs.map((r) => (r.id === target.id ? reference : r))
+            : [...refs, reference],
+        );
+      }
       setMessage('');
       return true;
     } catch (error) {
@@ -606,7 +641,12 @@ export default function ConnectedWorkspace({
       const prepared = unwrap(
         await client.prepare(saved.id!, saved.revision!, state.selectedSceneId),
       );
-      if (needsSingleUsageConfirmation(prepared, referenceCostAcknowledged)) {
+      if (
+        needsSingleUsageConfirmation(
+          prepared,
+          acknowledgedReferenceCounts.has(prepared.reference?.count ?? 0),
+        )
+      ) {
         setSinglePlan(prepared);
         setPhase('single-confirm');
         return;
@@ -633,7 +673,8 @@ export default function ConnectedWorkspace({
     setSinglePlan(undefined);
     setMessage('');
     setPhase('run');
-    if (singlePlan.reference) referenceCostAcknowledged = true;
+    if (singlePlan.reference)
+      acknowledgedReferenceCounts.add(singlePlan.reference.count);
     try {
       accept(unwrap(await client.run(ticket, true)));
     } catch (error) {
@@ -973,6 +1014,8 @@ export default function ConnectedWorkspace({
       ];
     }),
   );
+  const referenceLimitReached =
+    sceneReferences(state.draft).length >= REFERENCE_LIMITS.cards;
   const medium = state.draft.model === 'nai-diffusion-5-full-medium';
   const variation = state.draft.img2img;
   const size = draftSize(state.draft);
@@ -1235,7 +1278,8 @@ export default function ConnectedWorkspace({
                 </p>
               )}
               <ConnectedReference
-                reference={state.draft.reference}
+                references={sceneReferences(state.draft)}
+                supportsReferences={state.draft.family === 'v5' && !medium}
                 projectId={view.id}
                 sceneId={state.selectedSceneId}
                 family={state.draft.family}
@@ -1246,7 +1290,10 @@ export default function ConnectedWorkspace({
                 onChoose={chooseImage}
                 variation={state.draft.img2img}
                 onVariation={(asset) => setSceneImage('img2img', asset)}
-                onChange={(asset) => setSceneImage('reference', asset)}
+                onChange={changeReferences}
+                onReplace={(file, id) =>
+                  void attachImage(file, 'reference', id)
+                }
               />
               {inpaint && (
                 <fieldset disabled={locked}>
@@ -1379,6 +1426,24 @@ export default function ConnectedWorkspace({
                   투명 배경
                 </label>
               )}
+              {state.draft.family === 'v5' &&
+                state.draft.transparentBackground &&
+                (transparentBackgroundTags(state.draft.prompt).suppressed ||
+                  transparentBackgroundTags(state.draft.negativePrompt)
+                    .present) && (
+                  <small role="status">
+                    투명 배경 태그가 기본 입력에서 억제되거나 부정 프롬프트에
+                    들어 있습니다. 원하는 효과에 맞게 입력을 확인하세요.
+                  </small>
+                )}
+              {state.draft.family === 'v5' &&
+                state.draft.transparentBackground &&
+                state.draft.img2img && (
+                  <small>
+                    불투명한 변형 원본을 사용하면 결과에 배경이 남을 수
+                    있습니다.
+                  </small>
+                )}
               <label className="connected-sr-only" htmlFor="live-negative">
                 부정 프롬프트
               </label>
@@ -1564,7 +1629,12 @@ export default function ConnectedWorkspace({
                   </button>
                   <button
                     type="button"
-                    disabled={locked || state.draft.family !== 'v5' || medium}
+                    disabled={
+                      locked ||
+                      state.draft.family !== 'v5' ||
+                      medium ||
+                      referenceLimitReached
+                    }
                     data-testid="result-use-reference"
                     onClick={() => reuseResultImage('reference')}
                   >
@@ -1633,8 +1703,10 @@ export default function ConnectedWorkspace({
                 )}
                 {singlePlan.reference && (
                   <p data-testid="single-reference-cost">
-                    참조 1장 · 생성마다 5 Anlas 추가. 이 작업실 세션에서 처음 한
-                    번 확인합니다.
+                    {referenceSummary(singlePlan.reference)} · 참조 추가분{' '}
+                    {singlePlan.reference.count * REFERENCE_ANLAS} Anlas. 총
+                    차감액은 생성 설정에 따라 달라집니다. 이 세션에서는 참조
+                    장수별로 처음 한 번 확인합니다.
                   </p>
                 )}
                 <p>
@@ -1680,7 +1752,7 @@ export default function ConnectedWorkspace({
                     {settings.img2img &&
                       ` · 변형 강도 ${settings.img2img.strength} · 노이즈 ${settings.img2img.noise}`}
                     {settings.reference &&
-                      ` · 참조 1장 (${REFERENCE_ROLES[settings.reference.role]}, 강도 ${settings.reference.strength}${settings.reference.preferSameOutfit ? ', 같은 의상 우선' : ''})`}
+                      ` · ${referenceSummary(settings.reference)}`}
                     {settings.transparentBackground && ' · 투명 배경'}
                     {!!settings.characters &&
                       ` · 캐릭터 ${settings.characters}명 · 자동 배치`}
@@ -1688,7 +1760,15 @@ export default function ConnectedWorkspace({
                 ))}
                 {queuePlan.settings.some((settings) => settings.reference) && (
                   <p data-testid="queue-reference-cost">
-                    {REFERENCE_COST_NOTICE}
+                    이번 예약의 참조 추가분{' '}
+                    {queuePlan.items.reduce(
+                      (sum, item) =>
+                        sum +
+                        (item.settings?.reference?.count ?? 0) *
+                          REFERENCE_ANLAS,
+                      0,
+                    )}{' '}
+                    Anlas. {REFERENCE_COST_NOTICE}
                   </p>
                 )}
                 {queuePlan.repeatsFixedSeed && (
@@ -2093,6 +2173,7 @@ export default function ConnectedWorkspace({
             void attachImage(imageChoice, 'inpaintSource');
           }}
           canReference={state.draft.family === 'v5' && !medium}
+          referenceLimitReached={referenceLimitReached}
           canVariation={state.draft.family === 'v5'}
           onClose={() => setImageChoice(undefined)}
           onMetadata={() => {
@@ -2302,7 +2383,10 @@ export default function ConnectedWorkspace({
               className="connected-cost-badge"
               data-testid="reference-cost-badge"
             >
-              참조 +5 Anlas
+              참조 +
+              {(1 + (state.draft.additionalReferences?.length ?? 0)) *
+                REFERENCE_ANLAS}{' '}
+              Anlas
             </span>
           )}
         </button>

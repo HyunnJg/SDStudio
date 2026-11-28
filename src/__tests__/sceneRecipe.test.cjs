@@ -285,7 +285,11 @@ test('a situation can target one character; missing character references block p
   const b = { ...a, id: 'b', name: 'actor B' };
   const scene = {
     ...base,
-    draft: { ...base.draft, reference: { id: 'current' } },
+    draft: {
+      ...base.draft,
+      reference: { id: 'current' },
+      additionalReferences: [{ id: 'shared-style' }],
+    },
   };
   const other = {
     ...base,
@@ -306,6 +310,33 @@ test('a situation can target one character; missing character references block p
     jobs.map((s) => s.draft.reference?.id),
     ['other', 'other', undefined],
   );
+  assert.deepEqual(
+    jobs.map((s) => s.draft.additionalReferences?.map((r) => r.id)),
+    [['shared-style'], ['shared-style'], undefined],
+  );
+  const copy = {
+    ...other,
+    id: 'copy',
+    draft: { ...other.draft, reference: { id: 'other', strength: 2 } },
+  };
+  const withCopy = {
+    ...recipe,
+    referenceByCharacter: { a: 'copy/other', b: 'none' },
+  };
+  assert.equal(
+    buildRecipeScenes(withCopy, scene, [a, b], 3, randomUUID, [other, copy])[0]
+      .draft.reference.strength,
+    2,
+  );
+  const shared = {
+    ...recipe,
+    referenceByCharacter: { a: 'shared-style', b: 'none' },
+  };
+  const promoted = buildRecipeScenes(shared, scene, [a, b], 3, randomUUID, [
+    scene,
+  ])[0];
+  assert.equal(promoted.draft.reference.id, 'shared-style');
+  assert.equal(promoted.draft.additionalReferences, undefined);
   assert.throws(
     () => buildRecipeScenes(recipe, scene, [a, b], 3, randomUUID, []),
     /참조/,

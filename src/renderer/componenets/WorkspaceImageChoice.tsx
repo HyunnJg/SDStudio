@@ -1,8 +1,11 @@
 import { useEffect, useRef } from 'react';
 
+import { REFERENCE_COUNT_NOTICE } from '../../workspaceReference';
+
 interface Props {
   file: File;
   canReference: boolean;
+  referenceLimitReached: boolean;
   canVariation: boolean;
   canInpaint: boolean;
   onInpaint: () => void;
@@ -14,6 +17,7 @@ interface Props {
 export default function WorkspaceImageChoice({
   file,
   canReference,
+  referenceLimitReached,
   canVariation,
   canInpaint,
   onInpaint,
@@ -74,14 +78,18 @@ export default function WorkspaceImageChoice({
         <button
           type="button"
           data-testid="image-use-reference"
-          disabled={!canReference}
+          disabled={!canReference || referenceLimitReached}
           title={
             canReference ? '생성 이미지 참조' : 'V5 High 또는 Curated에서 사용'
           }
           onClick={onReference}
         >
           <strong>이미지 레퍼런스</strong>
-          <small>V5 생성의 캐릭터·화풍·의상을 참조합니다.</small>
+          <small>
+            {canReference && referenceLimitReached
+              ? REFERENCE_COUNT_NOTICE
+              : 'V5 생성의 캐릭터·화풍·의상을 참조합니다.'}
+          </small>
         </button>
       </div>
     </dialog>

@@ -23,7 +23,11 @@ import type {
   GenerationFailure,
 } from '../../workspaceGeneration';
 import type { WorkspaceScene } from '../../renderer/preview/workspaceDraft';
-import { GENERATION_BODY_LIMIT } from '../../workspaceReference';
+import {
+  GENERATION_BODY_LIMIT,
+  REFERENCE_LIMITS,
+  sceneReferences,
+} from '../../workspaceReference';
 import type { ReferenceAsset, ImagePurpose } from '../../workspaceReference';
 import type { ProjectService } from '../projects/projectService';
 import { NaiError } from './errors';
@@ -170,6 +174,7 @@ export class WorkspaceGeneration {
     revision: string,
     png: Uint8Array,
     purpose: ImagePurpose = 'reference',
+    referenceTarget: string | undefined = undefined,
   ): Promise<{ asset: ReferenceAsset; preview: Uint8Array }> {
     this.idle();
     if (!this.options.store.importReference)
@@ -183,6 +188,7 @@ export class WorkspaceGeneration {
         revision,
         png,
         purpose,
+        referenceTarget,
       );
       if (!this.options.store.referenceBytes)
         throw new GenerationError('INVALID_INPUT');
@@ -197,10 +203,11 @@ export class WorkspaceGeneration {
     id: string,
     sceneId: string,
     purpose?: ImagePurpose,
+    referenceId?: string,
   ): Promise<Uint8Array> {
     if (!this.options.store.referenceImage)
       throw new GenerationError('INVALID_INPUT');
-    return this.options.store.referenceImage(id, sceneId, purpose);
+    return this.options.store.referenceImage(id, sceneId, purpose, referenceId);
   }
 
   private async inputImages(id: string, scene: WorkspaceScene) {
@@ -222,8 +229,25 @@ export class WorkspaceGeneration {
       throw new GenerationError('UNSUPPORTED_DRAFT');
     const { store } = this.options;
     if (!store.referenceBytes) throw new GenerationError('INVALID_INPUT');
+    const references = sceneReferences(scene.draft);
+    if (references.length > REFERENCE_LIMITS.cards)
+      throw new GenerationError('PROJECT_REFERENCE_COUNT');
+    const base64Length = [
+      ...references,
+      img2img,
+      inpaintSource,
+      inpaintMask,
+    ].reduce(
+      (sum, asset) => sum + (asset ? 4 * Math.ceil(asset.uploadBytes / 3) : 0),
+      0,
+    );
+    if (base64Length > GENERATION_BODY_LIMIT)
+      throw new GenerationError('GENERATION_BODY_LIMIT');
+    const uploads: Uint8Array[] = [];
+    for (let index = 0; index < references.length; index += 1)
+      uploads.push(await store.referenceBytes(id, references[index]));
     return {
-      reference: reference && (await store.referenceBytes(id, reference)),
+      references: uploads,
       inpaintSource:
         inpaintSource && (await store.referenceBytes(id, inpaintSource)),
       inpaintMask: inpaintMask && (await store.referenceBytes(id, inpaintMask)),
@@ -245,20 +269,22 @@ export class WorkspaceGeneration {
 
   private static imageSettings(scene: WorkspaceScene) {
     const v = scene.draft.img2img;
-    const r = scene.draft.reference;
+    const [first, ...additional] = sceneReferences(scene.draft).map(
+      ({ id, uploadHash, role, strength, preferSameOutfit }) => ({
+        id,
+        uploadHash,
+        role,
+        strength,
+        preferSameOutfit,
+      }),
+    );
     return {
       ...(scene.draft.family === 'v5' && scene.draft.transparentBackground
         ? { transparentBackground: true as const }
         : {}),
       ...(v && { img2img: { strength: v.strength, noise: v.noise } }),
-      ...(r && {
-        reference: {
-          id: r.id,
-          uploadHash: r.uploadHash,
-          role: r.role,
-          strength: r.strength,
-          preferSameOutfit: r.preferSameOutfit,
-        },
+      ...(first && {
+        reference: { ...first, count: additional.length + 1, additional },
       }),
     };
   }
@@ -707,6 +733,7 @@ export class WorkspaceGeneration {
       for (let sceneIndex = 0; sceneIndex < scenes.length; sceneIndex += 1) {
         const scene = scenes[sceneIndex];
         const image = await this.inputImages(id, scene);
+        const imageSettings = WorkspaceGeneration.imageSettings(scene);
         for (let repeat = 1; repeat <= repeats; repeat += 1) {
           const index = (repeat - 1) * scenes.length + sceneIndex;
           let bound;
@@ -753,7 +780,7 @@ export class WorkspaceGeneration {
               ...(bound.characterCount
                 ? { characters: bound.characterCount }
                 : {}),
-              ...WorkspaceGeneration.imageSettings(scene),
+              ...imageSettings,
               samples: 1 as const,
             },
           };
@@ -761,7 +788,7 @@ export class WorkspaceGeneration {
           items[index] = {
             id: task.plan.ticket,
             settings: {
-              ...WorkspaceGeneration.imageSettings(scene),
+              ...imageSettings,
               model: task.plan.model,
               width: task.plan.width,
               height: task.plan.height,

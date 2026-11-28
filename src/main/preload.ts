@@ -90,7 +90,8 @@ const electronHandler = {
       ipcRenderer.invoke('vibe-cancel-cuts', requestId),
   },
   promptLibrary: {
-    importPresets: (revision, values) => ipcRenderer.invoke('prompt-library-import', revision, values),
+    importPresets: (revision, values) =>
+      ipcRenderer.invoke('prompt-library-import', revision, values),
     read: () => ipcRenderer.invoke('prompt-library-read'),
     save: (revision, content, id) =>
       ipcRenderer.invoke('prompt-library-save', revision, content, id),
@@ -130,20 +131,22 @@ const electronHandler = {
       ipcRenderer.invoke('workspace-close-cancel'),
   },
   generation: {
-    importReference: (id, revision, png, purpose) =>
+    importReference: (id, revision, png, purpose, referenceTarget) =>
       ipcRenderer.invoke(
         'workspace-generation-import-reference',
         id,
         revision,
         png,
         purpose,
+        referenceTarget,
       ),
-    referenceImage: (id, sceneId, purpose) =>
+    referenceImage: (id, sceneId, purpose, referenceId) =>
       ipcRenderer.invoke(
         'workspace-generation-reference-image',
         id,
         sceneId,
         purpose,
+        referenceId,
       ),
     status: () => ipcRenderer.invoke('workspace-generation-status'),
     prepare: (id, revision, sceneId) =>
@@ -203,8 +206,16 @@ const electronHandler = {
       ipcRenderer.invoke('workspace-project-restart-storage'),
     list: () => ipcRenderer.invoke('workspace-project-list'),
     listTrash: () => ipcRenderer.invoke('workspace-project-list-trash'),
-    copyLegacyScene: (name, key, withPicks, page) => ipcRenderer.invoke('workspace-project-copy-legacy-scene', name, key, withPicks, page),
-    copyLegacyMasks: (name, selected) => ipcRenderer.invoke('workspace-project-copy-legacy-masks', name, selected),
+    copyLegacyScene: (name, key, withPicks, page) =>
+      ipcRenderer.invoke(
+        'workspace-project-copy-legacy-scene',
+        name,
+        key,
+        withPicks,
+        page,
+      ),
+    copyLegacyMasks: (name, selected) =>
+      ipcRenderer.invoke('workspace-project-copy-legacy-masks', name, selected),
     trashProject: (id) => ipcRenderer.invoke('workspace-project-trash', id),
     purgeProject: (id, confirmed) =>
       ipcRenderer.invoke('workspace-project-purge', id, confirmed),
