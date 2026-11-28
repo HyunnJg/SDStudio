@@ -119,4 +119,6 @@ NovelAI/novelai-image-metadata `3428907ac7183d7e36d7cc39e8f46f6f35ce99c1`의 nai
 
 원본 `f2088add`의 [루트 manifest](https://github.com/sunho/SDStudio/blob/f2088add103ad683a31e0590448e6e5bb4d71556/package.json)와 [데스크톱 manifest](https://github.com/sunho/SDStudio/blob/f2088add103ad683a31e0590448e6e5bb4d71556/release/app/package.json)는 모두 MIT를 선언하고 작성자를 sunho로 표시한다. 해당 리비전에서 원작 앱 고유의 저작권 고지 전문은 찾지 못했다. 원작의 크레딧·이력·기존 고지를 보존한다.
 
-HyunnJg는 이 포크에 새로 기여한 부분을 MIT로 제공하기로 했다. 저장소 루트 `LICENSE`와 데스크톱의 `resources/LICENSE`에 이 범위를 표시한 전문을 담고, 패키지 고지 색인에서 원본과 사본의 SHA-256을 대조한다. 네이티브 ISC 원문과 바이너리 대응 소스 제공 범위는 계속 확인할 항목이다.
+HyunnJg는 이 포크에 새로 기여한 부분을 MIT로 제공하기로 했다. 저장소 루트 `LICENSE`와 데스크톱의 `resources/LICENSE`에 이 범위를 표시한 전문을 담고, 패키지 고지 색인에서 원본과 사본의 SHA-256을 대조한다. 바이너리 대응 소스의 제공 범위는 공개 전 검토 항목으로 남는다.
+
+#70 검토 후 원작 기준 리비전의 `src/native` 트리와 그 리비전까지 해당 경로에 기록된 파일명을 확인했다. manifest의 `license`는 `ISC`, `author`는 빈 문자열이며 별도의 LICENSE·COPYING·NOTICE·COPYRIGHT 파일은 발견되지 않았다. 선언의 경위와 저작권자는 미확인이다. 같은 이력에 대한 조사는 여기서 마치고, 새 근거가 들어올 때 원문 누락 항목을 다시 검토한다. 설치본 색인과 엄격 검사에는 누락 1건을 그대로 보고한다. [원작 native 디렉터리](https://github.com/sunho/SDStudio/tree/f2088add103ad683a31e0590448e6e5bb4d71556/src/native)

@@ -6,7 +6,9 @@ Original contributions by HyunnJg to this fork: Copyright (c) 2026 HyunnJg, lice
 
 LICENSES/electron-react-boilerplate.txt is an exact copy from ancestor commit 7091c9135bf0ddd29710e78f907906db96ea4975 of sunho/SDStudio. It contains the Electron React Boilerplate MIT notice, copyright 2015-present Electron React Boilerplate. It was deleted in fb2582c02ef184eac8a7b441075660d20151ab93.
 
-The upstream [native package.json](https://github.com/sunho/SDStudio/blob/f2088add103ad683a31e0590448e6e5bb4d71556/src/native/package.json) declares ISC. Its original notice file has not been located. CREDITS.md identifies the original project, the fork and the sources of separately licensed material.
+The upstream [native package.json](https://github.com/sunho/SDStudio/blob/f2088add103ad683a31e0590448e6e5bb4d71556/src/native/package.json) declares ISC and leaves the author field empty. The upstream native tree at that revision contains no separate license or copyright notice file. The package index retains this missing-file entry. A newly identified original notice or a clarification from the rights holder would warrant revisiting it. CREDITS.md identifies the original project, the fork and the sources of separately licensed material.
+
+On 2026-11-21 the fork owner decided to continue development while preserving upstream attribution and documenting outstanding notice questions. That development decision was made without confirmation from the upstream author. The upstream license statements cited here come from the original package manifests.
 
 THIRD_PARTY_NOTICES.txt and index.json contain local dependency notice evidence, including unresolved entries. They do not clear the provenance of tag data, images or vendored binaries, and do not certify full redistribution compliance.
 
