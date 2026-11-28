@@ -1,5 +1,7 @@
 # 개발 시작과 검증 기록
 
+Windows x64 3.1.12-rc.2 설치본의 외부 구성요소를 다시 빌드하거나 배포 자료를 대조하려면 [대응 소스 및 빌드 자료](licenses/WINDOWS_RC2_SOURCES.md)를 참고한다.
+
 ## 데스크톱 아이콘 재생성
 
 벡터 원본은 `assets/desktop-icon.svg`다. 저장소 루트에서 프로젝트의 sharp로 PNG 10종을 만들고 512px 사본을 창 아이콘으로 사용한다. 아래 코드는 PowerShell에서 실행한다.
