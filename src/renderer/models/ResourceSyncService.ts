@@ -17,8 +17,7 @@ export abstract class ResourceSyncService<
   resourceDir: string;
   updateInterval: number;
   running: boolean;
-  dummy: T | undefined;
-  constructor(resourceDir: string, interval: number) {
+  constructor(resourceDir: string, interval: number, private readonly deserialize: (json: any) => T) {
     super();
     this.resources = {};
     this.dirty = {};
@@ -27,9 +26,6 @@ export abstract class ResourceSyncService<
     this.resourceList = [];
     this.updateInterval = interval;
     this.running = true;
-    (async () => {
-      this.dummy = await this.createDefault('dummy');
-    })();
   }
 
   abstract createDefault(name: string): T | Promise<T>;
@@ -97,7 +93,7 @@ export abstract class ResourceSyncService<
         );
         let obj = JSON.parse(str);
         obj = await this.migrate(obj);
-        this.resources[name] = this.dummy!.fromJSON(obj);
+        this.resources[name] = this.deserialize(obj);
         await this.onAdded(name);
         this.dispatchEvent(
           new CustomEvent<{ name: string }>('fetched', { detail: { name } }),
@@ -141,7 +137,7 @@ export abstract class ResourceSyncService<
       throw new Error('Resource already exists');
     }
     value = await this.migrate(value);
-    this.resources[name] = this.dummy!.fromJSON(value);
+    this.resources[name] = this.deserialize(value);
     await this.onAdded(name);
     this.#markUpdated(name);
     await this.update();

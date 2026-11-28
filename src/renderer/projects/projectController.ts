@@ -4,6 +4,7 @@ import {
   PROJECT_LIMITS,
 } from '../../workspaceProject';
 import type {
+  LegacyScenePage,
   ProjectClient,
   ProjectContent,
   ProjectSnapshot,
@@ -34,6 +35,11 @@ export const projectErrorMessage = (code: ProjectErrorCode): string =>
       '저장 결과를 확정하지 못했습니다. 교체됐을 수도 있으니 다시 열어 확인하세요. 현재 편집은 유지됩니다.',
     PROJECT_IMAGE_TOO_LARGE:
       '전송용 PNG가 5 MiB를 초과합니다. 다른 이미지를 선택하세요.',
+    PROJECT_LEGACY_SCENE: '활성 후보가 없는 슬롯이 있습니다. 복사할 씬의 슬롯을 확인하세요.',
+    PROJECT_LEGACY_PIECE: '슬롯이 참조하는 조각을 읽을 수 없습니다. 원본 세션에서 조각 이름과 내용을 확인하세요.',
+    PROJECT_LEGACY_PICK: '선별 PNG를 읽을 수 없습니다. 원본 파일을 확인하거나 선별 PNG 포함을 해제하고 다시 복사하세요.',
+    PROJECT_LEGACY_MASK:
+      'V3 세션의 인페인팅 씬을 복사할 수 없습니다. 저장된 원본과 같은 크기의 PNG 마스크가 있고, 마스크에 칠한 영역이 있는지 확인하세요.',
     PROJECT_LIMIT:
       '보관 한도에 도달했습니다. 이력을 지우지 않고 새 복사본으로 계속하거나 입력만 새 프로젝트로 저장하세요.',
     PROJECT_RESULT_LIMIT:
@@ -62,6 +68,7 @@ export interface ProjectView {
   lastTrashedProject?: ProjectListing;
   operation: string;
   message: string;
+  legacyCopyNotice?: string;
   error?: ProjectErrorCode;
   panel: boolean;
   projects: ProjectListing[];
@@ -154,7 +161,11 @@ export class ProjectController {
       });
       return false;
     }
-    this.update({ operation: label, error: undefined });
+    this.update({
+      operation: label,
+      error: undefined,
+      legacyCopyNotice: undefined,
+    });
     try {
       await action();
       return true;
@@ -191,6 +202,7 @@ export class ProjectController {
         ),
       ),
       baseline,
+      legacyCopyNotice: undefined,
       message:
         '입력·씬 저장됨 · 기존 PNG 기록 유지 · 대기열은 저장하지 않습니다.',
       error: undefined,
@@ -416,6 +428,47 @@ export class ProjectController {
       await this.execute('프로젝트 읽는 중', async () =>
         this.replace(unwrap(await this.client().open(id))),
       );
+    });
+  }
+
+  async copyLegacyScene(
+    name: string,
+    key: string,
+    withPicks: boolean,
+    page?: LegacyScenePage,
+  ) {
+    return this.guard('V3 일반 씬을 새 프로젝트로 복사', async () => {
+      await this.execute('슬롯 조합과 선별 PNG 복사 중', async () => {
+        const snapshot = unwrap(
+          await this.client().copyLegacyScene(name, key, withPicks, page),
+        );
+        await this.replace(snapshot);
+        this.update({
+          legacyCopyNotice: `공통 프리셋은 별도로 적용하세요. 복사한 씬의 부정 프롬프트는 비어 있습니다.`,
+          message: `슬롯 조합 ${snapshot.project.scenes.length}개와 선별 PNG ${snapshot.project.images.length}장을 복사했습니다.`,
+        });
+      });
+    });
+  }
+
+  async copyLegacyMasks(name: string, selected?: string[]) {
+    return this.guard('V3 마스크 씬을 새 프로젝트로 복사', async () => {
+      await this.execute('저장된 마스크 씬 복사 중', async () => {
+        const copy = unwrap(
+          await this.client().copyLegacyMasks(name, selected),
+        );
+        if ('failedScene' in copy) {
+          this.update({
+            error: 'PROJECT_LEGACY_MASK',
+            message: `「${copy.failedScene}」 씬의 입력을 복사할 수 없습니다. V3 자료 가져오기에서 이 씬의 선택을 해제하거나 원본과 마스크를 확인하세요.`,
+          });
+          return;
+        }
+        await this.replace(copy);
+        this.update({
+          message: `V3 마스크 씬 ${copy.project.scenes.length}개를 새 프로젝트에 복사했습니다.`,
+        });
+      });
     });
   }
 

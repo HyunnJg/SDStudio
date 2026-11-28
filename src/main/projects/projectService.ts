@@ -54,6 +54,8 @@ export class ProjectService implements ProjectOperations {
       | 'history'
       | 'recover'
       | 'copy'
+      | 'copyLegacyScene'
+      | 'copyLegacyMasks'
       | 'addPNG'
       | 'readPNG'
       | 'generationSnapshot'
@@ -130,6 +132,14 @@ export class ProjectService implements ProjectOperations {
 
   list() {
     return this.call('list', []);
+  }
+
+  copyLegacyScene(...args: Parameters<ProjectStore['copyLegacyScene']>) {
+    return this.call('copyLegacyScene', args);
+  }
+
+  copyLegacyMasks(root: string, name: string, selected?: string[]) {
+    return this.call('copyLegacyMasks', [root, name, selected]);
   }
 
   create(content: unknown, referenceSourceId?: string) {

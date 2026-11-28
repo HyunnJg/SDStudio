@@ -31,6 +31,7 @@ const configuration: webpack.Configuration = {
 
   output: {
     path: webpackPaths.distRendererPath,
+    clean: true,
     publicPath: './',
     filename: 'renderer.js',
     library: {

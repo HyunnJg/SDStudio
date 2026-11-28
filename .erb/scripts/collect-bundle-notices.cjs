@@ -68,9 +68,19 @@ function collectNotices() {
     for (const item of inventory.packages)
       add(path.join(root, item.root), `bundle:${inventory.compiler}`, item);
   }
+  const excludedTypes =
+    'node_modules/batch-cluster/types/chai-withintoleranceof';
+  const configFile = path.join(root, 'package.json');
+  const excludesChaiTypes =
+    fs.existsSync(configFile) &&
+    JSON.parse(fs.readFileSync(configFile)).build?.files?.includes(
+      `!${excludedTypes}/**/*`,
+    );
   const embeddedVisited = new Set();
   const walkEmbedded = (directory, container) => {
     const real = fs.realpathSync(directory);
+    if (excludesChaiTypes && relative(real) === `release/app/${excludedTypes}`)
+      return;
     if (embeddedVisited.has(real)) return;
     embeddedVisited.add(real);
     if (!relative(real).startsWith('../')) {
@@ -160,6 +170,33 @@ function collectNotices() {
         basis: namedNotice ? 'notice-filename' : 'readme-with-MIT-grant-text',
       });
       text += `\n--- ${name} (exact bytes in ${target}) ---\n${bytes.toString('utf8')}\n`;
+    }
+    const upstream = {
+      '@react-dnd/invariant@4.0.2': 'react-dnd-641fd36.txt',
+      '@react-dnd/shallowequal@4.0.2': 'react-dnd-641fd36.txt',
+      'react-dnd-preview@8.1.2': 'dnd-multi-backend-c9d018e.txt',
+    }[`${item.name}@${item.version}`];
+    if (!item.notices.length && upstream) {
+      const source = `LICENSES/${upstream}`;
+      const copy = `packages/${identifier}/LICENSE`;
+      const bytes = fs.readFileSync(path.join(root, source));
+      const digest = hash(bytes);
+      const expected =
+        upstream === 'react-dnd-641fd36.txt'
+          ? '10c8da64ecfa3067cf9231e0ba19b8d7730e7fed3ac5eaa37ccb97c3c5e71336'
+          : '4b8cb29bfb6eaab0bf73d1eb61b75fba6eeca044758168a8fd77371e200c3051';
+      if (digest !== expected)
+        throw Error(`Upstream notice changed: ${source}`);
+      fs.mkdirSync(path.dirname(path.join(output, copy)), { recursive: true });
+      fs.writeFileSync(path.join(output, copy), bytes);
+      item.notices.push({
+        source,
+        copy,
+        sha256: hash(bytes),
+        bytes: bytes.length,
+        basis: 'published-revision-repository-license',
+      });
+      text += `\n--- ${source} (exact bytes in ${copy}) ---\n${bytes.toString('utf8')}\n`;
     }
     item.status = item.notices.length
       ? 'notice-files-collected'

@@ -12,6 +12,41 @@ const { createConnectedWorkspaceState } = require('../renderer/generation/connec
 const { snapshotWorkspaceScenes } = require('../renderer/preview/workspaceDraft');
 const { png } = require('./fixtures/nai/png.cjs');
 const { inspectLegacyPresets, hasLegacyPromptSyntax } = require('../promptLibrary');
+const inspectLegacySlots = require('../legacySceneSlots').default;
+
+test('V3 slot preview and copy share candidate validation and counts', () => {
+  for (const slots of [
+    null,
+    {},
+    [42],
+    [[null]],
+    [[[]]],
+    [[{ enabled: 1 }]],
+    [[{ prompt: 42 }]],
+    [[{ prompt: 'x'.repeat(65537) }]],
+  ])
+    assert.deepEqual(inspectLegacySlots(slots), {
+      ok: false,
+      error: 'PROJECT_INPUT',
+    });
+  for (const slots of [[[]], [[{ enabled: false }]]])
+    assert.deepEqual(inspectLegacySlots(slots), {
+      ok: false,
+      error: 'PROJECT_LEGACY_SCENE',
+    });
+  assert.deepEqual(inspectLegacySlots([]), { ok: true, count: 1, slots: [] });
+  assert.deepEqual(
+    inspectLegacySlots([
+      [{ prompt: '' }, { enabled: false }],
+      [{ enabled: true, prompt: 'a' }, { prompt: 'b' }],
+    ]),
+    { ok: true, count: 2, slots: [[''], ['a', 'b']] },
+  );
+  assert.deepEqual(
+    inspectLegacySlots(Array(53).fill([{ prompt: 'a' }, { prompt: 'b' }])),
+    { ok: false, error: 'PROJECT_LIMIT' },
+  );
+});
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 async function fixture(t) {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'sdstudio-reference-'));
@@ -218,6 +253,87 @@ test('V5 variation binds only the target-size derivative, preserves source and a
   assert.equal(hash(f.store.referenceImage(next.project.id, f.scene.id)), f.asset.uploadHash);
 });
 
+test('queued character cuts keep the selected identity, reference and noise while overriding only the cut strength', async (t) => {
+  const { buildRecipeScenes } = require('../renderer/generation/sceneRecipe');
+  const { randomUUID } = require('node:crypto');
+  const f = await variationFixture(t);
+  const fixed = 'silver hair\r\n\r\nnavy coat';
+  const actor = {
+    id: 'actor',
+    enabled: true,
+    prompt: fixed + '\r\n\r\nold pose\r\n',
+    negativePrompt: 'hat',
+    cell: { row: 2, column: 2 },
+  };
+  f.scene.draft.characters = [
+    { ...actor, id: 'other', prompt: 'other actor' },
+    actor,
+  ];
+  f.scene.draft.reference = f.reference;
+  const row = {
+    name: 'table',
+    setting: '',
+    emotion: 'reading a map, seated',
+    cutMode: 'replace',
+  };
+  const recipe = {
+    name: 'shots',
+    styleId: '',
+    characterIds: [],
+    cutActorId: 'actor',
+    situations: [
+      { ...row, img2imgStrength: '0' },
+      { ...row, name: 'skip', included: false },
+      { ...row, name: 'wave', emotion: 'waving', img2imgStrength: '0.90' },
+      { ...row, name: 'inherit', emotion: 'listening' },
+    ],
+  };
+  const original = structuredClone(f.scene);
+  const scenes = buildRecipeScenes(recipe, f.scene, [], 3, randomUUID);
+  assert.deepEqual(f.scene, original);
+  const saved = f.store.save(f.id, f.saved.revision, {
+    ...f.content,
+    scenes: [...f.content.scenes, ...scenes],
+  });
+  const plan = await f.service.prepareQueue(
+    f.id,
+    saved.revision,
+    scenes.map((s) => s.id),
+    1,
+    0,
+  );
+  assert.equal(f.bodies.length, 0);
+  const result = await f.service.runQueue(plan.ticket, true);
+  assert.deepEqual(
+    result.queue.items.map((i) => i.status),
+    ['done', 'done', 'done'],
+  );
+  const expectedCuts = [row.emotion, 'waving', 'listening'];
+  f.bodies.forEach((bytes, i) => {
+    const request = JSON.parse(Buffer.from(bytes));
+    assert.equal(request.parameters.strength, [0, 0.9, 0.45][i]);
+    assert.equal(request.parameters.noise, 0.1);
+    assert.equal(request.parameters.director_reference_images.length, 1);
+    assert.equal(
+      request.parameters.v4_prompt.caption.base_caption,
+      scenes[i].draft.prompt +
+        ', ' +
+        require('../workspaceGenerationSettings').V5_QUALITY_TAGS.standard,
+    );
+    assert.deepEqual(
+      request.parameters.v4_prompt.caption.char_captions.map(
+        (c) => c.char_caption,
+      ),
+      ['other actor', fixed + '\r\n\r\n' + expectedCuts[i]],
+    );
+    assert.equal(
+      request.parameters.v4_negative_prompt.caption.char_captions[1]
+        .char_caption,
+      'hat',
+    );
+  });
+});
+
 test('variation queue uses the same approved body/seed; changed strength or broken asset stops before send', async t => {
   const f = await variationFixture(t);
   const plan = await f.service.prepareQueue(f.id, f.saved.revision, [f.scene.id], 2);
@@ -413,4 +529,342 @@ test('combined images over the serialized 8 MiB limit cannot obtain a single or 
   await assert.rejects(f.service.prepare(f.id,saved.revision,f.scene.id), {code:'GENERATION_BODY_LIMIT'});
   await assert.rejects(f.service.prepareQueue(f.id,saved.revision,[f.scene.id],1), {code:'GENERATION_BODY_LIMIT'});
   assert.equal(f.bodies.length,0);
+});
+
+test('V3 infill keeps the edited mask aligned with its source through generation, queue, reopening and copying', async (t) => {
+  const sharp = require('sharp');
+  const f = await fixture(t);
+  const id = f.current.project.id;
+  const scene = f.content.scenes[0];
+  Object.assign(scene.draft, {
+    family: 'v4.5',
+    model: 'nai-diffusion-3',
+    resolution: '128x64',
+    prompt: 'background',
+  });
+  delete scene.draft.reference;
+  let saved = f.store.save(id, f.current.revision, f.content);
+  const save = () => {
+    saved = f.store.save(id, saved.revision, f.content);
+  };
+  const source = await f.service.importReference(
+    id,
+    saved.revision,
+    f.original,
+    'inpaintSource',
+  );
+  scene.draft.inpaintSource = source.asset;
+  save();
+  assert.equal(saved.project.version, 11);
+  await assert.rejects(f.service.prepare(id, saved.revision, scene.id), {
+    code: 'UNSUPPORTED_DRAFT',
+  });
+  const pixels = Buffer.alloc(128 * 64);
+  const pngMask = () =>
+    sharp(pixels, { raw: { width: 128, height: 64, channels: 1 } })
+      .png()
+      .toBuffer();
+  await assert.rejects(
+    f.service.importReference(
+      id,
+      saved.revision,
+      await pngMask(),
+      'inpaintMask',
+    ),
+    { code: 'PROJECT_INPUT' },
+  );
+  pixels.fill(255, 0, 32);
+  await assert.rejects(
+    f.service.importReference(id, saved.revision, f.original, 'inpaintMask'),
+    { code: 'PROJECT_INPUT' },
+  );
+  const mask = await f.service.importReference(
+    id,
+    saved.revision,
+    await pngMask(),
+    'inpaintMask',
+  );
+  scene.draft.inpaintMask = mask.asset;
+  save();
+  scene.draft.resolution = 'square';
+  save();
+  await assert.rejects(f.service.prepare(id, saved.revision, scene.id), { code: 'INPAINT_SIZE_MISMATCH' });
+  await assert.rejects(f.service.prepareQueue(id, saved.revision, [scene.id], 1), { code: 'INPAINT_SIZE_MISMATCH' });
+  scene.draft.resolution = '128x64';
+  save();
+  assert.throws(
+    () => validateWorkspaceProject({ ...saved.project, version: 10 }),
+    { code: 'PROJECT_CORRUPT' },
+  );
+  const wire = await f.service.prepare(id, saved.revision, scene.id);
+  assert.equal(wire.model, 'nai-diffusion-3-inpainting');
+  assert.equal(f.bodies.length, 0);
+  const result = await f.service.run(wire.ticket, true);
+  assert.equal(
+    result.snapshot.project.images[0].binding.id,
+    'nai-v3-inpaint-v1',
+  );
+  const plan = await f.service.prepareQueue(
+    id,
+    result.snapshot.revision,
+    [scene.id],
+    1,
+    0,
+  );
+  const queued = await f.service.runQueue(plan.ticket, true);
+  assert.equal(queued.queue.items[0].status, 'done');
+  for (const bytes of f.bodies) {
+    const body = JSON.parse(Buffer.from(bytes));
+    assert.equal(body.action, 'infill');
+    assert.equal(body.parameters.add_original_image, true);
+    assert.equal(
+      hash(Buffer.from(body.parameters.image, 'base64')),
+      source.asset.uploadHash,
+    );
+    assert.equal(
+      hash(Buffer.from(body.parameters.mask, 'base64')),
+      mask.asset.uploadHash,
+    );
+    assert.deepEqual(
+      await sharp(Buffer.from(body.parameters.mask, 'base64'))
+        .greyscale()
+        .raw()
+        .toBuffer(),
+      pixels,
+    );
+  }
+  const copy = f.store.create(f.content, id);
+  assert.deepEqual(
+    f.store.referenceImage(copy.project.id, scene.id, 'inpaintMask'),
+    mask.preview,
+  );
+  assert.equal(f.store.open(id).project.images.length, 2);
+});
+
+test('legacy mask copy publishes a verified project and leaves versioned and early V3 input untouched', async (t) => {
+  const sharp = require('sharp');
+  const f = await fixture(t);
+  const root = path.join(f.profile, 'SDStudio');
+  const projects = path.join(root, 'projects');
+  fs.mkdirSync(projects, { recursive: true });
+  const pixels = Buffer.alloc(64 * 64, 0);
+  pixels.fill(255, 64, 128);
+  const mask = await sharp(pixels, {raw:{width:64,height:64,channels:1}}).png().toBuffer();
+  const source = await sharp({create:{width:64,height:64,channels:3,background:'#227744'}}).png().toBuffer();
+  const folder = path.join(root, 'vibes', 'Modern');
+  fs.mkdirSync(folder, { recursive: true });
+  fs.writeFileSync(path.join(folder, 'base.png'), source);
+  fs.writeFileSync(path.join(folder, 'mask.png'), mask);
+  const row = {workflowType:'SDInpaint',preset:{prompt:'sky',uc:'fog',seed:0,steps:20,promptGuidance:4,image:'base.png',mask:'mask.png'}};
+  const file = path.join(projects, 'Modern.json');
+  const data = JSON.stringify({version:1,inpaints:{Sky:row, Clouds:row, Variation:{workflowType:'SDI2I'}}});
+  fs.writeFileSync(file,data);
+  const worker = new ProjectService(f.profile, require.resolve('../main/projects/projectWorker.ts'));
+  t.after(() => worker.close());
+  const copy = await worker.copyLegacyMasks(root,'Modern');
+  assert.deepEqual(f.store.open(copy.project.id),copy);
+  assert.deepEqual(copy.project.scenes.map(s=>s.name),['Sky','Clouds']);
+  assert.equal(copy.project.selectedSceneId,copy.project.scenes[0].id);
+  for(const {draft} of copy.project.scenes){
+    assert.equal(draft.prompt,'sky');
+    assert.equal(draft.negativePrompt,'fog');
+    assert.equal(draft.seedMode,'fixed');
+    assert.equal(draft.seed,'0');
+    assert.equal(draft.steps,'20');
+    assert.equal(draft.guidance,'4');
+    assert.equal(draft.inpaintSource.sourceHash,hash(source));
+    assert.equal(draft.inpaintMask.sourceHash,hash(mask));
+    assert.deepEqual(await sharp(f.store.referenceBytes(copy.project.id,draft.inpaintMask)).greyscale().raw().toBuffer(), pixels);
+  }
+  assert.equal(fs.readFileSync(file,'utf8'),data);
+  assert.equal(hash(fs.readFileSync(path.join(folder,'base.png'))),hash(source));
+  assert.equal(hash(fs.readFileSync(path.join(folder,'mask.png'))),hash(mask));
+  const legacy = JSON.stringify({inpaints:{Retouch:{middlePrompt:'ocean',image:source.toString('base64'),mask:mask.toString('base64')}}});
+  fs.writeFileSync(path.join(projects,'Old.json'),legacy);
+  const early = await worker.copyLegacyMasks(root,'Old');
+  assert.equal(early.project.scenes[0].draft.prompt,'ocean');
+  assert.equal(early.project.scenes[0].draft.seedMode,'random');
+  assert.equal(fs.readFileSync(path.join(projects,'Old.json'),'utf8'),legacy);
+  const before = f.store.list();
+  const invalid = { ...row, preset: {...row.preset,mask:'missing.png'} };
+  fs.writeFileSync(file, JSON.stringify({version:1,inpaints:{Sky:row,Broken:invalid}}));
+  assert.deepEqual(await worker.copyLegacyMasks(root,'Modern'), {failedScene:'Broken'});
+  await assert.rejects(worker.copyLegacyMasks(root,'../Modern'));
+  assert.deepEqual(f.store.list(),before);
+  await assert.rejects(worker.copyLegacyMasks(root,'Modern',['Removed']),{code:'PROJECT_CONFLICT'});
+  const subset = await worker.copyLegacyMasks(root,'Modern',['Sky']);
+  assert.deepEqual(subset.project.scenes.map(scene=>scene.name),['Sky']);
+  assert.deepEqual(f.store.open(subset.project.id), subset);
+  assert.equal(fs.readdirSync(path.join(f.profile,'projects-v1')).some(n=>n.startsWith('.import-')),false);
+});
+
+test('V3 ordinary scene copies active combinations and original picked PNGs without inventing generation settings', async (t) => {
+  const f = await fixture(t);
+  const root = path.join(f.profile, 'SDStudio'),
+    projects = path.join(root, 'projects');
+  const outs = path.join(root, 'outs', 'Book', 'Sky');
+  fs.mkdirSync(projects, { recursive: true });
+  fs.mkdirSync(outs, { recursive: true });
+  const bytes = png(),
+    file = path.join(projects, 'Book.json');
+  fs.writeFileSync(path.join(outs, 'a.png'), bytes);
+  const scene = {
+    name: 'Sky',
+    resolution: 'custom',
+    resolutionWidth: 640,
+    resolutionHeight: 896,
+    slots: [
+      [{ prompt: 'a' }, { prompt: 'unused', enabled: false }, { prompt: 'b' }],
+      [{ prompt: 'c' }, { prompt: '<Lib.rain>' }],
+    ],
+    mains: ['a.png', 'a.png'],
+  };
+  const session = {
+    version: 1,
+    scenes: { sky: scene },
+    library: { Lib: { pieces: [{ name: 'rain', prompt: 'rain' }] } },
+  };
+  const original = JSON.stringify(session);
+  fs.writeFileSync(file, original);
+  const worker = new ProjectService(
+    f.profile,
+    require.resolve('../main/projects/projectWorker.ts'),
+  );
+  t.after(() => worker.close());
+  const copy = await worker.copyLegacyScene(root, 'Book', 'sky', true);
+  const { id, scenes, images } = copy.project;
+  assert.equal(copy.project.version, 12);
+  assert.deepEqual(
+    scenes.map((s) => s.draft.prompt),
+    ['a, c', 'a, <Lib.rain>', 'b, c', 'b, <Lib.rain>'],
+  );
+  assert.equal(scenes[0].draft.pieces, undefined);
+  assert.equal(scenes[1].draft.pieces[0].key, 'Lib.rain');
+  assert.equal(scenes[0].draft.resolution, '640x896');
+  assert.equal(images.length, 1);
+  assert.ok(!scenes.some((s) => s.id === images[0].sceneId));
+  assert.equal(images[0].origin, 'v3-pick');
+  assert.equal(images[0].seed, undefined);
+  assert.equal(images[0].draft, undefined);
+  assert.equal(images[0].filename, 'a.png');
+  assert.deepEqual(f.store.resultPicks(id), [images[0].id]);
+  assert.deepEqual(f.store.open(id), copy);
+  assert.deepEqual(
+    Buffer.from(f.store.image(id, images[0].id)),
+    Buffer.from(bytes),
+  );
+  const duplicate = f.store.copy(id, copy.revision, {
+    name: 'Copy',
+    scenes,
+    selectedSceneId: scenes[0].id,
+  });
+  assert.deepEqual(f.store.resultPicks(duplicate.project.id), [images[0].id]);
+  assert.throws(() =>
+    validateWorkspaceProject({ ...copy.project, version: 11 }),
+  );
+  assert.throws(() =>
+    validateWorkspaceProject({
+      ...copy.project,
+      images: [{ ...images[0], seed: 0 }],
+    }),
+  );
+  assert.equal(fs.readFileSync(file, 'utf8'), original);
+  const count = f.store.list().length;
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      ...session,
+      scenes: { sky: { ...scene, mains: ['a.png', 'missing.png'] } },
+    }),
+  );
+  await assert.rejects(worker.copyLegacyScene(root, 'Book', 'sky', true), {
+    code: 'PROJECT_LEGACY_PICK',
+  });
+  assert.equal(f.store.list().length, count);
+  const slotsOnly = await worker.copyLegacyScene(root, 'Book', 'sky', false);
+  assert.equal(slotsOnly.project.images.length, 0);
+  assert.equal(slotsOnly.project.version, 10);
+  await assert.rejects(worker.copyLegacyScene(root, 'Book', 'gone', true), {
+    code: 'PROJECT_CONFLICT',
+  });
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      scenes: {
+        sky: {
+          name: 'Sky',
+          landscape: false,
+          main: 'a.png',
+          slots: [[{ prompt: 'old' }]],
+        },
+      },
+    }),
+  );
+  const old = await worker.copyLegacyScene(root, 'Book', 'sky', true);
+  assert.equal(old.project.scenes[0].draft.resolution, 'portrait');
+  assert.equal(old.project.images[0].filename, 'a.png');
+  for (const [slots, code] of [
+    [[[]], 'PROJECT_LEGACY_SCENE'],
+    [[Array(61).fill({ prompt: 'x' })], 'PROJECT_LIMIT'],
+    [[[{ prompt: '<missing.piece>' }]], 'PROJECT_LEGACY_PIECE'],
+  ]) {
+    fs.writeFileSync(
+      file,
+      JSON.stringify({ scenes: { sky: { ...scene, slots } } }),
+    );
+    await assert.rejects(worker.copyLegacyScene(root, 'Book', 'sky', false), {
+      code,
+    });
+  }
+  const slots = Array.from({ length: 3 }, (_, s) =>
+    Array.from({ length: 5 }, (_, n) => ({ prompt: `${s}-${n}` })),
+  );
+  fs.writeFileSync(
+    file,
+    JSON.stringify({ scenes: { sky: { ...scene, slots } } }),
+  );
+  const allPrompts = [];
+  for (const number of [1, 2, 3]) {
+    const page = await worker.copyLegacyScene(
+      root,
+      'Book',
+      'sky',
+      number === 1,
+      { number, total: 125 },
+    );
+    assert.deepEqual(f.store.open(page.project.id), page);
+    assert.equal(page.project.images.length, number === 1 ? 1 : 0);
+    assert.match(
+      page.project.name,
+      new RegExp(`${(number - 1) * 60 + 1}–${Math.min(number * 60, 125)}$`),
+    );
+    allPrompts.push(...page.project.scenes.map((s) => s.draft.prompt));
+  }
+  const expected = slots[0].flatMap((a) =>
+    slots[1].flatMap((b) =>
+      slots[2].map((c) => [a.prompt, b.prompt, c.prompt].join(', ')),
+    ),
+  );
+  assert.deepEqual(allPrompts, expected);
+  for (const number of [0, -1, 1.5, 4, Number.MAX_SAFE_INTEGER + 1]) {
+    await assert.rejects(
+      worker.copyLegacyScene(root, 'Book', 'sky', false, {
+        number,
+        total: 125,
+      }),
+      { code: 'PROJECT_INPUT' },
+    );
+  }
+  await assert.rejects(
+    worker.copyLegacyScene(root, 'Book', 'sky', false, {
+      number: 1,
+      total: 124,
+    }),
+    { code: 'PROJECT_CONFLICT' },
+  );
+  // The first-newline rule is the original V3 toPARR behavior for multi-line slots.
+  fs.writeFileSync(file, JSON.stringify({scenes:{sky:{...scene,slots:[[{prompt:'a\nb\nc'}]]}}}));
+  const multiline = await worker.copyLegacyScene(root,'Book','sky',false);
+  assert.equal(multiline.project.scenes[0].draft.prompt, 'a, b\nc');
+
 });

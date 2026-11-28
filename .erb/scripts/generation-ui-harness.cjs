@@ -8,7 +8,68 @@ const { png } = require('../../src/__tests__/fixtures/nai/png.cjs');
 const JSZip = require('jszip');
 const expectedPNG = png();
 const phase = process.env.SDSTUDIO_GENERATION_PHASE;
+if (phase === 'recipe') {
+  global.fetch = async (url, options) => {
+    assert.equal(new URL(url).origin, 'https://generativelanguage.googleapis.com');
+    assert.equal(options.headers['x-goog-api-key'], 'synthetic-gemini-key');
+    const body = JSON.parse(options.body);
+    assert.equal(body.serviceTier, 'flex');
+    assert.equal(body.generationConfig.topP, 0.9);
+    assert.ok(new URL(url).pathname.endsWith('/gemini-3.8-flash:generateContent'));
+    const input = JSON.parse(body.contents[0].parts[0].text);
+    if (['한 컷. 맑은 하늘.', '취소할 컷'].includes(input.instruction)) {
+      options.signal.throwIfAborted();
+      return new Promise((_, reject) => {
+        options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
+      });
+    }
+    assert.deepEqual(input, { instruction: '표정 세 컷, 각 두 장', style: '', characters: [] });
+    const cuts = ['tense', 'smile', 'relieved'].map((emotion) => ({
+      name: emotion, setting: 'courtyard', emotion,
+    }));
+    return Response.json({ candidates: [{ finishReason: 'STOP', content: {
+      parts: [{ text: JSON.stringify({ cuts, repeats: 2 }) }],
+    } }] });
+  };
+}
 const profile = process.env.SDSTUDIO_USER_DATA_DIR;
+if (phase === 'inpaint') {
+  const root = path.join(profile, 'SDStudio', 'projects');
+  fs.mkdirSync(root, { recursive:true });
+  const image = require('electron').nativeImage.createFromBitmap(Buffer.alloc(64 * 64 * 4, 255), {width:64, height:64}).toPNG();
+  const vibes = path.join(profile, 'SDStudio', 'vibes', 'MaskCopy');
+  fs.mkdirSync(vibes,{recursive:true});
+  fs.writeFileSync(path.join(vibes,'source.png'),image);
+  fs.writeFileSync(path.join(vibes,'mask.png'),image);
+  const outputs = path.join(profile, 'SDStudio', 'outs', 'MaskCopy', 'Garden');
+  fs.mkdirSync(outputs, { recursive:true });
+  const {fixture} = require('../../src/__tests__/fixtures/nai/metadataPNG.cjs');
+  const picked = fixture({Comment:{prompt:'imported sky',uc:'mist',seed:7}}, {width:64,height:64}).bytes;
+  fs.writeFileSync(path.join(outputs, 'picked.png'), picked);
+  fs.writeFileSync(path.join(outputs, 'second.png'), image);
+  fs.writeFileSync(path.join(root, 'MaskCopy.json'), JSON.stringify({
+    version:1, name:'MaskCopy', presets:{SDImageGen:[{type:'SDImageGen',name:'Palette',frontPrompt:'blue sky',backPrompt:'day',uc:'fog'}]}, presetShareds:{}, library:{},
+    scenes:{Garden:{name:'Garden',type:'scene',resolution:'portrait',slots:Array.from({length:3}, (_,s)=>Array.from({length:5}, (_,n)=>({prompt:`slot${s}-${n}`}))),mains:['picked.png','second.png']}},
+    inpaints:{Missing:{type:'inpaint',workflowType:'SDInpaint',name:'Missing',resolution:'square',mains:[],imageMap:[],preset:{type:'SDInpaint',image:'source.png',mask:'missing.png'}},Retouch:{type:'inpaint',workflowType:'SDInpaint',name:'Retouch',resolution:'square',mains:[],imageMap:[],
+      preset:{type:'SDInpaint',name:'Retouch',prompt:'copied sky',image:'source.png',mask:'mask.png'}}},
+  }));
+}
+if (phase === 'recipe') {
+  const legacy = path.join(profile, 'SDStudio');
+  const name = 'Bridge';
+  const scene = { type: 'scene', name: 'Test', resolution: 'portrait', slots: [], main: 'favorite.png', imageMap: ['favorite.png'] };
+  const inpaint = { type: 'inpaint', workflowType: 'SDInpaint', name: 'Retouch', resolution: 'portrait', mains: [], imageMap: ['output.png'] };
+  const fixture = { name, presets: {}, presetShareds: {}, scenes: { Test: scene }, inpaints: { Retouch: inpaint }, library: { Sky: { version: 1, name: 'Sky', pieces: [{ name:'weather', prompt:'rain' }] } } };
+  for (const [file, content] of [
+    ['projects/Bridge.json', JSON.stringify(fixture)],
+    ['outs/Bridge/Test/favorite.png', expectedPNG],
+    ['inpaints/Bridge/Retouch/output.png', expectedPNG],
+  ]) {
+    const target = path.join(legacy, file);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content);
+  }
+}
 const checks = [],
   remote = [],
   errors = [];
@@ -72,6 +133,33 @@ const server = http.createServer(async (request, response) => {
       .digest('hex');
   const parsed = JSON.parse(body);
   sentSteps.push(parsed.parameters.steps);
+  if (phase === 'scope-start') {
+    assert.equal(parsed.parameters.tag_hint_transparent_background, true);
+    assert.equal(parsed.parameters.straight_alpha, true);
+    assert.equal(parsed.input.match(/transparent background/g).length, 1);
+    response.writeHead(200, { 'Content-Type':'application/zip' });
+    response.end(await payload);
+    return;
+  }
+  if (phase === 'inpaint') {
+    assert.equal(parsed.model,'nai-diffusion-3-inpainting');
+    assert.equal(parsed.action,'infill');
+    assert.ok(parsed.parameters.mask && parsed.parameters.image);
+    assert.equal(parsed.parameters.add_original_image, true);
+    response.writeHead(200,{'Content-Type':'application/zip'});
+    response.end(await payload);
+    return;
+  }
+  if (phase === 'recipe') {
+    assert.equal(parsed.model,'nai-diffusion-furry-3');
+    assert.equal(parsed.parameters.width,640);
+    assert.equal(parsed.parameters.height,896);
+    assert.equal(parsed.parameters.v4_prompt,undefined);
+    assert.match(parsed.input,/^(red|blue) coat, (rain|snow)$/);
+    response.writeHead(200,{'Content-Type':'application/zip'});
+    response.end(await payload);
+    return;
+  }
   assert.equal(parsed.model, 'nai-diffusion-5-full');
   assert.equal(parsed.parameters.image_format, 'png');
   assert.equal(parsed.parameters.width, 832);
@@ -201,7 +289,7 @@ function finish(code, error) {
   console.log(JSON.stringify(report));
   app.exit(code);
 }
-setTimeout(() => finish(1, 'Generation smoke timeout'), 40000).unref();
+setTimeout(() => finish(1, 'Generation smoke timeout'), phase === 'legacy-writer' ? 100000 : 40000).unref();
 process.on('uncaughtException', (error) => finish(1, error.stack));
 process.on('unhandledRejection', (error) => finish(1, error.stack));
 app.on('web-contents-created', (_event, contents) => {
@@ -238,6 +326,24 @@ app.on('web-contents-created', (_event, contents) => {
         evaluate("!!document.querySelector('[data-testid=connected-workspace]')"),
       );
       checks.push('new workspace is the default startup without a legacy screen detour');
+      assert.deepEqual(await evaluate("[document.querySelector('#live-scene').length, document.querySelector('#live-prompt').value]"), [1, '']);
+      if (['queue', 'queue-errors'].includes(phase)) {
+        const seed = await evaluate(`window.electron.projects.create({
+          name: 'Synthetic queue', selectedSceneId: 'scene-1',
+          scenes: [1,2,3].map(n => ({
+            id: 'scene-' + n, name: 'Shot ' + n,
+            draft: {family:'v5',prompt:'synthetic subject ' + n,negativePrompt:'',characters:[],
+              placement:'auto',resolution:'portrait',seedMode:'random',seed:'0',steps:'23',guidance:'7',
+              qualityTags:'standard',ucPreset:'heavy'}
+          }))
+        })`);
+        assert.ok(seed.ok);
+        const selector = '[data-project-open="' + seed.value.project.id + '"]';
+        await click('[data-testid=project-list]');
+        await until(() => evaluate(`!!document.querySelector(${JSON.stringify(selector)})`));
+        await click(selector);
+        await until(() => evaluate("document.querySelector('#live-scene').length === 3"));
+      }
       await until(() =>
         evaluate(
           "!!document.querySelector('[data-testid=connected-workspace]')",
@@ -247,7 +353,15 @@ app.on('web-contents-created', (_event, contents) => {
       await evaluate("(()=>{window.__flowMessages=[];const node=document.querySelector('[data-testid=generation-status]');new MutationObserver(()=>{if(node.textContent.trim())window.__flowMessages.push(node.textContent.trim())}).observe(node,{childList:true,characterData:true,subtree:true})})()");
       if (process.env.SDSTUDIO_RUNTIME_REPORT && phase === 'create')
         await require('./runtime-ui-probe.cjs')(contents, profile);
-      if (phase === 'trash') {
+      if (phase === 'scope-start' || phase === 'scope-open') {
+        await require('./shoot-scope-probe.cjs')({phase,evaluate,click,fill,until,checks,requests:()=>requests});
+      } else if (phase === 'legacy-writer') {
+        await require('./legacy-writer-ui-probe.cjs')({contents,evaluate,click,fill,until,checks,profile});
+      } else if (phase === 'inpaint') {
+        await require('./inpaint-ui-probe.cjs')({contents,evaluate,click,fill,until,checks,requestCount:()=>requests});
+      } else if (phase === 'recipe') {
+        await require('./scene-recipe-probe.cjs')({evaluate,click,fill,until,checks,requests:()=>requests});
+      } else if (phase === 'trash') {
         await require('./workspace-trash-ui-probe.cjs')({contents,evaluate,click,fill,until,checks,profile,requestCount:()=>requests});
       } else if (phase === 'img2img') {
         await require('./variation-ui-probe.cjs')({evaluate, click, fill, until, checks, requestCount: () => requests});
@@ -473,7 +587,7 @@ app.on('web-contents-created', (_event, contents) => {
         );
         const window = BrowserWindow.fromWebContents(contents);
         window.setMinimumSize(360, 500);
-        window.setSize(390, 844);
+        window.setContentSize(390, 844);
         await until(() => evaluate('innerWidth===390'));
         assert.equal(
           await evaluate('document.documentElement.scrollWidth<=innerWidth'),
@@ -516,6 +630,7 @@ app.on('web-contents-created', (_event, contents) => {
           await evaluate('window.electron.generation.queueStatus()')
         ).value.queue;
         assert.equal(reserved.items.length, 6);
+        assert.equal(await evaluate("document.querySelectorAll('[data-queue-scene]:checked').length"), 3);
         assert.equal(new Set(reserved.items.map((i) => i.seed)).size, 6);
         assert.equal(
           await evaluate(
@@ -800,15 +915,15 @@ app.on('web-contents-created', (_event, contents) => {
         checks.push(
           'character text survives deletion undo/reorder; disabling keeps the stored input',
         );
-        await evaluate("(()=>{const s=document.querySelector('#live-model');s.value='v4.5';s.dispatchEvent(new Event('change',{bubbles:true}))})()");
+        await evaluate("(()=>{const s=document.querySelector('#live-model');s.value='nai-diffusion-3';s.dispatchEvent(new Event('change',{bubbles:true}))})()");
         await until(()=>evaluate("!!document.querySelector('[data-testid=disable-live-characters]')"));
         assert.equal(await evaluate("document.querySelector('[data-testid=disable-live-characters]').matches(':disabled')"),false);
         await click('[data-testid=disable-live-characters]');
         assert.equal(await evaluate("[...document.querySelectorAll('[data-character-enabled]')].every(c=>!c.checked)"),true);
         assert.equal(await evaluate(`document.querySelector('[data-character-prompt="${ids[1]}"]').value`),'person, blue coat');
-        await evaluate("(()=>{const s=document.querySelector('#live-model');s.value='v5';s.dispatchEvent(new Event('change',{bubbles:true}))})()");
+        await evaluate("(()=>{const s=document.querySelector('#live-model');s.value='nai-diffusion-5-full';s.dispatchEvent(new Event('change',{bubbles:true}))})()");
         await click(`[data-character-enabled="${ids[1]}"]`);
-        checks.push('V4.5 path offers a nearby disable-character action that preserves text; switching back to V5 restores editing');
+        checks.push('V3 path offers a nearby disable-character action that preserves text; switching back to V5 restores editing');
         await click('[data-testid=add-live-character]');
         const waitingId = await evaluate("[...document.querySelectorAll('[data-character-id]')].at(-1).dataset.characterId");
         await fill('[data-testid=live-prompt]', '');
@@ -995,16 +1110,16 @@ app.on('web-contents-created', (_event, contents) => {
         await require('./prompt-library-ui-probe.cjs')({ contents, evaluate, click, fill, until, checks });
         assert.equal(requests, 0, 'offline library never sends a generation request');
         const draftBeforeLegacy = await evaluate("document.querySelector('#live-prompt').value");
-        await evaluate("Array.from(document.querySelectorAll('.connected-menu button')).find(b=>b.textContent==='V3 프롬프트 조각').click()");
+        await click('[data-testid=open-legacy]');
         await until(()=>evaluate("!!document.querySelector('[data-testid=open-preview]')"));
         assert.equal(await evaluate("document.querySelector('[data-testid=open-preview]').textContent"), '작업실로 돌아가기');
         if (await evaluate('!!window.curSession')) {
-          assert.equal(await evaluate("[...document.querySelectorAll('button.back-sky')].some(b=>b.textContent==='프롬프트조각')"),true);
+          assert.equal(await evaluate("[...document.querySelectorAll('button.back-sky')].some(b=>b.textContent==='이미지생성')"),true);
         }
         await click('[data-testid=open-preview]');
         await until(()=>evaluate("!!document.querySelector('#live-prompt')"));
         assert.equal(await evaluate("document.querySelector('#live-prompt').value"),draftBeforeLegacy);
-        checks.push('V3 pieces entry returns to the same workspace draft without generation');
+        checks.push('V3 compatibility entry returns to the same workspace draft without generation');
 
       } else if (phase === 'reopen') {
         const library = await evaluate('window.electron.promptLibrary.read()');

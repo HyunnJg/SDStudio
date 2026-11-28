@@ -14,7 +14,12 @@ import { usesDevelopmentAssets, resolvePreloadPath, startDesktop } from './deskt
 import { createRuntimeOptions } from '../runtimeOptions';
 import { installOfflineRequestGuard } from './offlineNetwork';
 import { NaiTokenStore } from './nai/tokenStore';
+import { normalizeVertexAccount } from './vertexAccount';
+import { PROVIDERS } from '../recipeAssistant';
+import type { Provider } from '../recipeAssistant';
+import registerGeminiCuts from './geminiCuts';
 import { registerNaiAuth, isTrustedAuthFrame } from './nai/authIpc';
+import { GenerationJournal } from './nai/generationJournal';
 import { WorkspaceGeneration } from './nai/workspaceGeneration';
 import { registerGeneration } from './nai/generationIpc';
 import { createNaiTransport } from './nai/electronTransport';
@@ -986,14 +991,22 @@ if (!gotTheLock) {
         path.join(app.getPath('userData'), 'auth', 'novelai-token.v1.json'),
         safeStorage,
       );
-      registerNaiAuth(
-        ipcMain,
-        tokenStore,
-        () => runtimeOptions.offline,
-        (event) => isTrustedAuthFrame(
-          event, mainWindow?.webContents, resolveHtmlPath('index.html'),
-        ),
-      );
+      const trustedFrame = (event: Electron.IpcMainInvokeEvent) =>
+        isTrustedAuthFrame(event, mainWindow?.webContents, resolveHtmlPath('index.html'));
+      const offline = () => runtimeOptions.offline;
+      registerNaiAuth(ipcMain, tokenStore, offline, trustedFrame);
+      const keys = new Map<Provider, NaiTokenStore>();
+      for (const provider of PROVIDERS) {
+        const store = new NaiTokenStore(
+          path.join(app.getPath('userData'), 'auth', `${provider}-key.v1.json`),
+          safeStorage, process.platform, `sdstudio-${provider}-key`,
+          provider === 'vertexAccount' ? normalizeVertexAccount : undefined,
+        );
+        keys.set(provider, store);
+        registerNaiAuth(ipcMain, store, offline, trustedFrame, `${provider}-auth`);
+        app.on('will-quit', () => store.lock());
+      }
+      registerGeminiCuts(ipcMain, provider => keys.get(provider)!.read(), offline, trustedFrame);
       const projectService = new ProjectService(app.getPath('userData'),
         usesDevelopmentAssets(app.isPackaged, process.env.NODE_ENV)
           ? path.join(__dirname, 'projects/projectWorker.ts') : path.join(__dirname, 'projectWorker.js'));
@@ -1001,7 +1014,7 @@ if (!gotTheLock) {
         event => isTrustedAuthFrame(event, mainWindow?.webContents, resolveHtmlPath('index.html')));
       const generationTransport = createNaiTransport(tokenStore, () => runtimeOptions.offline,
         firstGenerationObserver(app.getPath('userData')));
-      workspaceGeneration = new WorkspaceGeneration({ store: projectService, offline: () => runtimeOptions.offline,
+      workspaceGeneration = new WorkspaceGeneration({ store: projectService, journal: new GenerationJournal(app.getPath('userData')), offline: () => runtimeOptions.offline,
         sendImage: (bytes, signal) => generationTransport.sendImage(bytes, signal) });
       registerGeneration(ipcMain, workspaceGeneration, (event) => isTrustedAuthFrame(event, mainWindow?.webContents, resolveHtmlPath('index.html')));
       app.on('will-quit', () => workspaceGeneration?.cancel());
@@ -1020,6 +1033,7 @@ if (!gotTheLock) {
           event, mainWindow?.webContents, resolveHtmlPath('index.html'),
         ),
         (action, id) => workspaceGeneration!.withProjectMutation(action, id),
+        APP_DIR,
       );
       projectClose = new ProjectCloseCoordinator(
         () => mainWindow?.webContents.send('workspace-close-request'),

@@ -1,9 +1,10 @@
 /* eslint react/require-default-props: off, jsx-a11y/label-has-associated-control: ["error", {"assert":"either"}], no-void: off */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PresetUse } from '../generation/presetPresentation';
 import type { WorkspaceDraft } from '../preview/workspaceDraft';
 import type {
   LibraryClient,
+  LegacyPresetImport,
   LibraryReply,
   LibrarySnapshot,
   PresetContent,
@@ -21,6 +22,7 @@ import {
 } from '../../promptLibrary';
 
 interface Props {
+  legacy?: LegacyPresetImport;
   client: LibraryClient;
   draft: WorkspaceDraft;
   kind: PresetKind;
@@ -49,7 +51,7 @@ const contentOf = (p: PresetContent): PresetContent => ({
 const messages = {
   LIBRARY_INPUT: '이름과 입력·적용 항목을 확인해 주세요.',
   LIBRARY_LIMIT:
-    '보관 한도(휴지통 포함200개·전체2MiB) 또는 텍스트 길이를 확인해 주세요.',
+    '보관 한도(휴지통 포함 200개·전체 2MiB)와 텍스트 길이를 확인하세요. 공간이 필요하면 휴지통에서 불필요한 항목을 영구 삭제하세요.',
   LIBRARY_CONFLICT:
     '라이브러리가 변경됐습니다. 편집 내용을 확인한 뒤 새로고침하세요.',
   LIBRARY_CORRUPT:
@@ -60,6 +62,7 @@ const messages = {
   LIBRARY_UNTRUSTED: '이 화면에서 라이브러리를 사용할 수 없습니다.',
 };
 export default function PromptLibrary({
+  legacy,
   client,
   draft,
   kind,
@@ -86,9 +89,18 @@ export default function PromptLibrary({
   const [message, setMessage] = useState('');
   const [confirm, setConfirm] = useState<() => void>();
   const [purgeConfirmed, setPurgeConfirmed] = useState(false);
-  const [candidates, setCandidates] = useState<
-    { id: string; content: PresetContent }[]
-  >([]);
+  const [imported, setImported] = useState<LegacyPresetImport | undefined>(
+    legacy,
+  );
+  const candidates = imported?.candidates ?? [];
+  const rows = useMemo(
+    () =>
+      imported?.candidates.map((content) => ({
+        id: crypto.randomUUID(),
+        content,
+      })) ?? [],
+    [imported],
+  );
   const [options, setOptions] = useState<PresetApplication>({
     mode: 'replace',
     prompt: true,
@@ -240,22 +252,14 @@ export default function PromptLibrary({
       if (!alive.current) return;
       if (bytes.byteLength > LIBRARY_LIMITS.bytes)
         throw new LibraryError('LIBRARY_LIMIT');
-      const imported = inspectLegacyPresets(
+      const result = inspectLegacyPresets(
         JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)),
       );
-      const values = imported.candidates;
-      setCandidates(
-        values.map((content) => ({ id: crypto.randomUUID(), content })),
-      );
-      setMessage(
-        (imported.skipped
-          ? `${imported.skipped}개는 이름·길이·텍스트 형식 문제로 제외했습니다. `
-          : '') +
-          (values.length
-            ? '가져올 후보를 선택한 뒤 이름·텍스트를 확인하고 저장하세요. 원본 파일은 바꾸지 않습니다.'
-            : '지원하는 V3 SDImageGen/SDImageGenEasy 프리셋을 찾지 못했습니다.'),
-      );
+      setImported(result);
+      if (!result.candidates.length)
+        setMessage('가져올 수 있는 V3 프리셋이 없습니다.');
     } catch (error) {
+      setImported(undefined);
       if (alive.current)
         fail(error instanceof LibraryError ? error : { code: 'LIBRARY_INPUT' });
     } finally {
@@ -722,7 +726,7 @@ export default function PromptLibrary({
           )}
         </section>
       </div>
-      <details>
+      <details open={legacy ? true : undefined}>
         <summary>기존 V3에서 가져오기·도구</summary>
         <p>
           내보낸 V3 세션 JSON에서 SDImageGen/SDImageGenEasy의 상위·하위·부정
@@ -740,7 +744,35 @@ export default function PromptLibrary({
             if (file) void readLegacy(file);
           }}
         />
-        {candidates.map(({ id, content: p }) => (
+        {imported && (
+          <p>
+            가져올 후보 {candidates.length}개
+            {imported.skipped > 0 &&
+              ` · ${imported.skipped}개는 이름·길이·텍스트 형식 문제로 제외했습니다.`}
+          </p>
+        )}
+        {!!candidates.length && (
+          <button
+            type="button"
+            data-testid="library-import-all"
+            disabled={blocked || !snapshot}
+            onClick={() => {
+              if (!snapshot) return;
+              void invoke(
+                () => client.importPresets(snapshot.revision, candidates),
+                (next) => {
+                  const added = next.entries.length - snapshot.entries.length;
+                  setMessage(
+                    `프리셋 ${added}개 저장 · 이름과 내용이 같은 후보 ${candidates.length - added}개 건너뜀`,
+                  );
+                },
+              );
+            }}
+          >
+            후보 {candidates.length}개 일괄 저장
+          </button>
+        )}
+        {rows.map(({ content: p, id }) => (
           <button
             type="button"
             key={id}
@@ -751,8 +783,8 @@ export default function PromptLibrary({
             {hasLegacyPromptSyntax(p) && (
               <small>
                 {' '}
-                · V3 조각·선택 문법은 새 작업실에서 아직 지원하지 않습니다. 적용
-                전 수정하세요.
+                · V3 조각은 작업실에서 모음 JSON을 가져오세요. 단독 | 교차
+                문법은 직접 편집하세요.
               </small>
             )}
           </button>

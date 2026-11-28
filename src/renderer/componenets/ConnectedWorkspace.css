@@ -383,6 +383,9 @@
   max-height: 100%;
   object-fit: contain;
 }
+.connected-image[data-transparent="true"] {
+  background: repeating-conic-gradient(#c6c6c6 0 25%, #ededed 0 50%) 0 0 / 20px 20px;
+}
 .connected-empty {
   display: flex;
   flex-direction: column;
@@ -960,3 +963,27 @@
 .connected-thumbnail { position:relative; }
 .gallery-mark { position:absolute; top:8px; left:8px; width:20px; height:20px; display:grid; place-items:center; background:var(--pw-panel); color:var(--pw-text); border:1px solid var(--pw-muted); border-radius:4px; }
 .gallery-mark[data-picked='true'] { background:var(--pw-accent); color:var(--pw-bg); }
+
+.workspace-saved-presets > summary { cursor: pointer; }
+.workspace-saved-presets > fieldset,
+.workspace-saved-presets > fieldset fieldset,
+.workspace-saved-presets > fieldset label {
+  display: grid;
+  gap: .35rem;
+  min-width: 0;
+}
+.workspace-saved-presets > fieldset { gap: .6rem; padding: .6rem; }
+.workspace-saved-presets > fieldset label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+}
+.workspace-saved-presets > fieldset :is(select,input,textarea) { min-width: 0; }
+.workspace-saved-presets textarea { max-width: 100%; resize: vertical; }
+
+.workspace-mask-editor { width: min(780px, 96vw); max-height: 94dvh; overflow:auto; }
+.workspace-mask-editor fieldset { min-width:0; display:grid; gap:10px; }
+.mask-tools { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.mask-tools button[aria-pressed=true] { outline:2px solid currentColor; }
+.mask-stage { position:relative; width:fit-content; max-width:100%; margin:auto; }
+.mask-stage img { display:block; max-width:100%; max-height:55dvh; width:auto; height:auto; }
+.mask-stage canvas { position:absolute; inset:0; width:100%; height:100%; opacity:.72; filter:sepia(1) saturate(9) hue-rotate(255deg); touch-action:none; cursor:crosshair; }

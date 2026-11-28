@@ -58,7 +58,7 @@ export default function registerResultExport(
           const single = preview.length === 1;
           const ext = single ? 'png' : 'zip';
           const filename = single
-            ? `sdstudio-${preview[0].seed}-${preview[0].id.slice(0, 8)}.png`
+            ? `sdstudio-${preview[0].origin ? 'v3' : preview[0].seed}-${preview[0].id.slice(0, 8)}.png`
             : `sdstudio-${id.slice(0, 8)}-${preview.length}.zip`;
           guard();
           const destination = await choose(filename, ext);
@@ -101,7 +101,7 @@ export default function registerResultExport(
                 }
                 const number = String(index + 1).padStart(3, '0');
                 archive.file(
-                  `${number}-${image.seed}-${image.id}.png`,
+                  `${number}-${image.origin ? 'v3' : image.seed}-${image.id}.png`,
                   Readable.from(original()),
                 );
               });

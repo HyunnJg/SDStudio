@@ -5,12 +5,16 @@ import type {
 } from '../../workspaceGeneration';
 
 export const ANLAS_STEP_WARNING =
-  '28스텝 초과는 Opus도 Anlas를 사용할 수 있습니다.';
+  '28스텝 또는 1024×1024 픽셀 면적을 초과하면 Anlas가 사용될 수 있습니다.';
 
 export function requiresAnlasWarning(
-  settings: Pick<GenerationSettings, 'steps'>,
+  settings: Pick<GenerationSettings, 'steps'> &
+    Partial<Pick<GenerationSettings, 'width' | 'height'>>,
 ) {
-  return settings.steps > 28;
+  return (
+    settings.steps > 28 ||
+    (settings.width ?? 0) * (settings.height ?? 0) > 1024 ** 2
+  );
 }
 
 export function generationMessage(
@@ -22,7 +26,9 @@ export function generationMessage(
     OFFLINE:
       '오프라인입니다. API 토큰 설정에서 연결 모드를 변경하고 재시작하세요.',
     UNSUPPORTED_DRAFT:
-      'V5 Full 또는 기존 V4.5 기본 설정을 확인하세요. 생성에 사용할 V5 캐릭터는 최대22명·자동 배치를 확인하세요. 수동 위치·| 문법·프롬프트 조각 전개는 아직 지원하지 않습니다.',
+      '모델과 이미지 크기, V5 캐릭터(자동 배치·최대 22명)를 확인하세요. 조각 이름 누락·순환 참조 또는 단독 | 기호가 있는지도 확인하세요.',
+    INPAINT_SIZE_MISMATCH:
+      '씬 해상도와 인페인팅 이미지 크기가 다릅니다. 씬을 원래 해상도로 되돌리거나, 현재 해상도에서 원본을 다시 추가하고 마스크를 그려 주세요.',
     INVALID_INPUT:
       '기본 프롬프트 또는 생성에 사용할 V5 캐릭터 프롬프트를 입력하고 고정 시드(0~4294967295)를 확인하세요.',
     TOKEN_MISSING: 'API 토큰 설정에서 Persistent API Token을 입력하세요.',
@@ -78,6 +84,19 @@ export function availableQueueSceneIds(
   return ids.every((id) => valid.has(id))
     ? ids
     : ids.filter((id) => valid.has(id));
+}
+
+export function scenesWithoutPicks(
+  selected: readonly string[],
+  visibleImages: readonly { id: string; sceneId: string }[],
+  picks: ReadonlySet<string>,
+) {
+  const covered = new Set(
+    visibleImages
+      .filter((image) => picks.has(image.id))
+      .map((image) => image.sceneId),
+  );
+  return selected.filter((id) => !covered.has(id));
 }
 
 export function queueOutcome(queue: GenerationQueueState | undefined) {

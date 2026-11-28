@@ -7,9 +7,10 @@ import {
   REFERENCE_LIMITS,
   referenceSize,
   imageFormat,
+  isInpaintPurpose,
   VARIATION_DEFAULTS,
 } from '../../workspaceReference';
-import { V5_SIZES } from '../../workspaceGenerationSettings';
+import { draftSize } from '../../workspaceCatalog';
 import type { ImagePurpose, ReferenceAsset } from '../../workspaceReference';
 import {
   PROJECT_FORMAT,
@@ -24,6 +25,7 @@ import {
   requiredProjectVersion,
   validateReference,
   validateVariation,
+  validateReferenceAsset,
   projectReferences,
   remainingProjectBytes,
 } from '../../workspaceProject';
@@ -31,11 +33,14 @@ import type {
   ProjectContent,
   WorkspaceProject,
   ProjectSnapshot,
+  LegacyScenePage,
   ProjectImageInput,
   ProjectListing,
   ResultTrashReport,
 } from '../../workspaceProject';
 import { validatePNGBytes } from '../nai/imageResponse';
+import legacyMasks from './legacyMasks';
+import legacyScene from './legacyScene';
 
 const hash = (bytes: Uint8Array) =>
   createHash('sha256').update(bytes).digest('hex');
@@ -555,6 +560,162 @@ export class ProjectStore {
     );
   }
 
+  copyLegacyScene(
+    legacyRoot: string,
+    name: string,
+    key: string,
+    withPicks: boolean,
+    page?: LegacyScenePage,
+  ): ProjectSnapshot {
+    return io(() => {
+      const source = legacyScene(legacyRoot, name, key, withPicks, read, page);
+      const root = this.directory([], true);
+      projectCheck(
+        fs.readdirSync(root).filter((entry) => /^[a-f0-9-]{36}$/.test(entry))
+          .length < 1000,
+        'PROJECT_LIMIT',
+      );
+      const scratch = fs.mkdtempSync(path.join(root, '.import-'));
+      try {
+        const stage = new ProjectStore(scratch);
+        const content = validateProjectContent({
+          name:
+            `${name} · ${source.name}`.slice(0, 120 - source.range.length) +
+            source.range,
+          selectedSceneId: source.scenes[0].id,
+          scenes: source.scenes,
+        });
+        const files = stage.create(content);
+        const images: WorkspaceProject['images'] = [];
+        let total = 0;
+        for (const pick of source.picks) {
+          let bytes: Uint8Array;
+          try {
+            bytes = validatePNGBytes(pick.readPNG());
+          } catch {
+            throw new ProjectError('PROJECT_LEGACY_PICK');
+          }
+          total += bytes.length;
+          projectCheck(total <= PROJECT_LIMITS.totalPNGBytes, 'PROJECT_LIMIT');
+          const sha256 = hash(bytes);
+          ProjectStore.immutable(
+            path.join(
+              stage.folder(files.project.id),
+              'images',
+              `${sha256}.png`,
+            ),
+            bytes,
+          );
+          images.push({
+            origin: 'v3-pick',
+            id: randomUUID(),
+            sceneId: 'v3-source',
+            sourceScene: source.name,
+            filename: pick.filename,
+            sha256,
+            pngBytes: bytes.length,
+          });
+        }
+        const clean = stage.createSnapshot(
+          content,
+          images,
+          files.project.id,
+          undefined,
+          images.map((i) => i.id),
+        );
+        const verified = stage.open(clean.project.id);
+        fs.renameSync(
+          stage.folder(clean.project.id),
+          path.join(root, clean.project.id),
+        );
+        syncDirectory(root);
+        return verified;
+      } finally {
+        fs.rmSync(scratch, { recursive: true, force: true });
+      }
+    });
+  }
+
+  async copyLegacyMasks(
+    legacyRoot: string,
+    name: string,
+    selected?: string[],
+  ): Promise<ProjectSnapshot | { failedScene: string }> {
+    const rows = io(() => legacyMasks(legacyRoot, name, read, selected));
+    const root = this.directory([], true);
+    projectCheck(
+      fs.readdirSync(root).filter((entry) => /^[a-f0-9-]{36}$/.test(entry))
+        .length < 1000,
+      'PROJECT_LIMIT',
+    );
+    const scratch = fs.mkdtempSync(path.join(root, '.import-'));
+    try {
+      const stage = new ProjectStore(scratch);
+      const content: ProjectContent = {
+        name: name.slice(0, 120),
+        scenes: [],
+        selectedSceneId: '',
+      };
+      let working: ProjectSnapshot | undefined;
+      for (const { loadScene, sceneLabel } of rows) {
+        let loaded: ReturnType<typeof loadScene>;
+        try {
+          loaded = loadScene();
+        } catch {
+          return { failedScene: sceneLabel };
+        }
+        try {
+          const { scene, image, mask } = loaded;
+          content.scenes.push(scene);
+          content.selectedSceneId = scene.id;
+          working = working
+            ? stage.save(working.project.id, working.revision, content)
+            : stage.create(content);
+          const { id } = working.project;
+          // eslint-disable-next-line no-await-in-loop -- Each mask requires its committed source revision.
+          scene.draft.inpaintSource = await stage.importReference(
+            id,
+            working.revision,
+            image,
+            'inpaintSource',
+          );
+          working = stage.save(id, working.revision, content);
+          // eslint-disable-next-line no-await-in-loop -- Bound decoded image memory to one scene.
+          scene.draft.inpaintMask = await stage.importReference(
+            id,
+            working.revision,
+            mask,
+            'inpaintMask',
+          );
+          working = stage.save(id, working.revision, content);
+        } catch (error) {
+          if (
+            error instanceof ProjectError &&
+            (error.code === 'PROJECT_INPUT' ||
+              error.code === 'PROJECT_IMAGE_TOO_LARGE')
+          )
+            return { failedScene: sceneLabel };
+          throw error;
+        }
+      }
+      content.selectedSceneId = content.scenes[0].id;
+      const clean = stage.create(content, working!.project.id);
+      const verified = stage.open(clean.project.id);
+      fs.renameSync(
+        stage.folder(clean.project.id),
+        path.join(root, clean.project.id),
+      );
+      syncDirectory(root);
+      return verified;
+    } catch (error) {
+      if (error instanceof ProjectError && error.code !== 'PROJECT_INPUT')
+        throw error;
+      throw new ProjectError('PROJECT_LEGACY_MASK');
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  }
+
   // The same project lock covers the revision check, atomic replacement and any asset sweep.
   private withRevision<T>(
     id: string,
@@ -798,7 +959,12 @@ export class ProjectStore {
     projectCheck(this.history(id).length < 1000, 'PROJECT_HISTORY_LIMIT');
     if (value !== undefined) {
       const input = validateImageInput(value);
-      for (const asset of [input.draft.reference, input.draft.img2img])
+      for (const asset of [
+        input.draft.reference,
+        input.draft.img2img,
+        input.draft.inpaintSource,
+        input.draft.inpaintMask,
+      ])
         if (asset) this.referenceBytes(id, asset);
       encode({
         ...snapshot.project,
@@ -842,7 +1008,12 @@ export class ProjectStore {
     }
     return this.update(id, revision, (current, folder) => {
       projectCheck(current.scenes.some((s) => s.id === info.sceneId));
-      for (const asset of [info.draft.reference, info.draft.img2img])
+      for (const asset of [
+        info.draft.reference,
+        info.draft.img2img,
+        info.draft.inpaintSource,
+        info.draft.inpaintMask,
+      ])
         if (asset) this.referenceBytes(id, asset);
       const sha256 = hash(png);
       const image = { ...info, id: imageId, sha256, pngBytes: png.length };
@@ -900,10 +1071,12 @@ export class ProjectStore {
 
   referenceBytes(id: string, value: unknown): Uint8Array {
     return io(() => {
-      const r =
-        value && typeof value === 'object' && 'noise' in value
-          ? validateVariation(value)
-          : validateReference(value);
+      let r: ReferenceAsset;
+      if (value && typeof value === 'object' && 'role' in value)
+        r = validateReference(value);
+      else if (value && typeof value === 'object' && 'noise' in value)
+        r = validateVariation(value);
+      else r = validateReferenceAsset(value);
       this.referenceFile(id, r.sourceHash, r.sourceBytes, r.sourceFormat);
       const bytes = this.referenceFile(id, r.uploadHash, r.uploadBytes);
       const b = Buffer.from(bytes);
@@ -956,7 +1129,10 @@ export class ProjectStore {
       (scene) => scene.id === sceneId,
     )?.draft;
     projectCheck(
-      purpose === undefined || purpose === 'reference' || purpose === 'img2img',
+      purpose === undefined ||
+        purpose === 'reference' ||
+        purpose === 'img2img' ||
+        isInpaintPurpose(purpose),
     );
     const reference = purpose
       ? draft?.[purpose]
@@ -978,13 +1154,19 @@ export class ProjectStore {
         value.byteLength > 0 &&
         value.byteLength <= REFERENCE_LIMITS.sourceBytes,
     );
-    projectCheck(purpose === 'reference' || purpose === 'img2img');
+    projectCheck(
+      purpose === 'reference' ||
+        purpose === 'img2img' ||
+        isInpaintPurpose(purpose),
+    );
     const current = this.readManifest(id);
     projectCheck(current.revision === revision, 'PROJECT_CONFLICT');
     const scene = current.project.scenes.find(
       (s) => s.id === current.project.selectedSceneId,
     )!;
     if (purpose === 'img2img') projectCheck(scene.draft.family === 'v5');
+    if (isInpaintPurpose(purpose))
+      projectCheck(scene.draft.model === 'nai-diffusion-3');
     const source = Uint8Array.from(value);
     const format = imageFormat(source);
     projectCheck(format);
@@ -1005,18 +1187,41 @@ export class ProjectStore {
       );
       const rotated = (meta.orientation ?? 0) >= 5;
       size =
-        purpose === 'img2img'
-          ? V5_SIZES[scene.draft.resolution]
+        purpose !== 'reference'
+          ? draftSize(scene.draft)
           : referenceSize(
               rotated ? meta.height! : meta.width!,
               rotated ? meta.width! : meta.height!,
             );
       // Upload is a separate centre-cropped derivative without PNG text chunks. Original bytes are retained unchanged.
-      upload = await decoded
-        .autoOrient()
-        .resize({ ...size, fit: 'cover', position: 'centre' })
-        .png()
-        .toBuffer();
+      if (purpose === 'inpaintMask') {
+        const original = scene.draft.inpaintSource;
+        projectCheck(
+          original &&
+            format === 'png' &&
+            meta.width === original.width &&
+            meta.height === original.height &&
+            size.width === original.width &&
+            size.height === original.height &&
+            !meta.orientation,
+        );
+        const pixels = await decoded
+          .clone()
+          .flatten({ background: '#000' })
+          .greyscale()
+          .threshold(128)
+          .raw()
+          .toBuffer();
+        projectCheck(pixels.includes(255));
+        upload = await sharp(pixels, { raw: { ...size, channels: 1 } })
+          .png()
+          .toBuffer();
+      } else
+        upload = await decoded
+          .autoOrient()
+          .resize({ ...size, fit: 'cover', position: 'centre' })
+          .png()
+          .toBuffer();
       validatePNGBytes(upload);
     } catch {
       throw new ProjectError('PROJECT_INPUT');
@@ -1044,9 +1249,11 @@ export class ProjectStore {
     };
     const provisional: WorkspaceProject = structuredClone(current.project);
     const { draft } = provisional.scenes.find((s) => s.id === scene.id)!;
-    delete draft.reference;
-    delete draft.img2img;
-    if (purpose === 'img2img')
+    if (purpose === 'inpaintSource') delete draft.inpaintMask;
+    if (isInpaintPurpose(purpose)) {
+      if (purpose === 'inpaintSource') draft.inpaintSource = asset;
+      else draft.inpaintMask = asset;
+    } else if (purpose === 'img2img')
       draft.img2img = { ...asset, ...VARIATION_DEFAULTS };
     else
       draft.reference = {

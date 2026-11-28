@@ -81,9 +81,14 @@ test('explicit development directory cannot overlap either production fork or or
 test('default fork profile rejects a symlink to the original data', (t) => {
   const f = fixture(t);
   fs.mkdirSync(path.join(f.root, 'SDStudio'));
-  fs.symlinkSync(
-    path.join(f.root, 'SDStudio'),
-    path.join(f.root, FORK_APP_NAME),
-  );
+  const original = path.join(f.root, 'SDStudio');
+  const fork = path.join(f.root, FORK_APP_NAME);
+  try {
+    fs.symlinkSync(original, fork, 'dir');
+  } catch (error) {
+    if (process.platform !== 'win32' || error.code !== 'EPERM') throw error;
+    fs.symlinkSync(original, fork, 'junction');
+    t.diagnostic('Windows directory junction exercises the original-profile overlap check');
+  }
   assert.throws(() => initializeForkProfile(f.app), /overlap/);
 });

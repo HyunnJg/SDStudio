@@ -291,6 +291,40 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
+test('Gemini rejects a NovelAI token before replacing a stored key; NovelAI accepts it', async (t) => {
+  const handlers = new Map();
+  const ipc = { handle: (name, fn) => handlers.set(name, fn) };
+  const gemini = fixture(t).create();
+  const nai = fixture(t).create();
+  registerNaiAuth(
+    ipc,
+    gemini,
+    () => false,
+    () => true,
+    'gemini-auth',
+  );
+  registerNaiAuth(
+    ipc,
+    nai,
+    () => false,
+    () => true,
+  );
+  await gemini.set('synthetic-gemini', true);
+  const token = 'pst-synthetic-test-only';
+  for (const remember of [true, false]) {
+    assert.deepEqual(
+      await handlers.get('gemini-auth-set')({}, token, remember),
+      {
+        ok: false,
+        code: 'WRONG_PROVIDER',
+      },
+    );
+    assert.equal(await gemini.read(), 'synthetic-gemini');
+  }
+  assert.ok((await handlers.get('nai-auth-set')({}, token, false)).ok);
+  assert.equal(await nai.read(), token);
+});
+
 test('clear during encryption removes the old file immediately and late encryption cannot resurrect it', async (t) => {
   const f = fixture(t),
     store = f.create();

@@ -14,6 +14,8 @@ export type ProjectOperations = { restartStorage?: () => Promise<void> } & {
       | 'history'
       | 'recover'
       | 'copy'
+      | 'copyLegacyScene'
+      | 'copyLegacyMasks'
       | 'listTrash'
       | 'trashProject'
       | 'restoreProject'
@@ -36,6 +38,7 @@ export function registerProjects(
     action: () => Promise<unknown>,
     trashedProjectId?: string,
   ) => Promise<unknown> = async (action) => action(),
+  legacyRoot?: string,
 ) {
   const handle = (channel: string, action: (...args: any[]) => unknown) => {
     ipc.handle(
@@ -65,6 +68,16 @@ export function registerProjects(
     store.setResultPicks(id, revision, ids, picked),
   );
   handle('workspace-project-list', () => store.list());
+  handle('workspace-project-copy-legacy-scene', (name, key, withPicks, page) => {
+    if (!legacyRoot) throw new ProjectError('PROJECT_INPUT');
+    return store.copyLegacyScene(legacyRoot, name, key, withPicks, page);
+  });
+  handle('workspace-project-copy-legacy-masks', (name, selected) => {
+    if (!legacyRoot) throw new ProjectError('PROJECT_INPUT');
+    // Like create(), this publishes a new independent project. Marking generation active
+    // here would make the renderer reject opening the copy during its status poll.
+    return store.copyLegacyMasks(legacyRoot, name, selected);
+  });
   handle('workspace-project-list-trash', () => store.listTrash());
   handle('workspace-project-trash', (id) =>
     mutation(async () => store.trashProject(id), id),

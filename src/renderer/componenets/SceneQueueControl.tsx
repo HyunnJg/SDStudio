@@ -5,7 +5,7 @@ import { FaEdit, FaPlus, FaRegCalendarTimes } from 'react-icons/fa';
 import Tournament from './Tournament';
 import ResultViewer from './ResultViewer';
 import InPaintEditor from './InPaintEditor';
-import { base64ToDataUri } from './BrushTool';
+import { base64ToDataUri } from '../models/pngData';
 import { useDrag, useDrop } from 'react-dnd';
 import { getEmptyImage } from 'react-dnd-html5-backend';
 import { useContextMenu } from 'react-contexify';

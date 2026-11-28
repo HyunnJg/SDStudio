@@ -5,7 +5,7 @@ import type {
   WorkspaceCharacter,
 } from '../preview/workspaceDraft';
 import { moveWorkspaceCharacter } from '../preview/workspaceDraft';
-import { V5_CHARACTER_LIMIT } from '../../workspaceGenerationSettings';
+import { characterLimit } from '../../workspaceCatalog';
 import { PROJECT_LIMITS } from '../../workspaceProject';
 import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
 
@@ -33,7 +33,8 @@ export default function ConnectedCharacters({
   const waiting = characters.filter(
     (c) => c.enabled && !hasActiveCharacterPrompt(c),
   ).length;
-  const v5 = draft.family === 'v5';
+  const limit = characterLimit(draft);
+  const supported = limit > 0;
   const update = (id: string, patch: Partial<WorkspaceCharacter>) =>
     onChange({
       characters: characters.map((c) => (c.id === id ? { ...c, ...patch } : c)),
@@ -46,12 +47,8 @@ export default function ConnectedCharacters({
     >
       <h3>
         캐릭터 프롬프트{' '}
-        <small
-          className={
-            active > V5_CHARACTER_LIMIT ? 'connected-character-overflow' : ''
-          }
-        >
-          생성 {active}/{V5_CHARACTER_LIMIT}
+        <small className={active > limit ? 'connected-character-overflow' : ''}>
+          생성 {active}/{limit}
           {waiting > 0 && ` · 작성 대기 ${waiting}`}
         </small>
       </h3>
@@ -60,14 +57,14 @@ export default function ConnectedCharacters({
           캐릭터 프리셋 {presetCount}
         </button>
       )}
-      {active > V5_CHARACTER_LIMIT && (
+      {active > limit && (
         <p
           role="alert"
           className="connected-character-overflow"
           data-testid="character-limit-warning"
         >
-          생성 대상이 {V5_CHARACTER_LIMIT}명을 넘었습니다. 일부 캐릭터를 꺼
-          주세요. 입력은 보관됩니다.
+          생성 대상이 {limit}명을 넘었습니다. 일부 캐릭터를 꺼 주세요. 입력은
+          보관됩니다.
         </p>
       )}
       <p>
@@ -76,11 +73,11 @@ export default function ConnectedCharacters({
         보관하고 생성에는 사용하지 않습니다.
       </p>
 
-      {!v5 && (
+      {!supported && (
         <div role="status">
           <p>
-            이 앱의 V4.5 생성 경로에서는 캐릭터 조건을 지원하지 않습니다. V5
-            Full로 바꾸거나 조건을 꺼 주세요. 입력은 보존됩니다.
+            현재 모델은 캐릭터 입력을 사용할 수 없습니다. 모델을 바꾸거나 조건을
+            꺼 주세요. 입력은 보존됩니다.
           </p>
           {characters.some((c) => c.enabled) && (
             <button
@@ -97,7 +94,7 @@ export default function ConnectedCharacters({
           )}
         </div>
       )}
-      {v5 && active > 0 && draft.placement === 'manual' && (
+      {supported && active > 0 && draft.placement === 'manual' && (
         <div role="status">
           <p>
             수동 위치 초안이 남아 있습니다. 이번 생성은 자동 배치로
@@ -112,7 +109,7 @@ export default function ConnectedCharacters({
           </button>
         </div>
       )}
-      <fieldset disabled={!v5}>
+      <fieldset disabled={!supported}>
         {characters.map((c, index) => {
           const promptId = `live-character-${c.id}-prompt`;
           const negativeId = `live-character-${c.id}-negative`;
@@ -129,9 +126,7 @@ export default function ConnectedCharacters({
                     checked={c.enabled}
                     data-character-enabled={c.id}
                     disabled={
-                      !c.enabled &&
-                      !!c.prompt.trim() &&
-                      active >= V5_CHARACTER_LIMIT
+                      !c.enabled && !!c.prompt.trim() && active >= limit
                     }
                     onChange={(e) =>
                       update(c.id, { enabled: e.target.checked })
@@ -243,8 +238,7 @@ export default function ConnectedCharacters({
           type="button"
           data-testid="add-live-character"
           disabled={
-            active >= V5_CHARACTER_LIMIT ||
-            characters.length >= PROJECT_LIMITS.characters
+            active >= limit || characters.length >= PROJECT_LIMITS.characters
           }
           onClick={() =>
             onChange({
@@ -270,8 +264,7 @@ export default function ConnectedCharacters({
             disabled={
               characters.length >= PROJECT_LIMITS.characters ||
               characters.some((c) => c.id === removed.character.id) ||
-              (hasActiveCharacterPrompt(removed.character) &&
-                active >= V5_CHARACTER_LIMIT)
+              (hasActiveCharacterPrompt(removed.character) && active >= limit)
             }
             onClick={() => {
               const next = [...characters];

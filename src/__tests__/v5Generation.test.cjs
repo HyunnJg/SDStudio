@@ -22,6 +22,49 @@ const {
   validateProjectContent,
 } = require('../workspaceProject');
 const { png } = require('./fixtures/nai/png.cjs');
+test('V5 alpha uses the approved caption, preserves manual tags and reopens only opted-in projects at v13', (t) => {
+  const { core, first } = fixture(t);
+  const scene = structuredClone(first.project.scenes[0]);
+  const content = { name: 'alpha', selectedSceneId: scene.id, scenes: [scene] };
+  scene.draft.transparentBackground = true;
+  for (const text of [
+    'portrait',
+    'portrait, transparent background',
+    'portrait, 2.1::transparent background::',
+  ]) {
+    scene.draft.prompt = text;
+    const { request, input } = bindBasicGeneration(scene);
+    assert.equal(request.parameters.tag_hint_transparent_background, true);
+    assert.equal(request.parameters.straight_alpha, true);
+    assert.equal(request.input.match(/transparent background/g).length, 1);
+    assert.equal(
+      request.input,
+      request.parameters.v4_prompt.caption.base_caption,
+    );
+    assert.equal(input.draft.prompt, text);
+  }
+  const saved = core.create(content);
+  const reopened = core.readManifest(saved.project.id);
+  assert.equal(reopened.project.version, 13);
+  assert.deepEqual(reopened.project.scenes[0], scene);
+  assert.throws(() =>
+    validateWorkspaceProject({ ...saved.project, version: 12 }),
+  );
+  const legacy = {
+    ...scene,
+    draft: { ...scene.draft, family: 'v4.5', model: 'nai-diffusion-3' },
+  };
+  assert.equal(
+    bindBasicGeneration(legacy).request.parameters
+      .tag_hint_transparent_background,
+    undefined,
+  );
+  delete scene.draft.transparentBackground;
+  const disabled = bindBasicGeneration(scene).request;
+  assert.equal(disabled.parameters.tag_hint_transparent_background, undefined);
+  assert.ok(disabled.input.includes('2.1::transparent background::'));
+  assert.ok(core.create(content).project.version < 13);
+});
 function fixture(t, legacy = false, failSave = false) {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'sdstudio-v5-'));
   t.after(() => fs.rmSync(profile, { recursive: true, force: true }));
@@ -59,8 +102,66 @@ function fixture(t, legacy = false, failSave = false) {
       return bytes;
     },
   });
-  return { core, first, state, service, bodies, bytes };
+  return { core, first, state, service, bodies, bytes, profile };
 }
+test('approved alpha results retain transparent pixels through selection, reopening and ZIP export', async (t) => {
+  const { core, service, state, bytes, profile } = fixture(t);
+  const scene = state.scenes[0];
+  scene.draft.transparentBackground = true;
+  let snapshot = core.create({
+    name: 'alpha',
+    selectedSceneId: scene.id,
+    scenes: [scene],
+  });
+  for (let i = 0; i < 2; i++) {
+    const plan = await service.prepare(
+      snapshot.project.id,
+      snapshot.revision,
+      scene.id,
+    );
+    assert.equal(plan.transparentBackground, true);
+    snapshot = (await service.run(plan.ticket, true)).snapshot;
+  }
+  const id = snapshot.project.id;
+  const ids = snapshot.project.images.map((image) => image.id);
+  core.setResultPicks(id, snapshot.revision, ids, true);
+  assert.equal(core.readManifest(id).project.version, 13);
+  const dest = fs.mkdtempSync(path.join(os.tmpdir(), 'alpha-zip-'));
+  t.after(() => fs.rmSync(dest, { recursive: true, force: true }));
+  const file = path.join(dest, 'selected.zip');
+  let save;
+  require('../main/projects/resultExport').default(
+    {
+      handle: (_, fn) => {
+        save = fn;
+      },
+    },
+    core,
+    profile,
+    () => true,
+    async () => file,
+  );
+  assert.deepEqual(await save({}, id, core.resultPicks(id)), {
+    ok: true,
+    value: true,
+  });
+  const zip = await require('jszip').loadAsync(fs.readFileSync(file), {
+    checkCRC32: true,
+  });
+  assert.equal(Object.keys(zip.files).length, 2);
+  for (const entry of Object.values(zip.files)) {
+    const pngBytes = await entry.async('nodebuffer');
+    assert.deepEqual(pngBytes, Buffer.from(bytes));
+    // The 2x1 RGBA fixture stores an unfiltered row in one IDAT chunk.
+    const idat = pngBytes.indexOf('IDAT');
+    const length = pngBytes.readUInt32BE(idat - 4);
+    const row = require('node:zlib').inflateSync(
+      pngBytes.subarray(idat + 4, idat + 4 + length),
+    );
+    assert.deepEqual([row[0], row[4], row[8]], [0, 0, 255]);
+  }
+});
+
 test('new scenes use V5 portrait with observed defaults and reversible quality controls', () => {
   const state = createConnectedWorkspaceState(),
     d = state.draft;
@@ -123,7 +224,7 @@ test('V5 quality and UC choices affect only effective request strings; seed0 and
       };
       const { request } = bindBasicGeneration({ ...scene, draft: d });
       assert.equal(request.parameters.seed, 0);
-      assert.equal(request.parameters.extra_noise_seed, -1);
+      assert.equal(request.parameters.extra_noise_seed, 0);
       assert.equal(request.parameters.negative_prompt, V5_UC_PRESETS[ucPreset]);
       assert.equal(
         request.input,

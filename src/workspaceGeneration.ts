@@ -16,6 +16,7 @@ export type GenerationCode =
   | 'GENERATION_BUSY'
   | 'CONFIRMATION_EXPIRED'
   | 'UNSUPPORTED_DRAFT'
+  | 'INPAINT_SIZE_MISMATCH'
   | 'RESULT_SAVE_FAILED'
   | 'QUEUE_LIMIT'
   | 'GENERATION_BODY_LIMIT'
@@ -31,7 +32,8 @@ export interface GenerationFailure {
 }
 export type GenerationReply<T> = { ok: true; value: T } | GenerationFailure;
 export interface GenerationSettings {
-  model: 'nai-diffusion-4-5-full' | 'nai-diffusion-5-full';
+  transparentBackground?: true;
+  model: import('./workspaceCatalog').ModelId | 'nai-diffusion-3-inpainting';
   width: number;
   height: number;
   steps: number;
@@ -71,6 +73,7 @@ export interface GenerationQueueItem {
   settings?: GenerationSettings;
 }
 export interface GenerationQueuePlan {
+  repeatsFixedSeed?: true;
   ticket: string;
   queueId: string;
   total: number;
@@ -110,7 +113,7 @@ export interface GenerationClient {
     sceneId: string,
     purpose?: ImagePurpose,
   ): Promise<GenerationReply<Uint8Array>>;
-  status(): Promise<GenerationReply<{ active: boolean; pending: boolean }>>;
+  status(): Promise<GenerationReply<{ active: boolean; pending: boolean; interruption?: string }>>;
   prepare(
     id: string,
     revision: string,

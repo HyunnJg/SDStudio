@@ -22,6 +22,8 @@ const operations = [
   'history',
   'recover',
   'copy',
+  'copyLegacyScene',
+  'copyLegacyMasks',
   'generationSnapshot',
   'readManifest',
   'image',

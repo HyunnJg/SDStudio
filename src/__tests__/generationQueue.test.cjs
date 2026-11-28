@@ -544,6 +544,7 @@ test('selected subset follows saved scene order, preserves fixed0 repeats, and d
   );
   assert.equal(p.items[0].seed, 0);
   assert.equal(p.items[2].seed, 0);
+  assert.equal(p.repeatsFixedSeed, true);
   await f.service.runQueue(p.ticket, true);
   assert.equal(f.count, 4);
   f.service.clearQueue();
@@ -1282,4 +1283,28 @@ test('omitted interval defaults to ten seconds and invalid values are refused be
     });
   }
   assert.equal(f.count, 0);
+});
+
+test('recipe rounds bind each stored V3 piece once per seed and export the resolved draft', async (t) => {
+  const f = fixture(t);
+  const source = f.scenes[0];
+  const model = 'nai-diffusion-5-curated';
+  const draft = { ...source.draft, family:'v5', model, resolution:'1280x832',
+    prompt:'<costume.coat>, {rain|snow}', pieces:[{key:'costume.coat', text:'red coat\nblue coat', multi:true}] };
+  const scene = {...source, draft};
+  const snapshot = f.core.save(f.first.project.id, f.first.revision, {name:'recipe',selectedSceneId:scene.id,scenes:[scene]});
+  assert.equal(snapshot.project.version,10);
+  const plan = await f.service.prepareQueue(snapshot.project.id,snapshot.revision,[scene.id],2,0);
+  await f.service.runQueue(plan.ticket, true);
+  const saved = f.core.readManifest(snapshot.project.id).project;
+  assert.equal(saved.images.length,2);
+  assert.equal(saved.scenes[0].draft.prompt,draft.prompt);
+  saved.images.forEach((image,i) => {
+    const request = JSON.parse(Buffer.from(f.bodies[i]));
+    assert.equal(request.model,model);
+    assert.equal(request.parameters.width,1280);
+    assert.equal(request.input,image.draft.prompt);
+    assert.match(request.input,/^(red|blue) coat, (rain|snow)$/);
+    assert.equal(image.draft.pieces,undefined);
+  });
 });

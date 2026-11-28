@@ -195,6 +195,33 @@ export class PromptLibraryStore {
     });
   }
 
+  importPresets(revision: string, values: PresetContent[]) {
+    libraryCheck(
+      Array.isArray(values) &&
+        values.length > 0 &&
+        values.length <= LIBRARY_LIMITS.entries,
+    );
+    const valid = values.map((p) => validatePreset(p) as PresetContent);
+    const key = (p: PresetContent) =>
+      JSON.stringify([
+        p.kind,
+        p.name,
+        p.prompt,
+        p.negativePrompt,
+        p.qualityTags,
+        p.ucPreset,
+      ]);
+    return this.change(revision, (entries) => {
+      const known = new Set(entries.filter((p) => !p.deleted).map(key));
+      valid.forEach((p) => {
+        const identity = key(p);
+        if (known.has(identity)) return;
+        known.add(identity);
+        entries.push({ ...p, id: randomUUID(), deleted: false });
+      });
+    });
+  }
+
   setDeleted(revision: string, id: string, deleted: boolean) {
     libraryId(id);
     libraryCheck(typeof deleted === 'boolean');

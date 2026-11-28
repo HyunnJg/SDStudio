@@ -27,6 +27,8 @@ export class NaiTokenStore {
     private readonly file: string,
     private readonly encryption: Encryption,
     private readonly platform = process.platform,
+    private readonly format = 'sdstudio-nai-token',
+    private readonly validate = validateToken,
   ) {}
 
   private guard(generation: number): void {
@@ -85,7 +87,7 @@ export class NaiTokenStore {
       const value = JSON.parse(bytes.toString('utf8'));
       if (value.version !== 1) throw new NaiError('STORE_VERSION');
       if (
-        value.format !== 'sdstudio-nai-token' ||
+        value.format !== this.format ||
         typeof value.ciphertext !== 'string' ||
         !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
           value.ciphertext,
@@ -137,14 +139,14 @@ export class NaiTokenStore {
       if (typeof result.shouldReEncrypt !== 'boolean')
         throw new Error('Invalid provider result');
       // A rotation hint does not authorize rewriting an existing ciphertext on read.
-      return validateToken(result.result);
+      return this.validate(result.result);
     } catch {
       throw new NaiError('STORE_UNREADABLE');
     }
   }
 
   async set(value: unknown, remember: unknown): Promise<NaiTokenStatus> {
-    const token = validateToken(value);
+    const token = this.validate(value);
     if (typeof remember !== 'boolean') throw new NaiError('INVALID_INPUT');
     this.generation += 1;
     const { generation } = this;
@@ -205,7 +207,7 @@ export class NaiTokenStore {
       fs.writeFileSync(
         temporary,
         JSON.stringify({
-          format: 'sdstudio-nai-token',
+          format: this.format,
           version: 1,
           ciphertext: encrypted.toString('base64'),
         }),

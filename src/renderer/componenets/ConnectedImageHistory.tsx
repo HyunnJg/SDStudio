@@ -5,6 +5,7 @@ import type { GenerationClient } from '../../workspaceGeneration';
 import { projectErrorMessage } from '../projects/projectController';
 import type { ProjectClient, ProjectImage } from '../../workspaceProject';
 import ThumbnailQueue from '../generation/thumbnailQueue';
+import { scenesWithoutPicks } from '../generation/generationPresentation';
 
 interface ThumbnailProps {
   image: ProjectImage;
@@ -118,7 +119,9 @@ function Thumbnail({
           결과 {number}
           {actionLabel && ` · ${actionLabel}`}
         </strong>
-        <span>시드 {image.seed}</span>
+        <span>
+          {image.origin ? `V3 선별 · ${image.filename}` : `시드 ${image.seed}`}
+        </span>
       </span>
     </button>
   );
@@ -136,6 +139,8 @@ interface Props {
   >;
   revision?: string;
   scenes?: { id: string; name: string }[];
+  queueSceneIds?: string[];
+  onPrepareMissing?: (ids: string[]) => void;
   actionLabel?: string;
   disabled?: boolean;
 }
@@ -149,6 +154,8 @@ export default function ConnectedImageHistory({
   projects = undefined,
   revision = undefined,
   scenes = [],
+  queueSceneIds = [],
+  onPrepareMissing = undefined,
   actionLabel = '',
   disabled = false,
 }: Props) {
@@ -193,7 +200,23 @@ export default function ConnectedImageHistory({
     };
   }, [projectId, projects, reload]);
 
-  const sceneIds = [...new Set(images.map((image) => image.sceneId))];
+  const sourceNames = new Map(
+    images.flatMap((image) =>
+      image.origin
+        ? [[image.sceneId, `V3 · ${image.sourceScene}`] as const]
+        : [],
+    ),
+  );
+  const sceneIds = [
+    ...new Set([...queueSceneIds, ...images.map((image) => image.sceneId)]),
+  ];
+  const counts = new Map<string, { total: number; picked: number }>();
+  images.forEach((image) => {
+    const tally = counts.get(image.sceneId) ?? { total: 0, picked: 0 };
+    tally.total += 1;
+    if (picks?.has(image.id)) tally.picked += 1;
+    counts.set(image.sceneId, tally);
+  });
   const scoped =
     selecting && scene ? images.filter((i) => i.sceneId === scene) : images;
   const ids = scoped.filter((i) => picks?.has(i.id)).map((i) => i.id);
@@ -201,6 +224,13 @@ export default function ConnectedImageHistory({
     ? ids
     : images.filter((i) => i.id === selected).map((i) => i.id);
   const count = images.filter((i) => picks?.has(i.id)).length;
+  const missing = picks
+    ? scenesWithoutPicks(
+        scene ? queueSceneIds.filter((id) => id === scene) : queueSceneIds,
+        images,
+        picks,
+      )
+    : [];
   const changePicks = async (changed: string[], picked: boolean) => {
     if (
       !projectId ||
@@ -268,9 +298,11 @@ export default function ConnectedImageHistory({
     }
     return loader;
   };
+  const showPickControls =
+    images.length > 0 || (projectId && queueSceneIds.length > 0);
   return (
     <>
-      {projects && images.length > 0 && (
+      {projects && showPickControls && (
         <div className="gallery-export" aria-label="결과 저장">
           <button
             type="button"
@@ -287,7 +319,7 @@ export default function ConnectedImageHistory({
           </button>
           {selecting && (
             <>
-              {sceneIds.length > 1 || scene ? (
+              {sceneIds.length || scene ? (
                 <select
                   aria-label="선별할 씬"
                   value={scene}
@@ -299,7 +331,9 @@ export default function ConnectedImageHistory({
                     (id) => (
                       <option key={id} value={id}>
                         {scenes.find((item) => item.id === id)?.name ??
+                          sourceNames.get(id) ??
                           `이전 씬 (${id})`}
+                        {` · 생성 ${counts.get(id)?.total ?? 0}장 · 선별 ${counts.get(id)?.picked ?? 0}장`}
                       </option>
                     ),
                   )}
@@ -334,6 +368,22 @@ export default function ConnectedImageHistory({
                 {ids.length > 0 && ids.length === scoped.length
                   ? '모두 해제'
                   : '모두 선별'}
+              </button>
+              <button
+                type="button"
+                data-testid="prepare-unpicked"
+                disabled={
+                  !onPrepareMissing ||
+                  !missing.length ||
+                  writing ||
+                  saving ||
+                  !!pickError
+                }
+                onClick={() => onPrepareMissing?.(missing)}
+              >
+                {queueSceneIds.length
+                  ? `예약 대상 중 선별 없는 씬 ${missing.length}개 다시 담기`
+                  : '반복 생성에서 예약할 씬을 선택하세요'}
               </button>
             </>
           )}

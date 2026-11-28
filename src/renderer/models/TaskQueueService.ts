@@ -37,7 +37,7 @@ import {
 import { sleep } from './util';
 import { lowerPromptNode, toPARR } from './PromptService';
 import { dataUriToBase64 } from './ImageService';
-import { getImageDimensions } from '../componenets/BrushTool';
+import { getImageDimensions } from './pngData';
 
 const FAST_TASK_TIME_ESTIMATOR_SAMPLE_COUNT = 16;
 const TASK_TIME_ESTIMATOR_SAMPLE_COUNT = 128;

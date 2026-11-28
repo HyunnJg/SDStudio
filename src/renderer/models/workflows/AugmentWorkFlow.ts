@@ -1,5 +1,5 @@
 import { imageService, taskQueueService, workFlowService } from "..";
-import { getImageDimensions } from "../../componenets/BrushTool";
+import { getImageDimensions } from '../pngData';
 import { dataUriToBase64 } from "../ImageService";
 import { createSDPrompts } from "../PromptService";
 import { TaskParam } from "../TaskQueueService";

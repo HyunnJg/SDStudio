@@ -155,7 +155,7 @@ export default function ConnectedReference({
       </button>
       {family !== 'v5' && reference && (
         <p role="status">
-          이미지 참조는 V5 Full에서 사용합니다.
+          이미지 참조는 V5에서 사용합니다.
           {reference && ' 참조를 해제하거나 V5로 전환해야 생성할 수 있습니다.'}
         </p>
       )}
@@ -169,9 +169,7 @@ export default function ConnectedReference({
             asset={variation}
             purpose="img2img"
           />
-          {family !== 'v5' && (
-            <p>이미지 변형은 V5 Full에서 사용할 수 있습니다.</p>
-          )}
+          {family !== 'v5' && <p>이미지 변형은 V5에서 사용할 수 있습니다.</p>}
           {(['strength', 'noise'] as const).map((key) => (
             <label key={key} htmlFor={`variation-${key}`}>
               {key === 'strength' ? '변형 강도' : '노이즈'} {variation[key]}

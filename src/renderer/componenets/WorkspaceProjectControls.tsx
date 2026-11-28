@@ -192,10 +192,13 @@ export default function WorkspaceProjectControls({
               입력만 새 프로젝트로
             </button>
           )}
+          {state.legacyCopyNotice && !controller.dirty() && (
+            <p role="status" data-testid="legacy-copy-notice">{state.legacyCopyNotice}</p>
+          )}
           {(!connected || state.error) && (
             <p role={state.error ? 'alert' : 'status'}>
               {unavailable && '데스크톱에서 사용할 수 있습니다.'}
-              {!unavailable && state.error && projectErrorMessage(state.error)}
+              {!unavailable && state.error && (state.error === 'PROJECT_LEGACY_MASK' ? state.message : projectErrorMessage(state.error))}
               {!unavailable && !state.error && state.operation}
             </p>
           )}

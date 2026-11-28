@@ -1,7 +1,9 @@
 // Disable no-unused-vars, broken for spread args
 /* eslint no-unused-vars: off */
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
+import { isProvider } from '../recipeAssistant';
 import type { NaiAuthResult } from '../naiAuth';
+import type { CutRequest, CutResult, Provider } from '../recipeAssistant';
 import type { GenerationClient } from '../workspaceGeneration';
 import type { ProjectClient } from '../workspaceProject';
 import type { LibraryClient } from '../promptLibrary';
@@ -51,8 +53,44 @@ export type Channels =
   | 'copy-image-to-clipboard'
   | 'lookup-tag';
 
+function providerAuth(
+  provider: Provider,
+  operation: 'status' | 'set' | 'clear',
+  ...args: unknown[]
+) {
+  if (!isProvider(provider))
+    return Promise.resolve({
+      ok: false as const,
+      code: 'INVALID_INPUT' as const,
+    });
+  return ipcRenderer.invoke(`${provider}-auth-${operation}`, ...args);
+}
 const electronHandler = {
+  providerKeys: {
+    status: (provider: Provider): Promise<NaiAuthResult> =>
+      providerAuth(provider, 'status'),
+    set: (
+      provider: Provider,
+      key: string,
+      remember: boolean,
+    ): Promise<NaiAuthResult> => providerAuth(provider, 'set', key, remember),
+    clear: (provider: Provider): Promise<NaiAuthResult> =>
+      providerAuth(provider, 'clear'),
+  },
+  recipeAssistant: {
+    status: (): Promise<NaiAuthResult> =>
+      ipcRenderer.invoke('gemini-auth-status'),
+    setKey: (key: string, remember: boolean): Promise<NaiAuthResult> =>
+      ipcRenderer.invoke('gemini-auth-set', key, remember),
+    clear: (): Promise<NaiAuthResult> =>
+      ipcRenderer.invoke('gemini-auth-clear'),
+    suggest: (request: CutRequest, requestId?: string): Promise<CutResult> =>
+      ipcRenderer.invoke('gemini-suggest-cuts', request, requestId),
+    cancel: (requestId: string): Promise<boolean> =>
+      ipcRenderer.invoke('vibe-cancel-cuts', requestId),
+  },
   promptLibrary: {
+    importPresets: (revision, values) => ipcRenderer.invoke('prompt-library-import', revision, values),
     read: () => ipcRenderer.invoke('prompt-library-read'),
     save: (revision, content, id) =>
       ipcRenderer.invoke('prompt-library-save', revision, content, id),
@@ -165,6 +203,8 @@ const electronHandler = {
       ipcRenderer.invoke('workspace-project-restart-storage'),
     list: () => ipcRenderer.invoke('workspace-project-list'),
     listTrash: () => ipcRenderer.invoke('workspace-project-list-trash'),
+    copyLegacyScene: (name, key, withPicks, page) => ipcRenderer.invoke('workspace-project-copy-legacy-scene', name, key, withPicks, page),
+    copyLegacyMasks: (name, selected) => ipcRenderer.invoke('workspace-project-copy-legacy-masks', name, selected),
     trashProject: (id) => ipcRenderer.invoke('workspace-project-trash', id),
     purgeProject: (id, confirmed) =>
       ipcRenderer.invoke('workspace-project-purge', id, confirmed),

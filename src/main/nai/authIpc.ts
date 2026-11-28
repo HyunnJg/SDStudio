@@ -1,5 +1,7 @@
 import type { IpcMain, IpcMainInvokeEvent, WebContents } from 'electron';
 import type { NaiAuthResult } from '../../naiAuth';
+import type { Provider } from '../../recipeAssistant';
+import { wrongProviderKey, isProvider } from '../../recipeAssistant';
 import { NaiError } from './errors';
 import { NaiTokenStore } from './tokenStore';
 
@@ -34,6 +36,7 @@ export function registerNaiAuth(
   store: NaiTokenStore,
   offline: () => boolean,
   trusted: (event: IpcMainInvokeEvent) => boolean,
+  namespace: 'nai-auth' | `${Provider}-auth` = 'nai-auth',
 ): void {
   const handle = (
     channel: string,
@@ -55,10 +58,15 @@ export function registerNaiAuth(
       }
     });
   };
-  handle('nai-auth-status', () => store.status());
-  handle('nai-auth-set', (token, remember) => store.set(token, remember));
-  handle('nai-auth-clear', () => store.clear());
-  handle('nai-auth-check', async () => {
+  handle(`${namespace}-status`, () => store.status());
+  handle(`${namespace}-set`, (token, remember) => {
+    const provider = namespace.split('-')[0];
+    if (isProvider(provider) && wrongProviderKey(provider, token))
+      throw new NaiError('WRONG_PROVIDER');
+    return store.set(token, remember);
+  });
+  handle(`${namespace}-clear`, () => store.clear());
+  handle(`${namespace}-check`, async () => {
     await store.read();
     return { ...(await store.status()), locallyReadable: true };
   });

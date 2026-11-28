@@ -12,6 +12,7 @@ import {
   defaultRememberToken,
 } from '../auth/tokenInput';
 import './NaiAuthSettings.css';
+import VibeProviderSettings from './VibeProviderSettings';
 import NetworkModeSettings from './NetworkModeSettings';
 import type { NetworkModeClient } from '../../networkMode';
 
@@ -121,7 +122,7 @@ export default function NaiAuthSettings({
       data-testid="nai-auth-dialog"
     >
       <header>
-        <h2 id="nai-auth-title">NovelAI API 토큰</h2>
+        <h2 id="nai-auth-title">API 토큰·연결 모드</h2>
         <button
           type="button"
           onClick={onClose}
@@ -136,11 +137,10 @@ export default function NaiAuthSettings({
         beforeRestart={beforeRestart}
         onBusy={setNetworkBusy}
       />
-      <p>
-        새 모델 연결용 Persistent API token을 보관합니다. 기존 V3 로그인과는
-        별도이며 새 모델 생성은 준비 중입니다. 이 화면에서는 통신하거나 이미지를
-        생성하지 않습니다.
-      </p>
+      {window.electron?.providerKeys && (
+        <VibeProviderSettings disabled={offline || networkBusy} />
+      )}
+      <h3>NovelAI 이미지 생성</h3>
       <p role="status" data-testid="nai-auth-status">
         {tokenStatusLabel(status)}
       </p>

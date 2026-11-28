@@ -1,4 +1,4 @@
-/* eslint no-void: off, jsx-a11y/label-has-associated-control: ["error", { "assert": "either" }] -- Promise effects and explicit htmlFor/id controls. */
+import { flushSync } from 'react-dom';
 import {
   useEffect,
   useCallback,
@@ -8,6 +8,17 @@ import {
   Dispatch,
   SetStateAction,
 } from 'react';
+import LegacyWorkspaceImport from './LegacyWorkspaceImport';
+import type { Session } from '../models/types';
+import PromptPiecePanel from './PromptPiecePanel';
+import ModelSizeControls from './ModelSizeControls';
+import {
+  draftSize,
+  modelId,
+  MODELS,
+  characterLimit,
+} from '../../workspaceCatalog';
+/* eslint no-void: off, jsx-a11y/label-has-associated-control: ["error", { "assert": "either" }] -- Promise effects and explicit htmlFor/id controls. */
 import {
   DEFAULT_QUEUE_INTERVAL,
   isQueueInterval,
@@ -40,11 +51,14 @@ import type { WorkspaceState, WorkspaceDraft } from '../preview/workspaceDraft';
 import { selectWorkspaceScene } from '../preview/workspaceDraft';
 import { runtimeOptions } from '../runtime';
 import WorkspaceProjectControls from './WorkspaceProjectControls';
+import SceneRecipePanel from './SceneRecipePanel';
 import ConnectedQueueControls from './ConnectedQueueControls';
 import ConnectedCharacters from './ConnectedCharacters';
 import ConnectedImageHistory from './ConnectedImageHistory';
 import PNGMetadataImport from './PNGMetadataImport';
 import PromptLibrary from './PromptLibrary';
+import WorkspaceMaskEditor from './WorkspaceMaskEditor';
+import type { MaskImages } from './WorkspaceMaskEditor';
 import WorkspaceImageChoice from './WorkspaceImageChoice';
 import WorkspaceResultTrash from './WorkspaceResultTrash';
 import {
@@ -59,15 +73,14 @@ import {
   REFERENCE_ROLES,
   REFERENCE_COST_NOTICE,
   VARIATION_DEFAULTS,
+  isInpaintPurpose,
 } from '../../workspaceReference';
 import type { ImagePurpose } from '../../workspaceReference';
 import { hasActiveCharacterPrompt } from '../../workspaceCharacterInput';
-import {
-  V5_CHARACTER_LIMIT,
-  V5_SIZES,
-} from '../../workspaceGenerationSettings';
+
 import type {
   PresetKind,
+  LegacyPresetImport,
   PromptPreset,
   LibrarySnapshot,
 } from '../../promptLibrary';
@@ -86,6 +99,7 @@ function unwrap<T>(reply: GenerationReply<T>): T {
   return reply.value;
 }
 interface Props {
+  legacySession: Session | undefined;
   state: WorkspaceState;
   setState: Dispatch<SetStateAction<WorkspaceState>>;
   project: ProjectController;
@@ -101,6 +115,7 @@ interface Props {
 let referenceCostAcknowledged = false;
 
 export default function ConnectedWorkspace({
+  legacySession,
   state,
   setState,
   project,
@@ -143,6 +158,7 @@ export default function ConnectedWorkspace({
   const revisionRef = useRef(view.revision);
   revisionRef.current = view.revision;
   const [discardConfirmed, setDiscardConfirmed] = useState(false);
+  const [interruption, setInterruption] = useState<string>();
   const [pending, setPending] = useState(false);
   const [storageStopped, setStorageStopped] = useState(false);
   const [active, setActive] = useState(false);
@@ -209,12 +225,21 @@ export default function ConnectedWorkspace({
     };
   }, []);
   const [libraryRequest, setLibraryRequest] = useState<{
+    legacy?: LegacyPresetImport;
     kind: PresetKind;
     characterId?: string;
     initialId?: string;
   }>();
+  const [maskImages, setMaskImages] = useState<MaskImages>();
   const [imageChoice, setImageChoice] = useState<File>();
   const [presets, setPresets] = useState<PromptPreset[]>([]);
+  const [presetUndo, setPresetUndo] = useState<{
+    scene: string;
+    epoch: number;
+    before: WorkspaceDraft;
+    after: string;
+    name: string;
+  }>();
   const [uses, setUses] = useState<
     (PresetUse & {
       sceneId: string;
@@ -256,12 +281,21 @@ export default function ConnectedWorkspace({
   const [characterEpoch, setCharacterEpoch] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
+    setMaskImages(undefined);
     setImportFile(undefined);
     setResultTrashOpen(false);
     setImageChoice(undefined);
     setLibraryRequest(undefined);
   }, [view.id, state.selectedSceneId, state.draft.family]);
   const [promptTab, setPromptTab] = useState<'prompt' | 'negative'>('prompt');
+  const [vibeOpen, setVibeOpen] = useState(false);
+  const [legacyImport, setLegacyImport] = useState(false);
+  const [removeId, setRemoveId] = useState('');
+  useEffect(() => {
+    setVibeOpen(false);
+    setLegacyImport(false);
+    setRemoveId('');
+  }, [state.selectedSceneId, view.inputEpoch]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobilePane, setMobilePane] = useState<'input' | 'result'>('input');
   const queueConfirmation = useRef<HTMLElement>(null);
@@ -285,9 +319,9 @@ export default function ConnectedWorkspace({
   busyCallback.current = onBusyChange;
   useEffect(() => () => busyCallback.current(false), []);
   const characterOverflow =
-    state.draft.family === 'v5' &&
+    characterLimit(state.draft) > 0 &&
     state.draft.characters.filter(hasActiveCharacterPrompt).length >
-      V5_CHARACTER_LIMIT;
+      characterLimit(state.draft);
   useEffect(() => {
     if (singlePlan) {
       singleConfirmation.current?.scrollIntoView({ block: 'nearest' });
@@ -295,7 +329,23 @@ export default function ConnectedWorkspace({
     }
   }, [singlePlan, mobilePane]);
   useEffect(() => {
-    setSceneIds([]);
+    let restored: string[] = [];
+    try {
+      const ids =
+        view.id &&
+        JSON.parse(
+          localStorage.getItem(`workspace.lastShoot.${view.id}`) ?? '[]',
+        );
+      if (
+        Array.isArray(ids) &&
+        ids.length <= PROJECT_LIMITS.scenes &&
+        ids.every((id) => typeof id === 'string')
+      )
+        restored = ids;
+    } catch {
+      /* An unavailable or outdated preference leaves manual selection available. */
+    }
+    setSceneIds(restored);
   }, [view.id]);
   useEffect(() => {
     setSceneIds((previous) => availableQueueSceneIds(previous, state.scenes));
@@ -328,6 +378,7 @@ export default function ConnectedWorkspace({
           }
         }
         if (alive && epoch === generationEpoch.current) {
+          setInterruption(status.interruption);
           setPending(status.pending || queueOutcome(queued.queue).pending);
           setActive(status.active || !!queued.queue?.running);
         }
@@ -381,10 +432,12 @@ export default function ConnectedWorkspace({
   const patch = (value: Partial<WorkspaceDraft>) => {
     setSinglePlan(undefined);
     setQueuePlan(undefined);
-    setState((previous) => ({
-      ...previous,
-      draft: { ...previous.draft, ...value },
-    }));
+    setState((previous) => {
+      const draft = { ...previous.draft, ...value };
+      if (!draft.model) delete draft.model;
+      if (!draft.transparentBackground) delete draft.transparentBackground;
+      return { ...previous, draft };
+    });
   };
   const setSceneImage = <K extends ImagePurpose>(
     purpose: K,
@@ -394,6 +447,7 @@ export default function ConnectedWorkspace({
     setQueuePlan(undefined);
     setState((previous) => {
       const draft = { ...previous.draft };
+      if (purpose === 'inpaintSource') delete draft.inpaintMask;
       if (image) draft[purpose] = image;
       else delete draft[purpose];
       return { ...previous, draft };
@@ -403,7 +457,7 @@ export default function ConnectedWorkspace({
     source: File | { projectId: string; imageId: string },
     purpose: ImagePurpose,
   ) => {
-    if (operation.current || locked) return;
+    if (operation.current || locked) return false;
     operation.current = true;
     generationEpoch.current += 1;
     setPhase('reference');
@@ -413,18 +467,22 @@ export default function ConnectedWorkspace({
     const sceneId = state.selectedSceneId;
     try {
       if (
-        state.draft.family !== 'v5' ||
+        (isInpaintPurpose(purpose)
+          ? state.draft.model !== 'nai-diffusion-3'
+          : state.draft.family !== 'v5') ||
+        (purpose === 'reference' &&
+          state.draft.model === 'nai-diffusion-5-full-medium') ||
         (source instanceof File &&
           (source.size > REFERENCE_LIMITS.sourceBytes || source.size === 0))
       )
         throw new ProjectError('PROJECT_INPUT');
-      if (!(await project.save())) return;
+      if (!(await project.save())) return false;
       const saved = project.getSnapshot();
       let bytes: Uint8Array;
       if (source instanceof File)
         bytes = new Uint8Array(await source.arrayBuffer());
       else {
-        if (source.projectId !== saved.id) return;
+        if (source.projectId !== saved.id) return false;
         bytes = unwrap(await client.image(source.projectId, source.imageId));
       }
       if (
@@ -432,7 +490,7 @@ export default function ConnectedWorkspace({
         liveScene.current !== sceneId ||
         project.getSnapshot().id !== saved.id
       )
-        return;
+        return false;
       const imported = unwrap(
         await client.importReference(
           saved.id!,
@@ -446,12 +504,23 @@ export default function ConnectedWorkspace({
         liveScene.current !== sceneId ||
         project.getSnapshot().id !== saved.id
       )
-        return;
+        return false;
       setReferencePreview({
         hash: imported.asset.uploadHash,
         bytes: imported.preview,
       });
-      if (purpose === 'img2img')
+      if (purpose === 'inpaintSource') {
+        setSceneImage(purpose, imported.asset);
+        setMaskImages({
+          source: new Blob([new Uint8Array(imported.preview)], {
+            type: 'image/png',
+          }),
+          width: imported.asset.width,
+          height: imported.asset.height,
+        });
+      } else if (purpose === 'inpaintMask')
+        setSceneImage(purpose, imported.asset);
+      else if (purpose === 'img2img')
         setSceneImage(purpose, {
           ...imported.asset,
           strength:
@@ -466,12 +535,54 @@ export default function ConnectedWorkspace({
           preferSameOutfit: state.draft.reference?.preferSameOutfit ?? false,
         });
       setMessage('');
+      return true;
+    } catch (error) {
+      if (mounted.current)
+        setMessage(generationMessage(error, sceneNames.current));
+      return false;
+    } finally {
+      operation.current = false;
+      generationEpoch.current += 1;
+      if (mounted.current) setPhase('');
+    }
+  };
+  const editMask = async () => {
+    if (locked || operation.current || !state.draft.inpaintSource) return;
+    operation.current = true;
+    setPhase('image');
+    const scene = state.selectedSceneId;
+    try {
+      if (!(await project.save())) return;
+      const id = project.getSnapshot().id!;
+      const read = async (purpose: ImagePurpose) =>
+        new Blob(
+          [
+            new Uint8Array(
+              unwrap(await client.referenceImage(id, scene, purpose)),
+            ),
+          ],
+          { type: 'image/png' },
+        );
+      const [source, mask] = await Promise.all([
+        read('inpaintSource'),
+        state.draft.inpaintMask && read('inpaintMask'),
+      ]);
+      if (
+        mounted.current &&
+        id === project.getSnapshot().id &&
+        scene === liveScene.current
+      )
+        setMaskImages({
+          source,
+          mask,
+          width: state.draft.inpaintSource.width,
+          height: state.draft.inpaintSource.height,
+        });
     } catch (error) {
       if (mounted.current)
         setMessage(generationMessage(error, sceneNames.current));
     } finally {
       operation.current = false;
-      generationEpoch.current += 1;
       if (mounted.current) setPhase('');
     }
   };
@@ -544,7 +655,18 @@ export default function ConnectedWorkspace({
     setPhase('run');
     setMessage('');
     try {
-      accept(unwrap(await client.retrySave(asNewProject)), asNewProject);
+      const result = unwrap(await client.retrySave(asNewProject));
+      if (
+        !asNewProject &&
+        project.getSnapshot().id !== result.snapshot.project.id
+      ) {
+        setPending(false);
+        setMessage(
+          `‘${result.snapshot.project.name}’ 프로젝트에 복구한 결과를 저장했습니다.`,
+        );
+      } else {
+        accept(result, asNewProject);
+      }
     } catch (error) {
       setStorageStopped(
         (error as GenerationFailure).projectCode === 'PROJECT_SERVICE_STOPPED',
@@ -585,7 +707,10 @@ export default function ConnectedWorkspace({
       showGenerationFailure(error);
     } else setMessage(value.queue?.stopped ? '중지됨' : '완료');
   };
-  const prepareQueue = async (remaining = false) => {
+  const prepareQueue = async (
+    remaining = false,
+    selectedIds = availableSceneIds,
+  ) => {
     if (operation.current) return;
     operation.current = true;
     generationEpoch.current += 1;
@@ -606,7 +731,7 @@ export default function ConnectedWorkspace({
           : client.prepareQueue(
               saved.id!,
               saved.revision!,
-              availableSceneIds,
+              selectedIds,
               Number(repeats),
               Number(intervalText),
             )),
@@ -619,6 +744,8 @@ export default function ConnectedWorkspace({
           mayHaveReachedServer: false,
         });
       setQueue(current.queue);
+      // The first save assigns a project ID and clears the transient scene selection.
+      if (!view.id && !remaining) setSceneIds(selectedIds);
       setQueuePlan(prepared);
       setPhase('confirm');
     } catch (error) {
@@ -640,7 +767,21 @@ export default function ConnectedWorkspace({
     generationEpoch.current += 1;
     setPhase('queue-run');
     setMessage('');
-    const { ticket } = queuePlan!;
+    const { ticket, items } = queuePlan!;
+    const scope = [...new Set(items.map((item) => item.sceneId))];
+    if (view.id) {
+      try {
+        const ids = scope.every((id) => availableSceneIds.includes(id))
+          ? availableSceneIds
+          : scope;
+        localStorage.setItem(
+          `workspace.lastShoot.${view.id}`,
+          JSON.stringify(ids),
+        );
+      } catch {
+        /* Generation can proceed when profile preferences are unavailable. */
+      }
+    }
     setQueuePlan(undefined);
     try {
       acceptQueue(unwrap(await client.runQueue(ticket, true)));
@@ -832,14 +973,26 @@ export default function ConnectedWorkspace({
       ];
     }),
   );
+  const medium = state.draft.model === 'nai-diffusion-5-full-medium';
   const variation = state.draft.img2img;
-  const size = V5_SIZES[state.draft.resolution];
+  const size = draftSize(state.draft);
   const mismatchedVariation =
     !!variation &&
     (state.draft.family !== 'v5' ||
       variation.width !== size.width ||
       variation.height !== size.height);
+  const inpaint = state.draft.inpaintSource;
+  const canInpaint =
+    state.draft.model === 'nai-diffusion-3' &&
+    !state.draft.reference &&
+    !variation;
+  const mismatchedInpaint =
+    !!inpaint &&
+    (!canInpaint ||
+      inpaint.width !== size.width ||
+      inpaint.height !== size.height);
   let generateLabel = variation ? '변형 생성' : '이미지 생성';
+  if (inpaint) generateLabel = '마스크 영역 생성';
   if (phase === 'save') generateLabel = '생성 중…';
   else if (phase === 'reference' || phase === 'image')
     generateLabel = '불러오는 중…';
@@ -877,6 +1030,14 @@ export default function ConnectedWorkspace({
         <nav aria-label="작업실 화면">
           <button
             type="button"
+            data-testid="open-vibe-editor"
+            disabled={locked || runtimeOptions.offline}
+            onClick={() => setVibeOpen(true)}
+          >
+            바이브 에디터
+          </button>
+          <button
+            type="button"
             data-testid="open-prompt-library"
             disabled={locked}
             onClick={() => setLibraryRequest({ kind: 'main' })}
@@ -912,25 +1073,19 @@ export default function ConnectedWorkspace({
               </button>
               <button
                 type="button"
+                disabled={locked}
+                data-testid="open-legacy-import"
+                onClick={() => setLegacyImport(true)}
+              >
+                V3 자료 가져오기
+              </button>
+              <button
+                type="button"
                 onClick={() => onOpenLegacy('session')}
                 disabled={locked}
                 data-testid="open-legacy"
               >
-                V3 세션·선별
-              </button>
-              <button
-                type="button"
-                disabled={locked}
-                onClick={() => onOpenLegacy('inpaint')}
-              >
-                V3 인페인팅 씬
-              </button>
-              <button
-                type="button"
-                disabled={locked}
-                onClick={() => onOpenLegacy('pieces')}
-              >
-                V3 프롬프트 조각
+                구 V3 작업실 열기
               </button>
             </div>
           </details>
@@ -967,47 +1122,118 @@ export default function ConnectedWorkspace({
                   ))}
                 </select>
               </div>
-              <div className="connected-model-settings">
-                <label htmlFor="live-model">모델</label>
-                <select
-                  id="live-model"
-                  value={state.draft.family}
-                  onChange={(e) =>
-                    patch({
-                      family: e.target.value as 'v4.5' | 'v5',
-                      resolution:
-                        e.target.value === 'v5' ? 'portrait' : 'square',
-                      steps: e.target.value === 'v5' ? '23' : '28',
-                      guidance: e.target.value === 'v5' ? '7' : '5',
-                      qualityTags:
-                        e.target.value === 'v5' ? 'standard' : 'none',
-                      ucPreset: e.target.value === 'v5' ? 'heavy' : 'none',
-                    })
+              <details>
+                <summary data-testid="manage-scene">씬 관리</summary>
+                <button
+                  type="button"
+                  disabled={
+                    state.scenes.length === 1 ||
+                    !!queuePlan ||
+                    !!singlePlan ||
+                    !!queue?.items.some(
+                      (item) =>
+                        item.status === 'pending' &&
+                        item.sceneId === state.selectedSceneId,
+                    )
                   }
+                  data-testid="remove-scene"
+                  onClick={() => setRemoveId(state.selectedSceneId)}
                 >
-                  <option value="v5">V5 Full</option>
-                  <option value="v4.5">V4.5 Full · 기존 512px 설정</option>
-                </select>
-                {state.draft.family === 'v5' && (
-                  <>
-                    <label htmlFor="live-size">크기</label>
-                    <select
-                      id="live-size"
-                      value={state.draft.resolution}
-                      onChange={(e) =>
-                        patch({
-                          resolution: e.target
-                            .value as WorkspaceDraft['resolution'],
-                        })
-                      }
-                    >
-                      <option value="portrait">832 × 1216 · 세로</option>
-                      <option value="landscape">1216 × 832 · 가로</option>
-                      <option value="square">1024 × 1024 · 정사각형</option>
-                    </select>
-                  </>
+                  현재 씬 제거
+                </button>
+                {state.scenes.length === 1 && (
+                  <small>프로젝트에는 편집할 씬이 하나 필요합니다.</small>
                 )}
+                {removeId === state.selectedSceneId && (
+                  <div>
+                    <p>
+                      ‘{state.scenes.find((s) => s.id === removeId)?.name}’을
+                      편집 목록에서 제거할까요? 생성한 결과는 보관됩니다.
+                    </p>
+                    <button type="button" onClick={() => setRemoveId('')}>
+                      취소
+                    </button>
+                    <button
+                      data-testid="remove-scene-confirm"
+                      type="button"
+                      disabled={
+                        !!queuePlan ||
+                        !!singlePlan ||
+                        !!queue?.items.some(
+                          (item) =>
+                            item.status === 'pending' &&
+                            item.sceneId === removeId,
+                        )
+                      }
+                      onClick={() => {
+                        setState((old) => {
+                          const next = old.scenes.find(
+                            (item) => item.id !== removeId,
+                          );
+                          if (!next || old.selectedSceneId !== removeId)
+                            return old;
+                          const switched = selectWorkspaceScene(old, next.id);
+                          return {
+                            ...switched,
+                            scenes: switched.scenes.filter(
+                              (item) => item.id !== removeId,
+                            ),
+                          };
+                        });
+                        setSinglePlan(undefined);
+                        setQueuePlan(undefined);
+                        setRemoveId('');
+                      }}
+                    >
+                      제거 확인
+                    </button>
+                  </div>
+                )}
+                {presetUndo?.scene === state.selectedSceneId &&
+                  presetUndo.epoch === view.inputEpoch &&
+                  presetUndo.after === JSON.stringify(state.draft) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const { before } = presetUndo;
+                        setState((old) => ({
+                          ...old,
+                          draft: before,
+                          selectedCharacter: before.characters.some(
+                            (c) => c.id === old.selectedCharacter,
+                          )
+                            ? old.selectedCharacter
+                            : (before.characters[0]?.id ?? ''),
+                        }));
+                        setUses((old) =>
+                          old.filter(
+                            (u) => u.sceneId !== state.selectedSceneId,
+                          ),
+                        );
+                        setPresetUndo(undefined);
+                        setQueuePlan(undefined);
+                        setSinglePlan(undefined);
+                      }}
+                    >
+                      ‘{presetUndo.name}’ 적용 되돌리기
+                    </button>
+                  )}
+              </details>
+              <div className="connected-model-settings">
+                <ModelSizeControls
+                  key={state.selectedSceneId}
+                  draft={state.draft}
+                  patch={patch}
+                />
               </div>
+              {medium && (
+                <p>
+                  Medium은 14스텝과 고정 부정 프리셋을 사용합니다. 편집한 부정
+                  입력은 High에서 다시 사용할 수 있습니다.
+                  {state.draft.reference &&
+                    ' 정밀 참조를 해제하거나 High를 선택하세요.'}
+                </p>
+              )}
               <ConnectedReference
                 reference={state.draft.reference}
                 projectId={view.id}
@@ -1022,10 +1248,38 @@ export default function ConnectedWorkspace({
                 onVariation={(asset) => setSceneImage('img2img', asset)}
                 onChange={(asset) => setSceneImage('reference', asset)}
               />
+              {inpaint && (
+                <fieldset disabled={locked}>
+                  <legend>
+                    인페인팅 · {inpaint.width}×{inpaint.height}
+                  </legend>
+                  <button
+                    type="button"
+                    disabled={mismatchedInpaint}
+                    onClick={editMask}
+                  >
+                    {state.draft.inpaintMask
+                      ? '마스크 다시 편집'
+                      : '마스크 그리기'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSceneImage('inpaintSource')}
+                  >
+                    인페인팅 해제
+                  </button>
+                  {mismatchedInpaint && (
+                    <p>
+                      원본에 맞춰 V3 Anime · {inpaint.width}×{inpaint.height}를
+                      선택하세요.
+                    </p>
+                  )}
+                </fieldset>
+              )}
               {mismatchedVariation && variation && (
                 <p role="status">
-                  변형 원본에 맞춰 V5 Full · {variation.width}×
-                  {variation.height}를 선택하거나 이미지를 다시 선택하세요.
+                  변형 원본에 맞춰 V5 · {variation.width}×{variation.height}를
+                  선택하거나 이미지를 다시 선택하세요.
                 </p>
               )}
               {canUndoMetadata && (
@@ -1103,12 +1357,28 @@ export default function ConnectedWorkspace({
               </label>
               <textarea
                 id="live-prompt"
+                placeholder="프롬프트를 입력하세요. 표정 세트는 ‘조합으로 예약’에서 고를 수 있습니다."
                 data-testid="live-prompt"
                 rows={11}
                 hidden={promptTab !== 'prompt'}
                 value={state.draft.prompt}
                 onChange={(e) => patch({ prompt: e.target.value })}
               />
+              {state.draft.family === 'v5' && promptTab === 'prompt' && (
+                <label>
+                  <input
+                    type="checkbox"
+                    data-testid="transparent-background"
+                    checked={!!state.draft.transparentBackground}
+                    onChange={(e) =>
+                      patch({
+                        transparentBackground: e.target.checked || undefined,
+                      })
+                    }
+                  />
+                  투명 배경
+                </label>
+              )}
               <label className="connected-sr-only" htmlFor="live-negative">
                 부정 프롬프트
               </label>
@@ -1118,6 +1388,19 @@ export default function ConnectedWorkspace({
                 hidden={promptTab !== 'negative'}
                 value={state.draft.negativePrompt}
                 onChange={(e) => patch({ negativePrompt: e.target.value })}
+              />
+              <PromptPiecePanel
+                key={`${view.inputEpoch}:${state.selectedSceneId}`}
+                pieces={state.draft.pieces ?? []}
+                disabled={locked}
+                onChange={(pieces) => patch({ pieces })}
+                onInsert={(piece) => {
+                  const key =
+                    promptTab === 'negative' ? 'negativePrompt' : 'prompt';
+                  patch({
+                    [key]: [state.draft[key], piece].filter(Boolean).join(', '),
+                  });
+                }}
               />
               <ConnectedCharacters
                 key={`${view.id ?? 'draft'}:${state.selectedSceneId}:${characterEpoch}`}
@@ -1157,15 +1440,16 @@ export default function ConnectedWorkspace({
                     value={state.draft.seed}
                     onChange={(e) => patch({ seed: e.target.value })}
                   />
-                  {state.draft.family === 'v5' && (
+                  {(state.draft.family === 'v5' || state.draft.model) && (
                     <>
                       <label htmlFor="live-steps">스텝</label>
                       <input
                         id="live-steps"
+                        disabled={medium}
                         type="number"
                         min="1"
                         max="50"
-                        value={state.draft.steps}
+                        value={medium ? '14' : state.draft.steps}
                         onChange={(e) => patch({ steps: e.target.value })}
                       />
                       <label htmlFor="live-guidance">가이던스</label>
@@ -1178,7 +1462,16 @@ export default function ConnectedWorkspace({
                         value={state.draft.guidance}
                         onChange={(e) => patch({ guidance: e.target.value })}
                       />
-                      <details className="connected-extra-settings">
+                      {state.draft.family !== 'v5' && (
+                        <small>
+                          V5 품질 태그·부정 프리셋은 이 모델에 적용되지
+                          않습니다.
+                        </small>
+                      )}
+                      <details
+                        hidden={state.draft.family !== 'v5'}
+                        className="connected-extra-settings"
+                      >
                         <summary>품질·부정 설정</summary>
                         <div className="connected-settings-fields">
                           <label htmlFor="live-quality">품질 태그</label>
@@ -1201,7 +1494,12 @@ export default function ConnectedWorkspace({
                           </label>
                           <select
                             id="live-uc-preset"
-                            value={state.draft.ucPreset ?? 'none'}
+                            disabled={medium}
+                            value={
+                              medium
+                                ? 'heavy'
+                                : (state.draft.ucPreset ?? 'none')
+                            }
                             onChange={(e) =>
                               patch({
                                 ucPreset: e.target
@@ -1247,6 +1545,15 @@ export default function ConnectedWorkspace({
                   >
                     설정 가져오기
                   </button>
+                  {canInpaint && (
+                    <button
+                      type="button"
+                      disabled={locked}
+                      onClick={() => reuseResultImage('inpaintSource')}
+                    >
+                      마스크 편집
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={locked || state.draft.family !== 'v5'}
@@ -1257,7 +1564,7 @@ export default function ConnectedWorkspace({
                   </button>
                   <button
                     type="button"
-                    disabled={locked || state.draft.family !== 'v5'}
+                    disabled={locked || state.draft.family !== 'v5' || medium}
                     data-testid="result-use-reference"
                     onClick={() => reuseResultImage('reference')}
                   >
@@ -1334,6 +1641,7 @@ export default function ConnectedWorkspace({
                   {singlePlan.model} · {singlePlan.width}×{singlePlan.height} ·{' '}
                   {singlePlan.steps}스텝 · 가이던스 {singlePlan.scale} · 시드{' '}
                   {singlePlan.seed}
+                  {singlePlan.transparentBackground && ' · 투명 배경'}
                   {!!singlePlan.characters &&
                     ` · 캐릭터 ${singlePlan.characters}명 · 자동 배치`}
                 </p>
@@ -1373,6 +1681,7 @@ export default function ConnectedWorkspace({
                       ` · 변형 강도 ${settings.img2img.strength} · 노이즈 ${settings.img2img.noise}`}
                     {settings.reference &&
                       ` · 참조 1장 (${REFERENCE_ROLES[settings.reference.role]}, 강도 ${settings.reference.strength}${settings.reference.preferSameOutfit ? ', 같은 의상 우선' : ''})`}
+                    {settings.transparentBackground && ' · 투명 배경'}
                     {!!settings.characters &&
                       ` · 캐릭터 ${settings.characters}명 · 자동 배치`}
                   </p>
@@ -1380,6 +1689,12 @@ export default function ConnectedWorkspace({
                 {queuePlan.settings.some((settings) => settings.reference) && (
                   <p data-testid="queue-reference-cost">
                     {REFERENCE_COST_NOTICE}
+                  </p>
+                )}
+                {queuePlan.repeatsFixedSeed && (
+                  <p>
+                    고정 시드로 반복하는 씬은 조각·와일드카드도 매번 같은 선택을
+                    사용합니다.
                   </p>
                 )}
                 {queuePlan.settings.some(requiresAnlasWarning) && (
@@ -1394,6 +1709,8 @@ export default function ConnectedWorkspace({
                   {queuePlan.items.map((item) => (
                     <li key={item.id}>
                       {item.sceneName} · {item.repeat}회 · 시드 {item.seed}
+                      {item.settings?.img2img &&
+                        ` · I2I 강도 ${item.settings.img2img.strength}`}
                       {!!item.settings?.characters &&
                         ` · 캐릭터 ${item.settings.characters}명`}
                     </li>
@@ -1408,6 +1725,29 @@ export default function ConnectedWorkspace({
                 </button>
                 <button type="button" onClick={cancel}>
                   취소·예약 변경
+                </button>
+              </section>
+            )}
+            {interruption && (
+              <section role="alert">
+                <p>
+                  {interruption} 재시작 후 자동으로 재전송한 요청은 없습니다.
+                  이전 요청이 처리됐을 수 있습니다. 같은 컷을 다시 생성하면
+                  Anlas가 추가로 들 수 있으니 잔액을 확인한 뒤 결정하세요.
+                </p>
+                <button
+                  type="button"
+                  disabled={!!phase || active}
+                  onClick={async () => {
+                    try {
+                      unwrap(await client.discardPending());
+                      setInterruption(undefined);
+                    } catch (error) {
+                      setMessage(generationMessage(error, sceneNames.current));
+                    }
+                  }}
+                >
+                  이전 요청 기록 지우기
                 </button>
               </section>
             )}
@@ -1486,6 +1826,12 @@ export default function ConnectedWorkspace({
             {imageURL ? (
               <img
                 className="connected-image"
+                data-transparent={
+                  !!result &&
+                  !result.origin &&
+                  result.draft.family === 'v5' &&
+                  !!result.draft.transparentBackground
+                }
                 data-testid="generated-png"
                 src={imageURL}
                 alt="프로젝트에 저장된 NovelAI 생성 결과"
@@ -1510,8 +1856,13 @@ export default function ConnectedWorkspace({
           </div>
           {result && (
             <p className="connected-image-caption" data-testid="generated-seed">
-              {result.draft.family === 'v5' ? 'V5 Full' : 'V4.5 Full'} · 시드{' '}
-              {result.seed}
+              {result.origin
+                ? `V3 선별 · ${result.sourceScene} · ${result.filename}`
+                : `${MODELS[modelId(result.draft)]} · 시드 ${result.seed}`}
+              {!result.origin &&
+                result.draft.family === 'v5' &&
+                result.draft.transparentBackground &&
+                ' · 투명 배경 요청'}
             </p>
           )}
         </section>
@@ -1568,6 +1919,63 @@ export default function ConnectedWorkspace({
                 </ul>
               </section>
             )}
+            <SceneRecipePanel
+              key={view.inputEpoch}
+              presets={presets}
+              base={{
+                id: state.selectedSceneId,
+                name: state.scenes.find((s) => s.id === state.selectedSceneId)!
+                  .name,
+                draft: state.draft,
+              }}
+              repeats={Number(repeats)}
+              vibeOpen={vibeOpen}
+              onVibeClose={() => setVibeOpen(false)}
+              onSettings={onOpenAuth}
+              onReveal={() => {
+                setSidebarOpen(true);
+                setMobilePane('result');
+              }}
+              onRepeats={(count) => {
+                setRepeats(String(count));
+                setQueuePlan(undefined);
+              }}
+              sources={state.scenes.map((s) =>
+                s.id === state.selectedSceneId
+                  ? { ...s, draft: state.draft }
+                  : s,
+              )}
+              disabled={locked}
+              canPrepare={
+                !interruption && !runtimeOptions.offline && intervalValid
+              }
+              onCreate={(scenes) => {
+                const existing = project.content().scenes;
+                const chosenIds = new Set<string>();
+                const additions = scenes.filter((candidate) => {
+                  const same = existing.find(
+                    (s) =>
+                      !chosenIds.has(s.id) &&
+                      s.name === candidate.name &&
+                      JSON.stringify(s.draft) ===
+                        JSON.stringify(candidate.draft),
+                  );
+                  chosenIds.add(same?.id ?? candidate.id);
+                  return !same;
+                });
+                if (existing.length + additions.length > PROJECT_LIMITS.scenes)
+                  throw Error('프로젝트에 조합을 담을 씬 자리가 부족합니다.');
+                const ids = [...chosenIds];
+                flushSync(() => {
+                  setState((old) => ({
+                    ...old,
+                    scenes: [...existing, ...additions],
+                  }));
+                  setSceneIds(ids);
+                });
+                void prepareQueue(false, ids);
+              }}
+            />
             <ConnectedQueueControls
               scenes={state.scenes}
               selected={availableSceneIds}
@@ -1581,7 +1989,9 @@ export default function ConnectedWorkspace({
               }}
               queue={queue?.projectId === view.id ? queue : undefined}
               disabled={locked}
-              canPrepare={!runtimeOptions.offline && intervalValid}
+              canPrepare={
+                !interruption && !runtimeOptions.offline && intervalValid
+              }
               running={!!queue?.running}
               canResume={
                 queue?.projectId === view.id &&
@@ -1630,6 +2040,15 @@ export default function ConnectedWorkspace({
             <div className="connected-sidebar-panel">
               <ConnectedImageHistory
                 key={view.id}
+                queueSceneIds={availableSceneIds}
+                onPrepareMissing={
+                  locked ||
+                  interruption ||
+                  runtimeOptions.offline ||
+                  !intervalValid
+                    ? undefined
+                    : (ids) => void prepareQueue(false, ids)
+                }
                 projects={projects}
                 revision={view.revision}
                 scenes={state.scenes}
@@ -1657,10 +2076,24 @@ export default function ConnectedWorkspace({
           if (file) receiveImage(file);
         }}
       />
+      {maskImages && (
+        <WorkspaceMaskEditor
+          allowEmpty={false}
+          images={maskImages}
+          onClose={() => setMaskImages(undefined)}
+          onSave={async (file) => !!(await attachImage(file, 'inpaintMask'))}
+        />
+      )}
       {imageChoice && (
         <WorkspaceImageChoice
           file={imageChoice}
-          canReference={state.draft.family === 'v5'}
+          canInpaint={canInpaint}
+          onInpaint={() => {
+            setImageChoice(undefined);
+            void attachImage(imageChoice, 'inpaintSource');
+          }}
+          canReference={state.draft.family === 'v5' && !medium}
+          canVariation={state.draft.family === 'v5'}
           onClose={() => setImageChoice(undefined)}
           onMetadata={() => {
             setImageChoice(undefined);
@@ -1705,6 +2138,33 @@ export default function ConnectedWorkspace({
           setMessage('');
         }}
       />
+      {legacyImport && (
+        <LegacyWorkspaceImport
+          key={JSON.stringify([
+            view.inputEpoch,
+            state.selectedSceneId,
+            legacySession?.name,
+          ])}
+          session={legacySession}
+          pieces={state.draft.pieces ?? []}
+          onPieces={(pieces) => patch({ pieces })}
+          onImage={receiveImage}
+          onPresets={(legacy) => {
+            setLegacyImport(false);
+            setLibraryRequest({ kind: 'main', legacy });
+          }}
+          onCopyScene={(name, key, withPicks, page) => {
+            setLegacyImport(false);
+            void project.copyLegacyScene(name, key, withPicks, page);
+          }}
+          onCopyMasks={(name, selectedMasks) => {
+            setLegacyImport(false);
+            void project.copyLegacyMasks(name, selectedMasks);
+          }}
+          disabled={locked}
+          onClose={() => setLegacyImport(false)}
+        />
+      )}
       {libraryRequest && (
         <PromptLibrary
           key={`${view.id ?? 'draft'}:${state.selectedSceneId}`}
@@ -1720,9 +2180,21 @@ export default function ConnectedWorkspace({
           onClose={() => setLibraryRequest(undefined)}
           onLegacy={() => onOpenLegacy('pieces')}
           initialId={libraryRequest.initialId}
+          legacy={libraryRequest.legacy}
           onLibraryChange={acceptLibrary}
           onApply={(draft, characterId, preset) => {
             if (locked) return;
+            setPresetUndo(
+              preset
+                ? {
+                    scene: state.selectedSceneId,
+                    epoch: view.inputEpoch,
+                    before: structuredClone(state.draft),
+                    after: JSON.stringify(draft),
+                    name: preset.name,
+                  }
+                : undefined,
+            );
             setSinglePlan(undefined);
             setQueuePlan(undefined);
             setState((previous) => ({
@@ -1815,9 +2287,12 @@ export default function ConnectedWorkspace({
           data-testid="prepare-generation"
           disabled={
             locked ||
+            !!interruption ||
             runtimeOptions.offline ||
             characterOverflow ||
-            mismatchedVariation
+            mismatchedVariation ||
+            mismatchedInpaint ||
+            (!!inpaint && !state.draft.inpaintMask)
           }
           onClick={prepare}
         >

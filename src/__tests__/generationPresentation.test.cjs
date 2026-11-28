@@ -3,9 +3,29 @@ const assert = require('node:assert/strict');
 const {
   generationMessage,
   availableQueueSceneIds,
+  scenesWithoutPicks,
   requiresAnlasWarning,
   ANLAS_STEP_WARNING,
 } = require('../renderer/generation/generationPresentation');
+test('requeue keeps selected scene order, counting only visible picked results', () => {
+  const images = [
+    { id: 'first', sceneId: 'a' },
+    { id: 'second', sceneId: 'a' },
+    { id: 'rejected', sceneId: 'b' },
+    { id: 'outside', sceneId: 'd' },
+  ];
+  const selected = ['c', 'a', 'b'];
+  assert.deepEqual(
+    scenesWithoutPicks(
+      selected,
+      images,
+      new Set(['first', 'outside', 'trashed']),
+    ),
+    ['c', 'b'],
+  );
+  assert.deepEqual(scenesWithoutPicks(selected, images, new Set()), selected);
+  assert.deepEqual(scenesWithoutPicks(['a'], images, new Set(['second'])), []);
+});
 test('only settings above28 require the extra Anlas warning, including a mixed queue', () => {
   for (const steps of [1, 23, 28])
     assert.equal(requiresAnlasWarning({ steps }), false);

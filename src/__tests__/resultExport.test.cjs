@@ -83,6 +83,22 @@ test('PNG and same-seed ZIP exports preserve original bytes in project order', a
   }
 });
 
+test('mixed V3 picks and generated results export without a fabricated seed', async (t) => {
+  const f = await fixture(t);
+  const image = f.images[0];
+  delete image.seed;
+  image.origin = 'v3-pick';
+  f.state.choose = async (name, ext) => {
+    if (ext === 'png') assert.equal(name, `sdstudio-v3-${image.id.slice(0, 8)}.png`);
+    return path.join(f.directory, 'mixed.' + ext);
+  };
+  assert.equal((await f.save([image.id])).ok, true);
+  assert.equal((await f.save()).ok, true);
+  const zip = await JSZip.loadAsync(await fs.readFile(path.join(f.directory, 'mixed.zip')));
+  assert.deepEqual(await zip.file(`001-v3-${image.id}.png`).async('nodebuffer'), f.data[0]);
+  assert.deepEqual(await zip.file(`002-7-${f.images[1].id}.png`).async('nodebuffer'), f.data[1]);
+});
+
 test('a bad second result leaves a previous ZIP intact and removes the partial export', async (t) => {
   const f = await fixture(t);
   await fs.writeFile(path.join(f.directory, 'export.zip'), 'previous');

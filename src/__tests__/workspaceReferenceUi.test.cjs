@@ -48,5 +48,5 @@ test('legacy mixed import shows valid candidates and skipped count instead of lo
   await act(async () => { renderer.root.findByProps({ 'aria-label': '기존 V3 세션 JSON' }).props.onChange({ target: { files: [{ size: encoded.length, arrayBuffer: async () => encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength) }], value: '' } }); await tick(); });
   const text = JSON.stringify(renderer.toJSON());
   assert.ok(text.includes('1개는 이름·길이·텍스트 형식 문제로 제외')); assert.ok(text.includes('Synthetic import'));
-  assert.ok(text.includes('V3 조각·선택 문법은 새 작업실에서 아직 지원하지 않습니다'));
+  assert.ok(text.includes('V3 조각은 작업실에서 모음 JSON을 가져오세요'));
 });

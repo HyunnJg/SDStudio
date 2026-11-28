@@ -3,6 +3,9 @@ import { useEffect, useRef } from 'react';
 interface Props {
   file: File;
   canReference: boolean;
+  canVariation: boolean;
+  canInpaint: boolean;
+  onInpaint: () => void;
   onVariation: () => void;
   onMetadata: () => void;
   onReference: () => void;
@@ -11,6 +14,9 @@ interface Props {
 export default function WorkspaceImageChoice({
   file,
   canReference,
+  canVariation,
+  canInpaint,
+  onInpaint,
   onVariation,
   onMetadata,
   onReference,
@@ -50,7 +56,7 @@ export default function WorkspaceImageChoice({
         <button
           type="button"
           data-testid="image-use-variation"
-          disabled={!canReference}
+          disabled={!canVariation}
           onClick={onVariation}
         >
           <strong>이 이미지로 변형</strong>
@@ -58,9 +64,20 @@ export default function WorkspaceImageChoice({
         </button>
         <button
           type="button"
+          data-testid="image-use-inpaint"
+          disabled={!canInpaint}
+          onClick={onInpaint}
+        >
+          <strong>인페인팅 마스크 편집</strong>
+          <small>V3 Anime에서 칠한 영역을 다시 생성합니다.</small>
+        </button>
+        <button
+          type="button"
           data-testid="image-use-reference"
           disabled={!canReference}
-          title={canReference ? '생성 이미지 참조' : 'V5 Full에서 사용'}
+          title={
+            canReference ? '생성 이미지 참조' : 'V5 High 또는 Curated에서 사용'
+          }
           onClick={onReference}
         >
           <strong>이미지 레퍼런스</strong>

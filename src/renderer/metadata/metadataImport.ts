@@ -1,9 +1,8 @@
+import { allowedSize, modelId, characterLimit } from '../../workspaceCatalog';
+import { resolutionMap } from '../backends/imageGen';
 import type { WorkspaceDraft } from '../preview/workspaceDraft';
 import type { PNGMetadata } from './pngMetadata';
-import {
-  V5_SIZES,
-  V5_CHARACTER_LIMIT,
-} from '../../workspaceGenerationSettings';
+import { V5_CHARACTER_LIMIT } from '../../workspaceGenerationSettings';
 
 export type ImportField =
   'prompt' | 'negativePrompt' | 'characters' | 'settings' | 'seed';
@@ -70,9 +69,9 @@ export function planMetadataImport(
           (neg.length === 0 || text(record(neg[i]).char_caption) !== undefined),
       )
     ) {
-      if (draft.family !== 'v5' && chars.length > 0)
+      if (chars.length > characterLimit(draft))
         notices.push(
-          '가져온 캐릭터는 입력으로 보관합니다. 생성하려면 이 앱의 V5 Full 경로를 선택하세요.',
+          '가져온 캐릭터는 입력으로 보관합니다. 현재 모델에서 사용할 수 있는 캐릭터 수를 확인하세요.',
         );
       plan.characters = chars.map((p, i) => ({
         prompt: text(record(p).char_caption)!,
@@ -89,11 +88,13 @@ export function planMetadataImport(
   }
   const width = number(c.width) ?? metadata.width;
   const height = number(c.height) ?? metadata.height;
-  if (draft.family === 'v5') {
-    const size = (Object.keys(V5_SIZES) as WorkspaceDraft['resolution'][]).find(
-      (key) => V5_SIZES[key].width === width && V5_SIZES[key].height === height,
-    );
-    if (size) plan.settings.resolution = size;
+  if (draft.family === 'v5' || draft.model) {
+    const size = Object.entries(resolutionMap).find(
+      ([k, s]) => k !== 'custom' && s.width === width && s.height === height,
+    )?.[0];
+    if (size) plan.settings.resolution = size as WorkspaceDraft['resolution'];
+    else if (width && height && allowedSize(width, height))
+      plan.settings.resolution = `${width}x${height}`;
     else
       notices.push(
         '원본 크기는 이 앱에서 지원하지 않아 현재 크기를 유지합니다.',
@@ -149,13 +150,7 @@ export function planMetadataImport(
       'Image2Image·참조 이미지·Vibe 정보는 가져오지 않습니다. 현재 씬의 참조 선택은 유지합니다. 메타데이터만으로 원본 결과를 재현할 수 없습니다.',
     );
   const originalModel = c.model;
-  if (
-    originalModel !== undefined &&
-    originalModel !==
-      (draft.family === 'v5'
-        ? 'nai-diffusion-5-full'
-        : 'nai-diffusion-4-5-full')
-  )
+  if (originalModel !== undefined && originalModel !== modelId(draft))
     notices.push(
       '원본 모델과 현재 선택 모델이 다릅니다. 현재 모델을 유지합니다.',
     );
@@ -181,6 +176,7 @@ export function applyMetadataImport(
   // Imported captions are final text; disable only the corresponding auto-append.
   if (selected.has('prompt') && plan.prompt !== undefined) {
     next.prompt = plan.prompt;
+    delete next.transparentBackground;
     if (next.qualityTags !== undefined) next.qualityTags = 'none';
   }
   if (selected.has('negativePrompt') && plan.negativePrompt !== undefined) {
