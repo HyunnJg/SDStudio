@@ -15,7 +15,15 @@ NovelAI로 여러 씬을 반복 생성하고, 마음에 드는 컷을 선별해 
 
 ## 설치와 개발
 
-현재 Windows x64 설치 후보는 `3.1.12-rc.2`이며 NSIS 형식입니다. 내장 태그 자동완성은 영문 태그를 기준으로 합니다. 씬과 프리셋에는 계속 한글을 입력하고 저장할 수 있습니다. 이 포크의 공개 배포 여부는 [릴리스 목록](https://github.com/HyunnJg/SDStudio/releases)에서 확인할 수 있습니다. 소스에서 실행하거나 설치본을 만들 때는 [개발 환경과 패키징 절차](docs/DEVELOPMENT.md)를 참고하세요.
+Windows x64 설치 후보는 `3.1.12-rc.2`입니다. 설치 파일에는 코드 서명이 없어 Windows SmartScreen이 게시자 경고를 표시할 수 있습니다. 같은 릴리스의 **Assets**에서 설치 파일, 동봉 바이너리의 대응 소스 ZIP, `SHA256SUMS.txt`를 받을 수 있습니다. [GitHub 릴리스](https://github.com/HyunnJg/SDStudio/releases)
+
+다운로드한 폴더에서 아래 PowerShell 명령을 실행하고, 출력된 해시가 `SHA256SUMS.txt`의 같은 파일명 옆 값과 일치하는지 확인하세요.
+
+```powershell
+Get-FileHash .\SDStudio-Setup-3.1.12-rc.2-win-x64.exe -Algorithm SHA256
+```
+
+내장 태그 자동완성은 영문 태그를 기준으로 합니다. 씬과 프리셋에는 한글을 입력하고 저장할 수 있습니다. [소스에서 실행하거나 설치 파일 만들기](docs/DEVELOPMENT.md)
 
 프로젝트와 선별 결과, 프롬프트 라이브러리, 저장한 촬영 조합을 함께 보관하려면 [Windows 작업실 백업과 복원](docs/WORKSPACE_BACKUP.md)을 참고하세요.
 
