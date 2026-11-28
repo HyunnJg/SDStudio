@@ -15,7 +15,7 @@ NovelAI로 여러 씬을 반복 생성하고, 마음에 드는 컷을 선별해 
 
 ## 설치와 개발
 
-Windows x64 설치 후보는 `3.1.12-rc.2`입니다. 설치 파일에는 코드 서명이 없어 Windows SmartScreen이 게시자 경고를 표시할 수 있습니다. 같은 릴리스의 **Assets**에서 설치 파일, 동봉 바이너리의 대응 소스 ZIP, `SHA256SUMS.txt`를 받을 수 있습니다. [GitHub 릴리스](https://github.com/HyunnJg/SDStudio/releases)
+Windows x64 공개 프리릴리스는 `3.1.12-rc.2`입니다. 설치 파일에는 코드 서명이 없어 Windows SmartScreen이 게시자 경고를 표시할 수 있습니다. 같은 릴리스의 **Assets**에서 설치 파일, 동봉 바이너리의 대응 소스 ZIP, `SHA256SUMS.txt`를 받을 수 있습니다. [3.1.12-rc.2 다운로드](https://github.com/HyunnJg/SDStudio/releases/tag/v3.1.12-rc.2)
 
 다운로드한 폴더에서 아래 PowerShell 명령을 실행하고, 출력된 해시가 `SHA256SUMS.txt`의 같은 파일명 옆 값과 일치하는지 확인하세요.
 
