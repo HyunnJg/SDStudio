@@ -1,6 +1,6 @@
 {
   "name": "sdstudio-hyunnjg",
-  "description": "A foundation for scalable desktop apps",
+  "description": "NovelAI 이미지 생성과 씬별 반복 촬영·선별을 위한 데스크톱 작업실",
   "keywords": [
     "electron",
     "boilerplate",
@@ -375,6 +375,10 @@
         "to": "LICENSES/electron-react-boilerplate.txt"
       },
       {
+        "from": "LICENSES/tagcomplete-MIT.txt",
+        "to": "LICENSES/tagcomplete-MIT.txt"
+      },
+      {
         "from": "CREDITS.md",
         "to": "CREDITS.md"
       },
@@ -386,14 +390,8 @@
         ]
       },
       {
-        "from": "assets",
-        "to": "assets",
-        "filter": [
-          "**/*",
-          "!fonts/**",
-          "!db.txt",
-          "!assets.d.ts"
-        ]
+        "from": "assets/icon.png",
+        "to": "assets/icon.png"
       }
     ],
     "publish": {

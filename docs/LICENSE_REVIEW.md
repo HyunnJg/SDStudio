@@ -83,4 +83,20 @@ NovelAI/novelai-image-metadata `3428907ac7183d7e36d7cc39e8f46f6f35ce99c1`의 nai
 | `batch-cluster/types/chai-withintoleranceof` | 테스트용 타입 선언과 그 package.json 두 파일을 설치 대상에서 제외했다. ASAR 검사는 실제로 복사된 런타임 package.json을 색인과 대조한다. |
 | `src/native` | 태그 검색 모듈의 package.json에는 ISC 선언이 있으나 해당 모듈의 원문 고지를 확인하지 못했다. 미해결로 유지한다. |
 
+## D-089 Windows x64 배포 후보
+
+### 태그 검색 데이터의 출처 대조
+
+`release/app/data/db.csv`의 Git blob은 `8577d615dafb5ce67e2ebef1e11a7820030a6c92`다. 원본 SDStudio의 `f13d784`에서 처음 들어온 앞 122,870행은 tagcomplete 리비전 `1d8d9f6`의 CSV 100,000행으로 재현된다. 두 파일을 CSV로 읽고, 원자료의 이름과 별칭에서 밑줄을 공백으로 바꾼다. 각 이름에 대해 별칭마다 `[별칭, 분류, 횟수, 이름]` 행을 먼저 만들고 `[이름, 분류, 횟수, "null"]`을 붙이면 행 순서와 네 필드 값이 모두 일치한다. 원자료 SHA-256은 `805ed20a56d7f5a562e2c4e2a70491725100a28f37d48dd0daf19e2c9ffd7031`이다. [대조한 CSV](https://github.com/DominikDoom/a1111-sd-webui-tagcomplete/blob/1d8d9f64b5aaaa0b2b9cbebaa5fd45a48b193ba6/tags/danbooru.csv) · [원자료 갱신 논의](https://github.com/DominikDoom/a1111-sd-webui-tagcomplete/issues/274)
+
+해당 리비전의 MIT 고지 원문을 `LICENSES/tagcomplete-MIT.txt`로 동봉했다. 원문과 패키지 사본의 SHA-256은 `c1532c29734187eddd3948321379fa95ba79191bc3cb41d2787d7dff6e5913b5`다. 나머지 1,862행은 모두 첫 필드에 한글이 있는 별칭이다. 원본 SDStudio가 1,892행을 추가한 뒤 수정한 이력까지 확인했다. 이 별칭들의 작성 출처와 별도 재배포 조건은 미확인이다. [MIT 원문](https://github.com/DominikDoom/a1111-sd-webui-tagcomplete/blob/1d8d9f64b5aaaa0b2b9cbebaa5fd45a48b193ba6/LICENSE) · [별칭 추가](https://github.com/sunho/SDStudio/commit/f2268e61c2f3732d2de83c2bd5b51b9e30f0bfef) · [후속 수정](https://github.com/sunho/SDStudio/commit/0ab722287f431ce505847ec20a8a046f895fb5f3)
+
+### 설치 후보의 파일 검사
+
+2026-11-28. 패키지에서 원문 사본 200개와 복사된 런타임 패키지 메타데이터 48개를 검사했다. Electron의 LICENSE와 Chromium의 LICENSES.chromium.html도 설치된 Electron 배포본과 바이트 단위로 대조한다. 고지가 손상된 검사용 ASAR 시나리오가 실패하는 것을 확인했다. NSIS에서 추출한 파일 1,024개가 디렉터리 패키지와 일치했다.
+
+새 소개 화면은 직접 그린 등대 예시와 격리된 오프라인 작업실을 촬영한 것이다. 새 데스크톱 아이콘은 이 포크에서 작성했다. 패키지의 외부 assets에는 창 아이콘 한 개가 들어간다. 수동 태그 검색 테스트와 `prompt-sync`는 배포 ASAR에 없다.
+
+고지 색인의 미해결 원문은 `src/native` 1건이다. 이 저장소의 native 경로에서 원문·저작권 문구와 과거 LICENSE 경로를 다시 찾아봤으나 ISC 선언 외의 원문을 확인하지 못했다. 앱 자체의 저작권 표기, 동봉 태그 DB의 원자료와 재배포 조건, 바이너리 공급자의 조건은 별도 확인 대상이다.
+
 원본 고지 파일은 `LICENSES/` 아래에 저장한다. 수집기는 위 버전에 한해 SHA-256을 대조하고 사본의 해시를 설치본 색인에 기록한다. Windows에서 고지 파일·vendor 증거 200개를 검증했다. SDStudio 고유 표기, DB·이미지 출처, ExifTool과 libvips 배포 조건은 기존 별도 검토 항목이다.

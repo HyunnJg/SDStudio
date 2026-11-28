@@ -1,5 +1,38 @@
 # 개발 시작과 검증 기록
 
+## 데스크톱 아이콘 재생성
+
+벡터 원본은 `assets/desktop-icon.svg`다. 저장소 루트에서 프로젝트의 sharp로 PNG 10종을 만들고 512px 사본을 창 아이콘으로 사용한다. 아래 코드는 PowerShell에서 실행한다.
+
+```powershell
+@'
+const sharp = require('sharp');
+async function generate() {
+  for (const size of [16, 24, 32, 48, 64, 96, 128, 256, 512, 1024]) {
+    await sharp('assets/desktop-icon.svg', { density: 288 })
+      .resize(size, size)
+      .png()
+      .toFile('assets/icons/' + size + 'x' + size + '.png');
+  }
+}
+generate().catch(error => { console.error(error); process.exitCode = 1; });
+'@ | node
+if ($LASTEXITCODE -ne 0) { throw 'PNG 생성 실패' }
+Copy-Item assets/icons/512x512.png assets/icon.png
+```
+
+Python과 Pillow가 있는 환경에서 1024px PNG로 Windows ICO와 macOS ICNS를 만든다. Windows에서 아래 절차로 재생성한 파일과 저장소 사본의 SHA-256이 일치했다.
+
+```powershell
+@'
+from PIL import Image
+with Image.open("assets/icons/1024x1024.png") as image:
+    sizes = [(n, n) for n in (16, 24, 32, 48, 64, 128, 256)]
+    image.save("assets/icon.ico", sizes=sizes)
+    image.save("assets/icon.icns")
+'@ | python -
+```
+
 ## 현재 데스크톱 설치 기준 — D-050
 
 Node **26.13.1**, npm **11.21.3**, Electron **45.4.1**로 갱신했다. 개발 명령은 Node26에서, 앱은 Electron 내부 Node24.22.3에서 실행된다. Node22 전용 셸이나 전역 node-gyp를 따로 구성하지 않는다. 아래 절차가 현재 기준이며, 뒤의 과거 조사 기록은 당시 환경을 뜻한다. [변경·검증 범위](RUNTIME_MODERNIZATION.md).
@@ -118,7 +151,7 @@ P1-01b 작업실에서는 씬별 입력을 편집한 뒤 `전체 씬 예약` →
 
 ## 고지 묶음
 
-`npm run build`는 production main/preload·renderer 컴파일의 패키지 목록을 남기고 고지를 수집한다. `licenses:bundle`로 재수집할 수 있으며 beforePack에서도 자동 생성한다. `.erb/generated/notices`는 Git에서 제외한다. 패키지는 `package:check-notices`로 경로·사본 해시·번들/metadata 대응을 검사한다. `--require-notice-files`는 현재 원문 미확인 8건을 이유로 실패한다. 이 검사와 전체 재배포 조건 완료를 구분한다. [정확한 범위·명령](licenses/BUNDLE_NOTICES.md).
+`npm run build`는 production main/preload·renderer 컴파일의 패키지 목록을 남기고 고지를 수집한다. `licenses:bundle`로 재수집할 수 있으며 beforePack에서도 자동 생성한다. `.erb/generated/notices`는 Git에서 제외한다. 패키지는 `package:check-notices`로 경로·사본 해시·번들/metadata 및 Electron·Chromium 원문을 대조한다. Windows x64 D-089 후보에서 `--require-notice-files`는 native ISC 원문 1건 때문에 실패한다. 이 검사와 전체 재배포 조건 완료를 구분한다. [정확한 범위·명령](licenses/BUNDLE_NOTICES.md).
 
 
 ## 신규 인증·전송 검사 (P0-03b1)

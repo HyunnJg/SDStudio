@@ -1,71 +1,28 @@
-# SDStudio 협업 작업공간
+# SDStudio
 
-[sunho/SDStudio](https://github.com/sunho/SDStudio)를 기반으로 NovelAI와 익숙한 이미지 생성 UI 및 반복 작업 개선을 검토하는 포크입니다. **독립 프로젝트 저장·원본 PNG 보관·V5 입력과 선택 씬 반복 생성을 구현했고, 실제 계정 확인과 배포 검증을 이어가고 있습니다.**
+NovelAI로 여러 씬을 반복 생성하고, 마음에 드는 컷을 선별해 PNG나 ZIP으로 저장하는 데스크톱 작업실입니다.
 
-**새 작업실은 V5 Full·832×1216을 기본으로 지원합니다.** 일반 새 프로필은 온라인으로 시작하며, 저장된 오프라인 선택은 유지합니다. API 토큰 입력 후 **생성** 한 번으로 저장·요청합니다. V5의 실제 서버 출력은 이번 자동 검증에서 호출하지 않았습니다. [사용 흐름](docs/WORKSPACE_GENERATION.md)과 [확인 범위](docs/NAI_V5_BINDING.md)를 참고하세요.
+![씬 세 개를 연 SDStudio 작업실. 왼쪽에 프롬프트, 가운데에 등대 그림, 오른쪽에 반복 예약과 결과 목록이 보입니다.](docs/images/desktop-workspace.png)
 
-**데스크톱 개발 기준을 Node26.13.1/npm11.21.3/Electron45.4.1로 갱신했습니다.** 루트 `npm ci`가 Electron 다운로드·C++ 빌드·DLL 준비를 순서대로 수행합니다. 기존 정상 폴더는 보존하고 [새 설치 절차](docs/DEVELOPMENT.md)를 따르세요. Windows 신규 설치 결과는 [검증 범위](docs/validation/2026-11-24-runtime-modernization.md)와 구분합니다.
+*Windows 작업실에서 촬영한 화면입니다. 등대 그림과 프로젝트는 화면 소개를 위해 만든 오프라인 예시입니다.*
 
-| 문서 | 용도 |
-| --- | --- |
-| [현재 상태](docs/STATUS.md) | 완료·미완료, 확인한 사실, 바로 다음 작업 |
-| [모델/API 설계](docs/NOVELAI_API.md) | 공식 근거, 입력 초안, 실제 연동 전 남은 항목 |
-| [작업 계획](docs/ROADMAP.md) | 단계별 작업과 완료 기준 |
-| [결정 기록](docs/DECISIONS.md) | 확정한 방향과 제안의 구분 |
-| [소스 구조](docs/ARCHITECTURE.md) | 주요 파일과 변경 지점 |
-| [개발 시작](docs/DEVELOPMENT.md) | 현재 설치·실행 명령, 환경, 검증 상태 |
-| [라이선스 조사](docs/LICENSE_REVIEW.md) | 파일별 증거와 미확인 범위 |
-| [다른 AI와 검토하기](docs/reviews/README.md) | 전달할 요청문과 검토 양식 |
-| [AI 작업 지침](AGENTS.md) | 작은 브랜치·PR·인수인계 규칙 |
+## 첫 프로젝트
 
-원본 기준: `f2088add103ad683a31e0590448e6e5bb4d71556` (`3.1.11` 표기). 원본 코드·이력·크레딧을 보존합니다. [원작자·출처](CREDITS.md)와 [고지 확인 범위](docs/licenses/APP_LICENSE_STATUS.md)를 함께 제공합니다. `NAI-Auto-Generator`의 코드는 가져오지 않았습니다. 최종 앱 이름과 세부 UI는 미정입니다.
+1. **메뉴 → API 토큰·연결 모드**에서 NovelAI 토큰을 설정합니다.
+2. 씬에 프롬프트를 쓰고 모델과 해상도를 고릅니다. **이미지 추가**에서 변형할 원본이나 정밀 참조를 붙일 수 있습니다.
+3. 한 컷은 **이미지 생성**, 여러 컷은 **조합으로 예약**을 사용합니다. 인물과 감정을 조합하고 반복 횟수와 참조 추가분을 확인합니다.
+4. 오른쪽 결과 목록에서 **선별**을 켜고 남길 컷을 고릅니다. 선별이 비어 있는 씬만 다시 예약하거나 선택한 원본 PNG들을 ZIP으로 저장할 수 있습니다.
 
----
+## 설치와 개발
 
-# 원본 프로젝트 소개
-Stable Diffusion 계열 API와 모델을 사용하기 편하게 해주는 프론트앤드 프로그램입니다. 모든 씬을 여러번 생성 예약을 해놓고 딴거하다가 와서 이미지를 이미지 월드컵으로 선택하고 리터칭하는 작업 흐름에 맞춰져 있습니다.
+Windows x64 설치 후보는 NSIS 형식입니다. 이 포크의 공개 배포 여부는 [릴리스 목록](https://github.com/HyunnJg/SDStudio/releases)에서 확인할 수 있습니다. 소스에서 실행하거나 설치본을 만들 때는 [개발 환경과 패키징 절차](docs/DEVELOPMENT.md)를 참고하세요.
 
-![](images/img1.png)
+프로젝트와 선별 결과, 프롬프트 라이브러리, 저장한 촬영 조합을 함께 보관하려면 [Windows 작업실 백업과 복원](docs/WORKSPACE_BACKUP.md)을 참고하세요.
 
-![](images/img2.png)
+[현재 상태](docs/STATUS.md) · [작업 계획](docs/ROADMAP.md) · [설계 결정](docs/DECISIONS.md) · [라이선스 조사](docs/LICENSE_REVIEW.md)
 
-## 주요 기능
+## 원작과 크레딧
 
-### 씬 별 이미지 생성
-![](images/img3.png)
+Sunho Kim의 SDStudio를 기반으로 한 독립 포크입니다. 원작의 씬·선별·리터칭 작업 흐름과 Git 이력을 이어받았습니다. [원본 프로젝트 소개와 화면](https://github.com/sunho/SDStudio/tree/f2088add103ad683a31e0590448e6e5bb4d71556) · [원작자와 기여 출처](CREDITS.md) · [고지 확인 범위](docs/licenses/APP_LICENSE_STATUS.md)
 
-### 이미지 월드컵 기능
-
-![](images/img8.png)
-	
-### 이미지 인페인팅 기능
-
-![](images/img4.png)
-
-### 자동 배경 제거 기능
-
-![](images/img6.png)
-
-### 포토샵 연동 기능
-
-![](images/img5.png)
-
-### 이미지 변형 기능
-
-![](images/img9.png)
-
-### 태그 자동 완성
-
-![](images/img10.png)
-
-###  프롬프트 조각 및 구문 하이라이팅 기능
-
-![](images/img111.png)
-
-### 프롬프트 조합 기능
-
-![](images/img7.png)
-
-## 크래딧
-
-이미지 씬 기능은 https://dendenai.xyz 의 프리셋 기능에서 파생되었습니다.
+원작자는 이미지 씬 기능의 출발점으로 [dendenai.xyz의 프리셋 기능](https://dendenai.xyz)을 명시했습니다.

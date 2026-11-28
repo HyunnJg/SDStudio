@@ -26,6 +26,7 @@ async function fixture(t) {
     ),
   );
   put('CREDITS.md', 'Synthetic credits.\n');
+  put('LICENSES/tagcomplete-MIT.txt', 'Synthetic tag data notice.\n');
   put('entry.js', 'import {value} from "foo"; console.log(value);');
   for (const name of ['foo', 'bar', 'unused']) {
     put(
@@ -230,6 +231,12 @@ test('real ASAR runtime metadata is checked with either path separator and unind
   const asar = require('@electron/asar');
   const resources = path.join(root, 'package/resources');
   fs.mkdirSync(resources, { recursive: true });
+  const runtime = path.dirname(require('electron'));
+  for (const [src, dest] of [
+    ['LICENSE', 'LICENSE.electron.txt'],
+    ['LICENSES.chromium.html', 'LICENSES.chromium.html'],
+  ])
+    fs.copyFileSync(path.join(runtime, src), path.join(resources, '..', dest));
   const notices = path.join(root, '.erb/generated/notices');
   fs.cpSync(notices, path.join(resources, 'THIRD_PARTY_NOTICES'), {
     recursive: true,
@@ -274,4 +281,9 @@ test('real ASAR runtime metadata is checked with either path separator and unind
   );
   assert.notEqual(rejected.status, 0);
   assert.match(rejected.stderr, /Unindexed copied runtime package/);
+  put('package/LICENSE.electron.txt', 'truncated notice');
+  const damaged = spawnSync(process.execPath, [checker, path.dirname(resources)], {
+    encoding: 'utf8',
+  });
+  assert.match(damaged.stderr, /Electron runtime notice mismatch/);
 });
