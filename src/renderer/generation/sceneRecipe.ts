@@ -2,6 +2,8 @@ import { characterLimit } from '../../workspaceCatalog';
 import type { PromptPreset } from '../../promptLibrary';
 import type { SuggestedCut } from '../../recipeAssistant';
 import type { WorkspaceDraft, WorkspaceScene } from '../preview/workspaceDraft';
+import { sceneReferences, setSceneReferences } from '../../workspaceReference';
+import type { WorkspaceReference } from '../../workspaceReference';
 
 export interface SceneRecipe {
   name: string;
@@ -116,7 +118,7 @@ export function validRecipe(r: SceneRecipe) {
       (typeof r.referenceByCharacter === 'object' &&
         !Array.isArray(r.referenceByCharacter) &&
         Object.entries(r.referenceByCharacter).every(
-          ([id, ref]) => r.characterIds.includes(id) && text(ref, 100),
+          ([id, ref]) => r.characterIds.includes(id) && text(ref, 256),
         ))) &&
     Array.isArray(r.situations) &&
     r.situations.length > 0 &&
@@ -150,6 +152,34 @@ export function recipeJobs(recipe: SceneRecipe) {
   );
 }
 
+export function recipeReferenceChoices(scenes: WorkspaceScene[]) {
+  const choices = new Map<
+    string,
+    { sceneName: string; card: WorkspaceReference }
+  >();
+  scenes.forEach((s) =>
+    sceneReferences(s.draft).forEach((card) => {
+      choices.set(`${s.id}/${card.id}`, { sceneName: s.name, card });
+    }),
+  );
+  return choices;
+}
+
+// A character override replaces the first card. The other cards keep their order.
+export function recipeReferences(
+  current: WorkspaceReference[],
+  choice: string | undefined,
+  choices: ReturnType<typeof recipeReferenceChoices>,
+) {
+  if (!choice) return current;
+  if (choice === 'none') return [];
+  const card = (
+    choices.get(choice) ??
+    [...choices.values()].find(({ card: candidate }) => candidate.id === choice)
+  )?.card;
+  return card && [card, ...current.slice(1).filter((r) => r.id !== card.id)];
+}
+
 export function buildRecipeScenes(
   recipe: SceneRecipe,
   base: WorkspaceScene,
@@ -174,21 +204,20 @@ export function buildRecipeScenes(
   if (recipe.characterIds.length && !characterLimit(base.draft))
     throw Error('캐릭터를 지원하는 모델을 선택하세요.');
   const join = (...parts: string[]) => parts.filter((p) => p.trim()).join(', ');
+  const choices = recipeReferenceChoices(sources);
   return jobs.map(({ characterId, row, index }) => {
     const character = characterId
       ? preset(characterId, 'character')
       : undefined;
     const draft: WorkspaceDraft = structuredClone(base.draft);
     const ref = recipe.referenceByCharacter?.[characterId];
-    if (ref === 'none') delete draft.reference;
-    else if (ref) {
-      const source = sources.find((s) => s.draft.reference?.id === ref)?.draft
-        .reference;
-      if (!source)
+    if (ref) {
+      const cards = recipeReferences(sceneReferences(draft), ref, choices);
+      if (!cards)
         throw Error(
           '조합에 선택한 참조를 이 프로젝트에서 찾을 수 없습니다. 다시 선택하세요.',
         );
-      draft.reference = structuredClone(source);
+      setSceneReferences(draft, structuredClone(cards));
     }
     if (style) {
       draft.prompt = style.prompt;

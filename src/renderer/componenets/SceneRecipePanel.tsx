@@ -3,6 +3,11 @@ import { createPortal } from 'react-dom';
 import { useRef, useState } from 'react';
 import RecipeAssistant from './RecipeAssistant';
 import { characterLimit } from '../../workspaceCatalog';
+import {
+  sceneReferences,
+  REFERENCE_ANLAS,
+  REFERENCE_ROLES,
+} from '../../workspaceReference';
 import type { PromptPreset } from '../../promptLibrary';
 import type { WorkspaceScene } from '../preview/workspaceDraft';
 import {
@@ -15,6 +20,8 @@ import {
   validCutStrength,
   cutParagraphStart,
   recipeJobs,
+  recipeReferenceChoices,
+  recipeReferences,
   resolveCutActor,
   SceneRecipe,
 } from '../generation/sceneRecipe';
@@ -118,15 +125,17 @@ export default function SceneRecipePanel({
   const hasCuts = recipe.situations.some((row) => row.cutMode);
   const jobs = recipeJobs(recipe);
   const count = jobs.length;
-  const references = new Map(
-    sources
-      .filter((s) => s.draft.reference)
-      .map((s) => [s.draft.reference!.id, s.name]),
+  const references = recipeReferenceChoices(sources);
+  const currentCards = sceneReferences(base.draft);
+  const jobCards = jobs.map(({ characterId }) =>
+    recipeReferences(
+      currentCards,
+      recipe.referenceByCharacter?.[characterId],
+      references,
+    ),
   );
-  const refCount = jobs.filter(({ characterId }) => {
-    const selected = recipe.referenceByCharacter?.[characterId];
-    return selected ? selected !== 'none' : !!base.draft.reference;
-  }).length;
+  const missingReference = jobCards.some((cards) => !cards);
+  const refCount = jobCards.reduce((n, cards) => n + (cards?.length ?? 0), 0);
   const save = () => {
     try {
       if (!validRecipe(recipe)) {
@@ -268,7 +277,7 @@ export default function SceneRecipePanel({
           Object.keys(recipe.referenceByCharacter ?? {}).length > 0) &&
           recipe.characterIds.map((id) => (
             <label key={id}>
-              {visible.find((p) => p.id === id)?.name} 참조
+              {visible.find((p) => p.id === id)?.name} 첫 참조
               <select
                 value={recipe.referenceByCharacter?.[id] ?? ''}
                 onChange={(e) =>
@@ -281,10 +290,21 @@ export default function SceneRecipePanel({
                 }
               >
                 <option value="">현재 씬과 같게</option>
-                <option value="none">참조 끄기</option>
-                {[...references].map(([ref, name]) => (
+                <option value="none">모든 참조 끄기</option>
+                {recipe.referenceByCharacter?.[id] &&
+                  recipe.referenceByCharacter[id] !== 'none' &&
+                  !references.has(recipe.referenceByCharacter[id]) && (
+                    <option value={recipe.referenceByCharacter[id]}>
+                      {[...references.values()].find(
+                        ({ card }) =>
+                          card.id === recipe.referenceByCharacter?.[id],
+                      )?.sceneName ?? '찾을 수 없는 참조'}
+                    </option>
+                  )}
+                {[...references].map(([ref, { sceneName, card }]) => (
                   <option value={ref} key={ref}>
-                    {name}
+                    {sceneName} · {REFERENCE_ROLES[card.role]} · 강도{' '}
+                    {card.strength}
                   </option>
                 ))}
               </select>
@@ -559,7 +579,11 @@ export default function SceneRecipePanel({
         </button>
         <p>
           {count}씬 × {repeats}회 · {count * repeats}장
-          {refCount > 0 && ` · 참조 추가분 ${5 * refCount * repeats} Anlas`}
+          {!missingReference &&
+            refCount > 0 &&
+            ` · 참조 추가분 ${REFERENCE_ANLAS * refCount * repeats} Anlas`}
+          {missingReference &&
+            ' · 찾을 수 없는 참조가 있습니다. 사용할 이미지를 다시 선택하세요.'}
           {count * repeats > 60 &&
             ' · 한 번에 60장까지 예약할 수 있습니다. 감정·인물 또는 반복 횟수를 줄이세요.'}
         </p>
@@ -568,6 +592,7 @@ export default function SceneRecipePanel({
           type="button"
           disabled={
             !canPrepare ||
+            missingReference ||
             !count ||
             !Number.isInteger(repeats) ||
             repeats < 1 ||

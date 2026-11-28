@@ -13,7 +13,7 @@ import type {
   WorkspaceReference,
   WorkspaceVariation,
 } from './workspaceReference';
-import { REFERENCE_LIMITS } from './workspaceReference';
+import { REFERENCE_LIMITS, sceneReferences } from './workspaceReference';
 
 export const PROJECT_FORMAT = 'sdstudio-workspace';
 export const PROJECT_LIMITS = {
@@ -103,7 +103,7 @@ export type ProjectImageInput = Omit<
 >;
 export interface WorkspaceProject extends ProjectContent {
   format: typeof PROJECT_FORMAT;
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14;
   id: string;
   images: ProjectImage[];
   trashedImageIds?: string[];
@@ -299,6 +299,15 @@ export function validateReference(value: unknown): WorkspaceReference {
   );
   return structuredClone(value as WorkspaceReference);
 }
+export function draftAssets(d: WorkspaceDraft): ReferenceAsset[] {
+  return [
+    ...sceneReferences(d),
+    d.img2img,
+    d.inpaintSource,
+    d.inpaintMask,
+  ].filter((asset) => asset !== undefined);
+}
+
 export function projectReferences(
   content: ProjectContent,
   images: readonly (ProjectImageInput | ImportedImage)[] = [],
@@ -306,9 +315,7 @@ export function projectReferences(
   return [
     ...content.scenes.map((s) => s.draft),
     ...images.flatMap((i) => (i.origin ? [] : [i.draft])),
-  ]
-    .flatMap((d) => [d.reference, d.img2img, d.inpaintSource, d.inpaintMask])
-    .filter((asset) => asset !== undefined);
+  ].flatMap(draftAssets);
 }
 export function referenceAssetBytes(project: WorkspaceProject): number {
   const sizes = new Map<string, number>();
@@ -343,6 +350,7 @@ function draft(value: unknown): number {
     'transparentBackground',
     'ucPreset',
     'reference',
+    'additionalReferences',
     'img2img',
     'inpaintSource',
     'inpaintMask',
@@ -378,6 +386,19 @@ function draft(value: unknown): number {
   }
   if (optional.includes('img2img')) validateVariation(d.img2img);
   if (optional.includes('reference')) validateReference(d.reference);
+  if (optional.includes('additionalReferences')) {
+    projectCheck(
+      d.reference &&
+        Array.isArray(d.additionalReferences) &&
+        d.additionalReferences.length > 0,
+    );
+    const ids = new Set([(d.reference as WorkspaceReference).id]);
+    for (const card of d.additionalReferences) {
+      const ref = validateReference(card);
+      projectCheck(!ids.has(ref.id));
+      ids.add(ref.id);
+    }
+  }
   if (optional.includes('transparentBackground'))
     projectCheck(d.transparentBackground === true);
   if (optional.includes('qualityTags'))
@@ -480,6 +501,15 @@ export function validateImageInput(value: unknown): ProjectImageInput {
   );
   draft(r.draft);
   const sourceDraft = r.draft as WorkspaceDraft;
+  if (sourceDraft.additionalReferences)
+    projectCheck(
+      hasBinding &&
+        sourceDraft.family === 'v5' &&
+        (r.binding as ImageBinding)?.id ===
+          (sourceDraft.img2img
+            ? 'nai-v5-img2img-reference-v1'
+            : 'nai-v5-reference-v1'),
+    );
   if (sourceDraft.inpaintSource || sourceDraft.inpaintMask)
     projectCheck(
       hasBinding &&
@@ -522,6 +552,12 @@ export function requiredProjectVersion(
   records: readonly (ProjectImageInput | ImportedImage)[] = [],
 ): WorkspaceProject['version'] {
   const images = records.filter((i): i is ProjectImageInput => !i.origin);
+  if (
+    [...content.scenes, ...images].some(
+      ({ draft: d }) => d.additionalReferences?.length,
+    )
+  )
+    return 14;
   if (
     [...content.scenes, ...images].some(
       ({ draft: d }) => d.transparentBackground,
@@ -605,7 +641,8 @@ export function validateWorkspaceProject(value: unknown): WorkspaceProject {
       v.version === 10 ||
       v.version === 11 ||
       v.version === 12 ||
-      v.version === 13,
+      v.version === 13 ||
+      v.version === 14,
     'PROJECT_VERSION',
   );
   try {

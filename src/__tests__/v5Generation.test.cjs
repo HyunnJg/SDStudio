@@ -22,6 +22,30 @@ const {
   validateProjectContent,
 } = require('../workspaceProject');
 const { png } = require('./fixtures/nai/png.cjs');
+test('transparent tags respect tag boundaries, whitespace and active numeric weight groups', () => {
+  const {
+    transparentBackgroundTags,
+  } = require('../workspaceGenerationSettings');
+  const scene = createConnectedWorkspaceState().scenes[0];
+  scene.draft.transparentBackground = true;
+  for (const [text, present, suppressed] of [
+    ['portrait, transparent   background', true, false],
+    ['2.1::transparent background::', true, false],
+    ['-1::portrait, transparent background::', true, true],
+    ['0::transparent background::', true, true],
+    ['-1::outline::, transparent background', true, false],
+    ['semi-transparent background, transparent backgrounds', false, false],
+  ]) {
+    assert.deepEqual(transparentBackgroundTags(text), { present, suppressed });
+    scene.draft.prompt = text;
+    const bound = bindBasicGeneration(scene);
+    assert.equal(bound.input.draft.prompt, text);
+    assert.equal(
+      bound.request.input.startsWith(text + ', transparent background,'),
+      !present,
+    );
+  }
+});
 test('V5 alpha uses the approved caption, preserves manual tags and reopens only opted-in projects at v13', (t) => {
   const { core, first } = fixture(t);
   const scene = structuredClone(first.project.scenes[0]);

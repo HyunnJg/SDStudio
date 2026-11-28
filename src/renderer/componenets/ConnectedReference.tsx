@@ -9,12 +9,13 @@ import type {
   ReferenceRole,
 } from '../../workspaceReference';
 import {
+  REFERENCE_ANLAS,
   REFERENCE_ROLES,
   REFERENCE_COST_NOTICE,
 } from '../../workspaceReference';
 
 interface Props {
-  reference: WorkspaceReference | undefined;
+  references: WorkspaceReference[];
   projectId: string | undefined;
   variation: WorkspaceVariation | undefined;
   onVariation: (variation: WorkspaceVariation | undefined) => void;
@@ -24,8 +25,10 @@ interface Props {
   preview: { hash: string; bytes: Uint8Array } | undefined;
   client: GenerationClient;
   onFile: (file: File) => Promise<void>;
-  onChoose?: () => void;
-  onChange: (reference: WorkspaceReference | undefined) => void;
+  onChoose: () => void;
+  onReplace: (file: File, referenceId: string) => void;
+  onChange: (references: WorkspaceReference[]) => void;
+  supportsReferences: boolean;
 }
 function ImagePreview({
   asset,
@@ -51,10 +54,17 @@ function ImagePreview({
       if (preview && preview.hash === hash)
         bytes = Promise.resolve(preview.bytes);
       else if (projectId)
-        bytes = client.referenceImage(projectId, sceneId, purpose).then((r) => {
-          if (!r.ok) throw new Error(r.code);
-          return r.value;
-        });
+        bytes = client
+          .referenceImage(
+            projectId,
+            sceneId,
+            purpose,
+            purpose === 'reference' ? asset.id : undefined,
+          )
+          .then((r) => {
+            if (!r.ok) throw new Error(r.code);
+            return r.value;
+          });
       else bytes = Promise.reject(new Error('missing'));
       void bytes
         .then((value) => {
@@ -73,7 +83,7 @@ function ImagePreview({
       alive = false;
       if (objectURL) URL.revokeObjectURL(objectURL);
     };
-  }, [projectId, sceneId, hash, preview, client, purpose]);
+  }, [projectId, sceneId, hash, preview, client, purpose, asset.id]);
   const label = purpose === 'img2img' ? '변형 원본' : '레퍼런스';
   return (
     <div>
@@ -93,7 +103,7 @@ function ImagePreview({
 }
 
 export default function ConnectedReference({
-  reference,
+  references,
   variation,
   onVariation,
   projectId,
@@ -104,9 +114,19 @@ export default function ConnectedReference({
   client,
   onFile,
   onChange,
-  onChoose = undefined,
+  onChoose,
+  onReplace,
+  supportsReferences,
 }: Props) {
-  const file = useRef<HTMLInputElement>(null);
+  const replacementFile = useRef<HTMLInputElement>(null);
+  const replacementId = useRef('');
+  const updateReference = (value: WorkspaceReference) =>
+    onChange(references.map((r) => (r.id === value.id ? value : r)));
+  const move = (from: number, to: number) => {
+    const ordered = references.slice();
+    ordered.splice(to, 0, ...ordered.splice(from, 1));
+    onChange(ordered);
+  };
   return (
     <section
       className="connected-reference"
@@ -126,38 +146,52 @@ export default function ConnectedReference({
       <header>
         <strong>이미지 입력</strong>
         <small>
-          {reference && '참조 1 · +5 Anlas/회'}
-          {variation && (reference ? ' · 이미지 변형' : '이미지 변형')}
-          {!reference && !variation && '이미지'}
+          {references.length > 0 &&
+            `참조 ${references.length} · +${references.length * REFERENCE_ANLAS} Anlas/회`}
+          {variation && (references.length ? ' · 이미지 변형' : '이미지 변형')}
+          {!references.length && !variation && '이미지'}
         </small>
       </header>
 
       <input
-        ref={file}
+        ref={replacementFile}
         type="file"
         accept="image/png,image/webp,image/jpeg,.png,.webp,.jpg,.jpeg"
         hidden
-        aria-label="참조로 사용할 이미지"
+        aria-label="참조 카드 이미지 교체"
         data-testid="reference-file"
         onChange={(e) => {
           const selected = e.target.files?.[0];
           e.target.value = '';
-          if (selected && !locked && family === 'v5') void onFile(selected);
+          if (
+            selected &&
+            !locked &&
+            supportsReferences &&
+            references.some((r) => r.id === replacementId.current)
+          ) {
+            onReplace(selected, replacementId.current);
+          }
         }}
       />
       <button
         type="button"
         data-testid="choose-reference"
         disabled={locked}
-        onClick={() => (onChoose ? onChoose() : file.current?.click())}
+        onClick={onChoose}
       >
         + 이미지 추가
       </button>
-      {family !== 'v5' && reference && (
+      {!supportsReferences && !!references.length && (
         <p role="status">
-          이미지 참조는 V5에서 사용합니다.
-          {reference && ' 참조를 해제하거나 V5로 전환해야 생성할 수 있습니다.'}
+          참조를 해제하거나 V5 Full · High 또는 Curated로 전환해야 생성할 수
+          있습니다.
         </p>
+      )}
+      {supportsReferences && !!references.length && (
+        <small>
+          배경 사진의 색감과 화풍은 ‘화풍’으로 참조하고, 장소와 구도는 기본
+          프롬프트에 적어 주세요.
+        </small>
       )}
       {variation && (
         <fieldset disabled={locked}>
@@ -192,86 +226,144 @@ export default function ConnectedReference({
           </button>
         </fieldset>
       )}
-      {reference && (
-        <>
-          <ImagePreview
-            projectId={projectId}
-            sceneId={sceneId}
-            preview={preview}
-            client={client}
-            asset={reference}
-            purpose="reference"
-          />
-          <label htmlFor="reference-role">
-            참조 대상
-            <select
-              id="reference-role"
-              aria-label="참조 대상"
-              data-testid="reference-role"
-              disabled={locked || family !== 'v5'}
-              value={reference.role}
-              onChange={(e) => {
-                const role = e.target.value as ReferenceRole;
-                onChange({
-                  ...reference,
-                  role,
-                  preferSameOutfit:
-                    (role === 'character' || role === 'character-style') &&
-                    reference.preferSameOutfit,
-                });
-              }}
-            >
-              {Object.entries(REFERENCE_ROLES).map(([value, text]) => (
-                <option key={value} value={value}>
-                  {text}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label htmlFor="reference-strength">
-            강도 {reference.strength}
-            <input
-              id="reference-strength"
-              aria-label="참조 강도"
-              data-testid="reference-strength"
-              type="range"
-              min="0"
-              max="5"
-              step="0.1"
-              disabled={locked || family !== 'v5'}
-              value={reference.strength}
-              onChange={(e) =>
-                onChange({ ...reference, strength: Number(e.target.value) })
-              }
-            />
-          </label>
-          {(reference.role === 'character' ||
-            reference.role === 'character-style') && (
-            <label htmlFor="reference-outfit">
-              <input
-                id="reference-outfit"
-                type="checkbox"
-                disabled={locked || family !== 'v5'}
-                checked={reference.preferSameOutfit}
-                onChange={(e) =>
-                  onChange({ ...reference, preferSameOutfit: e.target.checked })
-                }
-              />{' '}
-              같은 의상 우선
-            </label>
-          )}
-
-          <button
-            type="button"
-            data-testid="remove-reference"
-            disabled={locked}
-            onClick={() => onChange(undefined)}
+      {references.map((reference, index) => {
+        const control = (name: string) =>
+          index === 0 ? name : `${name}-${index + 1}`;
+        return (
+          <fieldset
+            key={reference.id}
+            className="connected-reference-card"
+            data-testid="reference-card"
+            data-reference-id={reference.id}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (
+                !locked &&
+                supportsReferences &&
+                e.dataTransfer.files.length === 1
+              )
+                onReplace(e.dataTransfer.files[0], reference.id);
+            }}
           >
-            참조 해제
-          </button>
-        </>
-      )}
-      {reference && (
+            <legend>참조 {index + 1}</legend>
+            <ImagePreview
+              projectId={projectId}
+              sceneId={sceneId}
+              preview={preview}
+              client={client}
+              asset={reference}
+              purpose="reference"
+            />
+            <label htmlFor={control('reference-role')}>
+              참조 대상
+              <select
+                id={control('reference-role')}
+                aria-label="참조 대상"
+                data-testid={control('reference-role')}
+                disabled={locked || !supportsReferences}
+                value={reference.role}
+                onChange={(e) => {
+                  const role = e.target.value as ReferenceRole;
+                  updateReference({
+                    ...reference,
+                    role,
+                    preferSameOutfit:
+                      (role === 'character' || role === 'character-style') &&
+                      reference.preferSameOutfit,
+                  });
+                }}
+              >
+                {Object.entries(REFERENCE_ROLES).map(([value, text]) => (
+                  <option key={value} value={value}>
+                    {text}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label htmlFor={control('reference-strength')}>
+              강도 {reference.strength}
+              <input
+                id={control('reference-strength')}
+                aria-label="참조 강도"
+                data-testid={control('reference-strength')}
+                type="range"
+                min="0"
+                max="5"
+                step="0.1"
+                disabled={locked || !supportsReferences}
+                value={reference.strength}
+                onChange={(e) =>
+                  updateReference({
+                    ...reference,
+                    strength: Number(e.target.value),
+                  })
+                }
+              />
+            </label>
+            {(reference.role === 'character' ||
+              reference.role === 'character-style') && (
+              <label htmlFor={control('reference-outfit')}>
+                <input
+                  id={control('reference-outfit')}
+                  type="checkbox"
+                  disabled={locked || !supportsReferences}
+                  checked={reference.preferSameOutfit}
+                  onChange={(e) =>
+                    updateReference({
+                      ...reference,
+                      preferSameOutfit: e.target.checked,
+                    })
+                  }
+                />{' '}
+                같은 의상 우선
+              </label>
+            )}
+
+            <div className="connected-reference-actions">
+              <button
+                type="button"
+                disabled={locked || !supportsReferences}
+                onClick={() => {
+                  replacementId.current = reference.id;
+                  replacementFile.current?.click();
+                }}
+              >
+                이미지 교체
+              </button>
+              {references.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    disabled={locked || index === 0}
+                    onClick={() => move(index, index - 1)}
+                  >
+                    앞으로
+                  </button>
+                  <button
+                    type="button"
+                    disabled={locked || index === references.length - 1}
+                    onClick={() => move(index, index + 1)}
+                  >
+                    뒤로
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                data-testid={control('remove-reference')}
+                disabled={locked}
+                onClick={() =>
+                  onChange(references.filter((r) => r.id !== reference.id))
+                }
+              >
+                참조 해제
+              </button>
+            </div>
+          </fieldset>
+        );
+      })}
+      {!!references.length && (
         <span
           className="connected-reference-help"
           title={REFERENCE_COST_NOTICE}

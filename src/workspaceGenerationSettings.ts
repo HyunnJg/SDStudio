@@ -1,5 +1,31 @@
 // Settings and literal tag lists observed in the public NovelAI client/docs on 2026-11-24.
 // No client implementation or assets are included. Server acceptance remains a separate check.
+export function transparentBackgroundTags(prompt: string) {
+  const signs = [1];
+  let present = false;
+  let suppressed = false;
+  const segments = prompt.split(/([+-]?(?:\d+(?:\.\d*)?|\.\d+)::|::)/);
+  segments.forEach((segment, i) => {
+    if (i % 2) {
+      if (segment === '::') {
+        if (signs.length > 1) signs.pop();
+      } else {
+        signs.push(
+          signs[signs.length - 1] * Math.sign(Number(segment.slice(0, -2))),
+        );
+      }
+    } else if (
+      /(?:^|[,\n{[])\s*transparent[ \t]+background\s*(?=$|[,\n}\]])/i.test(
+        segment,
+      )
+    ) {
+      present = true;
+      if (signs[signs.length - 1] <= 0) suppressed = true;
+    }
+  });
+  return { present, suppressed };
+}
+
 export const V5_QUALITY_TAGS = Object.freeze({
   none: '',
   light: 'very aesthetic, amazing quality, no text',

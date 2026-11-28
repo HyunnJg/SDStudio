@@ -1,10 +1,11 @@
-// One reference per scene. Image bytes live in project assets, never in the draft/IPC plan.
+// Image bytes live in project assets, never in the draft/IPC plan.
 export const REFERENCE_LIMITS = {
   sourceBytes: 32 * 1024 * 1024,
   uploadBytes: 5 * 1024 * 1024,
   sourcePixels: 16_000_000,
 } as const;
 export const GENERATION_BODY_LIMIT = 8 * 1024 * 1024;
+export const REFERENCE_ANLAS = 5;
 
 export function imageFormat(
   bytes: Uint8Array,
@@ -44,6 +45,27 @@ export interface WorkspaceReference extends ReferenceAsset {
   role: ReferenceRole;
   strength: number;
   preferSameOutfit: boolean;
+}
+export interface ReferenceSlots {
+  reference?: WorkspaceReference;
+  additionalReferences?: WorkspaceReference[];
+}
+
+export function sceneReferences(draft: ReferenceSlots): WorkspaceReference[] {
+  return draft.reference
+    ? [draft.reference, ...(draft.additionalReferences ?? [])]
+    : [];
+}
+
+export function setSceneReferences(
+  draft: ReferenceSlots,
+  references: WorkspaceReference[],
+) {
+  const [first, ...rest] = references;
+  if (first) draft.reference = first;
+  else delete draft.reference;
+  if (rest.length) draft.additionalReferences = rest;
+  else delete draft.additionalReferences;
 }
 export const REFERENCE_ROLES: Record<ReferenceRole, string> = {
   character: '캐릭터',

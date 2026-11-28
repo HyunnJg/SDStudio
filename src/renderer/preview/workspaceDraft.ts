@@ -1,6 +1,6 @@
 import { resolveSize } from '../../workspaceCatalog';
 import type {
-  WorkspaceReference,
+  ReferenceSlots,
   WorkspaceVariation,
 } from '../../workspaceReference';
 import {
@@ -18,10 +18,9 @@ export interface WorkspaceCharacter {
   cell: { row: number; column: number };
 }
 
-export interface WorkspaceDraft {
+export interface WorkspaceDraft extends ReferenceSlots {
   pieces?: import('../../workspacePromptPieces').PromptPiece[];
   model?: import('../../workspaceCatalog').ModelId;
-  reference?: WorkspaceReference;
   img2img?: WorkspaceVariation;
   inpaintSource?: import('../../workspaceReference').ReferenceAsset;
   inpaintMask?: import('../../workspaceReference').ReferenceAsset;
