@@ -213,6 +213,12 @@ function collectNotices() {
     'release/app/node_modules/exiftool-vendored.pl/bin/README',
   ];
   const imgRoot = path.join(root, 'release/app/node_modules/@img');
+  const requiredVendors = new Set();
+  const exifWin = 'release/app/node_modules/exiftool-vendored.exe';
+  if (fs.existsSync(path.join(root, exifWin, 'package.json'))) {
+    for (const name of ['README', 'LICENSE', 'Licenses_Strawberry_Perl.zip'])
+      requiredVendors.add(`${exifWin}/bin/exiftool_files/${name}`);
+  }
   if (fs.existsSync(imgRoot))
     for (const name of fs
       .readdirSync(imgRoot)
@@ -220,17 +226,27 @@ function collectNotices() {
         (name) =>
           name.startsWith('sharp-libvips-') || name.startsWith('sharp-win32-'),
       )
-      .sort())
+      .sort()) {
+      const pkg = `release/app/node_modules/@img/${name}`;
       for (const filename of ['README.md', 'versions.json'])
-        vendorFiles.push(`release/app/node_modules/@img/${name}/${filename}`);
+        requiredVendors.add(`${pkg}/${filename}`);
+      const versions = JSON.parse(
+        fs.readFileSync(path.join(root, pkg, 'versions.json'), 'utf8'),
+      );
+      if (versions.vips === '8.18.7') {
+        requiredVendors.add('LICENSES/libvips-8.18.7.txt');
+        requiredVendors.add('LICENSES/lgpl-3.0.txt');
+        requiredVendors.add('LICENSES/gpl-3.0.txt');
+      }
+    }
   const vendors = [];
-  for (const file of vendorFiles) {
-    if (!fs.existsSync(path.join(root, file))) {
+  for (const file of [...vendorFiles, ...requiredVendors]) {
+    if (!requiredVendors.has(file) && !fs.existsSync(path.join(root, file))) {
       vendors.push({ source: file, available: false });
       continue;
     }
     const bytes = fs.readFileSync(path.join(root, file));
-    const target = `vendors/${path.basename(file)}-${hash(Buffer.from(file)).slice(0, 12)}`;
+    const target = `vendors/${hash(Buffer.from(file)).slice(0, 12)}-${path.basename(file)}`;
     fs.mkdirSync(path.dirname(path.join(output, target)), { recursive: true });
     fs.writeFileSync(path.join(output, target), bytes);
     vendors.push({
@@ -239,7 +255,10 @@ function collectNotices() {
       copy: target,
       sha256: hash(bytes),
     });
-    text += `\n===== Vendored material: ${file} =====\n${bytes.toString('utf8')}\n`;
+    text += `\n===== Vendored material: ${file} =====\n`;
+    text += file.endsWith('.zip')
+      ? `Original ZIP archive: ${target}\n`
+      : bytes.toString('utf8') + '\n';
   }
   fs.writeFileSync(path.join(output, 'THIRD_PARTY_NOTICES.txt'), text);
   fs.copyFileSync(

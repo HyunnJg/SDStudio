@@ -107,6 +107,10 @@ test('enabled update polling starts once, points at the fork, and stops', async 
   await Promise.all([first, second]);
   assert.equal(service.isOutdated('3.1.11', 'v3.1.12'), true);
   assert.equal(service.isOutdated('bad', 'v3.1.12'), false);
+  assert.equal(service.isOutdated('3.1.12-rc.1', 'v3.1.12'), true);
+  assert.equal(service.isOutdated('3.1.12-rc.1', 'v3.1.13'), true);
+  assert.equal(service.isOutdated('3.1.12-rc.1', 'v3.1.11'), false);
+  assert.equal(service.isOutdated('3.1.12', 'v3.1.12-rc.1'), false);
 });
 
 test('restarting polling while an old request is pending cannot revive the old loop', async () => {
