@@ -16,8 +16,6 @@ The historical Electron React Boilerplate MIT notice is preserved byte for byte 
 `LICENSES/electron-react-boilerplate.txt`. It identifies the boilerplate component;
 it is not a substitute for a separate SDStudio copyright notice.
 
-The original packages declare MIT (application) and ISC (native module). The exact
-application-specific copyright notice and native ISC notice remain unconfirmed.
-See `docs/licenses/APP_LICENSE_STATUS.md` in the repository, or
-`THIRD_PARTY_NOTICES/APP_LICENSE_STATUS.md` in a desktop package, for the recorded scope.
-No additional permission or copyright year is inferred from the author's inactivity.
+The upstream application declares MIT in its [root manifest](https://github.com/sunho/SDStudio/blob/f2088add103ad683a31e0590448e6e5bb4d71556/package.json) and [desktop manifest](https://github.com/sunho/SDStudio/blob/f2088add103ad683a31e0590448e6e5bb4d71556/release/app/package.json). Its Git history and existing notices are preserved. A separate upstream application copyright notice has not been located.
+
+HyunnJg licenses original contributions to this fork under the MIT License. The full notice is in `LICENSE`, beside this file in both the source tree and the desktop package's resources directory. The upstream native module declares ISC. Third-party components retain their own licenses and notices. See `docs/licenses/APP_LICENSE_STATUS.md` in the repository or `THIRD_PARTY_NOTICES/APP_LICENSE_STATUS.md` in a desktop package.

@@ -14,6 +14,7 @@ const resources = path.join(root, 'resources');
 const archive = path.join(resources, 'app.asar');
 const folder = path.join(resources, 'THIRD_PARTY_NOTICES');
 const required = [
+  'LICENSE',
   'LICENSES/electron-react-boilerplate.txt',
   'LICENSES/tagcomplete-MIT.txt',
   'CREDITS.md',

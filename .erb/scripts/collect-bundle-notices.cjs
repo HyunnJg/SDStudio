@@ -280,6 +280,7 @@ function collectNotices() {
       })),
     applicationDocuments: [
       ...[
+        'LICENSE',
         'LICENSES/electron-react-boilerplate.txt',
         'LICENSES/tagcomplete-MIT.txt',
         'CREDITS.md',
@@ -304,7 +305,7 @@ function collectNotices() {
     ],
     completeRedistributionReview: false,
     limitations: [
-      'Application-specific copyright notice unresolved',
+      'Separate upstream application copyright notice and original native ISC notice not located',
       'Vendor conditions and non-Linux binaries need review',
       'Asset redistribution review remains open; bundled tag data is documented in CREDITS.md',
     ],

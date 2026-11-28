@@ -114,3 +114,9 @@ NovelAI/novelai-image-metadata `3428907ac7183d7e36d7cc39e8f46f6f35ce99c1`의 nai
 `3.1.12-rc.2`는 D-089에서 출처를 대조한 122,870행만 포함한다. `release/app/data/db.csv`는 데스크톱, `assets/db.txt`는 Android, `src/native/db.csv`는 네이티브 조회 도구가 읽는다. 교체 전 세 파일의 앞 122,870행이 필드 단위로 일치했다. 데스크톱과 Android의 후속 별칭은 각각 1,862행, 네이티브 사본은 정리 이전의 1,892행이었다. 현재 세 파일의 바이트는 모두 원본 SDStudio `f13d784:assets/db.csv`와 같다. SHA-256은 `0694958fe1d9383c8a5f7ce34a731ff2e66271aaf68b1c06610176cf1fd71c7c`이다. [대조한 원본](https://github.com/sunho/SDStudio/blob/f13d784/assets/db.csv)
 
 이 범위는 후보의 소스 스냅샷과 설치본에 적용된다. 이전 커밋과 설치본에는 추가 별칭이 남는다. 향후 한국어 별칭을 다시 포함한다면 원출처와 배포 조건부터 확인한다. 앱의 기존 MIT 선언, native ISC 고지, 동봉 바이너리의 대응 소스 제공 범위는 별개다.
+
+## D-092 원작과 포크의 라이선스 표기
+
+원본 `f2088add`의 [루트 manifest](https://github.com/sunho/SDStudio/blob/f2088add103ad683a31e0590448e6e5bb4d71556/package.json)와 [데스크톱 manifest](https://github.com/sunho/SDStudio/blob/f2088add103ad683a31e0590448e6e5bb4d71556/release/app/package.json)는 모두 MIT를 선언하고 작성자를 sunho로 표시한다. 해당 리비전에서 원작 앱 고유의 저작권 고지 전문은 찾지 못했다. 원작의 크레딧·이력·기존 고지를 보존한다.
+
+HyunnJg는 이 포크에 새로 기여한 부분을 MIT로 제공하기로 했다. 저장소 루트 `LICENSE`와 데스크톱의 `resources/LICENSE`에 이 범위를 표시한 전문을 담고, 패키지 고지 색인에서 원본과 사본의 SHA-256을 대조한다. 네이티브 ISC 원문과 바이너리 대응 소스 제공 범위는 계속 확인할 항목이다.
