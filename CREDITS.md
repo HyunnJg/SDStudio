@@ -10,7 +10,7 @@ This fork is independent of the original project and NovelAI.
 
 The desktop icon was drawn for this fork. Its vector source is `assets/desktop-icon.svg`. The README screenshot shows the actual desktop workspace with three original lighthouse illustrations prepared offline for this demonstration.
 
-The first 122,870 tag lookup rows match the expanded names and aliases from [DominikDoom/a1111-sd-webui-tagcomplete at 1d8d9f6](https://github.com/DominikDoom/a1111-sd-webui-tagcomplete/blob/1d8d9f64b5aaaa0b2b9cbebaa5fd45a48b193ba6/tags/danbooru.csv). Its MIT notice is included in `LICENSES/tagcomplete-MIT.txt`. The remaining 1,862 rows were added separately in the original SDStudio repository.
+The 122,870 bundled tag lookup rows match the expanded names and aliases from [DominikDoom/a1111-sd-webui-tagcomplete at 1d8d9f6](https://github.com/DominikDoom/a1111-sd-webui-tagcomplete/blob/1d8d9f64b5aaaa0b2b9cbebaa5fd45a48b193ba6/tags/danbooru.csv). Its MIT notice is included in `LICENSES/tagcomplete-MIT.txt`. Desktop, Android and the native search tool use identical lookup data.
 
 The historical Electron React Boilerplate MIT notice is preserved byte for byte in
 `LICENSES/electron-react-boilerplate.txt`. It identifies the boilerplate component;

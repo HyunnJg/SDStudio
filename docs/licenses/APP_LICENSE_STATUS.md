@@ -8,7 +8,7 @@ This restored historical notice does not resolve the absence of a separate SDStu
 
 THIRD_PARTY_NOTICES.txt and index.json contain local dependency notice evidence, including unresolved entries. They do not clear the provenance of tag data, images or vendored binaries, and do not certify full redistribution compliance.
 
-For the first 122,870 rows of data/db.csv, the package includes the originating tagcomplete repository's MIT notice at LICENSES/tagcomplete-MIT.txt. The source and transformation are documented in CREDITS.md and docs/LICENSE_REVIEW.md. The origin and redistribution terms of the final 1,862 alias rows remain unresolved.
+As of 3.1.12-rc.2, data/db.csv contains the 122,870 lookup rows traced to the tagcomplete source. The package includes its MIT notice at LICENSES/tagcomplete-MIT.txt. Earlier builds included additional Korean aliases of unresolved origin. CREDITS.md and docs/LICENSE_REVIEW.md document the current corpus and transformation.
 
 On Windows, the vendor index identifies the ExifTool 12.85 distribution README and LICENSE, and the original Strawberry Perl license ZIP. Its byte-preserving copy opens directly under THIRD_PARTY_NOTICES/vendors/. The ExifTool README describes the terms for ExifTool itself. The npm wrapper has its own notice. [Windows package source](https://github.com/photostructure/exiftool-vendored.exe/tree/d74f6f7b0299b947c5eac7edd5ee02f6f6ae0c70) · [ExifTool source](https://github.com/exiftool/exiftool/tree/405674e0c477931b60b10a78828483ef54761385)
 

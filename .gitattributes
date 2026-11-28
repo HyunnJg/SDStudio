@@ -4,3 +4,6 @@ LICENSES/gpl-3.0.txt -text
 LICENSES/lgpl-3.0.txt -text
 LICENSES/libvips-8.18.7.txt -text
 LICENSES/dnd-multi-backend-c9d018e.txt -text
+release/app/data/db.csv text eol=lf
+assets/db.txt text eol=lf
+src/native/db.csv text eol=lf

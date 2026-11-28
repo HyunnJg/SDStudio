@@ -59,12 +59,31 @@ async function main() {
       );
       return reply;
     }
+    // The DevTools target can appear while the first document is still loading.
+    const ready =
+      "!!window.electron?.projects && !!document.querySelector('[data-testid=project-list]')";
+    for (let i = 0; i < 100 && !(await evaluate(ready)); i++) await delay(150);
+    assert.ok(await evaluate(ready), 'installed workspace was not ready');
     const { scenes, selectedSceneId } = createConnectedWorkspaceState();
-    scenes[0].draft.prompt = 'windows update garden';
+    scenes[0].draft.prompt = '짧은 머리, school uniform, 창가에 앉은 인물';
     const content = { name: 'Windows update fixture', scenes, selectedSceneId };
     const recipe = { ...blankRecipe(), name: 'Windows update recipe' };
     const key = 'sdstudio.scene-recipes.v2';
+    const preset = {
+      kind: 'main',
+      name: '한글 화풍',
+      prompt: '수채화, 따뜻한 빛',
+      negativePrompt: '',
+      qualityTags: 'none',
+      ucPreset: 'none',
+    };
     if (mode === 'seed') {
+      const library = await evaluate('window.electron.promptLibrary.read()');
+      assert.ok(library.ok);
+      const saved = await evaluate(
+        `window.electron.promptLibrary.save(${JSON.stringify(library.value.revision)}, ${JSON.stringify(preset)})`,
+      );
+      assert.ok(saved.ok);
       assert.equal(
         (
           await evaluate(
@@ -84,6 +103,22 @@ async function main() {
         `window.electron.projects.open(${JSON.stringify(row.id)})`,
       );
       assert.deepEqual(project.value.project.scenes, scenes);
+      const library = await evaluate('window.electron.promptLibrary.read()');
+      assert.ok(library.ok);
+      assert.ok(
+        library.value.entries.some(
+          (p) => p.name === preset.name && p.prompt === preset.prompt,
+        ),
+      );
+      for (const query of ['smile', 'short hair', 'school uniform']) {
+        const hits = await evaluate(
+          `window.electron.ipcRenderer.invoke('search-tags', ${JSON.stringify(query)})`,
+        );
+        assert.ok(
+          hits.some((hit) => hit.word === query),
+          query,
+        );
+      }
       assert.deepEqual(
         await evaluate(`JSON.parse(localStorage.getItem('${key}'))`),
         [recipe],

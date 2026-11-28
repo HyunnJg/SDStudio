@@ -19,7 +19,7 @@
     "url": "https://sunho.io"
   },
   "main": "./.erb/scripts/start-main.cjs",
-  "version": "3.1.12-rc.1",
+  "version": "3.1.12-rc.2",
   "scripts": {
     "smoke:auth-ui": "node .erb/scripts/smoke-auth-ui.cjs",
     "smoke:package": "node .erb/scripts/smoke-package.cjs",

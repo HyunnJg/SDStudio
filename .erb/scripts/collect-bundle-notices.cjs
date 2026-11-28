@@ -306,7 +306,7 @@ function collectNotices() {
     limitations: [
       'Application-specific copyright notice unresolved',
       'Vendor conditions and non-Linux binaries need review',
-      'Assets and tag database provenance need review',
+      'Asset redistribution review remains open; bundled tag data is documented in CREDITS.md',
     ],
   };
   fs.writeFileSync(

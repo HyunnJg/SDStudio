@@ -108,3 +108,9 @@ NovelAI/novelai-image-metadata `3428907ac7183d7e36d7cc39e8f46f6f35ce99c1`의 nai
 - **ExifTool**. `exiftool-vendored.exe@12.85.0`에는 npm 래퍼와 ExifTool 본체의 고지가 따로 있다. 본체의 README·LICENSE와 Strawberry Perl의 ZIP을 원본 바이트로 동봉한다. 고지 색인에서 ZIP 경로를 찾을 수 있고 압축 안의 파일 153개를 CRC로 검사했다. 소스에는 래퍼와 ExifTool의 리비전을 따로 기록한다. [Windows 래퍼](https://github.com/photostructure/exiftool-vendored.exe/tree/d74f6f7b0299b947c5eac7edd5ee02f6f6ae0c70) · [ExifTool 12.85](https://github.com/exiftool/exiftool/tree/405674e0c477931b60b10a78828483ef54761385)
 - **sharp와 libvips**. `@img/sharp-win32-x64@0.35.5`의 `versions.json`에는 libvips 8.18.7이 명시돼 있다. 설치된 README의 구성요소별 고지 표와 설명을 sharp-libvips v1.3.4의 고지 원문과 대조했다. 설치본의 고지 폴더에 libvips 8.18.7의 LICENSE, 공급자 표가 명시한 LGPLv3와 그에 수반되는 GPLv3 전문을 함께 넣는다. [공급자 고지](https://github.com/lovell/sharp-libvips/blob/ebb95f8add54eee8bed840e3fb587e4cbec857d7/THIRD-PARTY-NOTICES.md) · [libvips 원문](https://github.com/libvips/libvips/blob/24ad4d042940e6bf99a68871ba886ca8847c9c82/LICENSE) · [GNU LGPLv3](https://www.gnu.org/licenses/lgpl-3.0.txt) · [GNU GPLv3](https://www.gnu.org/licenses/gpl-3.0.txt)
 - **공개 전 남은 범위**. 라이브러리와 런처를 포함한 바이너리 묶음 전체의 대응 소스와 재빌드 자료 제공 방법, 한국어 별칭 1,862행의 원출처, SDStudio 앱 고유 표기와 native ISC 원문을 확인해야 한다. 위 원문들은 확인된 구성요소의 고지로 동봉했다.
+
+## D-091 공개 후보의 태그 DB
+
+`3.1.12-rc.2`는 D-089에서 출처를 대조한 122,870행만 포함한다. `release/app/data/db.csv`는 데스크톱, `assets/db.txt`는 Android, `src/native/db.csv`는 네이티브 조회 도구가 읽는다. 교체 전 세 파일의 앞 122,870행이 필드 단위로 일치했다. 데스크톱과 Android의 후속 별칭은 각각 1,862행, 네이티브 사본은 정리 이전의 1,892행이었다. 현재 세 파일의 바이트는 모두 원본 SDStudio `f13d784:assets/db.csv`와 같다. SHA-256은 `0694958fe1d9383c8a5f7ce34a731ff2e66271aaf68b1c06610176cf1fd71c7c`이다. [대조한 원본](https://github.com/sunho/SDStudio/blob/f13d784/assets/db.csv)
+
+이 범위는 후보의 소스 스냅샷과 설치본에 적용된다. 이전 커밋과 설치본에는 추가 별칭이 남는다. 향후 한국어 별칭을 다시 포함한다면 원출처와 배포 조건부터 확인한다. 앱의 기존 MIT 선언, native ISC 고지, 동봉 바이너리의 대응 소스 제공 범위는 별개다.
